@@ -1,261 +1,517 @@
 // ============================================================================
-// QuantMail - Single Repository Page
-// File browser, commits, branches, pull requests, issues
+// QuantMail - Repository Detail Page
+// Full git UI: file tree, commit history, branches, PRs, code review, merge
 // ============================================================================
 
-import React, { useState } from 'react';
-import type { Repository, Branch, Commit, PullRequest, Issue } from '../../types';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
-export interface RepoDetailPageProps {
-  repo: Repository;
-  branches: Branch[];
-  commits: Commit[];
-  pullRequests: PullRequest[];
-  issues: Issue[];
-  fileTree: string[];
-  currentBranch: string;
-  isLoading: boolean;
-  onBranchChange: (branch: string) => void;
-  onFileSelect: (path: string) => void;
-  onCreateBranch: (name: string, source: string) => Promise<void>;
-  onCreatePR: (data: { title: string; body: string; sourceBranch: string; targetBranch: string }) => Promise<void>;
-  onCreateIssue: (data: { title: string; body: string }) => Promise<void>;
-  onBack: () => void;
+interface FileEntry {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  size: number;
+  lastCommit: { message: string; date: string; author: string };
 }
 
-type TabId = 'code' | 'commits' | 'pulls' | 'issues' | 'branches';
+interface Commit {
+  sha: string;
+  message: string;
+  author: { name: string; email: string; avatarUrl: string };
+  date: string;
+  additions: number;
+  deletions: number;
+  filesChanged: number;
+}
 
-export function RepoDetailPage(props: RepoDetailPageProps): React.ReactElement {
-  const { repo, branches, commits, pullRequests, issues, fileTree, currentBranch, isLoading, onBranchChange, onFileSelect, onCreateBranch, onCreatePR, onCreateIssue, onBack } = props;
+interface Branch {
+  name: string;
+  isDefault: boolean;
+  isProtected: boolean;
+  lastCommit: { sha: string; message: string; date: string };
+  behindDefault: number;
+  aheadDefault: number;
+}
 
-  const [activeTab, setActiveTab] = useState<TabId>('code');
-  const [showNewPR, setShowNewPR] = useState(false);
-  const [showNewIssue, setShowNewIssue] = useState(false);
-  const [newPR, setNewPR] = useState({ title: '', body: '', sourceBranch: '', targetBranch: repo.defaultBranch });
-  const [newIssue, setNewIssue] = useState({ title: '', body: '' });
+interface PullRequest {
+  id: string;
+  number: number;
+  title: string;
+  author: { name: string; avatarUrl: string };
+  status: 'open' | 'closed' | 'merged';
+  createdAt: string;
+  updatedAt: string;
+  reviewers: { name: string; status: 'approved' | 'changes_requested' | 'pending' }[];
+  labels: { name: string; color: string }[];
+  comments: number;
+  additions: number;
+  deletions: number;
+  sourceBranch: string;
+  targetBranch: string;
+  hasConflicts: boolean;
+}
 
-  const tabs: Array<{ id: TabId; label: string; count?: number }> = [
-    { id: 'code', label: 'Code' },
-    { id: 'commits', label: 'Commits', count: commits.length },
-    { id: 'pulls', label: 'Pull Requests', count: pullRequests.filter((pr) => pr.status === 'open').length },
-    { id: 'issues', label: 'Issues', count: issues.filter((i) => i.status === 'open').length },
-    { id: 'branches', label: 'Branches', count: branches.length },
-  ];
+interface DiffHunk {
+  header: string;
+  lines: { type: 'added' | 'removed' | 'context'; content: string; lineNumber: number; newLineNumber?: number }[];
+}
 
-  const handleCreatePR = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await onCreatePR(newPR);
-    setShowNewPR(false);
-    setNewPR({ title: '', body: '', sourceBranch: '', targetBranch: repo.defaultBranch });
+interface FileDiff {
+  path: string;
+  status: 'added' | 'modified' | 'deleted' | 'renamed';
+  hunks: DiffHunk[];
+  additions: number;
+  deletions: number;
+}
+
+interface ReviewComment {
+  id: string;
+  author: { name: string; avatarUrl: string };
+  body: string;
+  path: string;
+  line: number;
+  createdAt: string;
+  resolved: boolean;
+}
+
+interface RepoDetailPageProps {
+  repoId: string;
+}
+
+type ActiveTab = 'code' | 'commits' | 'branches' | 'prs' | 'review';
+
+export const RepoDetailPage: React.FC<RepoDetailPageProps> = ({ repoId }) => {
+  const [activeTab, setActiveTab] = useState<ActiveTab>('code');
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [files, setFiles] = useState<FileEntry[]>([]);
+  const [currentPath, setCurrentPath] = useState<string>('');
+  const [commits, setCommits] = useState<Commit[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranch, setSelectedBranch] = useState<string>('main');
+  const [showBranchDropdown, setShowBranchDropdown] = useState<boolean>(false);
+  const [pullRequests, setPullRequests] = useState<PullRequest[]>([]);
+  const [prFilter, setPrFilter] = useState<'open' | 'closed' | 'all'>('open');
+  const [selectedPR, setSelectedPR] = useState<PullRequest | null>(null);
+  const [prDiffs, setPrDiffs] = useState<FileDiff[]>([]);
+  const [reviewComments, setReviewComments] = useState<ReviewComment[]>([]);
+  const [newComment, setNewComment] = useState<string>('');
+  const [commentFile, setCommentFile] = useState<string>('');
+  const [commentLine, setCommentLine] = useState<number>(0);
+  const [diffViewMode, setDiffViewMode] = useState<'unified' | 'split'>('unified');
+  const [fileContent, setFileContent] = useState<string | null>(null);
+  const [viewingFile, setViewingFile] = useState<string | null>(null);
+  const [merging, setMerging] = useState<boolean>(false);
+  const [conflictFiles, setConflictFiles] = useState<string[]>([]);
+  const [repoInfo, setRepoInfo] = useState<{ name: string; description: string; defaultBranch: string } | null>(null);
+
+  const fetchRepoInfo = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/repos/${repoId}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch repository info');
+      const data = await response.json();
+      setRepoInfo(data);
+      setSelectedBranch(data.defaultBranch || 'main');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load repository');
+    }
+  }, [repoId]);
+
+  const fetchFiles = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ branch: selectedBranch, path: currentPath });
+      const response = await fetch(`/api/repos/${repoId}/files?${params}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch files');
+      const data = await response.json();
+      setFiles(data.entries || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load files');
+    } finally {
+      setLoading(false);
+    }
+  }, [repoId, selectedBranch, currentPath]);
+
+  const fetchCommits = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/repos/${repoId}/commits?branch=${selectedBranch}&limit=50`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch commits');
+      const data = await response.json();
+      setCommits(data.commits || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load commits');
+    } finally {
+      setLoading(false);
+    }
+  }, [repoId, selectedBranch]);
+
+  const fetchBranches = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/repos/${repoId}/branches`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch branches');
+      const data = await response.json();
+      setBranches(data.branches || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load branches');
+    } finally {
+      setLoading(false);
+    }
+  }, [repoId]);
+
+  const fetchPullRequests = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/repos/${repoId}/prs?status=${prFilter}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch pull requests');
+      const data = await response.json();
+      setPullRequests(data.pullRequests || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load pull requests');
+    } finally {
+      setLoading(false);
+    }
+  }, [repoId, prFilter]);
+
+  const fetchPRDiffs = useCallback(async (prId: string) => {
+    try {
+      const response = await fetch(`/api/repos/${repoId}/prs/${prId}/diff`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch diff');
+      const data = await response.json();
+      setPrDiffs(data.files || []);
+      setReviewComments(data.comments || []);
+    } catch (err) {
+      console.error('Failed to load diff:', err);
+    }
+  }, [repoId]);
+
+  useEffect(() => { fetchRepoInfo(); }, [fetchRepoInfo]);
+
+  useEffect(() => {
+    switch (activeTab) {
+      case 'code': fetchFiles(); break;
+      case 'commits': fetchCommits(); break;
+      case 'branches': fetchBranches(); break;
+      case 'prs': fetchPullRequests(); break;
+    }
+  }, [activeTab, fetchFiles, fetchCommits, fetchBranches, fetchPullRequests]);
+
+  const handleFileClick = useCallback(async (entry: FileEntry) => {
+    if (entry.type === 'directory') {
+      setCurrentPath(entry.path);
+    } else {
+      try {
+        const response = await fetch(`/api/repos/${repoId}/files/${encodeURIComponent(entry.path)}?branch=${selectedBranch}`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setFileContent(data.content);
+          setViewingFile(entry.path);
+        }
+      } catch (err) {
+        console.error('Failed to load file:', err);
+      }
+    }
+  }, [repoId, selectedBranch]);
+
+  const handleMergePR = useCallback(async (prId: string) => {
+    setMerging(true);
+    try {
+      const response = await fetch(`/api/repos/${repoId}/prs/${prId}/merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ strategy: 'squash' })
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        if (data.conflicts) { setConflictFiles(data.conflicts); }
+        throw new Error(data.message || 'Merge failed');
+      }
+      setPullRequests(prev => prev.map(pr => pr.id === prId ? { ...pr, status: 'merged' as const } : pr));
+      setSelectedPR(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Merge failed');
+    } finally {
+      setMerging(false);
+    }
+  }, [repoId]);
+
+  const handleAddComment = useCallback(async () => {
+    if (!newComment.trim() || !selectedPR) return;
+    try {
+      const response = await fetch(`/api/repos/${repoId}/prs/${selectedPR.id}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ body: newComment, path: commentFile || undefined, line: commentLine || undefined })
+      });
+      if (response.ok) {
+        const comment = await response.json();
+        setReviewComments(prev => [...prev, comment]);
+        setNewComment('');
+        setCommentFile('');
+        setCommentLine(0);
+      }
+    } catch (err) {
+      console.error('Failed to add comment:', err);
+    }
+  }, [newComment, selectedPR, repoId, commentFile, commentLine]);
+
+  const breadcrumbs = useMemo(() => {
+    const parts = currentPath.split('/').filter(Boolean);
+    return [{ name: repoInfo?.name || 'root', path: '' }, ...parts.map((p, i) => ({ name: p, path: parts.slice(0, i + 1).join('/') }))];
+  }, [currentPath, repoInfo]);
+
+  const formatDate = (dateStr: string): string => {
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const handleCreateIssue = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await onCreateIssue(newIssue);
-    setShowNewIssue(false);
-    setNewIssue({ title: '', body: '' });
-  };
-
-  const formatSha = (sha: string) => sha.substring(0, 7);
+  if (error && !repoInfo) {
+    return (
+      <div className="repo-error">
+        <h2>Repository Not Found</h2>
+        <p>{error}</p>
+        <button onClick={fetchRepoInfo}>Retry</button>
+      </div>
+    );
+  }
 
   return (
     <div className="repo-detail-page">
-      {/* Header */}
-      <div className="repo-header">
-        <button className="btn btn-sm btn-outline" onClick={onBack}>Back</button>
-        <div className="repo-title">
-          <h1>{repo.name}</h1>
-          <span className={`visibility-badge visibility-${repo.visibility}`}>{repo.visibility}</span>
+      <header className="repo-detail-header">
+        <h1>{repoInfo?.name || 'Loading...'}</h1>
+        {repoInfo?.description && <p className="repo-description">{repoInfo.description}</p>}
+        <div className="branch-selector">
+          <button onClick={() => setShowBranchDropdown(!showBranchDropdown)} className="branch-btn">
+            Branch: {selectedBranch} &#9662;
+          </button>
+          {showBranchDropdown && (
+            <div className="branch-dropdown">
+              {branches.map(b => (
+                <button key={b.name} onClick={() => { setSelectedBranch(b.name); setShowBranchDropdown(false); }} className={b.name === selectedBranch ? 'active' : ''}>
+                  {b.name} {b.isDefault && '(default)'} {b.isProtected && '🔒'}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        <p className="repo-description">{repo.description}</p>
-        <div className="repo-stats">
-          <span>Stars: {repo.stars}</span>
-          <span>Forks: {repo.forks}</span>
-          <span>Issues: {repo.openIssues}</span>
-          {repo.language && <span>Language: {repo.language}</span>}
-        </div>
-      </div>
+      </header>
 
-      {/* Tabs */}
-      <div className="tab-bar">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            className={`tab ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-            {tab.count !== undefined && <span className="tab-count">{tab.count}</span>}
+      <nav className="repo-tabs">
+        {(['code', 'commits', 'branches', 'prs', 'review'] as ActiveTab[]).map(tab => (
+          <button key={tab} className={`repo-tab ${activeTab === tab ? 'active' : ''}`} onClick={() => setActiveTab(tab)}>
+            {tab === 'prs' ? 'Pull Requests' : tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
-      </div>
+      </nav>
 
-      {/* Tab content */}
-      <div className="tab-content">
-        {activeTab === 'code' && (
-          <div className="code-tab">
-            <div className="branch-selector">
-              <select value={currentBranch} onChange={(e) => onBranchChange(e.target.value)}>
-                {branches.map((b) => (
-                  <option key={b.name} value={b.name}>{b.name}</option>
-                ))}
-              </select>
-              <span className="file-count">{fileTree.length} files</span>
+      <main className="repo-content">
+        {loading && <div className="loading-spinner">Loading...</div>}
+
+        {activeTab === 'code' && !loading && (
+          <div className="file-browser">
+            <div className="breadcrumbs">
+              {breadcrumbs.map((bc, i) => (
+                <span key={i}>
+                  <button onClick={() => setCurrentPath(bc.path)} className="breadcrumb-link">{bc.name}</button>
+                  {i < breadcrumbs.length - 1 && <span className="breadcrumb-sep">/</span>}
+                </span>
+              ))}
             </div>
-            <div className="file-tree">
-              {fileTree.length === 0 && <p className="empty-state">No files yet</p>}
-              {fileTree.map((file) => (
-                <div key={file} className="file-item" onClick={() => onFileSelect(file)}>
-                  <span className="file-icon">{file.includes('.') ? '📄' : '📁'}</span>
-                  <span className="file-name">{file}</span>
+            {viewingFile ? (
+              <div className="file-viewer">
+                <div className="file-viewer-header">
+                  <span>{viewingFile}</span>
+                  <button onClick={() => { setViewingFile(null); setFileContent(null); }}>Back to tree</button>
+                </div>
+                <pre className="file-content"><code>{fileContent}</code></pre>
+              </div>
+            ) : (
+              <table className="file-table">
+                <thead><tr><th>Name</th><th>Last commit</th><th>Updated</th></tr></thead>
+                <tbody>
+                  {currentPath && (
+                    <tr className="file-row" onClick={() => setCurrentPath(currentPath.split('/').slice(0, -1).join('/'))}>
+                      <td className="file-name"><span className="file-icon">&#x1F4C1;</span> ..</td><td></td><td></td>
+                    </tr>
+                  )}
+                  {files.sort((a, b) => a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'directory' ? -1 : 1).map(entry => (
+                    <tr key={entry.path} className="file-row" onClick={() => handleFileClick(entry)}>
+                      <td className="file-name">
+                        <span className="file-icon">{entry.type === 'directory' ? '&#x1F4C1;' : '&#x1F4C4;'}</span>
+                        {entry.name}
+                      </td>
+                      <td className="commit-msg">{entry.lastCommit.message}</td>
+                      <td className="commit-date">{formatDate(entry.lastCommit.date)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'commits' && !loading && (
+          <div className="commit-history">
+            {commits.length === 0 ? (
+              <div className="empty-state"><p>No commits found on this branch.</p></div>
+            ) : (
+              <table className="commits-table">
+                <thead><tr><th>SHA</th><th>Message</th><th>Author</th><th>Date</th><th>Changes</th></tr></thead>
+                <tbody>
+                  {commits.map(commit => (
+                    <tr key={commit.sha} className="commit-row">
+                      <td className="commit-sha"><code>{commit.sha.slice(0, 7)}</code></td>
+                      <td className="commit-message">{commit.message}</td>
+                      <td className="commit-author"><img src={commit.author.avatarUrl} alt="" className="author-avatar" />{commit.author.name}</td>
+                      <td className="commit-date">{formatDate(commit.date)}</td>
+                      <td className="commit-stats"><span className="additions">+{commit.additions}</span> <span className="deletions">-{commit.deletions}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'branches' && !loading && (
+          <div className="branches-list">
+            {branches.map(branch => (
+              <div key={branch.name} className={`branch-item ${branch.isDefault ? 'default' : ''}`}>
+                <div className="branch-info">
+                  <span className="branch-name">{branch.name}</span>
+                  {branch.isDefault && <span className="default-badge">default</span>}
+                  {branch.isProtected && <span className="protected-badge">protected</span>}
+                </div>
+                <div className="branch-meta">
+                  <span>{branch.lastCommit.message}</span>
+                  <span className="branch-status">{branch.aheadDefault} ahead, {branch.behindDefault} behind</span>
+                  <span>{formatDate(branch.lastCommit.date)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'prs' && !loading && (
+          <div className="pr-list">
+            <div className="pr-filters">
+              <button onClick={() => setPrFilter('open')} className={prFilter === 'open' ? 'active' : ''}>Open</button>
+              <button onClick={() => setPrFilter('closed')} className={prFilter === 'closed' ? 'active' : ''}>Closed</button>
+              <button onClick={() => setPrFilter('all')} className={prFilter === 'all' ? 'active' : ''}>All</button>
+            </div>
+            {pullRequests.length === 0 ? (
+              <div className="empty-state"><p>No pull requests found.</p></div>
+            ) : pullRequests.map(pr => (
+              <div key={pr.id} className="pr-item" onClick={() => { setSelectedPR(pr); setActiveTab('review'); fetchPRDiffs(pr.id); }}>
+                <div className="pr-status-icon">
+                  {pr.status === 'open' && <span className="status-open">&#x25CF;</span>}
+                  {pr.status === 'merged' && <span className="status-merged">&#x25CF;</span>}
+                  {pr.status === 'closed' && <span className="status-closed">&#x25CF;</span>}
+                </div>
+                <div className="pr-details">
+                  <div className="pr-title">{pr.title} <span className="pr-number">#{pr.number}</span></div>
+                  <div className="pr-meta">
+                    {pr.sourceBranch} → {pr.targetBranch} | {pr.author.name} | {formatDate(pr.createdAt)}
+                    {pr.hasConflicts && <span className="conflict-badge">Has conflicts</span>}
+                  </div>
+                  <div className="pr-labels">
+                    {pr.labels.map(l => <span key={l.name} className="pr-label" style={{ backgroundColor: l.color }}>{l.name}</span>)}
+                  </div>
+                </div>
+                <div className="pr-reviewers">
+                  {pr.reviewers.map(r => (
+                    <span key={r.name} className={`reviewer-badge ${r.status}`} title={`${r.name}: ${r.status}`}>{r.name.charAt(0)}</span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'review' && selectedPR && (
+          <div className="code-review">
+            <div className="review-header">
+              <h2>{selectedPR.title} <span className="pr-number">#{selectedPR.number}</span></h2>
+              <div className="review-actions">
+                <button onClick={() => setDiffViewMode(diffViewMode === 'unified' ? 'split' : 'unified')}>
+                  {diffViewMode === 'unified' ? 'Split View' : 'Unified View'}
+                </button>
+                {selectedPR.status === 'open' && (
+                  <button onClick={() => handleMergePR(selectedPR.id)} disabled={merging || selectedPR.hasConflicts} className="merge-btn">
+                    {merging ? 'Merging...' : selectedPR.hasConflicts ? 'Resolve Conflicts First' : 'Merge'}
+                  </button>
+                )}
+              </div>
+            </div>
+            {conflictFiles.length > 0 && (
+              <div className="conflict-resolution">
+                <h3>Merge Conflicts</h3>
+                {conflictFiles.map(f => (
+                  <div key={f} className="conflict-file">
+                    <span>{f}</span>
+                    <button>Resolve</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="diff-files">
+              {prDiffs.map(file => (
+                <div key={file.path} className="diff-file">
+                  <div className="diff-file-header">
+                    <span className={`diff-status ${file.status}`}>{file.status}</span>
+                    <span className="diff-path">{file.path}</span>
+                    <span className="diff-stats"><span className="additions">+{file.additions}</span> <span className="deletions">-{file.deletions}</span></span>
+                  </div>
+                  {file.hunks.map((hunk, hIdx) => (
+                    <div key={hIdx} className="diff-hunk">
+                      <div className="hunk-header">{hunk.header}</div>
+                      {hunk.lines.map((line, lIdx) => (
+                        <div key={lIdx} className={`diff-line ${line.type}`}>
+                          <span className="line-number">{line.lineNumber}</span>
+                          <span className="line-content">{line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '} {line.content}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {activeTab === 'commits' && (
-          <div className="commits-tab">
-            {commits.length === 0 && <p className="empty-state">No commits yet</p>}
-            {commits.map((commit) => (
-              <div key={commit.sha} className="commit-row">
-                <div className="commit-info">
-                  <p className="commit-message">{commit.message}</p>
-                  <span className="commit-author">{commit.author.name}</span>
-                  <span className="commit-date">{new Date(commit.timestamp).toLocaleDateString()}</span>
-                </div>
-                <div className="commit-meta">
-                  <code className="commit-sha">{formatSha(commit.sha)}</code>
-                  <span className="commit-stats">+{commit.stats.additions} -{commit.stats.deletions}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'pulls' && (
-          <div className="pulls-tab">
-            <div className="tab-actions">
-              <button className="btn btn-primary btn-sm" onClick={() => setShowNewPR(true)}>New Pull Request</button>
-            </div>
-            {pullRequests.length === 0 && <p className="empty-state">No pull requests</p>}
-            {pullRequests.map((pr) => (
-              <div key={pr.id} className="pr-row">
-                <span className={`pr-status status-${pr.status}`}>{pr.status}</span>
-                <div className="pr-info">
-                  <h4>{pr.title}</h4>
-                  <span className="pr-meta">
-                    #{pr.number} opened by {pr.author.name} - {pr.sourceBranch} into {pr.targetBranch}
-                  </span>
-                </div>
-                <span className="pr-stats">+{pr.additions} -{pr.deletions} ({pr.changedFiles} files)</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'issues' && (
-          <div className="issues-tab">
-            <div className="tab-actions">
-              <button className="btn btn-primary btn-sm" onClick={() => setShowNewIssue(true)}>New Issue</button>
-            </div>
-            {issues.length === 0 && <p className="empty-state">No issues</p>}
-            {issues.map((issue) => (
-              <div key={issue.id} className="issue-row">
-                <span className={`issue-status status-${issue.status}`}>{issue.status === 'open' ? '●' : '✓'}</span>
-                <div className="issue-info">
-                  <h4>{issue.title}</h4>
-                  <span className="issue-meta">#{issue.number} opened by {issue.author.name}</span>
-                  <div className="issue-labels">
-                    {issue.labels.map((label) => <span key={label} className="label-badge">{label}</span>)}
+            <div className="review-comments-section">
+              <h3>Comments ({reviewComments.length})</h3>
+              {reviewComments.map(comment => (
+                <div key={comment.id} className={`review-comment ${comment.resolved ? 'resolved' : ''}`}>
+                  <div className="comment-header">
+                    <img src={comment.author.avatarUrl} alt="" className="comment-avatar" />
+                    <span className="comment-author">{comment.author.name}</span>
+                    <span className="comment-date">{formatDate(comment.createdAt)}</span>
+                    {comment.path && <span className="comment-location">{comment.path}:{comment.line}</span>}
                   </div>
+                  <div className="comment-body">{comment.body}</div>
                 </div>
-                <span className="issue-comments">{issue.comments} comments</span>
+              ))}
+              <div className="add-comment">
+                <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Leave a review comment..." rows={3} />
+                <button onClick={handleAddComment} disabled={!newComment.trim()}>Comment</button>
               </div>
-            ))}
+            </div>
           </div>
         )}
-
-        {activeTab === 'branches' && (
-          <div className="branches-tab">
-            {branches.map((branch) => (
-              <div key={branch.name} className="branch-row">
-                <span className="branch-name">{branch.name}</span>
-                {branch.isProtected && <span className="protected-badge">protected</span>}
-                <span className="branch-sha">{formatSha(branch.sha)}</span>
-                <span className="branch-status">
-                  {branch.aheadBy > 0 && <span className="ahead">+{branch.aheadBy}</span>}
-                  {branch.behindBy > 0 && <span className="behind">-{branch.behindBy}</span>}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* New PR Modal */}
-      {showNewPR && (
-        <div className="modal-overlay" onClick={() => setShowNewPR(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>New Pull Request</h2>
-            <form onSubmit={handleCreatePR}>
-              <div className="form-group">
-                <label>Title</label>
-                <input type="text" value={newPR.title} onChange={(e) => setNewPR({ ...newPR, title: e.target.value })} required />
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Source branch</label>
-                  <select value={newPR.sourceBranch} onChange={(e) => setNewPR({ ...newPR, sourceBranch: e.target.value })}>
-                    <option value="">Select...</option>
-                    {branches.map((b) => <option key={b.name} value={b.name}>{b.name}</option>)}
-                  </select>
-                </div>
-                <span className="arrow">into</span>
-                <div className="form-group">
-                  <label>Target branch</label>
-                  <select value={newPR.targetBranch} onChange={(e) => setNewPR({ ...newPR, targetBranch: e.target.value })}>
-                    {branches.map((b) => <option key={b.name} value={b.name}>{b.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Description</label>
-                <textarea value={newPR.body} onChange={(e) => setNewPR({ ...newPR, body: e.target.value })} rows={4} />
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setShowNewPR(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={!newPR.title || !newPR.sourceBranch}>Create</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* New Issue Modal */}
-      {showNewIssue && (
-        <div className="modal-overlay" onClick={() => setShowNewIssue(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>New Issue</h2>
-            <form onSubmit={handleCreateIssue}>
-              <div className="form-group">
-                <label>Title</label>
-                <input type="text" value={newIssue.title} onChange={(e) => setNewIssue({ ...newIssue, title: e.target.value })} required />
-              </div>
-              <div className="form-group">
-                <label>Description</label>
-                <textarea value={newIssue.body} onChange={(e) => setNewIssue({ ...newIssue, body: e.target.value })} rows={6} />
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setShowNewIssue(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={!newIssue.title}>Create Issue</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      </main>
     </div>
   );
-}
+};
 
 export default RepoDetailPage;

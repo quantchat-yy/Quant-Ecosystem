@@ -1,170 +1,345 @@
 // ============================================================================
-// QuantMail - Contacts Page
+// QuantMail - Contacts Page (Full Rewrite)
+// Alphabetical list, groups, search, add contact, import/export, quick email
 // ============================================================================
 
-import React, { useState } from 'react';
-import type { Contact, ContactGroup, QuantApp } from '../types';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
-export interface ContactsPageProps {
-  contacts: Contact[];
-  groups: ContactGroup[];
-  totalCount: number;
-  isLoading: boolean;
-  onCreateContact: (data: Partial<Contact>) => Promise<void>;
-  onUpdateContact: (id: string, data: Partial<Contact>) => Promise<void>;
-  onDeleteContact: (id: string) => void;
-  onToggleFavorite: (id: string) => void;
-  onSearch: (query: string) => void;
-  onSync: (app: QuantApp) => Promise<void>;
-  onImport: (data: Array<{ email: string; name: string }>) => Promise<void>;
+interface Contact {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  company?: string;
+  title?: string;
+  avatarUrl?: string;
+  groups: string[];
+  birthday?: string;
+  address?: string;
+  notes?: string;
+  isFavorite: boolean;
+  lastContactedAt?: string;
+  createdAt: string;
 }
 
-export function ContactsPage(props: ContactsPageProps): React.ReactElement {
-  const { contacts, groups, totalCount, isLoading, onCreateContact, onUpdateContact, onDeleteContact, onToggleFavorite, onSearch, onSync } = props;
+interface ContactGroup {
+  id: string;
+  name: string;
+  count: number;
+  color: string;
+}
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showCreateModal, setShowCreateModal] = useState(false);
+interface AddContactForm {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  company: string;
+  title: string;
+  birthday: string;
+  groups: string[];
+  notes: string;
+}
+
+interface ContactsPageProps {
+  userId?: string;
+}
+
+export const ContactsPage: React.FC<ContactsPageProps> = ({ userId }) => {
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [groups, setGroups] = useState<ContactGroup[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedGroup, setSelectedGroup] = useState<string>('all');
+  const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  const [filter, setFilter] = useState<'all' | 'favorites' | string>('all');
-  const [newContact, setNewContact] = useState({ name: '', email: '', phone: '', company: '', title: '' });
-
-  const filteredContacts = contacts.filter((c) => {
-    if (filter === 'favorites') return c.isFavorite;
-    if (filter !== 'all') return c.tags.includes(filter);
-    return true;
+  const [addForm, setAddForm] = useState<AddContactForm>({
+    firstName: '', lastName: '', email: '', phone: '', company: '', title: '', birthday: '', groups: [], notes: ''
   });
+  const [saving, setSaving] = useState<boolean>(false);
+  const [importing, setImporting] = useState<boolean>(false);
+  const [sortBy, setSortBy] = useState<'name' | 'email' | 'recent'>('name');
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSearch(searchQuery);
+  const fetchContacts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/contacts', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch contacts');
+      const data = await response.json();
+      setContacts(data.contacts || []);
+      setGroups(data.groups || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load contacts');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchContacts(); }, [fetchContacts]);
+
+  const handleAddContact = useCallback(async () => {
+    if (!addForm.firstName.trim() || !addForm.email.trim()) return;
+    setSaving(true);
+    try {
+      const response = await fetch('/api/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify(addForm)
+      });
+      if (!response.ok) throw new Error('Failed to add contact');
+      const newContact = await response.json();
+      setContacts(prev => [...prev, newContact]);
+      setShowAddForm(false);
+      setAddForm({ firstName: '', lastName: '', email: '', phone: '', company: '', title: '', birthday: '', groups: [], notes: '' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add contact');
+    } finally {
+      setSaving(false);
+    }
+  }, [addForm]);
+
+  const handleDeleteContact = useCallback(async (contactId: string) => {
+    try {
+      await fetch(`/api/contacts/${contactId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      setContacts(prev => prev.filter(c => c.id !== contactId));
+      if (selectedContact?.id === contactId) setSelectedContact(null);
+    } catch (err) {
+      console.error('Failed to delete contact:', err);
+    }
+  }, [selectedContact]);
+
+  const handleToggleFavorite = useCallback(async (contactId: string) => {
+    try {
+      const contact = contacts.find(c => c.id === contactId);
+      if (!contact) return;
+      await fetch(`/api/contacts/${contactId}/favorite`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ isFavorite: !contact.isFavorite })
+      });
+      setContacts(prev => prev.map(c => c.id === contactId ? { ...c, isFavorite: !c.isFavorite } : c));
+    } catch (err) {
+      console.error('Failed to toggle favorite:', err);
+    }
+  }, [contacts]);
+
+  const handleImportContacts = useCallback(async (file: File) => {
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const lines = text.split('\n').filter(l => l.trim());
+      const imported: { firstName: string; lastName: string; email: string }[] = [];
+      for (const line of lines.slice(1)) {
+        const [firstName, lastName, email] = line.split(',').map(s => s.trim().replace(/"/g, ''));
+        if (email && email.includes('@')) {
+          imported.push({ firstName: firstName || '', lastName: lastName || '', email });
+        }
+      }
+      const response = await fetch('/api/contacts/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ contacts: imported })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setContacts(prev => [...prev, ...(data.imported || [])]);
+      }
+    } catch (err) {
+      console.error('Import failed:', err);
+    } finally {
+      setImporting(false);
+    }
+  }, []);
+
+  const handleExportContacts = useCallback(() => {
+    const headers = 'First Name,Last Name,Email,Phone,Company\n';
+    const rows = contacts.map(c => `"${c.firstName}","${c.lastName}","${c.email}","${c.phone || ''}","${c.company || ''}"`).join('\n');
+    const blob = new Blob([headers + rows], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'contacts.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [contacts]);
+
+  const filteredContacts = useMemo(() => {
+    let result = contacts;
+    if (selectedGroup !== 'all') {
+      result = result.filter(c => c.groups.includes(selectedGroup));
+    }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(c =>
+        c.firstName.toLowerCase().includes(q) || c.lastName.toLowerCase().includes(q) ||
+        c.email.toLowerCase().includes(q) || (c.company && c.company.toLowerCase().includes(q))
+      );
+    }
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'name': return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+        case 'email': return a.email.localeCompare(b.email);
+        case 'recent': return (b.lastContactedAt || '').localeCompare(a.lastContactedAt || '');
+        default: return 0;
+      }
+    });
+    return result;
+  }, [contacts, selectedGroup, searchQuery, sortBy]);
+
+  const alphabeticalGroups = useMemo(() => {
+    const grouped: Record<string, Contact[]> = {};
+    filteredContacts.forEach(c => {
+      const letter = (c.firstName || c.email).charAt(0).toUpperCase();
+      if (!grouped[letter]) grouped[letter] = [];
+      grouped[letter].push(c);
+    });
+    return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
+  }, [filteredContacts]);
+
+  const isBirthdayToday = (birthday?: string): boolean => {
+    if (!birthday) return false;
+    const today = new Date();
+    const bday = new Date(birthday);
+    return bday.getMonth() === today.getMonth() && bday.getDate() === today.getDate();
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newContact.name || !newContact.email) return;
-    await onCreateContact(newContact);
-    setShowCreateModal(false);
-    setNewContact({ name: '', email: '', phone: '', company: '', title: '' });
-  };
+  if (error && contacts.length === 0) {
+    return (<div className="contacts-error"><h2>Failed to Load Contacts</h2><p>{error}</p><button onClick={fetchContacts}>Retry</button></div>);
+  }
 
   return (
     <div className="contacts-page">
-      <div className="page-header">
-        <h1>Contacts</h1>
+      <header className="contacts-header">
+        <h1>Contacts ({contacts.length})</h1>
         <div className="header-actions">
-          <button className="btn btn-outline" onClick={() => onSync('quantchat')}>Sync</button>
-          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>Add Contact</button>
+          <button onClick={() => setShowAddForm(true)} className="add-contact-btn">+ Add Contact</button>
+          <label className="import-btn">
+            Import {importing && '...'}
+            <input type="file" accept=".csv" hidden onChange={(e) => { if (e.target.files?.[0]) handleImportContacts(e.target.files[0]); }} />
+          </label>
+          <button onClick={handleExportContacts} className="export-btn">Export</button>
         </div>
-      </div>
+      </header>
 
-      {/* Toolbar */}
-      <div className="contacts-toolbar">
-        <form className="search-form" onSubmit={handleSearch}>
-          <input
-            type="search"
-            placeholder="Search contacts..."
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); onSearch(e.target.value); }}
-          />
-        </form>
-        <div className="filter-tabs">
-          <button className={`filter-btn ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>All ({totalCount})</button>
-          <button className={`filter-btn ${filter === 'favorites' ? 'active' : ''}`} onClick={() => setFilter('favorites')}>Favorites</button>
-          {groups.map((g) => (
-            <button key={g.id} className={`filter-btn ${filter === g.name ? 'active' : ''}`} onClick={() => setFilter(g.name)}>
-              {g.name} ({g.contacts.length})
+      <div className="contacts-layout">
+        <aside className="groups-sidebar">
+          <h3>Groups</h3>
+          <button onClick={() => setSelectedGroup('all')} className={`group-item ${selectedGroup === 'all' ? 'active' : ''}`}>
+            All Contacts <span className="group-count">{contacts.length}</span>
+          </button>
+          <button onClick={() => setSelectedGroup('favorites')} className={`group-item ${selectedGroup === 'favorites' ? 'active' : ''}`}>
+            Favorites <span className="group-count">{contacts.filter(c => c.isFavorite).length}</span>
+          </button>
+          {groups.map(g => (
+            <button key={g.id} onClick={() => setSelectedGroup(g.name)} className={`group-item ${selectedGroup === g.name ? 'active' : ''}`}>
+              <span className="group-color" style={{ backgroundColor: g.color }}></span>
+              {g.name} <span className="group-count">{g.count}</span>
             </button>
           ))}
-        </div>
-      </div>
+        </aside>
 
-      {/* Contact List */}
-      <div className="contacts-layout">
-        <div className="contacts-list">
-          {isLoading && <div className="loading-indicator">Loading contacts...</div>}
-          {!isLoading && filteredContacts.length === 0 && (
-            <div className="empty-state">
-              <p>No contacts found</p>
-              <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>Add your first contact</button>
+        <main className="contacts-main">
+          <div className="contacts-toolbar">
+            <input type="text" placeholder="Search contacts..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="contacts-search" />
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as 'name' | 'email' | 'recent')}>
+              <option value="name">Sort by Name</option>
+              <option value="email">Sort by Email</option>
+              <option value="recent">Recently Contacted</option>
+            </select>
+          </div>
+
+          {loading ? (
+            <div className="loading-state">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="contact-skeleton"></div>)}</div>
+          ) : filteredContacts.length === 0 ? (
+            <div className="empty-state"><h3>No contacts found</h3><p>Add your first contact or adjust your search.</p></div>
+          ) : (
+            <div className="contacts-list">
+              {alphabeticalGroups.map(([letter, letterContacts]) => (
+                <div key={letter} className="letter-group">
+                  <div className="letter-header">{letter}</div>
+                  {letterContacts.map(contact => (
+                    <div key={contact.id} className="contact-item" onClick={() => setSelectedContact(contact)}>
+                      <div className="contact-avatar">
+                        {contact.avatarUrl ? <img src={contact.avatarUrl} alt="" /> : <span className="avatar-initial">{contact.firstName.charAt(0)}{contact.lastName.charAt(0)}</span>}
+                      </div>
+                      <div className="contact-info">
+                        <div className="contact-name">{contact.firstName} {contact.lastName}</div>
+                        <div className="contact-email">{contact.email}</div>
+                      </div>
+                      <div className="contact-badges">
+                        {isBirthdayToday(contact.birthday) && <span className="birthday-badge" title="Birthday today!">&#x1F382;</span>}
+                        {contact.isFavorite && <span className="favorite-badge">&#x2B50;</span>}
+                      </div>
+                      <div className="contact-actions">
+                        <button onClick={(e) => { e.stopPropagation(); handleToggleFavorite(contact.id); }} className="fav-btn">{contact.isFavorite ? '★' : '☆'}</button>
+                        <a href={`mailto:${contact.email}`} onClick={(e) => e.stopPropagation()} className="email-btn" title="Send email">&#x2709;</a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
             </div>
           )}
-          {filteredContacts.map((contact) => (
-            <div key={contact.id} className={`contact-row ${selectedContact?.id === contact.id ? 'selected' : ''}`} onClick={() => setSelectedContact(contact)}>
-              <div className="contact-avatar">
-                {contact.avatarUrl
-                  ? <img src={contact.avatarUrl} alt={contact.name} />
-                  : <span className="avatar-placeholder">{contact.name.charAt(0).toUpperCase()}</span>
-                }
-              </div>
-              <div className="contact-info">
-                <h4>{contact.name}</h4>
-                <p className="contact-email">{contact.email}</p>
-                {contact.company && <p className="contact-company">{contact.company}{contact.title ? ` - ${contact.title}` : ''}</p>}
-              </div>
-              <div className="contact-actions">
-                <button className={`btn-icon ${contact.isFavorite ? 'favorited' : ''}`} onClick={(e) => { e.stopPropagation(); onToggleFavorite(contact.id); }}>
-                  {contact.isFavorite ? '\u2605' : '\u2606'}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+        </main>
 
-        {/* Contact Detail Panel */}
         {selectedContact && (
-          <div className="contact-detail">
+          <aside className="contact-detail-panel">
             <div className="detail-header">
-              <div className="contact-avatar-large">
-                <span className="avatar-placeholder-large">{selectedContact.name.charAt(0).toUpperCase()}</span>
+              <div className="detail-avatar">
+                {selectedContact.avatarUrl ? <img src={selectedContact.avatarUrl} alt="" /> : <span className="avatar-large">{selectedContact.firstName.charAt(0)}{selectedContact.lastName.charAt(0)}</span>}
               </div>
-              <h2>{selectedContact.name}</h2>
-              {selectedContact.title && <p className="detail-title">{selectedContact.title}</p>}
-              {selectedContact.company && <p className="detail-company">{selectedContact.company}</p>}
+              <h2>{selectedContact.firstName} {selectedContact.lastName}</h2>
+              {selectedContact.title && selectedContact.company && <p>{selectedContact.title} at {selectedContact.company}</p>}
             </div>
-            <div className="detail-info">
-              <div className="info-row"><label>Email</label><span>{selectedContact.email}</span></div>
-              {selectedContact.phone && <div className="info-row"><label>Phone</label><span>{selectedContact.phone}</span></div>}
-              {selectedContact.birthday && <div className="info-row"><label>Birthday</label><span>{selectedContact.birthday}</span></div>}
-              {selectedContact.tags.length > 0 && (
-                <div className="info-row">
-                  <label>Tags</label>
-                  <div className="tags">{selectedContact.tags.map((t) => <span key={t} className="tag-badge">{t}</span>)}</div>
-                </div>
-              )}
-              {selectedContact.notes && <div className="info-row"><label>Notes</label><p>{selectedContact.notes}</p></div>}
-              <div className="info-row">
-                <label>Synced with</label>
-                <div className="synced-apps">{selectedContact.syncedApps.map((app) => <span key={app} className="app-badge">{app}</span>)}</div>
-              </div>
+            <div className="detail-fields">
+              <div className="field"><label>Email</label><a href={`mailto:${selectedContact.email}`}>{selectedContact.email}</a></div>
+              {selectedContact.phone && <div className="field"><label>Phone</label><span>{selectedContact.phone}</span></div>}
+              {selectedContact.address && <div className="field"><label>Address</label><span>{selectedContact.address}</span></div>}
+              {selectedContact.birthday && <div className="field"><label>Birthday</label><span>{new Date(selectedContact.birthday).toLocaleDateString()}</span></div>}
+              {selectedContact.notes && <div className="field"><label>Notes</label><p>{selectedContact.notes}</p></div>}
+              {selectedContact.groups.length > 0 && <div className="field"><label>Groups</label><div className="group-chips">{selectedContact.groups.map(g => <span key={g} className="group-chip">{g}</span>)}</div></div>}
             </div>
             <div className="detail-actions">
-              <button className="btn btn-outline" onClick={() => onDeleteContact(selectedContact.id)}>Delete</button>
+              <button onClick={() => handleDeleteContact(selectedContact.id)} className="delete-btn">Delete</button>
+              <button onClick={() => setSelectedContact(null)}>Close</button>
             </div>
-          </div>
+          </aside>
         )}
       </div>
 
-      {/* Create Contact Modal */}
-      {showCreateModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+      {showAddForm && (
+        <div className="modal-overlay" onClick={() => setShowAddForm(false)}>
+          <div className="add-contact-modal" onClick={(e) => e.stopPropagation()}>
             <h2>Add Contact</h2>
-            <form onSubmit={handleCreate}>
-              <div className="form-group"><label>Name *</label><input type="text" value={newContact.name} onChange={(e) => setNewContact({ ...newContact, name: e.target.value })} required /></div>
-              <div className="form-group"><label>Email *</label><input type="email" value={newContact.email} onChange={(e) => setNewContact({ ...newContact, email: e.target.value })} required /></div>
-              <div className="form-group"><label>Phone</label><input type="tel" value={newContact.phone} onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })} /></div>
-              <div className="form-group"><label>Company</label><input type="text" value={newContact.company} onChange={(e) => setNewContact({ ...newContact, company: e.target.value })} /></div>
-              <div className="form-group"><label>Title</label><input type="text" value={newContact.title} onChange={(e) => setNewContact({ ...newContact, title: e.target.value })} /></div>
-              <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setShowCreateModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Add Contact</button>
-              </div>
-            </form>
+            <div className="form-row">
+              <div className="form-group"><label>First Name *</label><input type="text" value={addForm.firstName} onChange={(e) => setAddForm(p => ({ ...p, firstName: e.target.value }))} /></div>
+              <div className="form-group"><label>Last Name</label><input type="text" value={addForm.lastName} onChange={(e) => setAddForm(p => ({ ...p, lastName: e.target.value }))} /></div>
+            </div>
+            <div className="form-group"><label>Email *</label><input type="email" value={addForm.email} onChange={(e) => setAddForm(p => ({ ...p, email: e.target.value }))} /></div>
+            <div className="form-group"><label>Phone</label><input type="tel" value={addForm.phone} onChange={(e) => setAddForm(p => ({ ...p, phone: e.target.value }))} /></div>
+            <div className="form-row">
+              <div className="form-group"><label>Company</label><input type="text" value={addForm.company} onChange={(e) => setAddForm(p => ({ ...p, company: e.target.value }))} /></div>
+              <div className="form-group"><label>Title</label><input type="text" value={addForm.title} onChange={(e) => setAddForm(p => ({ ...p, title: e.target.value }))} /></div>
+            </div>
+            <div className="form-group"><label>Birthday</label><input type="date" value={addForm.birthday} onChange={(e) => setAddForm(p => ({ ...p, birthday: e.target.value }))} /></div>
+            <div className="form-group"><label>Notes</label><textarea value={addForm.notes} onChange={(e) => setAddForm(p => ({ ...p, notes: e.target.value }))} rows={3} /></div>
+            <div className="modal-actions">
+              <button onClick={() => setShowAddForm(false)}>Cancel</button>
+              <button onClick={handleAddContact} disabled={saving || !addForm.firstName.trim() || !addForm.email.trim()}>{saving ? 'Saving...' : 'Add Contact'}</button>
+            </div>
           </div>
         </div>
       )}
     </div>
   );
-}
+};
 
 export default ContactsPage;
