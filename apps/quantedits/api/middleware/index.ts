@@ -1,120 +1,95 @@
 // ============================================================================
-// QuantEdits API - Middleware
-// Authentication, rate limiting for editing platform
+// QuantEdits API - Middleware Configuration
+// Thin wrapper that imports from @quant/server with app-specific settings
 // ============================================================================
 
-export interface Request {
-  method: string;
-  url: string;
-  path: string;
-  params: Record<string, string>;
-  query: Record<string, string | string[]>;
-  body: unknown;
-  headers: Record<string, string>;
-  ip: string;
-  userId?: string;
-  user?: {
-    id: string;
-    email: string;
-    username: string;
-    role: string;
-  };
-  startTime?: number;
-  requestId?: string;
-}
+import {
+  Router,
+  RateLimiter,
+  corsMiddleware,
+  securityHeaders,
+  requestIdMiddleware,
+  loggingMiddleware,
+  authMiddleware,
+  errorHandler,
+  AppError,
+  asyncHandler,
+} from '@quant/server';
 
-export interface Response {
-  status(code: number): Response;
-  json(data: unknown): void;
-  send(data: string): void;
-  setHeader(name: string, value: string): Response;
-  statusCode: number;
-  headersSent: boolean;
-}
+import type {
+  Request,
+  Response,
+  NextFunction,
+  Middleware,
+  CorsOptions,
+} from '@quant/server';
 
-export type NextFunction = (error?: Error) => void;
-export type Middleware = (req: Request, res: Response, next: NextFunction) => void | Promise<void>;
+// Re-export all types and utilities from @quant/server
+export { Router, RateLimiter, AppError, asyncHandler };
+export type { Request, Response, NextFunction, Middleware };
 
-interface RateLimitEntry { count: number; resetAt: number; }
+// ----------------------------------------------------------------------------
+// QuantEdits-Specific Configuration
+// ----------------------------------------------------------------------------
 
-export class RateLimiter {
-  private store: Map<string, RateLimitEntry> = new Map();
-  private windowMs: number;
-  private maxRequests: number;
+/** CORS configuration for QuantEdits (video/photo editor) */
+const editsCorsOptions: CorsOptions = {
+  origins: ['https://quantedits.app', 'https://edit.quant.app', 'http://localhost:3006', 'http://localhost:5179'],
+  credentials: true,
+  maxAge: 86400,
+  exposedHeaders: ['X-RateLimit-Remaining', 'X-Request-ID', 'Content-Disposition'],
+};
 
-  constructor(options: { windowMs: number; maxRequests: number }) {
-    this.windowMs = options.windowMs;
-    this.maxRequests = options.maxRequests;
-    setInterval(() => { const now = Date.now(); for (const [k, e] of this.store) { if (e.resetAt <= now) this.store.delete(k); } }, this.windowMs);
-  }
+/** Rate limiting for general API calls */
+const apiRateLimiter = new RateLimiter({
+  windowMs: 60 * 1000,
+  maxRequests: 100,
+  message: 'Too many requests to QuantEdits API, please try again later.',
+});
 
-  middleware(): Middleware {
-    return (req, res, next) => {
-      const key = req.ip || 'unknown';
-      const now = Date.now();
-      const entry = this.store.get(key);
-      if (!entry || entry.resetAt <= now) { this.store.set(key, { count: 1, resetAt: now + this.windowMs }); next(); return; }
-      if (entry.count >= this.maxRequests) { res.status(429).json({ success: false, error: { code: 'RATE_LIMIT', message: 'Too many requests', statusCode: 429 } }); return; }
-      entry.count++;
-      next();
-    };
-  }
-}
+/** Rate limiting for render/export operations (resource-intensive) */
+const renderRateLimiter = new RateLimiter({
+  windowMs: 60 * 60 * 1000,
+  maxRequests: 20,
+  message: 'Render limit exceeded. Max 20 exports per hour.',
+});
 
-export function corsMiddleware(origins: string[]): Middleware {
-  return (req, res, next) => {
-    const origin = req.headers['origin'] || '';
-    if (origins.includes('*') || origins.includes(origin)) res.setHeader('Access-Control-Allow-Origin', origin || '*');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Request-ID');
-    if (req.method === 'OPTIONS') { res.status(204).send(''); return; }
-    next();
-  };
-}
+/** Rate limiting for file upload */
+const uploadRateLimiter = new RateLimiter({
+  windowMs: 60 * 1000,
+  maxRequests: 30,
+  message: 'Upload rate limit exceeded.',
+});
 
-export function requestIdMiddleware(): Middleware {
-  return (req, _res, next) => {
-    req.requestId = req.headers['x-request-id'] || `req_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 10)}`;
-    req.startTime = Date.now();
-    next();
-  };
-}
+// ----------------------------------------------------------------------------
+// Configured Middleware Exports
+// ----------------------------------------------------------------------------
 
-export function securityHeaders(): Middleware {
-  return (_req, res, next) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    next();
-  };
-}
+/** Pre-configured CORS middleware for QuantEdits */
+export const cors = corsMiddleware(editsCorsOptions);
 
-export function loggingMiddleware(): Middleware {
-  return (req, _res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - ID: ${req.requestId}`);
-    next();
-  };
-}
+/** Pre-configured security headers */
+export const security = securityHeaders();
 
-export class AppError extends Error {
-  public statusCode: number;
-  public code: string;
-  constructor(message: string, statusCode: number, code: string) {
-    super(message);
-    this.statusCode = statusCode;
-    this.code = code;
-    Object.setPrototypeOf(this, AppError.prototype);
-  }
-}
+/** Pre-configured request ID middleware */
+export const requestId = requestIdMiddleware();
 
-export function errorHandler(): (error: Error, req: Request, res: Response, next: NextFunction) => void {
-  return (error, _req, res, _next) => {
-    if (error instanceof AppError) {
-      res.status(error.statusCode).json({ success: false, error: { code: error.code, message: error.message, statusCode: error.statusCode } });
-      return;
-    }
-    console.error('Unhandled error:', error);
-    res.status(500).json({ success: false, error: { code: 'INTERNAL_SERVER_ERROR', message: 'An unexpected error occurred', statusCode: 500 } });
-  };
-}
+/** Pre-configured logging middleware */
+export const logging = loggingMiddleware({ excludePaths: ['/health', '/autosave/*'] });
+
+/** Pre-configured auth middleware with QuantEdits public paths */
+export const auth = authMiddleware({
+  publicPaths: ['/health', '/auth/*', '/public/*', '/templates/browse'],
+});
+
+/** Pre-configured error handler */
+export const errors = errorHandler({ version: '1.0.0' });
+
+/** API rate limiter middleware */
+export const apiLimit = apiRateLimiter.middleware();
+
+/** Render rate limiter middleware */
+export const renderLimit = renderRateLimiter.middleware();
+
+/** Upload rate limiter middleware */
+export const uploadLimit = uploadRateLimiter.middleware();

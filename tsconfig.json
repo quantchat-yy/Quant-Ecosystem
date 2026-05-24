@@ -32,7 +32,9 @@
       "@quant/shared-ui": ["packages/shared-ui/src/index.ts"],
       "@quant/shared-ui/*": ["packages/shared-ui/src/*"],
       "@quant/realtime": ["packages/realtime/src/index.ts"],
-      "@quant/realtime/*": ["packages/realtime/src/*"]
+      "@quant/realtime/*": ["packages/realtime/src/*"],
+      "@quant/server": ["packages/server/src/index.ts"],
+      "@quant/server/*": ["packages/server/src/*"]
     }
   },
   "references": [
@@ -41,7 +43,8 @@
     { "path": "packages/auth" },
     { "path": "packages/ai" },
     { "path": "packages/shared-ui" },
-    { "path": "packages/realtime" }
+    { "path": "packages/realtime" },
+    { "path": "packages/server" }
   ],
   "exclude": ["node_modules", "dist", "build"]
 }

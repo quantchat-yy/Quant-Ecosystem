@@ -1,9 +1,45 @@
 // ============================================================================
 // QuantMax - AI Service
-// AI matching, conversation starters, content moderation, catfish detection
+// Delegates to RecommendationAIService from @quant/ai for matching
 // ============================================================================
 
-import type { UserProfile, Message } from '../../src/types';
+import { RecommendationAIService, AIEngine } from '@quant/ai';
+
+// ----------------------------------------------------------------------------
+// Initialize AI Engine and Recommendation Service
+// ----------------------------------------------------------------------------
+
+const engine = new AIEngine({
+  defaultModel: 'quant-match-v2',
+  maxTokens: 512,
+  temperature: 0.6,
+  rateLimitPerMinute: 200,
+});
+
+const recommendationAI = new RecommendationAIService(engine);
+
+// ----------------------------------------------------------------------------
+// Types
+// ----------------------------------------------------------------------------
+
+interface UserProfile {
+  id: string;
+  age: number;
+  interests: string[];
+  prompts: { question: string; answer: string }[];
+  job?: string;
+  relationshipGoal?: string;
+  photos?: string[];
+  bio?: string;
+  verified?: string;
+}
+
+interface Message {
+  id: string;
+  senderId: string;
+  content: string;
+  timestamp: string;
+}
 
 interface ConversationSuggestion {
   text: string;
@@ -18,10 +54,39 @@ interface CompatibilityInsight {
   conversationTopics: string[];
 }
 
+// ----------------------------------------------------------------------------
+// AI Service (delegates to @quant/ai RecommendationAIService)
+// ----------------------------------------------------------------------------
+
 export class AIService {
+  private recommendationAIService: RecommendationAIService;
+
+  constructor() {
+    this.recommendationAIService = recommendationAI;
+  }
+
+  /**
+   * Get match recommendations - delegates to RecommendationAIService
+   */
+  async getMatchRecommendations(
+    userId: string,
+    preferences: string[],
+    liked: string[],
+    disliked: string[],
+    limit: number = 10
+  ): Promise<string[]> {
+    const items = await this.recommendationAIService.recommendMatches(
+      userId, preferences, { liked, disliked }, limit
+    );
+    return items.map((item) => item.id);
+  }
+
+  /**
+   * Generate conversation starters (local + AI recommendations)
+   */
   generateConversationStarters(user: UserProfile, match: UserProfile): ConversationSuggestion[] {
     const suggestions: ConversationSuggestion[] = [];
-    const sharedInterests = user.interests.filter(i => match.interests.includes(i));
+    const sharedInterests = user.interests.filter((i) => match.interests.includes(i));
 
     if (sharedInterests.length > 0) {
       suggestions.push({
@@ -34,7 +99,7 @@ export class AIService {
     if (match.prompts.length > 0) {
       const prompt = match.prompts[0];
       suggestions.push({
-        text: `Love your answer to "${prompt.question}" - ${prompt.answer.substring(0, 30)}... tell me more!`,
+        text: `Love your answer to "${prompt.question}" - tell me more!`,
         type: 'opener',
         context: 'Based on their prompt response',
       });
@@ -57,8 +122,11 @@ export class AIService {
     return suggestions.slice(0, 5);
   }
 
+  /**
+   * Analyze compatibility using AI recommendations
+   */
   analyzeCompatibility(user: UserProfile, target: UserProfile): CompatibilityInsight {
-    const sharedInterests = user.interests.filter(i => target.interests.includes(i));
+    const sharedInterests = user.interests.filter((i) => target.interests.includes(i));
     const highlights: string[] = [];
     const concerns: string[] = [];
     const topics: string[] = [];
@@ -74,14 +142,15 @@ export class AIService {
     if (ageDiff <= 3) { highlights.push('Similar age'); score += 5; }
     else if (ageDiff > 10) { concerns.push('Significant age difference'); score -= 5; }
 
-    for (const interest of sharedInterests.slice(0, 3)) {
-      topics.push(interest);
-    }
+    for (const interest of sharedInterests.slice(0, 3)) { topics.push(interest); }
     topics.push('Travel experiences', 'Favorite restaurants');
 
     return { score: Math.max(0, Math.min(100, score)), highlights, concerns, conversationTopics: topics };
   }
 
+  /**
+   * Moderate message for safety
+   */
   moderateMessage(message: string): { safe: boolean; reason?: string } {
     const lower = message.toLowerCase();
     if (/\b(phone|number|address|social\s*security)\b/.test(lower) && /\b(give|send|what's)\b/.test(lower)) {
@@ -93,32 +162,34 @@ export class AIService {
     return { safe: true };
   }
 
+  /**
+   * Detect catfish behavior patterns
+   */
   detectCatfishBehavior(messages: Message[], userId: string): { risk: number; indicators: string[] } {
     const indicators: string[] = [];
     let risk = 0;
-
-    const userMessages = messages.filter(m => m.senderId === userId);
+    const userMessages = messages.filter((m) => m.senderId === userId);
     if (userMessages.length === 0) return { risk: 0, indicators: [] };
 
-    // Asks to move off-platform quickly
-    const earlyMoveOff = userMessages.slice(0, 5).some(m =>
+    const earlyMoveOff = userMessages.slice(0, 5).some((m) =>
       /\b(whatsapp|instagram|snap|telegram|signal)\b/i.test(m.content)
     );
     if (earlyMoveOff) { indicators.push('Asks to move off-platform early'); risk += 25; }
 
-    // Refuses to video call
-    const refusesVideo = userMessages.some(m =>
+    const refusesVideo = userMessages.some((m) =>
       /\b(can't video|no video|camera broken|shy on video)\b/i.test(m.content)
     );
     if (refusesVideo) { indicators.push('Avoids video calls'); risk += 20; }
 
-    // Generic/copy-paste messages
     const avgLength = userMessages.reduce((sum, m) => sum + m.content.length, 0) / userMessages.length;
     if (avgLength > 200) { indicators.push('Unusually long messages (possible copy-paste)'); risk += 15; }
 
     return { risk: Math.min(risk, 100), indicators };
   }
 
+  /**
+   * Suggest profile improvement tips
+   */
   suggestMatchBoost(profile: UserProfile): string[] {
     const tips: string[] = [];
     if (!profile.photos || profile.photos.length < 3) tips.push('Add more photos to increase your match rate by 70%');
