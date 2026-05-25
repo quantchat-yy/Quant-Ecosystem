@@ -207,3 +207,132 @@ export interface ContextMemoryEntry {
   timestamp: number;
   expiresAt?: number;
 }
+
+// ============================================================================
+// New Types for Real AI Engine Infrastructure
+// ============================================================================
+
+/** Circuit breaker states */
+export type CircuitBreakerState = 'closed' | 'open' | 'half-open';
+
+/** Circuit breaker configuration */
+export interface CircuitBreakerConfig {
+  failureThreshold: number;
+  resetTimeoutMs: number;
+  halfOpenMaxAttempts: number;
+}
+
+/** Provider health status */
+export interface ProviderHealth {
+  provider: AIProvider;
+  state: CircuitBreakerState;
+  failureCount: number;
+  lastFailureAt: number | null;
+  lastSuccessAt: number | null;
+}
+
+/** Prompt template loaded from YAML */
+export interface PromptTemplate {
+  name: string;
+  version: string;
+  system_prompt: string;
+  user_template: string;
+  parameters: {
+    temperature: number;
+    max_tokens: number;
+  };
+}
+
+/** Semantic cache entry */
+export interface SemanticCacheEntry {
+  prompt: string;
+  response: string;
+  embedding: number[];
+  createdAt: number;
+  ttl: number;
+}
+
+/** Safety pipeline result */
+export interface SafetyResult {
+  text: string;
+  redactedEntities: PiiEntity[];
+  safetyScore: number;
+  isSafe: boolean;
+  categories: SafetyCategory[];
+}
+
+/** Detected PII entity */
+export interface PiiEntity {
+  type: 'email' | 'phone' | 'ssn' | 'credit_card' | 'ip_address';
+  value: string;
+  redacted: string;
+  start: number;
+  end: number;
+}
+
+/** Safety content category */
+export interface SafetyCategory {
+  name: string;
+  score: number;
+  flagged: boolean;
+}
+
+/** Cost record for tracking usage */
+export interface CostRecord {
+  userId: string;
+  model: string;
+  promptTokens: number;
+  completionTokens: number;
+  cost: number;
+  timestamp: number;
+}
+
+/** Rate limit configuration */
+export interface RateLimitConfig {
+  requestsPerMinute: number;
+  windowMs: number;
+}
+
+/** Budget configuration */
+export interface BudgetConfig {
+  dailyBudget: number;
+  perUserBudget: number;
+}
+
+/** Fallback chain definition */
+export interface FallbackChain {
+  models: string[];
+  capability: AICapability;
+}
+
+/** Retry options */
+export interface RetryOptions {
+  maxRetries: number;
+  baseDelayMs: number;
+  maxDelayMs: number;
+}
+
+/** Budget exceeded error */
+export class BudgetExceededError extends Error {
+  constructor(
+    message: string,
+    public readonly userId: string,
+    public readonly currentSpend: number,
+    public readonly budget: number,
+  ) {
+    super(message);
+    this.name = 'BudgetExceededError';
+  }
+}
+
+/** Rate limit error */
+export class RateLimitError extends Error {
+  constructor(
+    message: string,
+    public readonly userId: string,
+    public readonly retryAfterMs: number,
+  ) {
+    super(message);
+    this.name = 'RateLimitError';
+  }
+}

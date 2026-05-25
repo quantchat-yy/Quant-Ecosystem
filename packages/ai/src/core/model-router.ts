@@ -2,7 +2,8 @@
 // AI Core - Model Router
 // ============================================================================
 
-import type { AIModelConfig, AIInferenceRequest, AICapability, AIProvider } from '../types';
+import type { AIModelConfig, AIInferenceRequest, AICapability, FallbackChain } from '../types';
+import type { CircuitBreakerRegistry } from './circuit-breaker';
 
 /**
  * Model Router
@@ -13,13 +14,18 @@ import type { AIModelConfig, AIInferenceRequest, AICapability, AIProvider } from
  * - Latency requirements
  * - Model availability and load
  * - Quality requirements
+ * - Circuit breaker state
  */
 export class ModelRouter {
   private models: Map<string, AIModelConfig> = new Map();
   private modelLoad: Map<string, number> = new Map();
+  private fallbackChains: FallbackChain[] = [];
+  private circuitBreakerRegistry: CircuitBreakerRegistry | null = null;
 
-  constructor() {
+  constructor(circuitBreakerRegistry?: CircuitBreakerRegistry) {
+    this.circuitBreakerRegistry = circuitBreakerRegistry ?? null;
     this.registerDefaultModels();
+    this.registerDefaultFallbackChains();
   }
 
   /**
@@ -29,7 +35,7 @@ export class ModelRouter {
     // If specific model requested, use it
     if (request.model) {
       const model = this.models.get(request.model);
-      if (model) return model;
+      if (model && this.isModelAvailable(model)) return model;
     }
 
     // Determine required capabilities from the request
@@ -39,8 +45,15 @@ export class ModelRouter {
     const eligible = this.getEligibleModels(capabilities, request);
 
     if (eligible.length === 0) {
-      // Fallback to default model
-      return this.models.get('gpt-4-turbo')!;
+      // Use fallback chain
+      const fallback = this.getFallbackModel(capabilities);
+      if (fallback) return fallback;
+      // Ultimate fallback to default model
+      const defaultModel = this.models.get('gpt-4o-mini');
+      if (!defaultModel) {
+        throw new Error('No models available');
+      }
+      return defaultModel;
     }
 
     // Score and rank models
@@ -50,7 +63,16 @@ export class ModelRouter {
     }));
 
     scored.sort((a, b) => b.score - a.score);
-    return scored[0].model;
+    return scored[0]!.model;
+  }
+
+  /**
+   * Get fallback chain for a capability
+   */
+  getFallbackChain(capability: AICapability): string[] {
+    const chain = this.fallbackChains.find((fc) => fc.capability === capability);
+    if (!chain) return ['gpt-4o', 'gpt-4o-mini', 'claude-3-5-haiku'];
+    return chain.models;
   }
 
   /**
@@ -72,9 +94,33 @@ export class ModelRouter {
    * Get models by capability
    */
   getModelsByCapability(capability: AICapability): AIModelConfig[] {
-    return Array.from(this.models.values()).filter((m) =>
-      m.capabilities.includes(capability)
-    );
+    return Array.from(this.models.values()).filter((m) => m.capabilities.includes(capability));
+  }
+
+  /**
+   * Check if a model is available based on circuit breaker state
+   */
+  private isModelAvailable(model: AIModelConfig): boolean {
+    if (!this.circuitBreakerRegistry) return true;
+    const breaker = this.circuitBreakerRegistry.getBreaker(model.provider);
+    return breaker.isAvailable();
+  }
+
+  /**
+   * Get a fallback model from the fallback chains
+   */
+  private getFallbackModel(capabilities: AICapability[]): AIModelConfig | null {
+    const primaryCapability = capabilities[0] || 'text_generation';
+    const chain = this.getFallbackChain(primaryCapability);
+
+    for (const modelId of chain) {
+      const model = this.models.get(modelId);
+      if (model && this.isModelAvailable(model)) {
+        return model;
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -87,19 +133,31 @@ export class ModelRouter {
     if (promptLower.includes('summarize') || promptLower.includes('summary')) {
       capabilities.push('text_summarization');
     }
-    if (promptLower.includes('code') || promptLower.includes('function') || promptLower.includes('implement')) {
+    if (
+      promptLower.includes('code') ||
+      promptLower.includes('function') ||
+      promptLower.includes('implement')
+    ) {
       capabilities.push('code_generation');
     }
     if (promptLower.includes('translate') || promptLower.includes('translation')) {
       capabilities.push('translation');
     }
-    if (promptLower.includes('moderate') || promptLower.includes('safe') || promptLower.includes('appropriate')) {
+    if (
+      promptLower.includes('moderate') ||
+      promptLower.includes('safe') ||
+      promptLower.includes('appropriate')
+    ) {
       capabilities.push('content_moderation');
     }
     if (promptLower.includes('recommend') || promptLower.includes('suggest')) {
       capabilities.push('recommendation');
     }
-    if (promptLower.includes('sentiment') || promptLower.includes('feeling') || promptLower.includes('emotion')) {
+    if (
+      promptLower.includes('sentiment') ||
+      promptLower.includes('feeling') ||
+      promptLower.includes('emotion')
+    ) {
       capabilities.push('sentiment_analysis');
     }
     if (request.feature === 'device_control') {
@@ -112,8 +170,14 @@ export class ModelRouter {
   /**
    * Get models that support all required capabilities
    */
-  private getEligibleModels(capabilities: AICapability[], request: AIInferenceRequest): AIModelConfig[] {
+  private getEligibleModels(
+    capabilities: AICapability[],
+    request: AIInferenceRequest,
+  ): AIModelConfig[] {
     return Array.from(this.models.values()).filter((model) => {
+      // Check circuit breaker state
+      if (!this.isModelAvailable(model)) return false;
+
       // Check capabilities
       const hasCapabilities = capabilities.every((cap) => model.capabilities.includes(cap));
       if (!hasCapabilities) return false;
@@ -147,7 +211,7 @@ export class ModelRouter {
     score += Math.max(0, 10 - load);
 
     // Context window fit (0-10 points)
-    const utilization = (request.prompt.length / 4) / model.maxContextLength;
+    const utilization = request.prompt.length / 4 / model.maxContextLength;
     score += utilization < 0.8 ? 10 : 5;
 
     return score;
@@ -159,96 +223,114 @@ export class ModelRouter {
   private registerDefaultModels(): void {
     const defaultModels: AIModelConfig[] = [
       {
-        id: 'gpt-4-turbo',
-        name: 'GPT-4 Turbo',
+        id: 'gpt-4o',
+        name: 'GPT-4o',
         provider: 'openai',
         capabilities: [
-          'text_generation', 'text_summarization', 'code_generation',
-          'translation', 'sentiment_analysis', 'content_moderation',
-          'recommendation', 'device_control',
+          'text_generation',
+          'text_summarization',
+          'code_generation',
+          'translation',
+          'sentiment_analysis',
+          'content_moderation',
+          'recommendation',
+          'device_control',
         ],
         maxContextLength: 128000,
         maxOutputTokens: 4096,
-        costPerInputToken: 0.00001,
-        costPerOutputToken: 0.00003,
-        latencyMs: 500,
+        costPerInputToken: 0.000005,
+        costPerOutputToken: 0.000015,
+        latencyMs: 400,
         qualityScore: 0.95,
       },
       {
-        id: 'gpt-3.5-turbo',
-        name: 'GPT-3.5 Turbo',
+        id: 'gpt-4o-mini',
+        name: 'GPT-4o Mini',
         provider: 'openai',
         capabilities: [
-          'text_generation', 'text_summarization', 'code_generation',
-          'translation', 'sentiment_analysis', 'content_moderation',
+          'text_generation',
+          'text_summarization',
+          'code_generation',
+          'translation',
+          'sentiment_analysis',
+          'content_moderation',
         ],
-        maxContextLength: 16000,
+        maxContextLength: 128000,
         maxOutputTokens: 4096,
-        costPerInputToken: 0.0000005,
-        costPerOutputToken: 0.0000015,
+        costPerInputToken: 0.00000015,
+        costPerOutputToken: 0.0000006,
         latencyMs: 200,
-        qualityScore: 0.8,
-      },
-      {
-        id: 'claude-3-opus',
-        name: 'Claude 3 Opus',
-        provider: 'anthropic',
-        capabilities: [
-          'text_generation', 'text_summarization', 'code_generation',
-          'translation', 'sentiment_analysis', 'content_moderation',
-          'recommendation', 'device_control',
-        ],
-        maxContextLength: 200000,
-        maxOutputTokens: 4096,
-        costPerInputToken: 0.000015,
-        costPerOutputToken: 0.000075,
-        latencyMs: 600,
-        qualityScore: 0.97,
-      },
-      {
-        id: 'llama-3-70b',
-        name: 'Llama 3 70B',
-        provider: 'meta',
-        capabilities: [
-          'text_generation', 'text_summarization', 'code_generation',
-          'translation', 'sentiment_analysis',
-        ],
-        maxContextLength: 8000,
-        maxOutputTokens: 2048,
-        costPerInputToken: 0.0000007,
-        costPerOutputToken: 0.0000009,
-        latencyMs: 300,
         qualityScore: 0.85,
       },
       {
-        id: 'stable-diffusion-xl',
-        name: 'Stable Diffusion XL',
-        provider: 'stability',
-        capabilities: ['image_generation', 'image_analysis'],
-        maxContextLength: 77,
-        maxOutputTokens: 0,
-        costPerInputToken: 0,
-        costPerOutputToken: 0.02,
-        latencyMs: 3000,
-        qualityScore: 0.9,
+        id: 'claude-3-5-sonnet',
+        name: 'Claude 3.5 Sonnet',
+        provider: 'anthropic',
+        capabilities: [
+          'text_generation',
+          'text_summarization',
+          'code_generation',
+          'translation',
+          'sentiment_analysis',
+          'content_moderation',
+          'recommendation',
+          'device_control',
+        ],
+        maxContextLength: 200000,
+        maxOutputTokens: 4096,
+        costPerInputToken: 0.000003,
+        costPerOutputToken: 0.000015,
+        latencyMs: 500,
+        qualityScore: 0.97,
       },
       {
-        id: 'whisper-large-v3',
-        name: 'Whisper Large V3',
-        provider: 'whisper',
-        capabilities: ['audio_transcription', 'translation'],
-        maxContextLength: 0,
-        maxOutputTokens: 0,
-        costPerInputToken: 0.0001,
-        costPerOutputToken: 0,
-        latencyMs: 1000,
-        qualityScore: 0.92,
+        id: 'claude-3-5-haiku',
+        name: 'Claude 3.5 Haiku',
+        provider: 'anthropic',
+        capabilities: [
+          'text_generation',
+          'text_summarization',
+          'code_generation',
+          'translation',
+          'sentiment_analysis',
+          'content_moderation',
+        ],
+        maxContextLength: 200000,
+        maxOutputTokens: 4096,
+        costPerInputToken: 0.000001,
+        costPerOutputToken: 0.000005,
+        latencyMs: 300,
+        qualityScore: 0.88,
       },
     ];
 
     for (const model of defaultModels) {
       this.registerModel(model);
     }
+  }
+
+  /**
+   * Register default fallback chains
+   */
+  private registerDefaultFallbackChains(): void {
+    this.fallbackChains = [
+      {
+        capability: 'text_generation',
+        models: ['gpt-4o', 'gpt-4o-mini', 'claude-3-5-haiku'],
+      },
+      {
+        capability: 'code_generation',
+        models: ['gpt-4o', 'claude-3-5-sonnet', 'gpt-4o-mini'],
+      },
+      {
+        capability: 'text_summarization',
+        models: ['gpt-4o-mini', 'claude-3-5-haiku', 'gpt-4o'],
+      },
+      {
+        capability: 'content_moderation',
+        models: ['gpt-4o-mini', 'claude-3-5-haiku', 'gpt-4o'],
+      },
+    ];
   }
 
   /**

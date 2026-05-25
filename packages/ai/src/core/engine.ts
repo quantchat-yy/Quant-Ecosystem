@@ -1,7 +1,10 @@
 // ============================================================================
-// AI Core - Central AI Engine
+// AI Core - Central AI Engine (Real Implementation)
 // ============================================================================
 
+import { generateText, streamText } from 'ai';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createAnthropic } from '@ai-sdk/anthropic';
 import type {
   AIEngineConfig,
   AIInferenceRequest,
@@ -12,10 +15,15 @@ import type {
 } from '../types';
 import { ContextManager } from './context-manager';
 import { ModelRouter } from './model-router';
+import { CircuitBreakerRegistry } from './circuit-breaker';
+import { retryWithBackoff } from './retry';
+import { SemanticCache } from './semantic-cache';
+import { SafetyPipeline } from './safety';
+import { CostTracker } from './cost-tracker';
 
 /** Default engine configuration */
 const DEFAULT_CONFIG: AIEngineConfig = {
-  defaultModel: 'gpt-4-turbo',
+  defaultModel: 'gpt-4o',
   maxConcurrentRequests: 50,
   requestTimeoutMs: 30000,
   retryAttempts: 3,
@@ -27,37 +35,76 @@ const DEFAULT_CONFIG: AIEngineConfig = {
   costBudgetPerDay: 1000.0,
 };
 
-/** Request queue item */
-interface QueuedRequest {
-  id: string;
-  request: AIInferenceRequest;
-  resolve: (value: AIInferenceResponse) => void;
-  reject: (reason: Error) => void;
-  timestamp: number;
-}
-
 /**
  * Central AI Engine
  *
  * The brain of the Quant Ecosystem's AI capabilities.
- * Routes requests to appropriate models, manages context,
- * handles rate limiting, caching, and cost tracking.
+ * Uses Vercel AI SDK with OpenAI and Anthropic providers.
+ * Integrates circuit breaker, retry, caching, safety, and cost tracking.
  */
 export class AIEngine {
   private config: AIEngineConfig;
   private contextManager: ContextManager;
   private modelRouter: ModelRouter;
+  private circuitBreakerRegistry: CircuitBreakerRegistry;
+  private semanticCache: SemanticCache;
+  private safetyPipeline: SafetyPipeline;
+  private costTracker: CostTracker;
   private activeRequests: number = 0;
-  private requestQueue: QueuedRequest[] = [];
-  private cache: Map<string, { response: AIInferenceResponse; expiresAt: number }> = new Map();
-  private userCostTracker: Map<string, { total: number; resetAt: number }> = new Map();
-  private dailyCost: number = 0;
-  private dailyResetAt: number = Date.now() + 86400000;
+  private openaiProvider: ReturnType<typeof createOpenAI> | null = null;
+  private anthropicProvider: ReturnType<typeof createAnthropic> | null = null;
 
   constructor(config: Partial<AIEngineConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.circuitBreakerRegistry = new CircuitBreakerRegistry();
+    this.modelRouter = new ModelRouter(this.circuitBreakerRegistry);
     this.contextManager = new ContextManager();
-    this.modelRouter = new ModelRouter();
+    this.semanticCache = new SemanticCache(this.config.cacheTtlMs);
+    this.safetyPipeline = new SafetyPipeline();
+    this.costTracker = new CostTracker({
+      dailyBudget: this.config.costBudgetPerDay,
+      perUserBudget: this.config.costBudgetPerUser,
+    });
+
+    this.initializeProviders();
+  }
+
+  /**
+   * Initialize AI SDK providers from environment variables
+   */
+  private initializeProviders(): void {
+    const openaiKey = process.env['OPENAI_API_KEY'];
+    const anthropicKey = process.env['ANTHROPIC_API_KEY'];
+
+    if (openaiKey) {
+      this.openaiProvider = createOpenAI({ apiKey: openaiKey });
+    }
+    if (anthropicKey) {
+      this.anthropicProvider = createAnthropic({ apiKey: anthropicKey });
+    }
+  }
+
+  /**
+   * Get the appropriate AI SDK model instance for a model config
+   */
+  private getProviderModel(model: AIModelConfig) {
+    if (model.provider === 'openai') {
+      if (!this.openaiProvider) {
+        throw new Error(
+          'OPENAI_API_KEY not configured. Set the environment variable to use OpenAI models.',
+        );
+      }
+      return this.openaiProvider(model.id);
+    }
+    if (model.provider === 'anthropic') {
+      if (!this.anthropicProvider) {
+        throw new Error(
+          'ANTHROPIC_API_KEY not configured. Set the environment variable to use Anthropic models.',
+        );
+      }
+      return this.anthropicProvider(model.id);
+    }
+    throw new Error(`Unsupported provider: ${model.provider}`);
   }
 
   /**
@@ -65,12 +112,27 @@ export class AIEngine {
    */
   async infer(request: AIInferenceRequest): Promise<AIInferenceResponse> {
     // Check rate limits and budgets
-    this.checkBudget(request.userId);
+    this.costTracker.checkBudget(request.userId);
+    this.costTracker.checkRateLimit(request.userId);
 
-    // Check cache
+    // Process input through safety pipeline
+    const safetyResult = this.safetyPipeline.processInput(request.prompt);
+    const safePrompt = safetyResult.text;
+
+    // Check semantic cache
     if (this.config.enableCaching && !request.stream) {
-      const cached = this.getCachedResponse(request);
-      if (cached) return cached;
+      const cached = this.semanticCache.get(safePrompt);
+      if (cached) {
+        return {
+          id: this.generateRequestId(),
+          content: cached,
+          model: request.model || this.config.defaultModel,
+          finishReason: 'stop',
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCost: 0 },
+          latencyMs: 0,
+          cached: true,
+        };
+      }
     }
 
     // Route to appropriate model
@@ -79,248 +141,171 @@ export class AIEngine {
     // Build context-enriched prompt
     const enrichedPrompt = await this.contextManager.enrichPrompt(
       request.userId,
-      request.prompt,
-      request.context || []
+      safePrompt,
+      request.context || [],
     );
 
-    // Queue or execute request
-    if (this.activeRequests >= this.config.maxConcurrentRequests) {
-      return this.queueRequest(request);
-    }
+    // Execute with circuit breaker and retry
+    const breaker = this.circuitBreakerRegistry.getBreaker(model.provider);
 
-    return this.executeInference(request, enrichedPrompt, model);
-  }
-
-  /**
-   * Stream an AI inference response
-   */
-  async *stream(request: AIInferenceRequest): AsyncGenerator<StreamChunk> {
-    const model = this.modelRouter.selectModel(request);
-    const enrichedPrompt = await this.contextManager.enrichPrompt(
-      request.userId,
-      request.prompt,
-      request.context || []
-    );
-
-    const requestId = this.generateRequestId();
-    const words = this.simulateResponse(enrichedPrompt, model).split(' ');
-
-    let accumulated = '';
-    for (let i = 0; i < words.length; i++) {
-      accumulated += (i > 0 ? ' ' : '') + words[i];
-      const done = i === words.length - 1;
-      yield {
-        id: requestId,
-        content: words[i] + (i < words.length - 1 ? ' ' : ''),
-        done,
-        finishReason: done ? 'stop' : undefined,
-      };
-      // Simulate latency between chunks
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-
-    // Update context with the response
-    await this.contextManager.addToHistory(request.userId, request.prompt, accumulated);
-  }
-
-  /**
-   * Execute an inference request
-   */
-  private async executeInference(
-    request: AIInferenceRequest,
-    enrichedPrompt: string,
-    model: AIModelConfig
-  ): Promise<AIInferenceResponse> {
-    this.activeRequests++;
     const startTime = Date.now();
+    this.activeRequests++;
 
     try {
-      // Simulate AI model inference
-      const content = this.simulateResponse(enrichedPrompt, model);
-      const latencyMs = Date.now() - startTime + Math.floor(Math.random() * 200);
+      const response = await breaker.execute(async () => {
+        return retryWithBackoff(
+          async () => {
+            const providerModel = this.getProviderModel(model);
 
-      // Calculate token usage
-      const usage = this.calculateTokenUsage(enrichedPrompt, content, model);
+            const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+
+            if (request.systemPrompt) {
+              messages.push({ role: 'system', content: request.systemPrompt });
+            }
+
+            // Add context messages
+            if (request.context) {
+              for (const msg of request.context) {
+                messages.push({ role: msg.role, content: msg.content });
+              }
+            }
+
+            messages.push({ role: 'user', content: enrichedPrompt });
+
+            const result = await generateText({
+              model: providerModel,
+              messages,
+              temperature: request.temperature ?? 0.7,
+              maxTokens: request.maxTokens ?? model.maxOutputTokens,
+            });
+
+            return result;
+          },
+          { maxRetries: this.config.retryAttempts, baseDelayMs: this.config.retryDelayMs },
+        );
+      });
+
+      const latencyMs = Date.now() - startTime;
+
+      // Calculate usage
+      const usage: TokenUsage = {
+        promptTokens: response.usage?.promptTokens ?? Math.ceil(enrichedPrompt.length / 4),
+        completionTokens:
+          response.usage?.completionTokens ?? Math.ceil((response.text || '').length / 4),
+        totalTokens: (response.usage?.promptTokens ?? 0) + (response.usage?.completionTokens ?? 0),
+        estimatedCost: 0,
+      };
+      usage.totalTokens = usage.promptTokens + usage.completionTokens;
+      usage.estimatedCost =
+        usage.promptTokens * model.costPerInputToken +
+        usage.completionTokens * model.costPerOutputToken;
 
       // Track costs
-      this.trackCost(request.userId, usage.estimatedCost);
+      this.costTracker.trackUsage(
+        request.userId,
+        model.id,
+        usage.promptTokens,
+        usage.completionTokens,
+        usage.estimatedCost,
+      );
 
-      const response: AIInferenceResponse = {
+      const content = response.text || '';
+
+      // Process output through safety pipeline
+      const outputSafety = this.safetyPipeline.processOutput(content);
+
+      // Cache the response
+      if (this.config.enableCaching) {
+        this.semanticCache.set(safePrompt, outputSafety.text);
+      }
+
+      // Update conversation context
+      await this.contextManager.addToHistory(request.userId, request.prompt, outputSafety.text);
+
+      return {
         id: this.generateRequestId(),
-        content,
+        content: outputSafety.text,
         model: model.id,
         finishReason: 'stop',
         usage,
         latencyMs,
         cached: false,
       };
-
-      // Cache the response
-      if (this.config.enableCaching) {
-        this.cacheResponse(request, response);
-      }
-
-      // Update conversation context
-      await this.contextManager.addToHistory(request.userId, request.prompt, content);
-
-      // Process queue
-      this.processQueue();
-
-      return response;
     } finally {
       this.activeRequests--;
     }
   }
 
   /**
-   * Queue a request when at capacity
+   * Stream an AI inference response
    */
-  private queueRequest(request: AIInferenceRequest): Promise<AIInferenceResponse> {
-    return new Promise((resolve, reject) => {
-      this.requestQueue.push({
-        id: this.generateRequestId(),
-        request,
-        resolve,
-        reject,
-        timestamp: Date.now(),
-      });
+  async *stream(request: AIInferenceRequest): AsyncGenerator<StreamChunk> {
+    // Check rate limits and budgets
+    this.costTracker.checkBudget(request.userId);
+    this.costTracker.checkRateLimit(request.userId);
+
+    // Process input through safety pipeline
+    const safetyResult = this.safetyPipeline.processInput(request.prompt);
+    const safePrompt = safetyResult.text;
+
+    const model = this.modelRouter.selectModel(request);
+    const enrichedPrompt = await this.contextManager.enrichPrompt(
+      request.userId,
+      safePrompt,
+      request.context || [],
+    );
+
+    const providerModel = this.getProviderModel(model);
+    const requestId = this.generateRequestId();
+
+    const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+
+    if (request.systemPrompt) {
+      messages.push({ role: 'system', content: request.systemPrompt });
+    }
+
+    if (request.context) {
+      for (const msg of request.context) {
+        messages.push({ role: msg.role, content: msg.content });
+      }
+    }
+
+    messages.push({ role: 'user', content: enrichedPrompt });
+
+    const result = streamText({
+      model: providerModel,
+      messages,
+      temperature: request.temperature ?? 0.7,
+      maxTokens: request.maxTokens ?? model.maxOutputTokens,
     });
-  }
 
-  /**
-   * Process queued requests
-   */
-  private async processQueue(): Promise<void> {
-    while (this.requestQueue.length > 0 && this.activeRequests < this.config.maxConcurrentRequests) {
-      const queued = this.requestQueue.shift();
-      if (!queued) break;
+    let accumulated = '';
 
-      // Check if request has timed out
-      if (Date.now() - queued.timestamp > this.config.requestTimeoutMs) {
-        queued.reject(new Error('Request timed out in queue'));
-        continue;
-      }
-
-      try {
-        const response = await this.infer(queued.request);
-        queued.resolve(response);
-      } catch (error) {
-        queued.reject(error instanceof Error ? error : new Error(String(error)));
-      }
-    }
-  }
-
-  /**
-   * Simulate an AI response (in production, calls actual model API)
-   */
-  private simulateResponse(prompt: string, model: AIModelConfig): string {
-    // Generate contextual response based on prompt content
-    const promptLower = prompt.toLowerCase();
-
-    if (promptLower.includes('summarize') || promptLower.includes('summary')) {
-      return 'Here is a concise summary of the content: The main points cover the key topics discussed, highlighting the most important information and conclusions drawn from the material.';
-    }
-    if (promptLower.includes('translate')) {
-      return 'Translation completed successfully. The text has been converted to the target language while preserving the original meaning and context.';
-    }
-    if (promptLower.includes('code') || promptLower.includes('function')) {
-      return 'Here is the implementation:\n\n```typescript\nfunction solution(input: string): string {\n  return input.trim().split("\\n").map(line => line.trimStart()).join("\\n");\n}\n```\n\nThis function processes the input by trimming whitespace and normalizing line indentation.';
-    }
-    if (promptLower.includes('moderate') || promptLower.includes('content')) {
-      return 'Content analysis complete. The content appears to be safe and does not violate any community guidelines. No harmful, inappropriate, or misleading content detected.';
+    for await (const chunk of result.textStream) {
+      accumulated += chunk;
+      yield {
+        id: requestId,
+        content: chunk,
+        done: false,
+      };
     }
 
-    return `Based on your request, I have analyzed the context and generated a comprehensive response. The key insights are: 1) The primary topic relates to ${prompt.split(' ').slice(0, 3).join(' ')}, 2) Multiple perspectives have been considered, and 3) The recommended approach balances efficiency with quality. Would you like me to elaborate on any specific aspect?`;
-  }
-
-  /**
-   * Calculate token usage for a request/response pair
-   */
-  private calculateTokenUsage(prompt: string, response: string, model: AIModelConfig): TokenUsage {
-    // Approximate token count (roughly 4 chars per token for English)
-    const promptTokens = Math.ceil(prompt.length / 4);
-    const completionTokens = Math.ceil(response.length / 4);
-    const totalTokens = promptTokens + completionTokens;
-
-    return {
-      promptTokens,
-      completionTokens,
-      totalTokens,
-      estimatedCost: promptTokens * model.costPerInputToken + completionTokens * model.costPerOutputToken,
+    yield {
+      id: requestId,
+      content: '',
+      done: true,
+      finishReason: 'stop',
     };
-  }
 
-  /**
-   * Check if user is within budget
-   */
-  private checkBudget(userId: string): void {
-    // Reset daily budget if needed
-    if (Date.now() > this.dailyResetAt) {
-      this.dailyCost = 0;
-      this.dailyResetAt = Date.now() + 86400000;
-    }
+    // Update context with the response
+    await this.contextManager.addToHistory(request.userId, request.prompt, accumulated);
 
-    if (this.dailyCost >= this.config.costBudgetPerDay) {
-      throw new Error('Daily AI cost budget exceeded');
-    }
-
-    const userCost = this.userCostTracker.get(userId);
-    if (userCost) {
-      if (Date.now() > userCost.resetAt) {
-        this.userCostTracker.delete(userId);
-      } else if (userCost.total >= this.config.costBudgetPerUser) {
-        throw new Error('User AI cost budget exceeded');
-      }
-    }
-  }
-
-  /**
-   * Track costs for a user
-   */
-  private trackCost(userId: string, cost: number): void {
-    this.dailyCost += cost;
-
-    const existing = this.userCostTracker.get(userId) || { total: 0, resetAt: Date.now() + 86400000 };
-    existing.total += cost;
-    this.userCostTracker.set(userId, existing);
-  }
-
-  /**
-   * Get cached response
-   */
-  private getCachedResponse(request: AIInferenceRequest): AIInferenceResponse | null {
-    const cacheKey = this.generateCacheKey(request);
-    const cached = this.cache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      return { ...cached.response, cached: true };
-    }
-    if (cached) {
-      this.cache.delete(cacheKey);
-    }
-    return null;
-  }
-
-  /**
-   * Cache a response
-   */
-  private cacheResponse(request: AIInferenceRequest, response: AIInferenceResponse): void {
-    const cacheKey = this.generateCacheKey(request);
-    this.cache.set(cacheKey, {
-      response,
-      expiresAt: Date.now() + this.config.cacheTtlMs,
-    });
-  }
-
-  /**
-   * Generate a cache key for a request
-   */
-  private generateCacheKey(request: AIInferenceRequest): string {
-    const key = `${request.model || 'default'}:${request.prompt}:${request.temperature || 0.7}`;
-    let hash = 0;
-    for (let i = 0; i < key.length; i++) {
-      hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
-    }
-    return `cache_${Math.abs(hash).toString(36)}`;
+    // Track usage (estimated)
+    const promptTokens = Math.ceil(enrichedPrompt.length / 4);
+    const completionTokens = Math.ceil(accumulated.length / 4);
+    const cost =
+      promptTokens * model.costPerInputToken + completionTokens * model.costPerOutputToken;
+    this.costTracker.trackUsage(request.userId, model.id, promptTokens, completionTokens, cost);
   }
 
   /**
@@ -335,15 +320,13 @@ export class AIEngine {
    */
   getStats(): {
     activeRequests: number;
-    queuedRequests: number;
     cacheSize: number;
     dailyCost: number;
   } {
     return {
       activeRequests: this.activeRequests,
-      queuedRequests: this.requestQueue.length,
-      cacheSize: this.cache.size,
-      dailyCost: this.dailyCost,
+      cacheSize: this.semanticCache.size(),
+      dailyCost: this.costTracker.getDailySpend(),
     };
   }
 
@@ -351,7 +334,7 @@ export class AIEngine {
    * Clear the response cache
    */
   clearCache(): void {
-    this.cache.clear();
+    this.semanticCache.invalidate();
   }
 
   /**
@@ -366,5 +349,19 @@ export class AIEngine {
    */
   getModelRouter(): ModelRouter {
     return this.modelRouter;
+  }
+
+  /**
+   * Get cost tracker for external access
+   */
+  getCostTracker(): CostTracker {
+    return this.costTracker;
+  }
+
+  /**
+   * Get safety pipeline for external access
+   */
+  getSafetyPipeline(): SafetyPipeline {
+    return this.safetyPipeline;
   }
 }
