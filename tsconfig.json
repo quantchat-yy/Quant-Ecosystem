@@ -40,7 +40,13 @@
       "@quant/server-core": ["packages/server-core/src/index.ts"],
       "@quant/server-core/*": ["packages/server-core/src/*"],
       "@quant/api-client": ["packages/api-client/src/index.ts"],
-      "@quant/api-client/*": ["packages/api-client/src/*"]
+      "@quant/api-client/*": ["packages/api-client/src/*"],
+      "@quant/data-plane": ["packages/data-plane/src/index.ts"],
+      "@quant/data-plane/*": ["packages/data-plane/src/*"],
+      "@quant/queue": ["packages/queue/src/index.ts"],
+      "@quant/queue/*": ["packages/queue/src/*"],
+      "@quant/storage": ["packages/storage/src/index.ts"],
+      "@quant/storage/*": ["packages/storage/src/*"]
     }
   },
   "references": [
@@ -52,7 +58,10 @@
     { "path": "packages/realtime" },
     { "path": "packages/server" },
     { "path": "packages/server-core" },
-    { "path": "packages/api-client" }
+    { "path": "packages/api-client" },
+    { "path": "packages/data-plane" },
+    { "path": "packages/queue" },
+    { "path": "packages/storage" }
   ],
   "exclude": ["node_modules", "dist", "build"]
 }

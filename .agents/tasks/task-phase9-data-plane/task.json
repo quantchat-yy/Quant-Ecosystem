@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase9-data-plane",
+  "task_description": "Phase 9: Unified Data Plane + Kill Legacy Code. Delete all legacy in-memory api/ folders from 9 apps, create @quant/data-plane package with full BaseRepository<T> (read-replica routing, outbox, audit, field encryption, soft delete, optimistic locking), create @quant/queue (BullMQ wrapper), @quant/storage (S3/MinIO), CDC relay service with Redpanda, and integrate everything into the monorepo build.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}
