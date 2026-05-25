@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Create Helm charts under infra/helm/ with an umbrella chart (quant-platform) and per-service templates including Deployment, Service, HPA, PDB, NetworkPolicy, and ServiceMonitor. Values files for staging and production.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create infra/helm/quant-platform/Chart.yaml - umbrella chart with dependencies for each sub-service.",
     "Create infra/helm/quant-platform/values.yaml - default values for all services.",
@@ -34,5 +34,5 @@
     "Run pnpm turbo build to ensure no existing code was broken"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Had to add infra/helm/**/templates and infra/terraform to .prettierignore because Prettier cannot parse Go template YAML syntax. The lint-staged pre-commit hook runs prettier --write on *.yaml files."
 }
