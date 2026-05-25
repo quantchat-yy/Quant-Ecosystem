@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Build packages/ml-pipeline - Full ML infrastructure with feature store, model registry, training pipeline, inference engine, embedding store, anomaly detection, NLP models, time series forecasting, and AutoML",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create packages/ml-pipeline/src/types.ts with all type definitions: Feature, FeatureSet, FeatureStoreConfig, ModelMetadata, ModelVersion, ModelStatus, TrainingConfig, TrainingResult, DataBatch, InferenceRequest, InferenceResult, Embedding, VectorIndex, AnomalyResult, SentimentResult, NEREntity, TimeSeriesPoint, Forecast, HyperParameter, CrossValidationResult, ModelDriftAlert",
     "Create packages/ml-pipeline/src/core/feature-store.ts - Feature computation (transform pipelines), feature storage (in-memory with TTL), feature serving (batch/real-time), feature versioning, feature statistics (mean, std, distribution), feature importance tracking. ~450 lines",
