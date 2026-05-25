@@ -97,7 +97,7 @@ module "eks" {
   vpc_id             = module.vpc.vpc_id
   private_subnet_ids = module.vpc.private_subnet_ids
   public_subnet_ids  = module.vpc.public_subnet_ids
-  private_subnet_cidrs = ["10.1.10.0/24", "10.1.11.0/24", "10.1.12.0/24"]
+  private_subnet_cidrs = module.vpc.private_subnet_cidrs
 
   endpoint_public_access     = true
   system_node_instance_types = ["t3.medium"]
@@ -122,7 +122,7 @@ module "rds" {
   environment          = var.environment
   vpc_id               = module.vpc.vpc_id
   database_subnet_ids  = module.vpc.database_subnet_ids
-  private_subnet_cidrs = ["10.1.10.0/24", "10.1.11.0/24", "10.1.12.0/24"]
+  private_subnet_cidrs = module.vpc.private_subnet_cidrs
 
   instance_class        = "db.t3.medium"
   allocated_storage     = 50
@@ -146,7 +146,7 @@ module "elasticache" {
   environment          = var.environment
   vpc_id               = module.vpc.vpc_id
   subnet_ids           = module.vpc.private_subnet_ids
-  private_subnet_cidrs = ["10.1.10.0/24", "10.1.11.0/24", "10.1.12.0/24"]
+  private_subnet_cidrs = module.vpc.private_subnet_cidrs
 
   node_type          = "cache.t3.medium"
   num_shards         = 1

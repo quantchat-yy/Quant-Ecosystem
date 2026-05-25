@@ -18,9 +18,19 @@ output "private_subnet_ids" {
   value       = aws_subnet.private[*].id
 }
 
+output "private_subnet_cidrs" {
+  description = "CIDR blocks of the private subnets"
+  value       = aws_subnet.private[*].cidr_block
+}
+
 output "database_subnet_ids" {
   description = "IDs of the isolated database subnets"
   value       = aws_subnet.database[*].id
+}
+
+output "database_subnet_cidrs" {
+  description = "CIDR blocks of the isolated database subnets"
+  value       = aws_subnet.database[*].cidr_block
 }
 
 output "nat_gateway_ids" {

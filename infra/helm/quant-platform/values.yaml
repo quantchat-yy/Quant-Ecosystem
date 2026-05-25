@@ -3,6 +3,8 @@ global:
   imagePullSecrets: []
   environment: development
   domain: quant.local
+  databaseCIDRs: []
+  redisCIDRs: []
 
 nameOverride: ''
 fullnameOverride: ''

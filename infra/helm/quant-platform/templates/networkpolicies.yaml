@@ -51,20 +51,28 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # Allow egress to database (PostgreSQL)
+    # Allow egress to database (PostgreSQL) - restricted to database subnet CIDRs
+    {{- if $.Values.global.databaseCIDRs }}
     - to:
+        {{- range $.Values.global.databaseCIDRs }}
         - ipBlock:
-            cidr: 0.0.0.0/0
+            cidr: {{ . }}
+        {{- end }}
       ports:
         - protocol: TCP
           port: 5432
-    # Allow egress to Redis
+    {{- end }}
+    # Allow egress to Redis - restricted to Redis subnet CIDRs
+    {{- if $.Values.global.redisCIDRs }}
     - to:
+        {{- range $.Values.global.redisCIDRs }}
         - ipBlock:
-            cidr: 0.0.0.0/0
+            cidr: {{ . }}
+        {{- end }}
       ports:
         - protocol: TCP
           port: 6379
+    {{- end }}
     # Allow egress to services in same namespace
     - to:
         - podSelector: {}

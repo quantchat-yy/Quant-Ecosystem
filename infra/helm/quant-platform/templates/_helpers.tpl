@@ -74,12 +74,30 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Image reference with global registry
+Image reference with global registry and global tag override.
+Supports both:
+  --set global.imageRegistry=<registry> (flat key)
+  --set global.image.registry=<registry> (nested key)
+  --set global.image.tag=<tag> (global tag override for all services)
+  global.imageTag: <tag> (flat key in values file)
+Falls back to per-service .svc.image.tag if no global override is set.
 */}}
 {{- define "quant-platform.image" -}}
+{{- $registry := "" }}
 {{- if .root.Values.global.imageRegistry }}
-{{- printf "%s/%s:%s" .root.Values.global.imageRegistry .svc.image.repository .svc.image.tag }}
+{{- $registry = .root.Values.global.imageRegistry }}
+{{- else if and .root.Values.global.image .root.Values.global.image.registry }}
+{{- $registry = .root.Values.global.image.registry }}
+{{- end }}
+{{- $tag := .svc.image.tag }}
+{{- if .root.Values.global.imageTag }}
+{{- $tag = .root.Values.global.imageTag }}
+{{- else if and .root.Values.global.image .root.Values.global.image.tag }}
+{{- $tag = .root.Values.global.image.tag }}
+{{- end }}
+{{- if $registry }}
+{{- printf "%s/%s:%s" $registry .svc.image.repository $tag }}
 {{- else }}
-{{- printf "%s:%s" .svc.image.repository .svc.image.tag }}
+{{- printf "%s:%s" .svc.image.repository $tag }}
 {{- end }}
 {{- end }}

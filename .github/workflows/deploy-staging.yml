@@ -92,6 +92,27 @@ jobs:
         with:
           version: v3.14.0
 
+      - name: Update image tags in values file
+        run: |
+          TAG="${{ github.sha }}"
+          REGISTRY="${{ env.ECR_REGISTRY }}"
+          # Commit image tag updates so ArgoCD and Helm stay in sync
+          sed -i "s|imageRegistry:.*|imageRegistry: '${REGISTRY}'|" ./infra/helm/quant-platform/values-staging.yaml
+          # Add global image tag to staging values
+          if grep -q "imageTag:" ./infra/helm/quant-platform/values-staging.yaml; then
+            sed -i "s|imageTag:.*|imageTag: '${TAG}'|" ./infra/helm/quant-platform/values-staging.yaml
+          else
+            sed -i "/^global:/a\\  imageTag: '${TAG}'" ./infra/helm/quant-platform/values-staging.yaml
+          fi
+
+      - name: Commit and push image tag update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ./infra/helm/quant-platform/values-staging.yaml
+          git commit -m "chore: update staging image tag to ${{ github.sha }}" || echo "No changes to commit"
+          git push origin main
+
       - name: Deploy to staging via Helm
         run: |
           helm upgrade --install ${{ env.HELM_RELEASE }} ./infra/helm/quant-platform \
