@@ -10,11 +10,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@quant/auth": "*",
-    "@quant/ai": "*",
-    "@quant/common": "*",
-    "@quant/database": "*",
-    "@quant/realtime": "*",
-    "@quant/shared-ui": "*"
+    "@quant/auth": "workspace:*",
+    "@quant/ai": "workspace:*",
+    "@quant/common": "workspace:*",
+    "@quant/database": "workspace:*",
+    "@quant/realtime": "workspace:*",
+    "@quant/shared-ui": "workspace:*"
   }
 }

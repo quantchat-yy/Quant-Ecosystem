@@ -1,8 +1,29 @@
 // ============================================================================
-// @quant/database - Database Schemas, Models, and Migrations
+// @quant/database - Prisma Client, Repositories, and Schema Types
 // ============================================================================
 
-// Schemas
+// Client
+export { prisma, PrismaClient } from './client';
+export type { Prisma } from './client';
+
+// Transaction Helper
+export { withTx } from './transaction';
+export type { TransactionClient } from './transaction';
+
+// Repositories
+export {
+  BaseRepository,
+  UserRepository,
+  MessageRepository,
+  EmailRepository,
+  PostRepository,
+  MediaRepository,
+  AISessionRepository,
+  NotificationRepository,
+} from './repositories';
+export type { PaginationOptions, PaginatedResult } from './repositories';
+
+// Schema Types (kept as documentation/validation types)
 export * from './schemas/users';
 export * from './schemas/messages';
 export * from './schemas/emails';
@@ -12,10 +33,3 @@ export * from './schemas/media';
 export * from './schemas/profiles';
 export * from './schemas/ai-sessions';
 export * from './schemas/notifications';
-
-// Models
-export * from './models/index';
-
-// Migrations
-export { migration001Initial } from './migrations/001-initial';
-export type { Migration } from './migrations/001-initial';
