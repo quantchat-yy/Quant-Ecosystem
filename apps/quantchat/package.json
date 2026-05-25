@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "description": "QuantChat - Snapchat-like messaging app with stories, snaps, calls, AR filters, and AI integration",
-  "main": "api/server.ts",
+  "main": "backend/app.ts",
   "scripts": {
     "dev": "next dev",
-    "dev:backend": "node --loader ts-node/esm api/server.ts",
+    "dev:backend": "node --loader ts-node/esm backend/app.ts",
     "build": "next build",
-    "build:backend": "tsc --noEmit",
+    "build:backend": "tsc --noEmit -p tsconfig.backend.json",
     "start": "next start",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.backend.json",
     "test": "vitest run"

@@ -5,7 +5,7 @@
     "rootDir": ".",
     "jsx": "react-jsx"
   },
-  "include": ["api/**/*.ts", "src/**/*.ts", "src/**/*.tsx", "backend/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "backend/**/*.ts"],
   "references": [
     { "path": "../../packages/auth" },
     { "path": "../../packages/ai" },

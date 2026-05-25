@@ -1042,3 +1042,49 @@ enum NotificationPriority {
   HIGH
   URGENT
 }
+
+// ==================== DATA PLANE ====================
+
+model OutboxEvent {
+  id            String   @id @default(cuid())
+  aggregateType String
+  aggregateId   String
+  eventType     String
+  payload       Json
+  createdAt     DateTime @default(now())
+  publishedAt   DateTime?
+
+  @@index([publishedAt])
+  @@index([aggregateType, aggregateId])
+  @@index([createdAt])
+  @@map("outbox_events")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorId      String
+  action       String
+  resourceType String
+  resourceId   String
+  diff         Json     @default("{}")
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  @@index([actorId])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model EncryptionKey {
+  id           String   @id @default(cuid())
+  userId       String
+  encryptedKey String
+  algorithm    String   @default("AES-256-GCM")
+  rotatedAt    DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@map("encryption_keys")
+}

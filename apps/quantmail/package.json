@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "description": "QuantMail - Central authentication, email, and code management hub for the Quant Ecosystem",
-  "main": "api/server.ts",
+  "main": "backend/app.ts",
   "scripts": {
     "dev": "next dev",
-    "dev:backend": "node --loader ts-node/esm api/server.ts",
+    "dev:backend": "node --loader ts-node/esm backend/app.ts",
     "build": "next build",
-    "build:backend": "tsc --noEmit",
+    "build:backend": "tsc --noEmit -p tsconfig.backend.json",
     "start": "next start",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.backend.json",
     "test": "vitest run"
