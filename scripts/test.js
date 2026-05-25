@@ -76,7 +76,7 @@ if (errors.length > 0) {
 }
 
 // Verify key structure
-const requiredPackages = ['common', 'database', 'auth', 'ai', 'shared-ui', 'realtime'];
+const requiredPackages = ['common', 'database', 'auth', 'ai', 'shared-ui', 'realtime', 'server', 'analytics', 'notifications', 'search', 'media', 'payments', 'moderation', 'i18n', 'ecosystem-bridge'];
 const missingPackages = requiredPackages.filter(p => !fs.existsSync(path.join(PACKAGES_DIR, p, 'src', 'index.ts')));
 
 if (missingPackages.length > 0) {
@@ -84,5 +84,24 @@ if (missingPackages.length > 0) {
   process.exit(1);
 }
 
-console.log('\nAll packages present and valid.');
+// Line count report
+let totalLines = 0;
+function countLines(dir) {
+  if (!fs.existsSync(dir)) return;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules' && entry.name !== 'dist') {
+      countLines(fullPath);
+    } else if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx'))) {
+      const content = fs.readFileSync(fullPath, 'utf-8');
+      totalLines += content.split('\n').length;
+    }
+  }
+}
+countLines(path.join(__dirname, '..', 'packages'));
+countLines(path.join(__dirname, '..', 'apps'));
+console.log(`\nTotal lines of code: ${totalLines.toLocaleString()}`);
+
+console.log(`\nAll ${requiredPackages.length} packages present and valid.`);
 process.exit(0);

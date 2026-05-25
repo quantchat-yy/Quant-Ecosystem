@@ -2,7 +2,7 @@
   "id": "FEAT-005",
   "type": "feat",
   "description": "Create packages/ecosystem-bridge - the cross-app integration layer that unifies all Quant apps with universal share sheet, cross-app notifications, unified activity feed, content embedding, universal profile, auth state sync, deep linking registry, shared content cache, and cross-app AI context. Also update scripts/test.js to validate all new packages.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create packages/ecosystem-bridge/src/types.ts - SharedContent, DeepLink, ActivityFeedItem, EmbedConfig, UniversalProfile, CrossAppEvent, CacheEntry, AIContext, etc.",
     "Create packages/ecosystem-bridge/src/services/universal-share.ts - UniversalShareSheet: share(), getTargetApps(), formatForApp(), getPreview(), trackShare(), getShareAnalytics()",
