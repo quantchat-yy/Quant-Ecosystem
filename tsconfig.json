@@ -36,7 +36,9 @@
       "@quant/realtime": ["packages/realtime/src/index.ts"],
       "@quant/realtime/*": ["packages/realtime/src/*"],
       "@quant/server": ["packages/server/src/index.ts"],
-      "@quant/server/*": ["packages/server/src/*"]
+      "@quant/server/*": ["packages/server/src/*"],
+      "@quant/server-core": ["packages/server-core/src/index.ts"],
+      "@quant/server-core/*": ["packages/server-core/src/*"]
     }
   },
   "references": [
@@ -46,7 +48,8 @@
     { "path": "packages/ai" },
     { "path": "packages/shared-ui" },
     { "path": "packages/realtime" },
-    { "path": "packages/server" }
+    { "path": "packages/server" },
+    { "path": "packages/server-core" }
   ],
   "exclude": ["node_modules", "dist", "build"]
 }

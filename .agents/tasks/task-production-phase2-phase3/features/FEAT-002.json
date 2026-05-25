@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Phase 3 - Create packages/server-core with Fastify-based HTTP layer and convert QuantMail identity service routes to use it. Includes Fastify app factory with helmet, cors, rate-limit (Redis-backed), pino logger, request-id, Zod validation via @fastify/type-provider-zod, error handler, graceful shutdown. Also includes auth plugin that validates JWTs via jose, health/readiness endpoints, and a converted QuantMail identity API.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Step 1: Create packages/server-core directory with package.json. Dependencies: fastify, @fastify/helmet, @fastify/cors, @fastify/rate-limit, @fastify/cookie, fastify-plugin, zod, @fastify/type-provider-zod, pino, pino-pretty (dev), ioredis. Dev deps: @types/node, vitest. Add workspace deps: @quant/auth (workspace:*), @quant/common (workspace:*). Add tsconfig.json extending root. Add vitest.config.ts.",
     "Step 2: Create packages/server-core/src/app.ts - Export createApp(config: AppConfig) function that: creates Fastify instance with logger (pino), registers @fastify/helmet, registers @fastify/cors with configurable origins, registers @fastify/rate-limit with Redis store (IORedis) or in-memory fallback, adds request-id decorator (crypto.randomUUID), adds Zod type provider via withTypeProvider<ZodTypeProvider>(), registers error handler plugin, registers graceful shutdown hooks (SIGTERM, SIGINT).",
