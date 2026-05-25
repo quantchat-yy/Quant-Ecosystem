@@ -2,18 +2,35 @@
   "name": "quant-ecosystem",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Quant Ecosystem - A 9-app interconnected platform",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "scripts": {
-    "build": "tsc --noEmit",
-    "typecheck": "tsc --noEmit",
-    "test": "node scripts/test.js",
-    "lint": "tsc --noEmit --strict"
-  },
+  "packageManager": "pnpm@10.28.1",
   "engines": {
     "node": ">=22.0.0"
+  },
+  "scripts": {
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "build": "turbo build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19",
+    "@commitlint/config-conventional": "^19",
+    "@faker-js/faker": "^9",
+    "@typescript-eslint/eslint-plugin": "^8",
+    "@typescript-eslint/parser": "^8",
+    "@vitest/coverage-v8": "^2",
+    "eslint": "^9",
+    "husky": "^9",
+    "lint-staged": "^15",
+    "prettier": "^3",
+    "turbo": "^2",
+    "typescript": "~5.5.0",
+    "typescript-eslint": "^8",
+    "vitest": "^2"
   }
 }
