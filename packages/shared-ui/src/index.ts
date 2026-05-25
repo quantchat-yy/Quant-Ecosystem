@@ -82,3 +82,6 @@ export type { UseThemeReturn, ThemeMode } from './hooks/useTheme';
 export { lightTheme } from './themes/light';
 export { darkTheme } from './themes/dark';
 export { neonTheme } from './themes/neon';
+
+// Advanced Frontend Systems
+export * from './advanced';
