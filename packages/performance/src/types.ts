@@ -194,7 +194,12 @@ export interface QueryOptimization {
 }
 
 /** Optimization type */
-export type OptimizationType = 'ADD_INDEX' | 'REWRITE_QUERY' | 'BATCH_QUERIES' | 'ELIMINATE_N_PLUS_1' | 'PARTITION';
+export type OptimizationType =
+  | 'ADD_INDEX'
+  | 'REWRITE_QUERY'
+  | 'BATCH_QUERIES'
+  | 'ELIMINATE_N_PLUS_1'
+  | 'PARTITION';
 
 /** Index suggestion */
 export interface IndexSuggestion {
@@ -400,7 +405,12 @@ export interface RuntimeCachingRule {
 }
 
 /** Cache strategy */
-export type CacheStrategy = 'CACHE_FIRST' | 'NETWORK_FIRST' | 'STALE_WHILE_REVALIDATE' | 'NETWORK_ONLY' | 'CACHE_ONLY';
+export type CacheStrategy =
+  | 'CACHE_FIRST'
+  | 'NETWORK_FIRST'
+  | 'STALE_WHILE_REVALIDATE'
+  | 'NETWORK_ONLY'
+  | 'CACHE_ONLY';
 
 /** Background sync queue item */
 export interface SyncQueueItem {
@@ -454,4 +464,115 @@ export interface SuspectedLeak {
   retainedSize: number;
   growthPerSnapshot: number;
   allocationSite?: string;
+}
+
+// ============================================================================
+// Edge Computing Types
+// ============================================================================
+
+/** Edge node in the network */
+export interface EdgeNode {
+  id: string;
+  name: string;
+  region: string;
+  latitude: number;
+  longitude: number;
+  capacity: number;
+  currentLoad: number;
+  isActive: boolean;
+}
+
+/** Edge computing configuration */
+export interface EdgeConfig {
+  defaultColdStartMs: number;
+  warmInstanceTtlMs: number;
+  defaultCacheTtlMs: number;
+  staleWhileRevalidateMs: number;
+  maxConsecutiveFailures: number;
+}
+
+// ============================================================================
+// Database Sharding Types
+// ============================================================================
+
+/** Shard configuration */
+export interface ShardConfig {
+  virtualNodesPerPhysical: number;
+  hotShardWindowMs: number;
+  hotShardMultiplier: number;
+  maxShardSize: number;
+  minShardSize: number;
+}
+
+/** Hash ring state */
+export interface HashRing {
+  virtualNodes: Array<{ hash: number; physicalNodeId: string }>;
+  physicalNodeCount: number;
+  virtualNodeCount: number;
+  virtualNodesPerPhysical: number;
+}
+
+/** Shard routing result */
+export interface ShardRouting {
+  key: string;
+  hash: number;
+  nodeId: string;
+  virtualNodeIndex: number;
+}
+
+// ============================================================================
+// Service Mesh Types
+// ============================================================================
+
+/** Service endpoint in the mesh */
+export interface ServiceEndpoint {
+  id: string;
+  host: string;
+  port: number;
+  weight: number;
+  healthy: boolean;
+  isActive: boolean;
+  lastHealthCheck: number;
+  responseTimeMs: number;
+}
+
+/** Load balancer configuration */
+export interface LoadBalancerConfig {
+  algorithm: 'round_robin' | 'weighted_random' | 'least_connections' | 'power_of_two_choices';
+  healthCheckIntervalMs: number;
+  healthCheckPath: string;
+  unhealthyThreshold: number;
+}
+
+// ============================================================================
+// CDN Optimizer Types
+// ============================================================================
+
+/** CDN configuration */
+export interface CDNConfig {
+  defaultTtlMs: number;
+  minTtlMs: number;
+  maxTtlMs: number;
+  minCompressionSize: number;
+  edgeNodeCount: number;
+}
+
+/** Cache policy for URL patterns */
+export interface CachePolicy {
+  pattern: string;
+  ttlMs: number;
+  staleWhileRevalidateMs: number;
+  cacheControl: string;
+  varyHeaders: string[];
+  allowCompression: boolean;
+}
+
+/** Purge event */
+export interface PurgeEvent {
+  id: string;
+  key: string;
+  initiatedAt: number;
+  status: 'initiated' | 'propagating' | 'complete';
+  totalNodes: number;
+  confirmedNodes: number;
 }

@@ -18,6 +18,10 @@ export { ResourcePreloader } from './core/resource-preloader';
 export { ServiceWorkerGenerator } from './core/service-worker-gen';
 export { BackgroundSyncQueue } from './core/background-sync';
 export { MemoryLeakDetector } from './core/memory-leak-detector';
+export { EdgeComputing } from './core/edge-computing';
+export { DatabaseSharding } from './core/database-sharding';
+export { ServiceMesh } from './core/service-mesh';
+export { CDNOptimizer } from './core/cdn-optimizer';
 
 export type {
   LRUConfig,
@@ -74,4 +78,14 @@ export type {
   LeakReport,
   LeakSeverity,
   SuspectedLeak,
+  EdgeNode,
+  EdgeConfig,
+  ShardConfig,
+  HashRing,
+  ShardRouting,
+  ServiceEndpoint,
+  LoadBalancerConfig,
+  CDNConfig,
+  CachePolicy,
+  PurgeEvent,
 } from './types';

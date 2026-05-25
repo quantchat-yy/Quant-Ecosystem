@@ -17,3 +17,6 @@ export { TieredRateLimiter } from './core/rate-limiter';
 export { UsageAnalytics } from './core/usage-analytics';
 export { AppMarketplace } from './core/app-marketplace';
 export { PluginSandbox } from './core/plugin-sandbox';
+export { PublicAPIGateway } from './core/public-api-gateway';
+export { OAuth2Server } from './core/oauth2-server';
+export { WebhookDelivery as WebhookDeliverySystem } from './core/webhook-delivery';
