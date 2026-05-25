@@ -1,0 +1,54 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: quant-platform-environments
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - environment: staging
+            namespace: quant-staging
+            targetRevision: main
+            autoSync: "true"
+            values_file: values-staging.yaml
+          - environment: production
+            namespace: quant-production
+            targetRevision: main
+            autoSync: "false"
+            values_file: values-production.yaml
+  template:
+    metadata:
+      name: "quant-platform-{{environment}}"
+      namespace: argocd
+      labels:
+        app.kubernetes.io/part-of: quant-platform
+        environment: "{{environment}}"
+      annotations:
+        argocd.argoproj.io/sync-wave: "0"
+    spec:
+      project: quant-platform
+      source:
+        repoURL: https://github.com/nicksavill/Quant-Ecosystem.git
+        targetRevision: "{{targetRevision}}"
+        path: infra/helm/quant-platform
+        helm:
+          valueFiles:
+            - values.yaml
+            - "{{values_file}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{namespace}}"
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+          - PruneLast=true
+          - ApplyOutOfSyncOnly=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
+  syncPolicy:
+    preserveResourcesOnDeletion: true

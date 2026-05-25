@@ -7,4 +7,9 @@ pnpm-lock.yaml
 prisma/migrations
 infra/helm/**/templates
 infra/terraform
+infra/grafana
+infra/prometheus
+infra/otel
+infra/argocd
+infra/scripts
 .github/workflows/

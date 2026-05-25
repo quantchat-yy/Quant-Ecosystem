@@ -1,0 +1,70 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: quant-platform-staging
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: quant-platform
+    environment: staging
+spec:
+  project: quant-platform
+  source:
+    repoURL: https://github.com/nicksavill/Quant-Ecosystem.git
+    targetRevision: main
+    path: infra/helm/quant-platform
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-staging.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: quant-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 10
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: quant-platform-production
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: quant-platform
+    environment: production
+spec:
+  project: quant-platform
+  source:
+    repoURL: https://github.com/nicksavill/Quant-Ecosystem.git
+    targetRevision: main
+    path: infra/helm/quant-platform
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-production.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: quant-production
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 10
