@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Set up real Next.js 14 App Router frontend for the top 3 apps (quantchat, quantmail, quantai). Each gets app/ directory with layout.tsx, page.tsx, real routing, proper next.config.js, tailwind.config.ts, and loading/error states. The frontends import from @quant/shared-ui and display real pages with the design system.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "1. Update apps/quantchat/package.json: add next@14, react@18, react-dom@18, tailwindcss, postcss, autoprefixer as dependencies. Add scripts: dev (next dev), build (next build), start (next start). Keep existing backend scripts prefixed with backend:.",
     "2. Create apps/quantchat/next.config.js with transpilePackages for @quant/* workspace packages, output: standalone.",

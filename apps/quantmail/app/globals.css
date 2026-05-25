@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --quant-primary: #3b82f6;
+  --quant-secondary: #8b5cf6;
+  --quant-background: #ffffff;
+  --quant-foreground: #0f172a;
+  --quant-muted: #f1f5f9;
+  --quant-muted-foreground: #64748b;
+  --quant-border: #e2e8f0;
+  --quant-ring: #3b82f6;
+  --quant-radius: 0.5rem;
+}
+
+.dark {
+  --quant-background: #0f172a;
+  --quant-foreground: #f8fafc;
+  --quant-muted: #1e293b;
+  --quant-muted-foreground: #94a3b8;
+  --quant-border: #334155;
+}
+
+@layer base {
+  body {
+    @apply bg-[var(--quant-background)] text-[var(--quant-foreground)] antialiased;
+  }
+}

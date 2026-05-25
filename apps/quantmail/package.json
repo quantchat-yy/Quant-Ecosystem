@@ -2,12 +2,14 @@
   "name": "@quant/quantmail",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "description": "QuantMail - Central authentication, email, and code management hub for the Quant Ecosystem",
   "main": "api/server.ts",
   "scripts": {
-    "dev": "node --loader ts-node/esm api/server.ts",
-    "build": "tsc --noEmit",
+    "dev": "next dev",
+    "dev:backend": "node --loader ts-node/esm api/server.ts",
+    "build": "next build",
+    "build:backend": "tsc --noEmit",
+    "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -21,9 +23,17 @@
     "@quant/shared-ui": "workspace:*",
     "fastify": "^5.2.1",
     "ioredis": "^5.6.1",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
     "vitest": "^2"
   }
 }
