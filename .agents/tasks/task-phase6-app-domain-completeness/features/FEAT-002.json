@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "QuantMail production backend - expand from Phase 3 identity service with full email CRUD, threading, folders, AI-powered features (summarize, compose, priority, phishing), contact management, and attachment handling. Uses Prisma EmailRepository, MailAIService from @quant/ai, and server-core Fastify pattern.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create apps/quantmail/backend/ directory structure: app.ts, routes/, services/, __tests__/",
     "Create apps/quantmail/backend/app.ts: Fastify app using createApp from @quant/server-core. Register email routes, folder routes, contact routes, ai routes. Follow the api-v2/app.ts config pattern.",
