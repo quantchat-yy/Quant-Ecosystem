@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Build the Deep AI Integration layer - Universal AI Assistant that can perform cross-app actions. Includes the assistant core, action/tool registration system, natural language intent router, voice interface module, and a typed React Query API client SDK. This is the 'Quant AI Everywhere' killer feature.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "1. Create packages/ai/src/assistant/types.ts - Define interfaces: AITool (name, description, parameters as Zod-like schema, handler), AIAction (tool, args, result), AppCapability (appName, tools[]), IntentRouterResult (targetApp, tool, confidence, parsedArgs), AssistantContext (userId, currentApp, conversationHistory, crossAppState).",
     "2. Create packages/ai/src/assistant/tool-registry.ts - ToolRegistry class: registerTool(app, tool), getToolsForApp(app), getAllTools(), findToolByName(name), getToolDescriptions() returning formatted tool list for LLM system prompts.",
