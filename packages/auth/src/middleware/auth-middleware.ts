@@ -2,7 +2,7 @@
 // Auth - Middleware for Token Validation
 // ============================================================================
 
-import type { AuthContext, AuthConfig, TokenPayload } from '../types';
+import type { AuthContext, AuthConfig } from '../types';
 import type { PermissionScope } from '@quant/common';
 import { TokenService } from '../services/token-service';
 import { SessionService } from '../services/session-service';
@@ -45,10 +45,8 @@ export interface AuthMiddlewareOptions {
 export class AuthMiddleware {
   private tokenService: TokenService;
   private sessionService: SessionService;
-  private config: AuthConfig;
 
   constructor(config: AuthConfig) {
-    this.config = config;
     this.tokenService = new TokenService(config);
     this.sessionService = new SessionService(config);
   }
@@ -58,7 +56,11 @@ export class AuthMiddleware {
    * Validates the token and attaches user context to the request
    */
   authenticate(options: AuthMiddlewareOptions = {}) {
-    return async (req: AuthRequest & { auth?: AuthContext }, res: AuthResponse, next: NextFunction): Promise<void> => {
+    return async (
+      req: AuthRequest & { auth?: AuthContext },
+      res: AuthResponse,
+      next: NextFunction,
+    ): Promise<void> => {
       // Extract token from Authorization header
       const token = this.extractToken(req);
       if (!token) {
@@ -89,8 +91,8 @@ export class AuthMiddleware {
 
       // Check required scopes
       if (options.requiredScopes && options.requiredScopes.length > 0) {
-        const hasRequiredScopes = options.requiredScopes.every(
-          (scope) => payload.scopes.includes(scope)
+        const hasRequiredScopes = options.requiredScopes.every((scope) =>
+          payload.scopes.includes(scope),
         );
         if (!hasRequiredScopes) {
           res.status(403).json({
@@ -128,7 +130,11 @@ export class AuthMiddleware {
    * Create authorization middleware that checks for specific roles
    */
   requireRole(...roles: string[]) {
-    return async (req: AuthRequest & { auth?: AuthContext }, res: AuthResponse, next: NextFunction): Promise<void> => {
+    return async (
+      req: AuthRequest & { auth?: AuthContext },
+      res: AuthResponse,
+      next: NextFunction,
+    ): Promise<void> => {
       if (!req.auth) {
         res.status(401).json({
           success: false,
@@ -161,7 +167,11 @@ export class AuthMiddleware {
    * Create authorization middleware that checks for specific scopes
    */
   requireScopes(...scopes: PermissionScope[]) {
-    return async (req: AuthRequest & { auth?: AuthContext }, res: AuthResponse, next: NextFunction): Promise<void> => {
+    return async (
+      req: AuthRequest & { auth?: AuthContext },
+      res: AuthResponse,
+      next: NextFunction,
+    ): Promise<void> => {
       if (!req.auth) {
         res.status(401).json({
           success: false,
@@ -195,7 +205,11 @@ export class AuthMiddleware {
    * Optional authentication - attaches context if token is present, continues otherwise
    */
   optionalAuth() {
-    return async (req: AuthRequest & { auth?: AuthContext }, _res: AuthResponse, next: NextFunction): Promise<void> => {
+    return async (
+      req: AuthRequest & { auth?: AuthContext },
+      _res: AuthResponse,
+      next: NextFunction,
+    ): Promise<void> => {
       const token = this.extractToken(req);
       if (token) {
         const payload = await this.tokenService.validateAccessToken(token);

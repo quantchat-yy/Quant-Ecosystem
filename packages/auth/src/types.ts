@@ -217,3 +217,16 @@ export type AuthEventType =
   | 'oauth_revoked'
   | 'account_locked'
   | 'account_unlocked';
+
+// ============================================================================
+// WebAuthn Types
+// ============================================================================
+
+/** Stored WebAuthn credential */
+export interface WebAuthnCredential {
+  credentialId: string;
+  publicKey: string;
+  counter: number;
+  transports: string[];
+  createdAt: Date;
+}
