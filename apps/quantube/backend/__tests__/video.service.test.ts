@@ -107,7 +107,7 @@ describe('VideoService', () => {
       expect(result.viewCount).toBe(101);
       expect(prisma.video.update).toHaveBeenCalledWith({
         where: { id: 'video-1' },
-        data: { viewCount: 101 },
+        data: { viewCount: { increment: 1 } },
       });
     });
 

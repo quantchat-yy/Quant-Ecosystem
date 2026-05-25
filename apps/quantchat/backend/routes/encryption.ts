@@ -40,6 +40,11 @@ export default async function encryptionRoutes(fastify: FastifyInstance) {
 
   // GET /encryption/keys/:userId - Get prekey bundle
   fastify.get<{ Params: { userId: string } }>('/keys/:userId', async (request, reply) => {
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
     const bundle = await service.getPreKeyBundle(request.params.userId);
     return reply.send({ success: true, data: bundle });
   });

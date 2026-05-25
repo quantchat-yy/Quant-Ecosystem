@@ -214,7 +214,7 @@ export class PostService {
 
     return this.prisma.post.update({
       where: { id: postId },
-      data: { likeCount: post.likeCount + 1 },
+      data: { likeCount: { increment: 1 } },
     });
   }
 
@@ -230,7 +230,7 @@ export class PostService {
     // Increment repost count on original
     await this.prisma.post.update({
       where: { id: postId },
-      data: { repostCount: original.repostCount + 1 },
+      data: { repostCount: { increment: 1 } },
     });
 
     // Create a new repost

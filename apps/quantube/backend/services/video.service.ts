@@ -219,7 +219,7 @@ export class VideoService {
 
     return this.prisma.video.update({
       where: { id: videoId },
-      data: { viewCount: video.viewCount + 1 },
+      data: { viewCount: { increment: 1 } },
     });
   }
 

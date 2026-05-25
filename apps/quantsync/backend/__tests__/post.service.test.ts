@@ -118,7 +118,7 @@ describe('PostService', () => {
       expect(result.likeCount).toBe(6);
       expect(prisma.post.update).toHaveBeenCalledWith({
         where: { id: 'post-1' },
-        data: { likeCount: 6 },
+        data: { likeCount: { increment: 1 } },
       });
     });
 
@@ -222,7 +222,7 @@ describe('PostService', () => {
       expect(result.type).toBe('REPOST');
       expect(prisma.post.update).toHaveBeenCalledWith({
         where: { id: 'post-1' },
-        data: { repostCount: 4 },
+        data: { repostCount: { increment: 1 } },
       });
     });
   });

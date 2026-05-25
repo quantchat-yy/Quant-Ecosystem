@@ -42,15 +42,27 @@ export interface PaginatedResult<T> {
 export class FeedService {
   constructor(private readonly prisma: PrismaClient) {}
 
-  async getFeed(_userId: string, options: PaginationOptions = {}): Promise<PaginatedResult<Post>> {
+  async getFeed(userId: string, options: PaginationOptions = {}): Promise<PaginatedResult<Post>> {
     const page = options.page ?? 1;
     const pageSize = options.pageSize ?? 20;
     const skip = (page - 1) * pageSize;
+
+    // Get list of users this user follows
+    const relationships = await this.prisma.userRelationship.findMany({
+      where: { followerId: userId, type: 'FOLLOW' },
+      select: { followingId: true },
+    });
+
+    const followingIds = relationships.map((r: { followingId: string }) => r.followingId);
+
+    // Include the user's own posts in their feed
+    const feedUserIds = [userId, ...followingIds];
 
     // Get posts from followed users sorted by recency and engagement
     const [data, total] = await Promise.all([
       this.prisma.post.findMany({
         where: {
+          userId: { in: feedUserIds },
           deletedAt: null,
           visibility: 'PUBLIC',
         },
@@ -60,6 +72,7 @@ export class FeedService {
       }),
       this.prisma.post.count({
         where: {
+          userId: { in: feedUserIds },
           deletedAt: null,
           visibility: 'PUBLIC',
         },

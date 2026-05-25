@@ -192,7 +192,7 @@ export class PhotoService {
 
     return this.prisma.photo.update({
       where: { id: photoId },
-      data: { likeCount: photo.likeCount + 1 },
+      data: { likeCount: { increment: 1 } },
     });
   }
 
