@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "QuantAI production backend - Multi-model conversational interface with session management, tool calling framework, multi-modal support, streaming SSE, usage tracking, and agent marketplace. Leverages Phase 4 AI engine (AIEngine, CostTracker, ModelRouter) and Phase 5 realtime (streaming events).",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create apps/quantai/backend/ directory structure: app.ts, routes/, services/, __tests__/",
     "Create apps/quantai/backend/app.ts: Fastify app using createApp from @quant/server-core. Register session routes, chat routes, tools routes, agents routes.",
