@@ -22,3 +22,16 @@ export { MailAIService } from './services/mail-ai';
 export { ContentAIService } from './services/content-ai';
 export { RecommendationAIService } from './services/recommendation-ai';
 export { DeviceControlAIService } from './services/device-control-ai';
+
+// Assistant
+export { UniversalAssistant } from './assistant/assistant';
+export { ToolRegistry } from './assistant/tool-registry';
+export { IntentRouter } from './assistant/intent-router';
+export { ActionExecutor } from './assistant/action-executor';
+export * from './assistant/types';
+
+// Voice
+export { SpeechToTextService } from './voice/speech-to-text';
+export { TextToSpeechService } from './voice/text-to-speech';
+export { VoiceCommander } from './voice/voice-commander';
+export type { VoiceConfig, TranscriptionResult, TTSRequest, TTSResponse } from './voice/types';

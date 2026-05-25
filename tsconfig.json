@@ -38,7 +38,9 @@
       "@quant/server": ["packages/server/src/index.ts"],
       "@quant/server/*": ["packages/server/src/*"],
       "@quant/server-core": ["packages/server-core/src/index.ts"],
-      "@quant/server-core/*": ["packages/server-core/src/*"]
+      "@quant/server-core/*": ["packages/server-core/src/*"],
+      "@quant/api-client": ["packages/api-client/src/index.ts"],
+      "@quant/api-client/*": ["packages/api-client/src/*"]
     }
   },
   "references": [
@@ -49,7 +51,8 @@
     { "path": "packages/shared-ui" },
     { "path": "packages/realtime" },
     { "path": "packages/server" },
-    { "path": "packages/server-core" }
+    { "path": "packages/server-core" },
+    { "path": "packages/api-client" }
   ],
   "exclude": ["node_modules", "dist", "build"]
 }

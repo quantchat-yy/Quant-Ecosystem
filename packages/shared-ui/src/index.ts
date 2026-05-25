@@ -29,7 +29,11 @@ export type { LoaderProps } from './components/Loader';
 
 // Media components
 export { VideoPlayer, AudioPlayer, ImageViewer } from './components/MediaPlayer';
-export type { VideoPlayerProps, AudioPlayerProps, ImageViewerProps } from './components/MediaPlayer';
+export type {
+  VideoPlayerProps,
+  AudioPlayerProps,
+  ImageViewerProps,
+} from './components/MediaPlayer';
 
 // Chat components
 export { ChatBubble } from './components/Chat/ChatBubble';
@@ -78,10 +82,52 @@ export type { UseRealtimeReturn, UseRealtimeOptions } from './hooks/useRealtime'
 export { useTheme } from './hooks/useTheme';
 export type { UseThemeReturn, ThemeMode } from './hooks/useTheme';
 
+// Layout components
+export { AppShell } from './components/Layout/AppShell';
+export type { AppShellProps } from './components/Layout/AppShell';
+
+export { Sidebar } from './components/Layout/Sidebar';
+export type { SidebarProps, SidebarItem } from './components/Layout/Sidebar';
+
+export { PageContainer } from './components/Layout/PageContainer';
+export type { PageContainerProps, Breadcrumb } from './components/Layout/PageContainer';
+
+// Form components
+export { FormField } from './components/Form/FormField';
+export type { FormFieldProps } from './components/Form/FormField';
+
+export { TextArea } from './components/Form/TextArea';
+export type { TextAreaProps } from './components/Form/TextArea';
+
+export { Select } from './components/Form/Select';
+export type { SelectProps, SelectOption } from './components/Form/Select';
+
+export { SearchInput } from './components/Form/SearchInput';
+export type { SearchInputProps } from './components/Form/SearchInput';
+
+export { FileUpload } from './components/Form/FileUpload';
+export type { FileUploadProps } from './components/Form/FileUpload';
+
+// Dialog component
+export { Dialog } from './components/Dialog';
+export type { DialogProps } from './components/Dialog';
+
+// Skeleton component
+export { Skeleton } from './components/Skeleton';
+export type { SkeletonProps } from './components/Skeleton';
+
+// VoiceInput component
+export { VoiceInput } from './components/VoiceInput';
+export type { VoiceInputProps } from './components/VoiceInput';
+
 // Themes
 export { lightTheme } from './themes/light';
 export { darkTheme } from './themes/dark';
 export { neonTheme } from './themes/neon';
+
+// Design tokens
+export { lightTokens, darkTokens, neonTokens, tokensToCssVariables } from './themes/tokens';
+export type { DesignTokens } from './themes/tokens';
 
 // Advanced Frontend Systems
 export * from './advanced';
