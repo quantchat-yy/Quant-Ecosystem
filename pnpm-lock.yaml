@@ -534,6 +534,38 @@ importers:
         specifier: ^4.19.0
         version: 4.22.3
 
+  packages/engagement-engine:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../common
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ^5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
+  packages/ml-pipeline:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../common
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ^5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
   packages/realtime:
     dependencies:
       '@quant/common':

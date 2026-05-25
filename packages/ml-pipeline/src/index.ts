@@ -16,6 +16,9 @@ export { NEREngine } from './core/ner-engine';
 export { TimeSeriesForecaster } from './core/time-series-forecaster';
 export { AutoMLPipeline } from './core/automl-pipeline';
 export { ModelMonitor } from './core/model-monitor';
+export { OnlineLearning } from './core/online-learning';
+export { ModelServing } from './core/model-serving';
+export { ExperimentFramework } from './core/experiment-framework';
 
 export type {
   Feature,
@@ -80,4 +83,29 @@ export type {
   AlertSeverity,
   DistributionBin,
   DriftReport,
+  OnlineLearningConfig,
+  OnlineLRSchedule,
+  OnlineOptimizer,
+  StreamingUpdate,
+  LearningRateScheduleConfig,
+  DriftDetectionResult,
+  ModelCheckpoint,
+  MiniBatchState,
+  ModelServingConfig,
+  RoutingStrategy,
+  ServingRoute,
+  PredictionRequest,
+  PredictionResponse,
+  BatchRequest,
+  ModelVersionMetrics,
+  ServingLatencyStats,
+  ExperimentConfig,
+  ExperimentResult,
+  ExperimentStatus,
+  VariantData,
+  PowerAnalysis,
+  SequentialTestResult,
+  MABConfig,
+  MABArm,
+  MABAllocation,
 } from './types';

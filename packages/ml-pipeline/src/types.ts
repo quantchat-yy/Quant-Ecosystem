@@ -45,7 +45,14 @@ export interface FeatureStats {
   kurtosis: number;
 }
 
-export type TransformType = 'normalize' | 'standardize' | 'log' | 'bucketize' | 'one_hot' | 'clip' | 'power';
+export type TransformType =
+  | 'normalize'
+  | 'standardize'
+  | 'log'
+  | 'bucketize'
+  | 'one_hot'
+  | 'clip'
+  | 'power';
 
 export interface TransformConfig {
   type: TransformType;
@@ -326,7 +333,15 @@ export interface SentimentResult {
   aspects?: { aspect: string; sentiment: SentimentLabel; score: number }[];
 }
 
-export type EntityType = 'PERSON' | 'ORG' | 'LOCATION' | 'DATE' | 'MONEY' | 'EMAIL' | 'URL' | 'PHONE';
+export type EntityType =
+  | 'PERSON'
+  | 'ORG'
+  | 'LOCATION'
+  | 'DATE'
+  | 'MONEY'
+  | 'EMAIL'
+  | 'URL'
+  | 'PHONE';
 
 export interface NEREntity {
   text: string;
@@ -414,6 +429,219 @@ export interface TrialResult {
   metric: number;
   duration: number;
   status: 'completed' | 'failed' | 'terminated';
+}
+
+// Online Learning Types
+export type OnlineLRSchedule = 'constant' | 'cosine_annealing' | 'step_decay' | 'warm_restarts';
+export type OnlineOptimizer = 'sgd' | 'momentum' | 'adam' | 'rmsprop';
+
+export interface OnlineLearningConfig {
+  inputDimension: number;
+  learningRate: number;
+  batchSize: number;
+  optimizer: OnlineOptimizer;
+  lrSchedule: OnlineLRSchedule;
+  lrMin: number;
+  lrMax: number;
+  warmupSteps: number;
+  cycleLength: number;
+  weightDecay: number;
+  momentumBeta: number;
+  adamBeta2: number;
+  adamEpsilon: number;
+  adwinDelta: number;
+  maxCheckpoints: number;
+  gradientClipNorm: number;
+}
+
+export interface StreamingUpdate {
+  loss: number;
+  updated: boolean;
+  currentLR: number;
+  totalSamples: number;
+  driftDetected: boolean;
+  step: number;
+}
+
+export interface LearningRateScheduleConfig {
+  type: OnlineLRSchedule;
+  initialLR: number;
+  minLR: number;
+  maxLR: number;
+  warmupSteps: number;
+  cycleLength: number;
+}
+
+export interface DriftDetectionResult {
+  driftDetected: boolean;
+  currentMean: number;
+  windowSize: number;
+  confidence: number;
+}
+
+export interface ModelCheckpoint {
+  step: number;
+  weights: number[];
+  bias: number;
+  loss: number;
+  timestamp: number;
+  learningRate: number;
+}
+
+export interface MiniBatchState {
+  features: number[][];
+  labels: number[];
+  currentSize: number;
+  maxSize: number;
+}
+
+// Model Serving Types
+export type RoutingStrategy = 'canary' | 'shadow' | 'ab_test' | 'weighted';
+
+export interface ModelServingConfig {
+  maxBatchSize: number;
+  batchTimeoutMs: number;
+  cacheTTLMs: number;
+  maxCacheSize: number;
+  defaultRouting: RoutingStrategy;
+  latencyBudgetMs: number;
+  maxModelsLoaded: number;
+  canaryTrafficPercent: number;
+  shadowModeEnabled: boolean;
+}
+
+export interface ServingRoute {
+  strategy: RoutingStrategy;
+  primary: { name: string; version: string };
+  canary?: { name: string; version: string };
+  shadow?: { name: string; version: string };
+  primaryWeight?: number;
+}
+
+export interface PredictionRequest {
+  requestId: string;
+  features: number[];
+  routeName?: string;
+  timestamp: number;
+  metadata?: Record<string, string>;
+}
+
+export interface PredictionResponse {
+  requestId: string;
+  prediction: number;
+  probability: number[];
+  modelName: string;
+  modelVersion: string;
+  latencyMs: number;
+  cached: boolean;
+  timestamp: number;
+}
+
+export interface BatchRequest {
+  requests: PredictionRequest[];
+  maxWaitMs: number;
+}
+
+export interface ModelVersionMetrics {
+  modelName: string;
+  modelVersion: string;
+  requestCount: number;
+  errorCount: number;
+  errorRate: number;
+  latencyStats: ServingLatencyStats;
+  status: 'loading' | 'ready' | 'draining' | 'offline';
+  loadedAt: number;
+  uptime: number;
+}
+
+export interface ServingLatencyStats {
+  p50: number;
+  p95: number;
+  p99: number;
+  mean: number;
+  count: number;
+  max: number;
+  min: number;
+}
+
+// Experiment Framework Types
+export type ExperimentStatus = 'draft' | 'running' | 'concluded' | 'cancelled';
+
+export interface ExperimentConfig {
+  id: string;
+  name: string;
+  variants: string[];
+  significance: number;
+  power: number;
+  minimumDetectableEffect: number;
+  sequential: boolean;
+  sequentialCheckInterval: number;
+  baselineRate?: number;
+  maxDuration?: number;
+}
+
+export interface ExperimentResult {
+  experimentId: string;
+  status: ExperimentStatus;
+  controlRate: number;
+  treatmentRate: number;
+  absoluteLift: number;
+  relativeLift: number;
+  confidenceInterval: [number, number];
+  pValue: number;
+  zScore: number;
+  significant: boolean;
+  totalSamples: number;
+  requiredSamples: number;
+  winner: string | null;
+}
+
+export interface VariantData {
+  name: string;
+  sampleSize: number;
+  successes: number;
+  failures: number;
+  conversionRate: number;
+  revenue: number;
+  meanMetric: number;
+  varianceMetric: number;
+}
+
+export interface PowerAnalysis {
+  baselineRate: number;
+  minimumDetectableEffect: number;
+  significance: number;
+  power: number;
+}
+
+export interface SequentialTestResult {
+  experimentId: string;
+  informationFraction: number;
+  currentZScore: number;
+  boundary: number;
+  crossedBoundary: boolean;
+  alphaSpent: number;
+  canStop: boolean;
+  recommendedAction: 'continue' | 'stop_significant' | 'stop_inconclusive';
+}
+
+export interface MABConfig {
+  id: string;
+  arms: MABArm[];
+  algorithm: 'ucb1' | 'thompson_sampling' | 'epsilon_greedy';
+  epsilon?: number;
+}
+
+export interface MABArm {
+  id: string;
+  name: string;
+  metadata?: Record<string, string>;
+}
+
+export interface MABAllocation {
+  armId: string;
+  score: number;
+  algorithm: string;
 }
 
 // Model Monitoring Types

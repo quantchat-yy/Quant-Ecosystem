@@ -1,0 +1,34 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Phase 11-12-13: Content Feed Algorithms + Real-time Intelligence + Advanced Search. Extends the recommendations package with feed ranking and content graph. Adds real-time intelligence (fraud, spam ML, anomaly). Extends search package with semantic search, knowledge graph, and entity linking.",
+  "status": "pending",
+  "steps": [
+    "1. In packages/recommendations/src/core/feed-ranker.ts: Implement FeedRanker class with multi-signal ranking using weighted feature combination (engagement_score * 0.3 + recency_decay * 0.25 + affinity * 0.2 + quality * 0.15 + diversity * 0.1), time-decay using exponential function with half-life parameter, position bias correction using inverse propensity weighting, re-ranking for diversity using Maximal Marginal Relevance (MMR), content fatigue detection per content type",
+    "2. In packages/recommendations/src/core/content-graph.ts: Implement ContentGraph class with directed graph of content relationships (similar_to, sequel_of, response_to, inspired_by), PageRank-inspired content authority scoring, graph-based recommendation walks (random walk with restart), content clustering using label propagation algorithm, topic hierarchy inference from content co-occurrence",
+    "3. In packages/recommendations/src/core/explore-discovery.ts: Implement ExploreDiscovery class with exploration vs exploitation balance using epsilon-greedy with decay, serendipity injection (introduce items outside user's comfort zone with controlled probability), interest expansion detection (when user engages with novel categories), novelty scoring based on item freshness and user exposure history, discovery feed generation combining trending + personalized + serendipitous items",
+    "4. In packages/ml-pipeline/src/core/fraud-detector.ts: Implement FraudDetector class with behavioral velocity checks (too many actions in time window using sliding window counters), device fingerprint anomaly detection using one-class SVM approximation (Mahalanobis distance), geographic impossibility detection (speed of travel between logins), account takeover detection using login pattern deviation scores, transaction pattern analysis with Isolation Forest-inspired anomaly scores",
+    "5. In packages/ml-pipeline/src/core/content-quality-scorer.ts: Implement ContentQualityScorer class with multi-dimensional quality assessment: readability (Flesch-Kincaid formula implementation), originality score using MinHash/LSH for near-duplicate detection, engagement prediction using historical feature correlations, toxicity probability estimation using keyword patterns + context analysis, information density (unique concepts per word ratio)",
+    "6. In packages/ml-pipeline/src/core/realtime-anomaly.ts: Implement RealtimeAnomaly class with streaming anomaly detection using Z-score on sliding windows, Exponential Weighted Moving Average (EWMA) with dynamic control limits, seasonal decomposition for periodic patterns (STL-lite with simple moving averages), multi-metric correlation analysis for cascading failure detection, alert deduplication with root cause grouping",
+    "7. In packages/search/src/core/semantic-search.ts: Implement SemanticSearch class with TF-IDF vector space model with cosine similarity, query expansion using co-occurrence statistics, document embedding approximation using weighted word centroids, hybrid scoring combining BM25 lexical + semantic similarity, query intent classification (navigational/informational/transactional) using keyword patterns and query structure",
+    "8. In packages/search/src/core/knowledge-graph.ts: Implement KnowledgeGraph class with entity-relationship triple store (subject-predicate-object), entity type hierarchy with inheritance, relationship traversal and path finding (BFS/DFS), graph pattern matching for structured queries, entity disambiguation using context-dependent scoring, subgraph extraction for query-relevant knowledge",
+    "9. In packages/search/src/core/entity-linker.ts: Implement EntityLinker class with named entity recognition using pattern matching + gazetteer lookup, entity candidate generation from knowledge graph, entity disambiguation using context similarity scoring, coreference resolution for pronouns and abbreviations, entity relationship extraction from text proximity patterns",
+    "10. Update packages/recommendations/src/types.ts with new types: FeedRankConfig, ContentNode, ContentEdge, GraphWalkConfig, ExplorationConfig, SerendipityConfig",
+    "11. Update packages/ml-pipeline/src/types.ts with new types: FraudSignal, FraudRuleConfig, ContentQualityDimension, QualityThresholds, AnomalyConfig, AnomalyAlert",
+    "12. Update packages/search/src/types.ts with new types: SemanticConfig, KnowledgeTriple, EntityType, EntityCandidate, EntityLink, QueryIntent",
+    "13. Update barrel exports in all three packages' index.ts files"
+  ],
+  "acceptance_criteria": [
+    "packages/recommendations/src/core/ has 3 new files (feed-ranker.ts, content-graph.ts, explore-discovery.ts) with real ranking/graph algorithms",
+    "packages/ml-pipeline/src/core/ has 3 new files (fraud-detector.ts, content-quality-scorer.ts, realtime-anomaly.ts) implementing real detection algorithms",
+    "packages/search/src/core/ has 3 new files (semantic-search.ts, knowledge-graph.ts, entity-linker.ts) with real NLP/IR algorithms",
+    "All implementations use proper mathematical formulas (BM25, PageRank, Flesch-Kincaid, MinHash, EWMA, etc.) not placeholder code",
+    "Types are comprehensive and properly imported throughout",
+    "Running pnpm turbo typecheck passes for all modified packages"
+  ],
+  "verification": [
+    "pnpm turbo typecheck --filter=@quant/recommendations --filter=@quant/ml-pipeline --filter=@quant/search"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

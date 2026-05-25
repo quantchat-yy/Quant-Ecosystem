@@ -1,0 +1,36 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Phase 17-18-19: Performance & Scale Engineering + Safety & Trust + Developer Platform & APIs. Extends existing performance package with edge computing and sharding strategies. Extends moderation with ML classifiers and trust scores. Extends developer-platform with public API infrastructure.",
+  "status": "pending",
+  "steps": [
+    "1. In packages/performance/src/core/edge-computing.ts: Implement EdgeComputing class with edge node registry with geographic routing (haversine distance calculation for nearest node), request routing with latency-based selection, edge function deployment model with cold start tracking, edge cache with geographic invalidation propagation, stale-while-revalidate pattern implementation, request coalescing for thundering herd prevention",
+    "2. In packages/performance/src/core/database-sharding.ts: Implement DatabaseSharding class with consistent hashing ring with virtual nodes (150 per physical node), shard key extraction and routing logic, cross-shard query coordination with scatter-gather pattern, rebalancing planner when nodes join/leave (minimal data movement calculation), hot shard detection using request distribution entropy, read replica routing with load-aware selection",
+    "3. In packages/performance/src/core/service-mesh.ts: Implement ServiceMesh class with service discovery with health-aware endpoint selection, client-side load balancing (round-robin, weighted, least-connections, random), retry budget management (max 20% of requests can be retries), request hedging for latency-sensitive paths, traffic shaping with rate limiting per service pair, mTLS certificate rotation scheduling",
+    "4. In packages/performance/src/core/cdn-optimizer.ts: Implement CDNOptimizer class with cache key normalization (query param sorting, device grouping), cache warming strategies for predicted popular content, purge propagation with eventual consistency tracking, origin shield with request collapsing, adaptive TTL based on content change frequency, bandwidth optimization with compression selection (brotli/gzip/none based on content type and size)",
+    "5. Create packages/trust-safety/ with standard structure: package.json (@quant/trust-safety), tsconfig.json, src/index.ts, src/types.ts, src/core/",
+    "6. In packages/trust-safety/src/types.ts: Define types for TrustScore, SafetySignal, ModerationAction, AppealCase, ContentClassification, UserReputation, HateSpeechCategory, ToxicityLevel, CSAMHash, UserBehaviorProfile, RiskLevel, TrustDecay, ReputationEvent",
+    "7. In packages/trust-safety/src/core/trust-score-system.ts: Implement TrustScoreSystem class with multi-dimensional trust scoring (content_quality * 0.3 + community_standing * 0.25 + account_age_factor * 0.2 + verification_level * 0.15 + violation_penalty * 0.1), trust decay over inactivity periods (logarithmic decay), trust recovery after violations (sigmoid curve), trust transfer between apps in ecosystem, Bayesian updating of trust based on new evidence",
+    "8. In packages/trust-safety/src/core/hate-speech-classifier.ts: Implement HateSpeechClassifier class with multi-label toxicity detection using keyword lexicons with context windows, severity scoring (mild/moderate/severe/extreme), dog-whistle detection using known pattern databases, context-aware classification (news reporting vs. hate speech), multi-language support with language-specific patterns, appeal-friendly explanations with highlighted spans",
+    "9. In packages/trust-safety/src/core/content-integrity.ts: Implement ContentIntegrity class with perceptual hashing for image similarity (dHash implementation: difference hash using gradient direction), PhotoDNA-inspired hash matching against known harmful content databases, near-duplicate detection using hamming distance on perceptual hashes, image manipulation detection (EXIF consistency, compression artifact analysis), watermark injection and verification for provenance tracking",
+    "10. In packages/trust-safety/src/core/behavior-analysis.ts: Implement BehaviorAnalysis class with user behavior profiling (action frequency distributions), coordinated inauthentic behavior detection (temporal correlation between accounts), bot detection using behavioral entropy (human vs bot activity pattern divergence), sockpuppet detection using behavioral fingerprinting similarity, brigading detection using sudden engagement spikes from correlated accounts",
+    "11. In packages/trust-safety/src/core/appeal-system.ts: Implement AppealSystem class with appeal workflow state machine (submitted/under_review/escalated/decided/closed), evidence collection and presentation, reviewer queue with priority scoring, decision templates with customizable outcomes, SLA tracking for response times, fairness monitoring (demographic parity in decisions)",
+    "12. In packages/developer-platform/src/core/public-api-gateway.ts: Implement PublicAPIGateway class with API versioning with backward compatibility checking, request transformation between API versions, response envelope standardization (data/meta/errors/pagination), API key scoping with granular permissions, request/response schema validation with JSON Schema, API changelog generation from version diffs",
+    "13. In packages/developer-platform/src/core/oauth2-server.ts: Implement OAuth2Server class with full OAuth 2.0 flow support (authorization_code, client_credentials, refresh_token), PKCE support for public clients, scope hierarchy with inheritance, token introspection endpoint, dynamic client registration, consent management with granular scope display",
+    "14. In packages/developer-platform/src/core/webhook-delivery.ts: Implement WebhookDelivery class with reliable webhook delivery with exponential backoff (2^attempt * base_delay, max 6 hours), event payload signing with HMAC-SHA256 for verification, delivery status tracking with retry history, dead letter queue for repeatedly failing endpoints, webhook replay from event store, rate limiting per endpoint with burst allowance",
+    "15. Update packages/performance/src/types.ts with new types for edge, sharding, mesh, CDN",
+    "16. Update barrel exports for all modified/new packages"
+  ],
+  "acceptance_criteria": [
+    "packages/performance/src/core/ has 4 new files implementing real distributed systems algorithms (consistent hashing, haversine, scatter-gather, etc.)",
+    "packages/trust-safety/ exists with 5 core files implementing real safety algorithms (perceptual hashing, behavioral entropy, trust decay curves)",
+    "packages/developer-platform/src/core/ has 3 new files implementing real API infrastructure (OAuth 2.0 flows, webhook delivery, API versioning)",
+    "All implementations include proper mathematical models and algorithms, not placeholder logic",
+    "Running pnpm turbo typecheck passes for all modified packages"
+  ],
+  "verification": [
+    "pnpm turbo typecheck --filter=@quant/performance --filter=@quant/trust-safety --filter=@quant/developer-platform"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

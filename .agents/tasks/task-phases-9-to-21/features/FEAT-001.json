@@ -1,0 +1,32 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Phase 9-10: Advanced ML Pipeline Enhancements + Engagement & Growth Loops. Extends existing ml-pipeline package with model serving, online learning, and A/B experimentation framework. Creates a new engagement-engine package with viral loops, notification optimization, gamification/streak mechanics, and social proof engines.",
+  "status": "in_progress",
+  "steps": [
+    "1. Create packages/engagement-engine/ with standard structure: package.json (name: @quant/engagement-engine), tsconfig.json, src/index.ts, src/types.ts, src/core/",
+    "2. In packages/engagement-engine/src/types.ts: Define comprehensive types for EngagementEvent, ViralLoop, GamificationConfig, StreakData, SocialProofSignal, GrowthMetric, NotificationOptimization, RetentionCohort, ViralCoefficient, ReferralChain, BadgeDefinition, LevelProgression, ChallengeConfig, LeaderboardEntry",
+    "3. In packages/engagement-engine/src/core/viral-loop-engine.ts: Implement ViralLoopEngine class with K-factor calculation (invites_sent * conversion_rate), referral chain tracking with depth limits, viral coefficient optimization using gradient ascent on conversion funnel, loop detection (invite->signup->engage->invite cycle tracking), incentive optimizer using multi-armed bandit (Thompson sampling) to select best referral reward",
+    "4. In packages/engagement-engine/src/core/notification-optimizer.ts: Implement NotificationOptimizer class with send-time optimization using user activity pattern analysis (time-of-day histograms), notification fatigue scoring with exponential decay, channel selection (push/email/in-app) using logistic regression on historical CTR, message personalization scoring, frequency capping with adaptive limits based on engagement response",
+    "5. In packages/engagement-engine/src/core/gamification-system.ts: Implement GamificationSystem class with XP/level progression using logarithmic scaling (level = floor(log2(xp/100)+1)), streak mechanics with freeze tokens, multipliers, and grace periods, badge/achievement system with unlock conditions and rarity tiers, challenge system with daily/weekly/monthly goals, combo multipliers for consecutive actions",
+    "6. In packages/engagement-engine/src/core/social-proof-engine.ts: Implement SocialProofEngine class with trending signal aggregation (weighted recency + velocity), social validation scoring (friend activity amplification), FOMO triggers with ethical limits, popularity momentum using exponential moving average, herding effect detection and dampening",
+    "7. In packages/engagement-engine/src/core/retention-predictor.ts: Implement RetentionPredictor class with churn probability estimation using survival analysis (Kaplan-Meier curves approximation), cohort-based retention curves, re-engagement trigger system, user lifecycle stage classification (new/active/at-risk/dormant/churned), win-back campaign scoring",
+    "8. In packages/ml-pipeline/src/core/online-learning.ts: Implement OnlineLearning class with streaming gradient descent for real-time model updates, mini-batch accumulation with configurable batch size, learning rate scheduling (cosine annealing, step decay, warm restarts), concept drift detection using ADWIN (Adaptive Windowing) algorithm, model weight checkpointing",
+    "9. In packages/ml-pipeline/src/core/model-serving.ts: Implement ModelServing class with model version routing (canary, shadow, A/B), request batching for inference efficiency, prediction caching with TTL-based invalidation, latency tracking per model version with P50/P95/P99, graceful model swapping with zero-downtime transitions",
+    "10. In packages/ml-pipeline/src/core/experiment-framework.ts: Implement ExperimentFramework class with proper statistical A/B testing: sample size calculator (using z-score power analysis), sequential testing with spending functions (O'Brien-Fleming bounds), multi-armed bandit allocation (UCB1, Thompson Sampling, Epsilon-greedy), metric lift calculation with confidence intervals, experiment lifecycle management (draft/running/concluded)",
+    "11. Update packages/engagement-engine/src/index.ts with all barrel exports",
+    "12. Update packages/ml-pipeline/src/index.ts to add new exports for OnlineLearning, ModelServing, ExperimentFramework"
+  ],
+  "acceptance_criteria": [
+    "packages/engagement-engine/ exists with proper package.json and tsconfig.json",
+    "All 5 engagement engine core files implement real algorithms (viral K-factor, Thompson sampling, survival analysis, etc.) - not stubs",
+    "packages/ml-pipeline/src/core/ has 3 new files (online-learning.ts, model-serving.ts, experiment-framework.ts) with real implementations",
+    "All new files use proper TypeScript types imported from their respective types.ts",
+    "Running pnpm turbo typecheck passes for the modified packages"
+  ],
+  "verification": [
+    "pnpm turbo typecheck --filter=@quant/engagement-engine --filter=@quant/ml-pipeline"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
