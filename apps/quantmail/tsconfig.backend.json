@@ -24,6 +24,6 @@
       "@quant/ai/*": ["../../packages/ai/src/*"]
     }
   },
-  "include": ["api/**/*.ts", "backend/**/*.ts", "src/**/*.ts"],
+  "include": ["backend/**/*.ts", "src/**/*.ts"],
   "exclude": ["node_modules", "app"]
 }

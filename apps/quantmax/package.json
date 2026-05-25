@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "QuantMax - Short video social, random video chat, and dating platform hybrid",
-  "main": "api/server.ts",
+  "main": "backend/app.ts",
   "scripts": {
-    "dev": "node --loader ts-node/esm api/server.ts",
+    "dev": "node --loader ts-node/esm backend/app.ts",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
