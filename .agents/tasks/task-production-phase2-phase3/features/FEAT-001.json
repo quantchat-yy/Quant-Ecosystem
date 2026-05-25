@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Phase 2 - Replace all toy cryptography in @quant/auth with production-grade implementations. Replace djb2 hash signing with jose HMAC-SHA256, replace Math.random() with crypto.randomBytes/randomInt, implement argon2id password hashing, implement real PKCE S256 with crypto.subtle, add TOTP via otplib, implement refresh token rotation with reuse detection backed by Prisma, add JWKS endpoint support, and add WebAuthn passkey support. Add comprehensive tests.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Step 1: Install required dependencies. Add to packages/auth/package.json: jose (JWT/JWS/JWKS), argon2 (password hashing), otplib (TOTP), @simplewebauthn/server (WebAuthn). Add @types/node as devDependency. Run pnpm install from workspace root.",
     "Step 2: Create packages/auth/src/crypto/secure-random.ts - A utility module that exports functions replacing ALL Math.random() usage: generateSecureToken(length: number): string (hex using crypto.randomBytes), generateSecureCode(length: number): string (numeric OTP using crypto.randomInt), generateId(prefix: string): string (e.g. 'tok_' + crypto.randomBytes(16).toString('hex')). All crypto uses Node.js built-in 'node:crypto'.",
@@ -47,5 +47,5 @@
     "Run: grep -rn 'hash << 5\\|hash.*<<.*5' packages/auth/src/ (returns empty - no djb2)"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "1. jose v6 uses CryptoKey type instead of KeyLike. 2. argon2 is CJS-only, default import works with esModuleInterop. 3. argon2.needsRehash does not accept type param, only timeCost/memoryCost/parallelism/version. 4. TypeScript composite project references require tsc -b for typecheck (not --noEmit with -p) due to TS6305 errors about unbuilt output files from referenced projects. 5. Refresh token reuse detection: when token not found in activeRefreshTokens but family exists, treat as reuse and revoke family. 6. NODE_OPTIONS must be unset to avoid proxy-bootstrap.js errors in git hooks and pnpm."
 }
