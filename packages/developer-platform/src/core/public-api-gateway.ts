@@ -4,8 +4,6 @@
 // request/response validation, changelog generation, quota management
 // ============================================================================
 
-import type { APIKeyScope } from '../types';
-
 /** API version registration */
 interface APIVersionEntry {
   version: string;

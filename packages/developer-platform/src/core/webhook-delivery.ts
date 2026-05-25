@@ -411,8 +411,8 @@ export class WebhookDelivery {
     const match = signatureHeader.match(/^v1=(\d+)\.([a-f0-9]+)$/);
     if (!match) return false;
 
-    const timestamp = parseInt(match[1], 10);
-    const receivedSig = match[2];
+    const timestamp = parseInt(match[1]!, 10);
+    const receivedSig = match[2]!;
 
     // Replay protection: reject if timestamp too old (5 min)
     if (Date.now() - timestamp > 300000) return false;

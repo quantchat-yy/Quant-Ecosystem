@@ -158,7 +158,7 @@ export class DatabaseSharding {
     // Remove virtual nodes
     let i = this.virtualNodes.length;
     while (i--) {
-      if (this.virtualNodes[i].physicalNodeId === nodeId) {
+      if (this.virtualNodes[i]!.physicalNodeId === nodeId) {
         this.virtualNodes.splice(i, 1);
       }
     }
@@ -197,13 +197,13 @@ export class DatabaseSharding {
     let right = this.virtualNodes.length - 1;
     let targetIndex = 0;
 
-    if (hash > this.virtualNodes[right].hash) {
+    if (hash > this.virtualNodes[right]!.hash) {
       // Wrap around to first node
       targetIndex = 0;
     } else {
       while (left < right) {
         const mid = (left + right) >>> 1;
-        if (this.virtualNodes[mid].hash < hash) {
+        if (this.virtualNodes[mid]!.hash < hash) {
           left = mid + 1;
         } else {
           right = mid;
@@ -212,7 +212,7 @@ export class DatabaseSharding {
       targetIndex = left;
     }
 
-    const vNode = this.virtualNodes[targetIndex];
+    const vNode = this.virtualNodes[targetIndex]!;
 
     // Track request for hot shard detection
     this.trackRequest(vNode.physicalNodeId);
@@ -231,7 +231,7 @@ export class DatabaseSharding {
    */
   scatterGather<T>(
     queryFn: (nodeId: string) => { data: T[]; latencyMs: number },
-    mergeFn?: (results: T[][]) => T[],
+    _mergeFn?: (results: T[][]) => T[],
   ): ScatterGatherResult<T> {
     const startTime = Date.now();
     const results: Array<{ shardId: string; data: T[]; latencyMs: number }> = [];
@@ -340,10 +340,6 @@ export class DatabaseSharding {
       }
     }
 
-    // Maximum entropy for uniform distribution
-    const maxEntropy = Math.log2(nodeCount);
-    const entropyRatio = maxEntropy > 0 ? entropy / maxEntropy : 1;
-
     // A node is "hot" if it has > 2x its fair share
     const fairShare = 1 / nodeCount;
     const hotThreshold = fairShare * this.config.hotShardMultiplier;
@@ -414,13 +410,13 @@ export class DatabaseSharding {
 
     let random = Math.random() * totalWeight;
     for (let i = 0; i < healthyReplicas.length; i++) {
-      random -= weights[i];
+      random -= weights[i]!;
       if (random <= 0) {
-        return healthyReplicas[i];
+        return healthyReplicas[i] ?? null;
       }
     }
 
-    return healthyReplicas[healthyReplicas.length - 1];
+    return healthyReplicas[healthyReplicas.length - 1] ?? null;
   }
 
   /**

@@ -5,8 +5,6 @@
 // registration, consent management
 // ============================================================================
 
-import type { OAuthScope } from '../types';
-
 /** Registered OAuth2 client */
 interface OAuth2Client {
   clientId: string;
@@ -105,7 +103,6 @@ export class OAuth2Server {
   private readonly refreshTokenTtlMs: number;
   private readonly codeLifetimeMs: number;
   private tokenCounter: number;
-  private codeCounter: number;
   private clientCounter: number;
 
   constructor(config?: {
@@ -123,7 +120,6 @@ export class OAuth2Server {
     this.refreshTokenTtlMs = config?.refreshTokenTtlMs ?? 2592000000; // 30 days
     this.codeLifetimeMs = config?.codeLifetimeMs ?? 600000; // 10 minutes
     this.tokenCounter = 0;
-    this.codeCounter = 0;
     this.clientCounter = 0;
   }
 

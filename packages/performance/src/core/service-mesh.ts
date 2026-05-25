@@ -165,7 +165,7 @@ export class ServiceMesh {
       case 'power_of_two_choices':
         return this.powerOfTwoChoices(healthyEndpoints);
       default:
-        return healthyEndpoints[0];
+        return healthyEndpoints[0] ?? null;
     }
   }
 
@@ -174,7 +174,7 @@ export class ServiceMesh {
    */
   private roundRobin(serviceName: string, endpoints: ServiceEndpoint[]): ServiceEndpoint {
     const counter = this.roundRobinCounters.get(serviceName) ?? 0;
-    const selected = endpoints[counter % endpoints.length];
+    const selected = endpoints[counter % endpoints.length]!;
     this.roundRobinCounters.set(serviceName, counter + 1);
     return selected;
   }
@@ -191,7 +191,7 @@ export class ServiceMesh {
       if (random <= 0) return endpoint;
     }
 
-    return endpoints[endpoints.length - 1];
+    return endpoints[endpoints.length - 1]!;
   }
 
   /**
@@ -199,7 +199,7 @@ export class ServiceMesh {
    */
   private leastConnections(endpoints: ServiceEndpoint[]): ServiceEndpoint {
     let minConnections = Infinity;
-    let selected = endpoints[0];
+    let selected = endpoints[0]!;
 
     for (const endpoint of endpoints) {
       const tracker = this.connectionTrackers.get(endpoint.id);
@@ -219,14 +219,14 @@ export class ServiceMesh {
    * minimal coordination overhead.
    */
   private powerOfTwoChoices(endpoints: ServiceEndpoint[]): ServiceEndpoint {
-    if (endpoints.length === 1) return endpoints[0];
+    if (endpoints.length === 1) return endpoints[0]!;
 
     const idx1 = Math.floor(Math.random() * endpoints.length);
     let idx2 = Math.floor(Math.random() * (endpoints.length - 1));
     if (idx2 >= idx1) idx2++;
 
-    const ep1 = endpoints[idx1];
-    const ep2 = endpoints[idx2];
+    const ep1 = endpoints[idx1]!;
+    const ep2 = endpoints[idx2]!;
 
     const conn1 = this.connectionTrackers.get(ep1.id)?.activeConnections ?? 0;
     const conn2 = this.connectionTrackers.get(ep2.id)?.activeConnections ?? 0;
@@ -324,10 +324,11 @@ export class ServiceMesh {
 
     for (let i = 0; i < selected.length; i++) {
       try {
-        const result = requestFn(selected[i]);
+        const endpoint = selected[i]!;
+        const result = requestFn(endpoint);
         results.push({
           value: result.value,
-          endpointId: selected[i].id,
+          endpointId: endpoint.id,
           latencyMs: result.latencyMs,
           hedgeIndex: i,
         });
@@ -340,7 +341,7 @@ export class ServiceMesh {
 
     // Return fastest response
     results.sort((a, b) => a.latencyMs - b.latencyMs);
-    return results[0];
+    return results[0] ?? null;
   }
 
   /**

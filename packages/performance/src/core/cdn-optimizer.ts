@@ -319,7 +319,7 @@ export class CDNOptimizer {
     const timestamps = tracker.changeTimestamps;
     let totalInterval = 0;
     for (let i = 1; i < timestamps.length; i++) {
-      totalInterval += timestamps[i] - timestamps[i - 1];
+      totalInterval += (timestamps[i] ?? 0) - (timestamps[i - 1] ?? 0);
     }
     const avgInterval = totalInterval / (timestamps.length - 1);
     tracker.averageChangeIntervalMs = avgInterval;
