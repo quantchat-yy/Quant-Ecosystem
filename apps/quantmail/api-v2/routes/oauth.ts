@@ -1,7 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { TokenService } from '@quant/auth';
-import type { AuthConfig } from '@quant/auth';
+import { getTokenService } from '../services';
 
 const tokenRequestSchema = z.object({
   grant_type: z.enum(['authorization_code', 'refresh_token']),
@@ -27,29 +26,6 @@ const authorizeQuerySchema = z.object({
   code_challenge: z.string().optional(),
   code_challenge_method: z.enum(['plain', 'S256']).optional(),
 });
-
-function getAuthConfig(): AuthConfig {
-  return {
-    jwtSecret: process.env['JWT_SECRET'] ?? 'dev-secret-change-in-production',
-    jwtRefreshSecret: process.env['JWT_REFRESH_SECRET'] ?? 'dev-refresh-secret',
-    accessTokenExpiresIn: 900,
-    refreshTokenExpiresIn: 604800,
-    issuer: process.env['JWT_ISSUER'] ?? 'quantmail',
-    audience: process.env['JWT_AUDIENCE'] ?? 'quant-ecosystem',
-    bcryptRounds: 12,
-    maxLoginAttempts: 5,
-    lockoutDuration: 900,
-  };
-}
-
-let tokenServiceInstance: TokenService | null = null;
-
-function getTokenService(): TokenService {
-  if (!tokenServiceInstance) {
-    tokenServiceInstance = new TokenService(getAuthConfig());
-  }
-  return tokenServiceInstance;
-}
 
 export default async function oauthRoutes(fastify: FastifyInstance) {
   fastify.get('/oauth/authorize', async (request, reply) => {
@@ -104,11 +80,14 @@ export default async function oauthRoutes(fastify: FastifyInstance) {
       });
     }
 
-    // authorization_code grant - placeholder
-    return reply.status(200).send({
-      access_token: 'placeholder',
-      token_type: 'Bearer',
-      expires_in: 900,
+    // authorization_code grant - not yet implemented
+    return reply.status(501).send({
+      success: false,
+      error: {
+        code: 'NOT_IMPLEMENTED',
+        message: 'authorization_code grant is not yet implemented',
+        statusCode: 501,
+      },
     });
   });
 

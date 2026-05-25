@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { TokenService, passwordService } from '@quant/auth';
-import type { AuthConfig } from '@quant/auth';
+import { passwordService } from '@quant/auth';
 import { createAppError } from '@quant/server-core';
+import { getTokenService, resetTokenService } from '../services';
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -40,33 +40,10 @@ interface StoredUser {
 
 const users: Map<string, StoredUser> = new Map();
 
-function getAuthConfig(): AuthConfig {
-  return {
-    jwtSecret: process.env['JWT_SECRET'] ?? 'dev-secret-change-in-production',
-    jwtRefreshSecret: process.env['JWT_REFRESH_SECRET'] ?? 'dev-refresh-secret',
-    accessTokenExpiresIn: 900, // 15 minutes
-    refreshTokenExpiresIn: 604800, // 7 days
-    issuer: process.env['JWT_ISSUER'] ?? 'quantmail',
-    audience: process.env['JWT_AUDIENCE'] ?? 'quant-ecosystem',
-    bcryptRounds: 12,
-    maxLoginAttempts: 5,
-    lockoutDuration: 900,
-  };
-}
-
-let tokenService: TokenService | null = null;
-
-function getTokenService(): TokenService {
-  if (!tokenService) {
-    tokenService = new TokenService(getAuthConfig());
-  }
-  return tokenService;
-}
-
 // Exported for testing - allows resetting state between tests
 export function resetState() {
   users.clear();
-  tokenService = null;
+  resetTokenService();
 }
 
 export default async function authRoutes(fastify: FastifyInstance) {

@@ -5,6 +5,13 @@ import oauthRoutes from './routes/oauth';
 import wellknownRoutes from './routes/wellknown';
 
 export function getConfig(): AppConfig {
+  const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
+
+  // In production, JWT_SECRET must be explicitly set
+  if (env === 'production' && !process.env['JWT_SECRET']) {
+    throw new Error('JWT_SECRET environment variable is required in production');
+  }
+
   return {
     port: Number(process.env['PORT'] ?? 3001),
     host: process.env['HOST'] ?? '0.0.0.0',
@@ -16,7 +23,7 @@ export function getConfig(): AppConfig {
     jwtSecret: process.env['JWT_SECRET'] ?? 'dev-secret-change-in-production',
     jwtIssuer: process.env['JWT_ISSUER'] ?? 'quantmail',
     jwtAudience: process.env['JWT_AUDIENCE'] ?? 'quant-ecosystem',
-    env: (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development',
+    env,
   };
 }
 
