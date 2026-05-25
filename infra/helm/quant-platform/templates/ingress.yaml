@@ -1,0 +1,149 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "quant-platform.fullname" . }}
+  labels:
+    {{- include "quant-platform.labels" . | nindent 4 }}
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.global.domain }}
+        - "*.{{ .Values.global.domain }}"
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.global.domain }}
+      http:
+        paths:
+          - path: /api/identity
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "quant-platform.fullname" . }}-identity
+                port:
+                  number: 3001
+          - path: /api/chat
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "quant-platform.fullname" . }}-chat-api
+                port:
+                  number: 3002
+          - path: /api/mail
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "quant-platform.fullname" . }}-mail-api
+                port:
+                  number: 3001
+          - path: /api/ai
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "quant-platform.fullname" . }}-ai-api
+                port:
+                  number: 3020
+          - path: /api/sync
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "quant-platform.fullname" . }}-sync-api
+                port:
+                  number: 3004
+          - path: /api/ads
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "quant-platform.fullname" . }}-ads-api
+                port:
+                  number: 3005
+          - path: /api/tube
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "quant-platform.fullname" . }}-tube-api
+                port:
+                  number: 3006
+          - path: /api/neon
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "quant-platform.fullname" . }}-neon-api
+                port:
+                  number: 3007
+          - path: /api/edits
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "quant-platform.fullname" . }}-edits-api
+                port:
+                  number: 3008
+          - path: /api/max
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "quant-platform.fullname" . }}-max-api
+                port:
+                  number: 3009
+    - host: ws.{{ .Values.global.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "quant-platform.fullname" . }}-ws-gateway
+                port:
+                  number: 8080
+---
+# WebSocket-specific ingress with upgrade annotations
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "quant-platform.fullname" . }}-websocket
+  labels:
+    {{- include "quant-platform.labels" . | nindent 4 }}
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
+    nginx.ingress.kubernetes.io/connection-proxy-header: "keep-alive"
+    nginx.ingress.kubernetes.io/server-snippets: |
+      location / {
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_http_version 1.1;
+      }
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - ws.{{ .Values.global.domain }}
+      secretName: {{ .Values.ingress.tls.secretName }}-ws
+  {{- end }}
+  rules:
+    - host: ws.{{ .Values.global.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "quant-platform.fullname" . }}-ws-gateway
+                port:
+                  number: 8080
+{{- end }}

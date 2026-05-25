@@ -1,0 +1,180 @@
+global:
+  environment: staging
+  domain: staging.quant.dev
+
+configmap:
+  NODE_ENV: staging
+  LOG_LEVEL: debug
+  CORS_ORIGINS: 'https://staging.quant.dev'
+  JWT_ISSUER: 'https://staging.quant.dev'
+  JWT_AUDIENCE: 'quant-platform-staging'
+
+ingress:
+  tls:
+    secretName: quant-platform-staging-tls
+
+services:
+  identity:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+    pdb:
+      minAvailable: 1
+
+  chat-api:
+    replicaCount: 2
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    autoscaling:
+      minReplicas: 2
+      maxReplicas: 5
+    pdb:
+      minAvailable: 1
+
+  mail-api:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+    pdb:
+      minAvailable: 1
+
+  ai-api:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+    pdb:
+      minAvailable: 1
+
+  sync-api:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+    pdb:
+      minAvailable: 1
+
+  ads-api:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+    pdb:
+      minAvailable: 1
+
+  tube-api:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+    pdb:
+      minAvailable: 1
+
+  neon-api:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+    pdb:
+      minAvailable: 1
+
+  edits-api:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+    pdb:
+      minAvailable: 1
+
+  max-api:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+    pdb:
+      minAvailable: 1
+
+  ws-gateway:
+    replicaCount: 2
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    autoscaling:
+      minReplicas: 2
+      maxReplicas: 5
+    pdb:
+      minAvailable: 1

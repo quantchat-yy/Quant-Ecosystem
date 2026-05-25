@@ -5,3 +5,5 @@ coverage
 .turbo
 pnpm-lock.yaml
 prisma/migrations
+infra/helm/**/templates
+infra/terraform

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "quant-platform.fullname" . }}-config
+  labels:
+    {{- include "quant-platform.labels" . | nindent 4 }}
+data:
+  NODE_ENV: {{ .Values.configmap.NODE_ENV | quote }}
+  LOG_LEVEL: {{ .Values.configmap.LOG_LEVEL | quote }}
+  CORS_ORIGINS: {{ .Values.configmap.CORS_ORIGINS | quote }}
+  JWT_ISSUER: {{ .Values.configmap.JWT_ISSUER | quote }}
+  JWT_AUDIENCE: {{ .Values.configmap.JWT_AUDIENCE | quote }}
+  ENVIRONMENT: {{ .Values.global.environment | quote }}
+  DOMAIN: {{ .Values.global.domain | quote }}
