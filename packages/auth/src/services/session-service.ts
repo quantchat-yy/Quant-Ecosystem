@@ -4,6 +4,7 @@
 
 import type { AuthSession, DeviceLoginInfo, AuthConfig } from '../types';
 import type { QuantApp } from '@quant/common';
+import { generateId } from '../crypto/secure-random';
 
 /** Session creation options */
 export interface CreateSessionOptions {
@@ -31,7 +32,7 @@ export class SessionService {
   private maxSessionsPerUser: number;
   private sessionTimeout: number;
 
-  constructor(config: AuthConfig) {
+  constructor(_config: AuthConfig) {
     this.maxSessionsPerUser = 10; // Max 10 active sessions per user
     this.sessionTimeout = 7 * 24 * 60 * 60 * 1000; // 7 days
   }
@@ -217,7 +218,9 @@ export class SessionService {
     const sessions = await this.getUserSessions(userId);
     if (sessions.length >= this.maxSessionsPerUser) {
       // Sort by last activity (oldest first) and remove excess
-      const sorted = sessions.sort((a, b) => a.lastActivityAt.getTime() - b.lastActivityAt.getTime());
+      const sorted = sessions.sort(
+        (a, b) => a.lastActivityAt.getTime() - b.lastActivityAt.getTime(),
+      );
       const toRemove = sorted.slice(0, sessions.length - this.maxSessionsPerUser + 1);
       for (const session of toRemove) {
         await this.revokeSession(session.id);
@@ -247,11 +250,9 @@ export class SessionService {
   }
 
   /**
-   * Generate a unique session ID
+   * Generate a unique session ID using crypto
    */
   private generateSessionId(): string {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 12);
-    return `sess_${timestamp}${random}`;
+    return generateId('sess');
   }
 }

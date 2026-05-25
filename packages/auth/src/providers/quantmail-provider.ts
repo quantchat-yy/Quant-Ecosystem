@@ -9,11 +9,12 @@ import type {
   AuthorizationCode,
   TokenExchangeRequest,
   TokenPair,
-  TokenPayload,
   AuthConfig,
 } from '../types';
 import type { PermissionScope } from '@quant/common';
 import { TokenService } from '../services/token-service';
+import { generateSecureToken } from '../crypto/secure-random';
+import { validateCodeChallenge } from '../crypto/pkce';
 
 /** Default OAuth scopes for first-party apps */
 const FIRST_PARTY_DEFAULT_SCOPES: PermissionScope[] = [
@@ -36,10 +37,8 @@ export class QuantMailProvider {
   private clients: Map<string, OAuthClient> = new Map();
   private authorizationCodes: Map<string, AuthorizationCode> = new Map();
   private tokenService: TokenService;
-  private config: AuthConfig;
 
   constructor(config: AuthConfig) {
-    this.config = config;
     this.tokenService = new TokenService(config);
     this.registerEcosystemClients();
   }
@@ -55,7 +54,12 @@ export class QuantMailProvider {
         name: 'QuantChat',
         description: 'Instant messaging application',
         redirectUris: ['https://chat.quant.app/auth/callback', 'quantchat://auth/callback'],
-        allowedScopes: [...FIRST_PARTY_DEFAULT_SCOPES, 'contacts:read', 'contacts:write', 'media:upload'],
+        allowedScopes: [
+          ...FIRST_PARTY_DEFAULT_SCOPES,
+          'contacts:read',
+          'contacts:write',
+          'media:upload',
+        ],
         grantTypes: ['authorization_code', 'refresh_token'],
         isFirstParty: true,
         app: 'quantchat',
@@ -99,7 +103,12 @@ export class QuantMailProvider {
         name: 'QuantNeon',
         description: 'Photo and video sharing',
         redirectUris: ['https://neon.quant.app/auth/callback', 'quantneon://auth/callback'],
-        allowedScopes: [...FIRST_PARTY_DEFAULT_SCOPES, 'media:read', 'media:upload', 'contacts:read'],
+        allowedScopes: [
+          ...FIRST_PARTY_DEFAULT_SCOPES,
+          'media:read',
+          'media:upload',
+          'contacts:read',
+        ],
         grantTypes: ['authorization_code', 'refresh_token'],
         isFirstParty: true,
         app: 'quantneon',
@@ -177,7 +186,11 @@ export class QuantMailProvider {
     }
 
     // Validate PKCE for public clients
-    if (request.codeChallenge && request.codeChallengeMethod !== 'S256' && request.codeChallengeMethod !== 'plain') {
+    if (
+      request.codeChallenge &&
+      request.codeChallengeMethod !== 'S256' &&
+      request.codeChallengeMethod !== 'plain'
+    ) {
       return { success: false, error: 'Invalid code_challenge_method' };
     }
 
@@ -189,9 +202,9 @@ export class QuantMailProvider {
    */
   generateAuthorizationCode(
     userId: string,
-    request: AuthorizationRequest
+    request: AuthorizationRequest,
   ): { code: string; redirectUrl: string } {
-    const code = this.generateSecureCode();
+    const code = generateSecureToken(32);
     const authCode: AuthorizationCode = {
       code,
       clientId: request.clientId,
@@ -257,10 +270,11 @@ export class QuantMailProvider {
       if (!request.codeVerifier) {
         return { success: false, error: 'Code verifier required' };
       }
-      const valid = this.validateCodeVerifier(
+      const method = (authCode.codeChallengeMethod || 'plain') as 'plain' | 'S256';
+      const valid = await validateCodeChallenge(
         request.codeVerifier,
         authCode.codeChallenge,
-        authCode.codeChallengeMethod || 'plain'
+        method,
       );
       if (!valid) {
         return { success: false, error: 'Invalid code verifier' };
@@ -282,7 +296,7 @@ export class QuantMailProvider {
       authCode.userId,
       { email: '', username: '', role: 'user' }, // In production, fetch from user store
       scopes,
-      client.app
+      client.app,
     );
 
     return { success: true, tokens };
@@ -326,61 +340,13 @@ export class QuantMailProvider {
    * Revoke all tokens for a user (logout from all apps)
    */
   async revokeAllUserTokens(userId: string): Promise<void> {
-    // In production, this would invalidate all refresh token families for the user
-    // and add active access tokens to a blacklist
     await this.tokenService.revokeAllForUser(userId);
   }
 
   /**
-   * Validate a PKCE code verifier against the stored challenge
-   */
-  private validateCodeVerifier(verifier: string, challenge: string, method: string): boolean {
-    if (method === 'plain') {
-      return verifier === challenge;
-    }
-    if (method === 'S256') {
-      // In production, compute SHA-256 hash and base64url encode
-      // For this implementation, we use a simplified check
-      const hash = this.sha256Base64Url(verifier);
-      return hash === challenge;
-    }
-    return false;
-  }
-
-  /**
-   * Simplified SHA-256 base64url encoding (placeholder for crypto implementation)
-   */
-  private sha256Base64Url(input: string): string {
-    // In production, use crypto.subtle.digest('SHA-256', ...)
-    let hash = 0;
-    for (let i = 0; i < input.length; i++) {
-      const char = input.charCodeAt(i);
-      hash = ((hash << 5) - hash + char) | 0;
-    }
-    return Math.abs(hash).toString(36);
-  }
-
-  /**
-   * Generate a secure random authorization code
-   */
-  private generateSecureCode(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < 64; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  }
-
-  /**
-   * Generate a client secret
+   * Generate a cryptographically secure client secret
    */
   private generateClientSecret(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-    let result = 'qcs_';
-    for (let i = 0; i < 48; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
+    return `qcs_${generateSecureToken(24)}`;
   }
 }

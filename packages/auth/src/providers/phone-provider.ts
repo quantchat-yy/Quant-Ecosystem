@@ -5,6 +5,7 @@
 import type { PhoneAuthRequest, PhoneVerification, TokenPair, AuthConfig } from '../types';
 import type { PermissionScope } from '@quant/common';
 import { TokenService } from '../services/token-service';
+import { generateSecureCode, generateId } from '../crypto/secure-random';
 
 /** SMS delivery status */
 export interface SMSDeliveryResult {
@@ -71,7 +72,11 @@ export class PhoneAuthProvider {
     const cooldownUntil = this.cooldowns.get(cleaned);
     if (cooldownUntil && cooldownUntil > new Date()) {
       const retryAfter = Math.ceil((cooldownUntil.getTime() - Date.now()) / 1000);
-      return { success: false, error: 'Too soon. Please wait before requesting another code.', retryAfter };
+      return {
+        success: false,
+        error: 'Too soon. Please wait before requesting another code.',
+        retryAfter,
+      };
     }
 
     // Check rate limit
@@ -86,8 +91,8 @@ export class PhoneAuthProvider {
       }
     }
 
-    // Generate verification code
-    const code = this.generateVerificationCode();
+    // Generate verification code using crypto
+    const code = generateSecureCode(this.phoneConfig.codeLength);
     const expiresAt = new Date(Date.now() + this.phoneConfig.codeExpiryMinutes * 60 * 1000);
 
     // Store verification
@@ -104,7 +109,10 @@ export class PhoneAuthProvider {
     this.cooldowns.set(cleaned, new Date(Date.now() + this.phoneConfig.cooldownSeconds * 1000));
 
     // Update rate limit
-    const currentLimit = this.rateLimits.get(cleaned) || { count: 0, resetAt: new Date(Date.now() + 3600000) };
+    const currentLimit = this.rateLimits.get(cleaned) || {
+      count: 0,
+      resetAt: new Date(Date.now() + 3600000),
+    };
     currentLimit.count++;
     this.rateLimits.set(cleaned, currentLimit);
 
@@ -155,7 +163,11 @@ export class PhoneAuthProvider {
       const remaining = verification.maxAttempts - verification.attempts;
       if (remaining <= 0) {
         this.verifications.delete(cleaned);
-        return { success: false, error: 'Invalid code. Maximum attempts exceeded.', attemptsRemaining: 0 };
+        return {
+          success: false,
+          error: 'Invalid code. Maximum attempts exceeded.',
+          attemptsRemaining: 0,
+        };
       }
       return {
         success: false,
@@ -182,7 +194,7 @@ export class PhoneAuthProvider {
       `phone_${cleaned}`, // In production, look up or create user by phone
       { email: '', username: '', role: 'user' },
       scopes,
-      'quantchat'
+      'quantchat',
     );
 
     return { success: true, tokens };
@@ -207,23 +219,12 @@ export class PhoneAuthProvider {
   }
 
   /**
-   * Generate a numeric verification code
-   */
-  private generateVerificationCode(): string {
-    let code = '';
-    for (let i = 0; i < this.phoneConfig.codeLength; i++) {
-      code += Math.floor(Math.random() * 10).toString();
-    }
-    return code;
-  }
-
-  /**
    * Deliver SMS to phone number
    * In production, this integrates with an SMS gateway (Twilio, AWS SNS, etc.)
    */
-  private async deliverSMS(phoneNumber: string, code: string): Promise<SMSDeliveryResult> {
-    // Simulate SMS delivery
-    const messageId = `sms_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  private async deliverSMS(_phoneNumber: string, _code: string): Promise<SMSDeliveryResult> {
+    // Simulate SMS delivery with a secure message ID
+    const messageId = generateId('sms');
 
     // In production:
     // const result = await twilioClient.messages.create({
@@ -232,13 +233,9 @@ export class PhoneAuthProvider {
     //   from: '+1QUANTCHAT',
     // });
 
-    // Simulate success (with small chance of failure for realistic behavior)
-    const success = Math.random() > 0.02; // 98% success rate simulation
-
     return {
-      success,
-      messageId: success ? messageId : undefined,
-      error: success ? undefined : 'SMS delivery failed',
+      success: true,
+      messageId,
     };
   }
 

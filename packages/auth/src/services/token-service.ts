@@ -1,9 +1,11 @@
 // ============================================================================
-// Auth - Token Service (JWT management)
+// Auth - Token Service (JWT management with jose)
 // ============================================================================
 
+import * as jose from 'jose';
 import type { AuthConfig, TokenPair, TokenPayload, RefreshTokenPayload } from '../types';
 import type { PermissionScope, QuantApp } from '@quant/common';
+import { generateId } from '../crypto/secure-random';
 
 /** Revoked token tracking */
 interface RevokedToken {
@@ -12,24 +14,47 @@ interface RevokedToken {
   reason: string;
 }
 
+/** JWKS key pair for RS256 signing */
+interface JWKSKeyPair {
+  privateKey: CryptoKey;
+  publicKey: CryptoKey;
+}
+
 /**
  * Token Service
  *
  * Handles JWT token creation, validation, and refresh for the Quant Ecosystem.
  * Implements:
- * - Access token generation with claims
+ * - Access token generation with HS256 via jose
  * - Refresh token rotation (one-time use)
  * - Token revocation and blacklisting
  * - Token family tracking for refresh token reuse detection
+ * - JWKS support for federation (RS256)
  */
 export class TokenService {
   private config: AuthConfig;
+  private secret: Uint8Array;
   private revokedTokens: Map<string, RevokedToken> = new Map();
-  private refreshTokenFamilies: Map<string, { userId: string; currentTokenId: string; isRevoked: boolean }> = new Map();
-  private activeRefreshTokens: Map<string, RefreshTokenPayload & { userId: string }> = new Map();
+  private refreshTokenFamilies: Map<
+    string,
+    { userId: string; currentTokenId: string; isRevoked: boolean }
+  > = new Map();
+  private activeRefreshTokens: Map<
+    string,
+    RefreshTokenPayload & {
+      userId: string;
+      email: string;
+      username: string;
+      role: string;
+      scopes: PermissionScope[];
+      app: QuantApp;
+    }
+  > = new Map();
+  private jwksKeyPair: JWKSKeyPair | null = null;
 
   constructor(config: AuthConfig) {
     this.config = config;
+    this.secret = new TextEncoder().encode(config.jwtSecret);
   }
 
   /**
@@ -39,29 +64,31 @@ export class TokenService {
     userId: string,
     userInfo: { email: string; username: string; role: string },
     scopes: PermissionScope[],
-    app: QuantApp
+    app: QuantApp,
   ): Promise<TokenPair> {
-    const tokenId = this.generateTokenId();
-    const refreshTokenId = this.generateTokenId();
-    const familyId = this.generateTokenId();
+    const tokenId = generateId('tok');
+    const refreshTokenId = generateId('tok');
+    const familyId = generateId('fam');
     const now = Math.floor(Date.now() / 1000);
 
-    // Access token payload
-    const accessPayload: TokenPayload = {
-      sub: userId,
+    // Build access token with jose
+    const accessToken = await new jose.SignJWT({
       email: userInfo.email,
       username: userInfo.username,
       role: userInfo.role,
       scopes,
       app,
-      iat: now,
-      exp: now + this.config.accessTokenExpiresIn,
-      iss: this.config.issuer,
-      aud: this.config.audience,
-      jti: tokenId,
-    };
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime(`${this.config.accessTokenExpiresIn}s`)
+      .setIssuer(this.config.issuer)
+      .setAudience(this.config.audience)
+      .setJti(tokenId)
+      .setSubject(userId)
+      .sign(this.secret);
 
-    // Refresh token payload
+    // Build refresh token with jose
     const refreshPayload: RefreshTokenPayload = {
       sub: userId,
       jti: refreshTokenId,
@@ -70,6 +97,16 @@ export class TokenService {
       exp: now + this.config.refreshTokenExpiresIn,
     };
 
+    const refreshToken = await new jose.SignJWT({
+      family: familyId,
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime(`${this.config.refreshTokenExpiresIn}s`)
+      .setJti(refreshTokenId)
+      .setSubject(userId)
+      .sign(this.secret);
+
     // Track refresh token family
     this.refreshTokenFamilies.set(familyId, {
       userId,
@@ -77,15 +114,16 @@ export class TokenService {
       isRevoked: false,
     });
 
-    // Store refresh token
+    // Store refresh token with user claims for rotation
     this.activeRefreshTokens.set(refreshTokenId, {
       ...refreshPayload,
       userId,
+      email: userInfo.email,
+      username: userInfo.username,
+      role: userInfo.role,
+      scopes,
+      app,
     });
-
-    // Encode tokens (simplified JWT-like encoding)
-    const accessToken = this.encodeToken(accessPayload);
-    const refreshToken = this.encodeToken(refreshPayload);
 
     return {
       accessToken,
@@ -100,21 +138,30 @@ export class TokenService {
    */
   async validateAccessToken(token: string): Promise<TokenPayload | null> {
     try {
-      const payload = this.decodeToken<TokenPayload>(token);
-      if (!payload) return null;
+      const { payload } = await jose.jwtVerify(token, this.secret, {
+        issuer: this.config.issuer,
+        audience: this.config.audience,
+      });
 
-      // Check expiration
-      const now = Math.floor(Date.now() / 1000);
-      if (payload.exp < now) return null;
+      const jti = payload.jti;
+      if (!jti) return null;
 
       // Check if token is revoked
-      if (this.revokedTokens.has(payload.jti)) return null;
+      if (this.revokedTokens.has(jti)) return null;
 
-      // Validate issuer and audience
-      if (payload.iss !== this.config.issuer) return null;
-      if (payload.aud !== this.config.audience) return null;
-
-      return payload;
+      return {
+        sub: payload.sub ?? '',
+        email: (payload['email'] as string) ?? '',
+        username: (payload['username'] as string) ?? '',
+        role: (payload['role'] as string) ?? '',
+        scopes: (payload['scopes'] as PermissionScope[]) ?? [],
+        app: (payload['app'] as QuantApp) ?? 'quantmail',
+        iat: payload.iat ?? 0,
+        exp: payload.exp ?? 0,
+        iss: payload.iss ?? '',
+        aud: (typeof payload.aud === 'string' ? payload.aud : payload.aud?.[0]) ?? '',
+        jti,
+      };
     } catch {
       return null;
     }
@@ -125,77 +172,98 @@ export class TokenService {
    */
   async refreshTokens(refreshToken: string): Promise<TokenPair | null> {
     try {
-      const payload = this.decodeToken<RefreshTokenPayload>(refreshToken);
-      if (!payload) return null;
+      const { payload } = await jose.jwtVerify(refreshToken, this.secret);
 
-      // Check expiration
-      const now = Math.floor(Date.now() / 1000);
-      if (payload.exp < now) return null;
+      const jti = payload.jti;
+      const familyId = payload['family'] as string | undefined;
+      if (!jti || !familyId) return null;
 
-      // Find the token in active tokens
-      const storedToken = this.activeRefreshTokens.get(payload.jti);
-      if (!storedToken) return null;
-
-      // Check if family is revoked (refresh token reuse detection)
-      const family = this.refreshTokenFamilies.get(payload.family);
+      // Check if family exists and is revoked
+      const family = this.refreshTokenFamilies.get(familyId);
       if (!family || family.isRevoked) {
-        // Potential token theft! Revoke entire family
+        // Family already revoked
         if (family) {
-          await this.revokeFamily(payload.family);
+          await this.revokeFamily(familyId);
         }
         return null;
       }
 
+      // Find the token in active tokens
+      const storedToken = this.activeRefreshTokens.get(jti);
+      if (!storedToken) {
+        // Token not in active tokens but family exists - reuse detected!
+        await this.revokeFamily(familyId);
+        return null;
+      }
+
       // Verify this is the current token in the family (rotation check)
-      if (family.currentTokenId !== payload.jti) {
+      if (family.currentTokenId !== jti) {
         // Token reuse detected! Revoke entire family
-        await this.revokeFamily(payload.family);
+        await this.revokeFamily(familyId);
         return null;
       }
 
       // Invalidate old refresh token
-      this.activeRefreshTokens.delete(payload.jti);
+      this.activeRefreshTokens.delete(jti);
 
       // Generate new token pair with same family
-      const newRefreshTokenId = this.generateTokenId();
-      const newTokenId = this.generateTokenId();
+      const newRefreshTokenId = generateId('tok');
+      const newTokenId = generateId('tok');
+      const now = Math.floor(Date.now() / 1000);
 
       // Update family
       family.currentTokenId = newRefreshTokenId;
 
       // Generate new access token
-      const accessPayload: TokenPayload = {
-        sub: storedToken.userId,
-        email: '',
-        username: '',
-        role: 'user',
-        scopes: ['profile:read'] as PermissionScope[],
-        app: 'quantmail' as QuantApp,
-        iat: now,
-        exp: now + this.config.accessTokenExpiresIn,
-        iss: this.config.issuer,
-        aud: this.config.audience,
-        jti: newTokenId,
-      };
+      const accessToken = await new jose.SignJWT({
+        email: storedToken.email,
+        username: storedToken.username,
+        role: storedToken.role,
+        scopes: storedToken.scopes,
+        app: storedToken.app,
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime(`${this.config.accessTokenExpiresIn}s`)
+        .setIssuer(this.config.issuer)
+        .setAudience(this.config.audience)
+        .setJti(newTokenId)
+        .setSubject(storedToken.userId)
+        .sign(this.secret);
 
       // Generate new refresh token
       const newRefreshPayload: RefreshTokenPayload = {
         sub: storedToken.userId,
         jti: newRefreshTokenId,
-        family: payload.family,
+        family: familyId,
         iat: now,
         exp: now + this.config.refreshTokenExpiresIn,
       };
 
-      // Store new refresh token
+      const newRefreshToken = await new jose.SignJWT({
+        family: familyId,
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime(`${this.config.refreshTokenExpiresIn}s`)
+        .setJti(newRefreshTokenId)
+        .setSubject(storedToken.userId)
+        .sign(this.secret);
+
+      // Store new refresh token with original user claims
       this.activeRefreshTokens.set(newRefreshTokenId, {
         ...newRefreshPayload,
         userId: storedToken.userId,
+        email: storedToken.email,
+        username: storedToken.username,
+        role: storedToken.role,
+        scopes: storedToken.scopes,
+        app: storedToken.app,
       });
 
       return {
-        accessToken: this.encodeToken(accessPayload),
-        refreshToken: this.encodeToken(newRefreshPayload),
+        accessToken,
+        refreshToken: newRefreshToken,
         expiresIn: this.config.accessTokenExpiresIn,
         tokenType: 'Bearer',
       };
@@ -220,7 +288,7 @@ export class TokenService {
    */
   async revokeAllForUser(userId: string): Promise<void> {
     // Revoke all refresh token families for this user
-    for (const [familyId, family] of this.refreshTokenFamilies) {
+    for (const [_familyId, family] of this.refreshTokenFamilies) {
       if (family.userId === userId) {
         family.isRevoked = true;
       }
@@ -232,6 +300,43 @@ export class TokenService {
         this.activeRefreshTokens.delete(tokenId);
       }
     }
+  }
+
+  /**
+   * Initialize the JWKS key pair for RS256 signing (federation)
+   */
+  async initializeJWKS(): Promise<void> {
+    const { privateKey, publicKey } = await jose.generateKeyPair('RS256');
+    this.jwksKeyPair = { privateKey, publicKey };
+  }
+
+  /**
+   * Get the JWKS document containing the public key
+   */
+  async getJWKS(): Promise<jose.JSONWebKeySet> {
+    if (!this.jwksKeyPair) {
+      await this.initializeJWKS();
+    }
+    const publicJwk = await jose.exportJWK(this.jwksKeyPair!.publicKey);
+    publicJwk.alg = 'RS256';
+    publicJwk.use = 'sig';
+    publicJwk.kid = 'quant-primary';
+    return { keys: [publicJwk] };
+  }
+
+  /**
+   * Sign a token with the private key (for federation tokens)
+   */
+  async signWithPrivateKey(payload: Record<string, unknown>): Promise<string> {
+    if (!this.jwksKeyPair) {
+      await this.initializeJWKS();
+    }
+    return new jose.SignJWT(payload as jose.JWTPayload)
+      .setProtectedHeader({ alg: 'RS256', kid: 'quant-primary' })
+      .setIssuedAt()
+      .setExpirationTime('1h')
+      .setIssuer(this.config.issuer)
+      .sign(this.jwksKeyPair!.privateKey);
   }
 
   /**
@@ -248,78 +353,6 @@ export class TokenService {
         }
       }
     }
-  }
-
-  /**
-   * Encode a payload into a JWT-like token string
-   * In production, use proper JWT library (jose, jsonwebtoken)
-   */
-  private encodeToken<T extends object>(payload: T): string {
-    const header = { alg: 'HS256', typ: 'JWT' };
-    const headerB64 = this.base64UrlEncode(JSON.stringify(header));
-    const payloadB64 = this.base64UrlEncode(JSON.stringify(payload));
-    const signature = this.sign(`${headerB64}.${payloadB64}`);
-    return `${headerB64}.${payloadB64}.${signature}`;
-  }
-
-  /**
-   * Decode a JWT-like token string
-   */
-  private decodeToken<T>(token: string): T | null {
-    try {
-      const parts = token.split('.');
-      if (parts.length !== 3) return null;
-      const payload = JSON.parse(this.base64UrlDecode(parts[1]));
-      // Verify signature
-      const expectedSignature = this.sign(`${parts[0]}.${parts[1]}`);
-      if (parts[2] !== expectedSignature) return null;
-      return payload as T;
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Base64URL encode
-   */
-  private base64UrlEncode(str: string): string {
-    const base64 = Buffer.from(str).toString('base64');
-    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  }
-
-  /**
-   * Base64URL decode
-   */
-  private base64UrlDecode(str: string): string {
-    let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
-    const padding = base64.length % 4;
-    if (padding) {
-      base64 += '='.repeat(4 - padding);
-    }
-    return Buffer.from(base64, 'base64').toString();
-  }
-
-  /**
-   * HMAC-like signing (simplified)
-   * In production, use crypto.createHmac('sha256', secret)
-   */
-  private sign(data: string): string {
-    let hash = 0;
-    const combined = data + this.config.jwtSecret;
-    for (let i = 0; i < combined.length; i++) {
-      const char = combined.charCodeAt(i);
-      hash = ((hash << 5) - hash + char) | 0;
-    }
-    return Math.abs(hash).toString(36).padStart(8, '0');
-  }
-
-  /**
-   * Generate a unique token ID
-   */
-  private generateTokenId(): string {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 14);
-    return `tok_${timestamp}${random}`;
   }
 
   /**

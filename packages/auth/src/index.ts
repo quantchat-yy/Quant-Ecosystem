@@ -5,6 +5,20 @@
 // Types
 export * from './types';
 
+// Crypto utilities
+export {
+  generateSecureToken,
+  generateSecureCode,
+  generateId,
+  PasswordService,
+  passwordService,
+  generateCodeVerifier,
+  generateCodeChallenge,
+  validateCodeChallenge,
+  TOTPService,
+  totpService,
+} from './crypto';
+
 // Providers
 export { QuantMailProvider } from './providers/quantmail-provider';
 export { PhoneAuthProvider } from './providers/phone-provider';
@@ -14,7 +28,17 @@ export type { PhoneAuthConfig, SMSDeliveryResult } from './providers/phone-provi
 export { TokenService } from './services/token-service';
 export { SessionService } from './services/session-service';
 export type { CreateSessionOptions } from './services/session-service';
+export { WebAuthnService } from './services/webauthn-service';
+export type {
+  WebAuthnRegistrationOptions,
+  WebAuthnAuthenticationOptions,
+} from './services/webauthn-service';
 
 // Middleware
 export { AuthMiddleware, createAuthMiddleware } from './middleware/auth-middleware';
-export type { AuthRequest, AuthResponse, NextFunction, AuthMiddlewareOptions } from './middleware/auth-middleware';
+export type {
+  AuthRequest,
+  AuthResponse,
+  NextFunction,
+  AuthMiddlewareOptions,
+} from './middleware/auth-middleware';
