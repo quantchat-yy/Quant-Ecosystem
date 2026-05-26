@@ -2,7 +2,7 @@
   "id": "FEAT-008",
   "type": "feat",
   "description": "Phase 37: QuantWork - Enterprise Suite App. Create apps/quantwork/ with project management, OKRs, sprint boards, time tracking, HR features, enterprise security (SAML/SCIM/DLP), and team analytics.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create apps/quantwork/package.json with deps: @quant/common, @quant/auth, @quant/server-core, @quant/ai, @quant/realtime, fastify, zod, ioredis. Create apps/quantwork/tsconfig.json.",
     "Create apps/quantwork/backend/app.ts following createApp pattern with routes for projects, hr, security, analytics",

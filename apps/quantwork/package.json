@@ -1,0 +1,27 @@
+{
+  "name": "@quant/quantwork",
+  "version": "1.0.0",
+  "private": true,
+  "description": "QuantWork - Enterprise project management, HR, and team analytics",
+  "main": "backend/app.ts",
+  "scripts": {
+    "dev": "node --loader ts-node/esm backend/app.ts",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@quant/common": "workspace:*",
+    "@quant/auth": "workspace:*",
+    "@quant/server-core": "workspace:*",
+    "@quant/ai": "workspace:*",
+    "@quant/realtime": "workspace:*",
+    "fastify": "^5.3.3",
+    "zod": "^3.25.23",
+    "ioredis": "^5.6.1"
+  },
+  "devDependencies": {
+    "vitest": "^2",
+    "@types/node": "^22.0.0"
+  }
+}
