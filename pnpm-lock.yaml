@@ -661,6 +661,28 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
 
+  packages/moderation:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../common
+      pino:
+        specifier: ^9.6.0
+        version: 9.14.0
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
   packages/notifications:
     dependencies:
       '@parse/node-apn':
@@ -809,6 +831,31 @@ importers:
       meilisearch:
         specifier: ^0.44.0
         version: 0.44.1
+      pino:
+        specifier: ^9.6.0
+        version: 9.14.0
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
+  packages/security:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../common
+      ioredis:
+        specifier: ^5.6.1
+        version: 5.10.1
       pino:
         specifier: ^9.6.0
         version: 9.14.0
@@ -1056,6 +1103,49 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
+  services/moderation-worker:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@quant/data-plane':
+        specifier: workspace:*
+        version: link:../../packages/data-plane
+      '@quant/moderation':
+        specifier: workspace:*
+        version: link:../../packages/moderation
+      '@quant/queue':
+        specifier: workspace:*
+        version: link:../../packages/queue
+      '@quant/security':
+        specifier: workspace:*
+        version: link:../../packages/security
+      bullmq:
+        specifier: ^5.30.1
+        version: 5.77.3
+      ioredis:
+        specifier: ^5.6.1
+        version: 5.10.1
+      pino:
+        specifier: ^9.6.0
+        version: 9.14.0
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      ts-node:
+        specifier: ^10.9.0
+        version: 10.9.2(@types/node@22.19.19)(typescript@5.5.4)
       typescript:
         specifier: ~5.5.0
         version: 5.5.4

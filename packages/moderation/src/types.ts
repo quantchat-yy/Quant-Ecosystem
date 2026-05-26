@@ -3,6 +3,8 @@
 // Comprehensive types for content moderation, trust scoring, and appeals
 // ============================================================================
 
+import { z } from 'zod';
+
 /** Content safety categories */
 export type ContentCategory =
   | 'safe'
@@ -38,10 +40,22 @@ export type ModerationAction =
 export type TrustLevel = 'new' | 'low' | 'medium' | 'high' | 'verified' | 'trusted_creator';
 
 /** Report status lifecycle */
-export type ReportStatus = 'open' | 'assigned' | 'under_review' | 'resolved' | 'dismissed' | 'escalated';
+export type ReportStatus =
+  | 'open'
+  | 'assigned'
+  | 'under_review'
+  | 'resolved'
+  | 'dismissed'
+  | 'escalated';
 
 /** Appeal status lifecycle */
-export type AppealStatus = 'submitted' | 'auto_reviewing' | 'human_review' | 'approved' | 'denied' | 'escalated';
+export type AppealStatus =
+  | 'submitted'
+  | 'auto_reviewing'
+  | 'human_review'
+  | 'approved'
+  | 'denied'
+  | 'escalated';
 
 /** Report categories */
 export type ReportCategory =
@@ -60,7 +74,20 @@ export type ReportCategory =
 export type QueuePriority = 'critical' | 'high' | 'medium' | 'low';
 
 /** Rule condition operators */
-export type RuleOperator = 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'neq' | 'contains' | 'matches' | 'in' | 'not_in';
+export type RuleOperator =
+  | 'gt'
+  | 'gte'
+  | 'lt'
+  | 'lte'
+  | 'eq'
+  | 'neq'
+  | 'contains'
+  | 'matches'
+  | 'in'
+  | 'not_in';
+
+/** Severity levels for policy decisions */
+export type Severity = 'none' | 'low' | 'medium' | 'high' | 'critical';
 
 /** Moderation result from classifiers */
 export interface ModerationResult {
@@ -234,4 +261,132 @@ export interface ActionLogEntry {
   reversible: boolean;
   reversedAt?: number;
   createdAt: number;
+}
+
+// ============================================================================
+// ML-based Moderation Types
+// ============================================================================
+
+/** Text moderation category result from ML API */
+export interface TextModerationCategoryResult {
+  flagged: boolean;
+  score: number;
+}
+
+/** Text moderation response from ML API */
+export interface TextModerationResponse {
+  hate: TextModerationCategoryResult;
+  harassment: TextModerationCategoryResult;
+  selfHarm: TextModerationCategoryResult;
+  sexual: TextModerationCategoryResult;
+  violence: TextModerationCategoryResult;
+}
+
+/** API client interface for text moderation */
+export interface ModerationAPIClient {
+  moderateText(input: string): Promise<TextModerationResponse>;
+}
+
+/** Image moderation category result from ML API */
+export interface ImageModerationCategoryResult {
+  flagged: boolean;
+  score: number;
+}
+
+/** Image moderation response from ML API */
+export interface ImageModerationResponse {
+  nsfw: ImageModerationCategoryResult;
+  violence: ImageModerationCategoryResult;
+  hateSymbols: ImageModerationCategoryResult;
+  selfHarm: ImageModerationCategoryResult;
+}
+
+/** Input for image moderation */
+export interface ImageModerationInput {
+  url?: string;
+  base64?: string;
+}
+
+/** API client interface for image moderation */
+export interface ImageModerationAPIClient {
+  moderateImage(input: ImageModerationInput): Promise<ImageModerationResponse>;
+}
+
+/** Policy configuration for an app */
+export interface PolicyConfig {
+  appId: string;
+  rules: PolicyRule[];
+}
+
+/** A single policy rule */
+export interface PolicyRule {
+  category: ContentCategory;
+  threshold: number;
+  action: ModerationAction;
+  severity: Severity;
+}
+
+/** Decision made by the policy engine */
+export interface PolicyDecision {
+  action: ModerationAction;
+  severity: Severity;
+  matchedRules: PolicyRule[];
+  confidence: number;
+}
+
+/** Appeal record - Zod validated */
+export const AppealRecordSchema = z.object({
+  id: z.string(),
+  contentId: z.string(),
+  userId: z.string(),
+  originalAction: z.enum([
+    'approve',
+    'flag',
+    'remove',
+    'restrict',
+    'ban',
+    'warn',
+    'shadow_ban',
+    'age_restrict',
+    'mute',
+  ]),
+  reason: z.string(),
+  evidence: z.array(z.string()),
+  status: z.enum([
+    'submitted',
+    'auto_reviewing',
+    'human_review',
+    'approved',
+    'denied',
+    'escalated',
+  ]),
+  source: z.enum(['automated', 'user_initiated']),
+  assignedTo: z.string().optional(),
+  resolution: z.string().optional(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+  resolvedAt: z.number().optional(),
+});
+
+export type AppealRecord = z.infer<typeof AppealRecordSchema>;
+
+/** Transparency report data */
+export interface TransparencyReport {
+  startDate: number;
+  endDate: number;
+  totalActions: number;
+  actionsByCategory: Record<string, number>;
+  appealStats: {
+    submitted: number;
+    approved: number;
+    denied: number;
+  };
+  avgResolutionTime: number;
+  topCategories: { category: string; count: number }[];
+}
+
+/** CSAM matcher interface */
+export interface CSAMMatcherInterface {
+  checkHash(hash: string): Promise<{ matched: boolean; reportId?: string }>;
+  reportMatch(params: { hash: string; source: string }): Promise<void>;
 }

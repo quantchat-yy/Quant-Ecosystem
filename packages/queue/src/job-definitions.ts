@@ -39,6 +39,17 @@ export const GenerateReportJobSchema = z.object({
 
 export type GenerateReportJob = z.infer<typeof GenerateReportJobSchema>;
 
+export const ModerationJobSchema = z.object({
+  contentId: z.string(),
+  contentType: z.enum(['text', 'image', 'video', 'audio']),
+  content: z.string(),
+  userId: z.string(),
+  appId: z.string(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type ModerationJob = z.infer<typeof ModerationJobSchema>;
+
 export const TranscodeJobSchema = z.object({
   inputPath: z.string(),
   outputDir: z.string(),

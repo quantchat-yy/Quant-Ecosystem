@@ -19,6 +19,12 @@ export { HoneypotDetector } from './core/honeypot';
 export { SessionSecurity } from './core/session-security';
 export { CSPGenerator } from './core/csp-generator';
 
+export { AbuseGraph } from './core/abuse-graph';
+export { ReputationService } from './core/reputation';
+export { AntiSpamFilter } from './core/anti-spam';
+export { ConfigurableRateLimiter, InMemoryRateLimitStore } from './core/configurable-rate-limiter';
+export { CaptchaChallengerService } from './core/captcha-challenger';
+
 export type {
   RateLimitConfig,
   SlidingWindowEntry,
@@ -66,4 +72,16 @@ export type {
   SecureSession,
   CSPDirective,
   CSPPolicy,
+  SybilCluster,
+  AbuseReport,
+  ReputationFactors,
+  ReputationScore,
+  SpamInput,
+  SpamResult,
+  SpamFeature,
+  TrainingSample,
+  RateLimitRule,
+  RateLimitCheckResult,
+  RateLimitStore,
+  ChallengeDecision,
 } from './types';

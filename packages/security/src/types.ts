@@ -473,3 +473,35 @@ export interface CSPPolicy {
   nonce: string;
   generated: string;
 }
+
+// ============================================================================
+// Trust & Safety Types
+// ============================================================================
+
+export type {
+  SybilCluster,
+  AbuseReport,
+} from './core/abuse-graph';
+
+export type {
+  ReputationFactors,
+  ReputationScore,
+} from './core/reputation';
+
+export type {
+  SpamInput,
+  SpamResult,
+  SpamFeature,
+  TrainingSample,
+} from './core/anti-spam';
+
+export type {
+  RateLimitRule,
+  RateLimitCheckResult,
+} from './core/configurable-rate-limiter';
+
+export type { RateLimitStore } from './core/configurable-rate-limiter';
+
+export type {
+  ChallengeDecision,
+} from './core/captcha-challenger';

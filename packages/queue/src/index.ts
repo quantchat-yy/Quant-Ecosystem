@@ -9,4 +9,6 @@ export {
   type SyncDataJob,
   GenerateReportJobSchema,
   type GenerateReportJob,
+  ModerationJobSchema,
+  type ModerationJob,
 } from './job-definitions.js';
