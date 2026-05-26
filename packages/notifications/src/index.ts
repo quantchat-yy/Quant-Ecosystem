@@ -42,3 +42,14 @@ export type {
   QuietHoursConfig,
   NotificationServiceConfig,
 } from './types';
+
+// Cross-App Notification Hub
+export { NotificationHub } from './services/notification-hub.service';
+export type {
+  AppSourceConfig,
+  HubNotification,
+  InboxFilters,
+  RoutingRule,
+  UnreadCounts,
+  BatchNotificationInput,
+} from './services/notification-hub.service';

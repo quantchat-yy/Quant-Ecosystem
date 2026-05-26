@@ -83,3 +83,15 @@ export type {
   IndexFieldConfig,
   AnalyzerConfig,
 } from './types';
+
+// Search Federation
+export { SearchFederation, FederationSourceConfigSchema } from './services/federation';
+export type {
+  FederationSourceConfig,
+  FederatedResult,
+  FederatedSearchOptions,
+  FederatedSuggestion,
+  RecentSearch,
+  SearchHandler,
+  SuggestionHandler,
+} from './services/federation';

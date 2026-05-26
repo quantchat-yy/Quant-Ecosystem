@@ -1,0 +1,25 @@
+{
+  "id": "FEAT-015",
+  "type": "feat",
+  "description": "Polish existing apps with meaningful micro-features that strengthen existing functionality. Add cross-app integration between the 13 existing apps. Enhance the existing packages with production-quality improvements rather than adding new apps.",
+  "status": "in_progress",
+  "steps": [
+    "Add cross-app notification integration to packages/notifications - unified notification dispatch from any app (quantchat, quantmail, quantmeet, etc) with priority routing and delivery tracking",
+    "Enhance packages/search with cross-app search federation - allow searching across chat messages, emails, docs, drive files, calendar events from a single query",
+    "Add missing test coverage for packages/security - currently has fake crypto, add proper validation tests",
+    "Improve packages/realtime with connection health monitoring, reconnection strategy, and message delivery guarantees",
+    "Run full typecheck and test suite to confirm everything passes"
+  ],
+  "acceptance_criteria": [
+    "Cross-app notification dispatch works with priority and tracking",
+    "Unified search federation queries multiple content sources",
+    "All existing tests continue to pass",
+    "Build (typecheck) passes clean with zero errors"
+  ],
+  "verification": [
+    "Run: unset NODE_OPTIONS && npx tsc --noEmit (zero errors)",
+    "Run: unset NODE_OPTIONS && npx vitest run (all tests pass)"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

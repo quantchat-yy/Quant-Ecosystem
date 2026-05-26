@@ -71,3 +71,13 @@ export type { BackpressureConfig, BackpressureStats, BufferedSocket } from './ba
 // NATS Bridge
 export { NatsBridge } from './nats-bridge';
 export type { NatsBridgeConfig, NatsHandler } from './nats-bridge';
+
+// Health Monitor
+export { ConnectionHealthMonitor } from './health-monitor';
+export type {
+  HealthMonitorConfig,
+  HealthState,
+  HealthMetrics,
+  ReconnectionStrategy,
+  HealthChangeCallback,
+} from './health-monitor';
