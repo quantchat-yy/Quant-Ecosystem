@@ -42,3 +42,6 @@ export type {
   NextFunction,
   AuthMiddlewareOptions,
 } from './middleware/auth-middleware';
+
+// E2E Encryption
+export * from './e2e';

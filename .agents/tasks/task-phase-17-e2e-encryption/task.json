@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-17-e2e-encryption",
+  "task_description": "Phase 17: Implement E2E Encryption using Signal Protocol primitives (X3DH, Double Ratchet), MLS group key management, ZK Email, sealed sender, encrypted backup, device linking, and safety numbers. All crypto via Node.js crypto module + openpgp for email.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}

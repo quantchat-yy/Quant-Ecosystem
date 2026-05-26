@@ -538,6 +538,9 @@ importers:
       jose:
         specifier: ^6.0.11
         version: 6.2.3
+      openpgp:
+        specifier: ^6.3.0
+        version: 6.3.0
       otplib:
         specifier: ^12.0.1
         version: 12.0.1
@@ -4448,6 +4451,10 @@ packages:
         optional: true
       zod:
         optional: true
+
+  openpgp@6.3.0:
+    resolution: {integrity: sha512-pLzCU8IgyKXPSO11eeharQkQ4GzOKNWhXq79pQarIRZEMt1/ssyr+MIuWBv1mNoenJLg04gvPx+fi4gcKZ4bag==}
+    engines: {node: '>= 18.0.0'}
 
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
@@ -8968,6 +8975,8 @@ snapshots:
       zod: 3.25.76
     transitivePeerDependencies:
       - encoding
+
+  openpgp@6.3.0: {}
 
   optionator@0.9.4:
     dependencies:
