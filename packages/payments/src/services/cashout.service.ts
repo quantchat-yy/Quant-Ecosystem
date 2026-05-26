@@ -14,6 +14,7 @@ export const RequestCashoutSchema = z.object({
 
 interface BalanceProvider {
   getAvailableBalance(creatorId: string): number;
+  debitBalance(creatorId: string, amount: number): void;
 }
 
 /**
@@ -55,6 +56,7 @@ export class CashoutService {
     };
 
     this.cashouts.set(cashout.id, cashout);
+    this.balanceProvider.debitBalance(validated.creatorId, validated.amount);
     return cashout;
   }
 

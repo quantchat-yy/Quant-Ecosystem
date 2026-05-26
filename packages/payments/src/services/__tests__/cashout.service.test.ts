@@ -2,20 +2,27 @@
 // Payments - Cashout Service Tests
 // ============================================================================
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CashoutService } from '../cashout.service';
 
 describe('CashoutService', () => {
   let service: CashoutService;
-  const mockBalanceProvider = {
-    getAvailableBalance: (creatorId: string): number => {
-      if (creatorId === 'creator_rich') return 1000;
-      if (creatorId === 'creator_poor') return 5;
-      return 0;
-    },
+  let debitBalanceMock: ReturnType<typeof vi.fn>;
+  let mockBalanceProvider: {
+    getAvailableBalance: (creatorId: string) => number;
+    debitBalance: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
+    debitBalanceMock = vi.fn();
+    mockBalanceProvider = {
+      getAvailableBalance: (creatorId: string): number => {
+        if (creatorId === 'creator_rich') return 1000;
+        if (creatorId === 'creator_poor') return 5;
+        return 0;
+      },
+      debitBalance: debitBalanceMock,
+    };
     service = new CashoutService(mockBalanceProvider);
   });
 
@@ -42,6 +49,28 @@ describe('CashoutService', () => {
       });
 
       expect(cashout.method).toBe('instant');
+    });
+
+    it('should debit the balance after creating a cashout', () => {
+      service.requestCashout({
+        creatorId: 'creator_rich',
+        amount: 500,
+        method: 'bank_transfer',
+      });
+
+      expect(debitBalanceMock).toHaveBeenCalledWith('creator_rich', 500);
+    });
+
+    it('should not debit the balance when cashout is rejected', () => {
+      expect(() =>
+        service.requestCashout({
+          creatorId: 'creator_poor',
+          amount: 100,
+          method: 'bank_transfer',
+        }),
+      ).toThrow('Insufficient available balance');
+
+      expect(debitBalanceMock).not.toHaveBeenCalled();
     });
 
     it('should reject cashout exceeding available balance', () => {

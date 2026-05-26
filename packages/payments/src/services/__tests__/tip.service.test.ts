@@ -60,7 +60,7 @@ describe('TipService', () => {
 
       expect(tip.amount).toBe(7.5);
       expect(tip.creatorShare).toBe(7.13); // 7.5 * 0.95 = 7.125 -> 7.13
-      expect(tip.platformShare).toBe(0.38); // 7.5 * 0.05 = 0.375 -> 0.38
+      expect(tip.platformShare).toBe(0.37); // 7.5 - 7.13 = 0.37
     });
 
     it('should reject zero amount', () => {

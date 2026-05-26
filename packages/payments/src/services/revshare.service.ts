@@ -45,7 +45,7 @@ export class RevShareService {
     const validated = RecordAdRevenueSchema.parse(params);
 
     const creatorShare = Math.round(validated.grossAmount * AD_REVENUE_CREATOR_SHARE * 100) / 100;
-    const platformShare = Math.round(validated.grossAmount * AD_REVENUE_PLATFORM_SHARE * 100) / 100;
+    const platformShare = Math.round((validated.grossAmount - creatorShare) * 100) / 100;
 
     const entry: RevShareEntry = {
       id: `rs_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -69,7 +69,7 @@ export class RevShareService {
     const validated = RecordTipSchema.parse(params);
 
     const creatorShare = Math.round(validated.grossAmount * TIP_CREATOR_SHARE * 100) / 100;
-    const platformShare = Math.round(validated.grossAmount * TIP_PLATFORM_SHARE * 100) / 100;
+    const platformShare = Math.round((validated.grossAmount - creatorShare) * 100) / 100;
 
     const entry: RevShareEntry = {
       id: `rs_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,

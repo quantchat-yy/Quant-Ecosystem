@@ -192,15 +192,45 @@ export class AICaptionService {
   }
 
   private generateSegments(language: string): CaptionSegment[] {
-    const englishPhrases = [
-      'Welcome to this video tutorial.',
-      'Today we will explore an interesting topic.',
-      'Let me show you how this works.',
-      'Pay attention to this important detail.',
-      'And that wraps up our discussion.',
-    ];
+    const phraseSets: Record<string, string[]> = {
+      en: [
+        'Welcome to this video tutorial.',
+        'Today we will explore an interesting topic.',
+        'Let me show you how this works.',
+        'Pay attention to this important detail.',
+        'And that wraps up our discussion.',
+      ],
+      es: [
+        'Bienvenidos a este tutorial en video.',
+        'Hoy exploraremos un tema interesante.',
+        'Permítanme mostrarles cómo funciona.',
+        'Presten atención a este detalle importante.',
+        'Y con esto concluimos nuestra discusión.',
+      ],
+      fr: [
+        'Bienvenue dans ce tutoriel vidéo.',
+        "Aujourd'hui nous allons explorer un sujet intéressant.",
+        'Laissez-moi vous montrer comment cela fonctionne.',
+        'Faites attention à ce détail important.',
+        'Et voilà qui conclut notre discussion.',
+      ],
+      de: [
+        'Willkommen zu diesem Video-Tutorial.',
+        'Heute werden wir ein interessantes Thema erkunden.',
+        'Lassen Sie mich Ihnen zeigen, wie das funktioniert.',
+        'Achten Sie auf dieses wichtige Detail.',
+        'Und damit beenden wir unsere Diskussion.',
+      ],
+      ja: [
+        'このビデオチュートリアルへようこそ。',
+        '今日は興味深いトピックを探求します。',
+        'これがどのように機能するかお見せしましょう。',
+        'この重要な詳細に注意してください。',
+        '以上で議論を終わります。',
+      ],
+    };
 
-    const phrases = language === 'en' ? englishPhrases : englishPhrases;
+    const phrases = phraseSets[language] ?? phraseSets['en']!;
 
     return phrases.map((text, i) => ({
       start: i * 5,
