@@ -23,9 +23,11 @@ export class ServiceWorkerManager {
   private scriptUrl: string | null = null;
   private readonly queue: QueuedRequest[] = [];
   private readonly swApi: IServiceWorkerAPI | null;
+  private readonly maxQueueSize: number;
 
-  constructor(swApi?: IServiceWorkerAPI) {
+  constructor(swApi?: IServiceWorkerAPI, maxQueueSize = 1000) {
     this.swApi = swApi ?? null;
+    this.maxQueueSize = maxQueueSize;
   }
 
   async register(scriptUrl: string): Promise<void> {
@@ -53,6 +55,9 @@ export class ServiceWorkerManager {
   }
 
   queueRequest(request: QueuedRequest): void {
+    if (this.queue.length >= this.maxQueueSize) {
+      this.queue.shift();
+    }
     this.queue.push(request);
   }
 

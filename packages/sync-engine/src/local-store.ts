@@ -50,7 +50,7 @@ export class LocalStore {
   async save(key: string, data: Uint8Array | object): Promise<void> {
     const storeKey = `${DATA_PREFIX}${key}`;
     if (data instanceof Uint8Array) {
-      this.backend.set(storeKey, data);
+      await this.backend.set(storeKey, data);
     } else {
       await this.backend.set(storeKey, JSON.stringify(data));
     }

@@ -6,8 +6,8 @@ export type { CRDTDocumentConfig, UpdateCallback } from './crdt-document.js';
 export { CRDTList } from './crdt-list.js';
 export type { ListObserveCallback } from './crdt-list.js';
 
-export { AutomergeState } from './automerge-state.js';
-export type { StateSubscribeCallback } from './automerge-state.js';
+export { CRDTState } from './crdt-state.js';
+export type { StateSubscribeCallback } from './crdt-state.js';
 
 export {
   SyncProtocol,
@@ -25,6 +25,8 @@ export type {
   IWebSocket,
   WebSocketFactory,
   MessageHandler,
+  ErrorHandler,
+  ConnectionStateChangeCallback,
 } from './sync-protocol.js';
 
 export { ConflictResolver } from './conflict-resolution.js';

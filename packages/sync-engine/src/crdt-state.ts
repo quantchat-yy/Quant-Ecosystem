@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 export type StateSubscribeCallback<T, K extends keyof T = keyof T> = (key: K, value: T[K]) => void;
 
-export class AutomergeState<T extends Record<string, unknown>> {
+export class CRDTState<T extends Record<string, unknown>> {
   private readonly doc: Y.Doc;
   private readonly map: Y.Map<unknown>;
   private readonly schema: z.ZodType<T>;

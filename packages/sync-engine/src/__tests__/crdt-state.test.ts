@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { z } from 'zod';
-import { AutomergeState } from '../automerge-state.js';
+import { CRDTState } from '../crdt-state.js';
 
 const TestStateSchema = z.object({
   name: z.string(),
@@ -10,9 +10,9 @@ const TestStateSchema = z.object({
 
 type TestState = z.infer<typeof TestStateSchema>;
 
-describe('AutomergeState', () => {
+describe('CRDTState', () => {
   it('should get and set values', () => {
-    const state = new AutomergeState<TestState>(TestStateSchema);
+    const state = new CRDTState<TestState>(TestStateSchema);
     state.set('name', 'Alice');
     state.set('age', 30);
     state.set('active', true);
@@ -23,7 +23,7 @@ describe('AutomergeState', () => {
   });
 
   it('should fire subscribe callback on change', () => {
-    const state = new AutomergeState<TestState>(TestStateSchema);
+    const state = new CRDTState<TestState>(TestStateSchema);
     state.set('name', 'Bob');
     state.set('age', 25);
     state.set('active', true);
@@ -41,14 +41,14 @@ describe('AutomergeState', () => {
   });
 
   it('should snapshot roundtrip', () => {
-    const state1 = new AutomergeState<TestState>(TestStateSchema);
+    const state1 = new CRDTState<TestState>(TestStateSchema);
     state1.set('name', 'Test');
     state1.set('age', 42);
     state1.set('active', false);
 
     const encoded = state1.encodeState();
 
-    const state2 = new AutomergeState<TestState>(TestStateSchema);
+    const state2 = new CRDTState<TestState>(TestStateSchema);
     state2.applyUpdate(encoded);
 
     expect(state2.get('name')).toBe('Test');
@@ -57,12 +57,12 @@ describe('AutomergeState', () => {
   });
 
   it('should merge two states without conflict', () => {
-    const state1 = new AutomergeState<TestState>(TestStateSchema);
+    const state1 = new CRDTState<TestState>(TestStateSchema);
     state1.set('name', 'User1');
     state1.set('age', 20);
     state1.set('active', true);
 
-    const state2 = new AutomergeState<TestState>(TestStateSchema);
+    const state2 = new CRDTState<TestState>(TestStateSchema);
     state2.set('name', 'User2');
     state2.set('age', 30);
     state2.set('active', false);
@@ -78,7 +78,7 @@ describe('AutomergeState', () => {
   });
 
   it('should reject invalid values via Zod schema', () => {
-    const state = new AutomergeState<TestState>(TestStateSchema);
+    const state = new CRDTState<TestState>(TestStateSchema);
     state.set('name', 'Valid');
     state.set('age', 25);
     state.set('active', true);
@@ -88,7 +88,7 @@ describe('AutomergeState', () => {
   });
 
   it('should apply partial snapshot', () => {
-    const state = new AutomergeState<TestState>(TestStateSchema);
+    const state = new CRDTState<TestState>(TestStateSchema);
     state.set('name', 'Initial');
     state.set('age', 10);
     state.set('active', true);

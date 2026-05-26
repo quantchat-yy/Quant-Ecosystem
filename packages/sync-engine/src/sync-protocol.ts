@@ -27,6 +27,7 @@ export const SyncProtocolConfigSchema = z.object({
   httpUrl: z.string().url(),
   reconnect: ReconnectConfigSchema.optional().default({}),
   httpPollInterval: z.number().positive().default(5000),
+  maxQueueSize: z.number().int().positive().default(1000),
 });
 
 export type SyncProtocolConfig = z.input<typeof SyncProtocolConfigSchema>;
@@ -53,6 +54,10 @@ export type WebSocketFactory = (url: string) => IWebSocket;
 
 export type MessageHandler = (message: SyncMessage) => void;
 
+export type ErrorHandler = (error: unknown) => void;
+
+export type ConnectionStateChangeCallback = (state: ConnectionState) => void;
+
 export class SyncProtocol {
   private readonly config: SyncProtocolConfigParsed;
   private connectionState: ConnectionState = 'disconnected';
@@ -64,9 +69,16 @@ export class SyncProtocol {
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private wsFactory: WebSocketFactory | null = null;
   private httpSender: ((message: SyncMessage) => Promise<void>) | null = null;
+  private readonly errorHandlers: Set<ErrorHandler> = new Set();
+  private _errorCount = 0;
+  private readonly connectionStateChangeHandlers: Set<ConnectionStateChangeCallback> = new Set();
 
   constructor(config: SyncProtocolConfig) {
     this.config = SyncProtocolConfigSchema.parse(config);
+  }
+
+  get errorCount(): number {
+    return this._errorCount;
   }
 
   setWebSocketFactory(factory: WebSocketFactory): void {
@@ -77,11 +89,25 @@ export class SyncProtocol {
     this.httpSender = sender;
   }
 
+  onError(handler: ErrorHandler): () => void {
+    this.errorHandlers.add(handler);
+    return () => {
+      this.errorHandlers.delete(handler);
+    };
+  }
+
+  onConnectionStateChange(callback: ConnectionStateChangeCallback): () => void {
+    this.connectionStateChangeHandlers.add(callback);
+    return () => {
+      this.connectionStateChangeHandlers.delete(callback);
+    };
+  }
+
   connect(): void {
     if (this.connectionState === 'connected' || this.connectionState === 'connecting') {
       return;
     }
-    this.connectionState = 'connecting';
+    this.setConnectionState('connecting');
     this.attemptWebSocketConnection();
   }
 
@@ -99,7 +125,7 @@ export class SyncProtocol {
       this.ws.close();
       this.ws = null;
     }
-    this.connectionState = 'disconnected';
+    this.setConnectionState('disconnected');
     this.retryCount = 0;
   }
 
@@ -110,6 +136,9 @@ export class SyncProtocol {
     } else if (this.connectionState === 'http_fallback' && this.httpSender) {
       void this.httpSender(validated);
     } else {
+      if (this.messageQueue.length >= this.config.maxQueueSize) {
+        this.messageQueue.shift();
+      }
       this.messageQueue.push(validated);
     }
   }
@@ -143,7 +172,7 @@ export class SyncProtocol {
     }
 
     this.ws.onopen = () => {
-      this.connectionState = 'connected';
+      this.setConnectionState('connected');
       this.retryCount = 0;
       this.flushQueue();
     };
@@ -162,8 +191,11 @@ export class SyncProtocol {
         for (const handler of this.messageHandlers) {
           handler(message);
         }
-      } catch {
-        // Invalid message, ignore
+      } catch (error: unknown) {
+        this._errorCount++;
+        for (const handler of this.errorHandlers) {
+          handler(error);
+        }
       }
     };
 
@@ -184,7 +216,7 @@ export class SyncProtocol {
       return;
     }
 
-    this.connectionState = 'reconnecting';
+    this.setConnectionState('reconnecting');
     const delay = Math.min(baseDelay * Math.pow(2, this.retryCount), maxDelay);
     this.retryCount++;
 
@@ -194,17 +226,22 @@ export class SyncProtocol {
   }
 
   private activateHttpFallback(): void {
-    this.connectionState = 'http_fallback';
+    this.setConnectionState('http_fallback');
     this.flushQueue();
     this.startHttpPolling();
   }
 
+  // HTTP polling is a placeholder for server-side implementation.
+  // The polling timer fires but the actual data fetching is intentionally left
+  // for consumers to integrate via setHttpSender(). The structure is sound but
+  // the poll body does not fetch data on its own.
   private startHttpPolling(): void {
     if (this.pollTimer) {
       clearTimeout(this.pollTimer);
     }
     this.pollTimer = setTimeout(() => {
-      // In a real implementation, this would poll the HTTP endpoint
+      // Placeholder: In a full implementation, this would poll the HTTP endpoint
+      // for inbound messages. Consumers should provide data fetching logic externally.
       if (this.connectionState === 'http_fallback') {
         this.startHttpPolling();
       }
@@ -218,6 +255,15 @@ export class SyncProtocol {
         this.ws.send(JSON.stringify(message));
       } else if (this.connectionState === 'http_fallback' && this.httpSender) {
         void this.httpSender(message);
+      }
+    }
+  }
+
+  private setConnectionState(state: ConnectionState): void {
+    if (this.connectionState !== state) {
+      this.connectionState = state;
+      for (const callback of this.connectionStateChangeHandlers) {
+        callback(state);
       }
     }
   }
