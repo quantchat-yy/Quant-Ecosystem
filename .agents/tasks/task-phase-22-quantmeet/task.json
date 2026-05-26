@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-22-quantmeet",
+  "task_description": "Phase 22: Create the QuantMeet app (Zoom/Google Meet killer) with Fastify+WebSocket backend, 7 services (room, SFU, recording, transcript, summary, action-items, breakout), routes, frontend type definitions, and comprehensive test suites.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}
