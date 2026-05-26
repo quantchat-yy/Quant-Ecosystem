@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Create k6 load test scripts for chat fanout, feed ranking, and search scenarios plus security scanning configs (OWASP ZAP + Snyk)",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create packages/testing/src/load/index.ts - Export all load test configurations and scripts.",
     "Create packages/testing/src/load/chat-fanout.ts - k6 load test script config for chat message fanout: (1) scenario definition with ramping VUs (0->50 over 30s, hold 50 for 2m, ramp down), (2) thresholds (p95 < 500ms, error rate < 1%), (3) test function that simulates sending messages to group chat and verifying delivery to all members.",

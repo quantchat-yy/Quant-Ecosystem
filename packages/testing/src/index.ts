@@ -110,3 +110,9 @@ export {
   selectOption,
   createJourney,
 } from './e2e/helpers';
+
+// Load Testing
+export * from './load/index';
+
+// Security Scanning
+export * from './security/index';
