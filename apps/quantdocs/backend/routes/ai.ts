@@ -2,6 +2,10 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
 import type { AIEngine } from '@quant/ai';
+import { AIWriteService } from '../services/ai-write.service';
+import { AIGrammarService } from '../services/ai-grammar.service';
+import { AITranslateService } from '../services/ai-translate.service';
+import { AIDiagramService } from '../services/ai-diagram.service';
 
 const writeFromOutlineSchema = z.object({
   outline: z.array(z.string().min(1)).min(1),
@@ -24,6 +28,7 @@ const translateSchema = z.object({
   text: z.string().min(1),
   targetLanguage: z.string().min(1),
   sourceLanguage: z.string().optional(),
+  preserveFormatting: z.boolean().optional(),
 });
 
 const grammarCheckSchema = z.object({
@@ -41,6 +46,12 @@ const diagramFromTextSchema = z.object({
 });
 
 export default async function aiRoutes(fastify: FastifyInstance) {
+  const ai = (fastify as unknown as { ai: AIEngine }).ai;
+  const writeService = new AIWriteService(ai);
+  const grammarService = new AIGrammarService(ai);
+  const translateService = new AITranslateService(ai);
+  const diagramService = new AIDiagramService(ai);
+
   // POST /ai/write-from-outline
   fastify.post('/write-from-outline', async (request, reply) => {
     const parseResult = writeFromOutlineSchema.safeParse(request.body);
@@ -53,28 +64,10 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const ai = (fastify as unknown as { ai: AIEngine }).ai;
-    const { outline, tone, length } = parseResult.data;
+    const { outline, tone } = parseResult.data;
+    const data = await writeService.writeFromOutline(outline, { tone }, userId);
 
-    const response = await ai.infer({
-      prompt: `Write a document based on this outline:\n${outline.map((item) => `- ${item}`).join('\n')}\n\nTone: ${tone ?? 'formal'}\nTarget length: ${length ?? 'medium'}\n\nRespond with valid JSON: { "title": "string", "content": "HTML content string" }`,
-      systemPrompt:
-        'You are a professional document writer. Generate well-structured documents from outlines. Always respond with valid JSON only.',
-      userId,
-      app: 'quantdocs',
-      feature: 'write-from-outline',
-      temperature: 0.7,
-      maxTokens: 2048,
-    });
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(response.content);
-    } catch {
-      throw createAppError('Failed to parse AI response', 500, 'AI_PARSE_ERROR');
-    }
-
-    return reply.send({ success: true, data: parsed });
+    return reply.send({ success: true, data });
   });
 
   // POST /ai/expand-section
@@ -89,28 +82,10 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const ai = (fastify as unknown as { ai: AIEngine }).ai;
-    const { section, context, targetLength } = parseResult.data;
+    const { section, context } = parseResult.data;
+    const data = await writeService.expandSection(section, context ?? '', userId);
 
-    const response = await ai.infer({
-      prompt: `Expand this section into more detailed content:\n\nSection: ${section}\n${context ? `Context: ${context}\n` : ''}Target length: ${targetLength ?? 'medium'}\n\nRespond with valid JSON: { "expanded": "expanded HTML content string" }`,
-      systemPrompt:
-        'You are a professional document writer. Expand sections with relevant detail while maintaining the original intent. Always respond with valid JSON only.',
-      userId,
-      app: 'quantdocs',
-      feature: 'expand-section',
-      temperature: 0.7,
-      maxTokens: 2048,
-    });
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(response.content);
-    } catch {
-      throw createAppError('Failed to parse AI response', 500, 'AI_PARSE_ERROR');
-    }
-
-    return reply.send({ success: true, data: parsed });
+    return reply.send({ success: true, data });
   });
 
   // POST /ai/simplify
@@ -125,28 +100,20 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const ai = (fastify as unknown as { ai: AIEngine }).ai;
     const { text, targetAudience } = parseResult.data;
-
-    const response = await ai.infer({
-      prompt: `Simplify the following text for a ${targetAudience ?? 'general'} audience:\n\n${text}\n\nRespond with valid JSON: { "simplified": "simplified text string" }`,
-      systemPrompt:
-        'You are a text simplification expert. Make complex content accessible while preserving key information. Always respond with valid JSON only.',
+    const audienceMap = {
+      general: 'general',
+      technical: 'technical',
+      children: 'child',
+      executive: 'general',
+    } as const;
+    const data = await writeService.simplify(
+      text,
+      audienceMap[targetAudience ?? 'general'],
       userId,
-      app: 'quantdocs',
-      feature: 'simplify',
-      temperature: 0.5,
-      maxTokens: 1024,
-    });
+    );
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(response.content);
-    } catch {
-      throw createAppError('Failed to parse AI response', 500, 'AI_PARSE_ERROR');
-    }
-
-    return reply.send({ success: true, data: parsed });
+    return reply.send({ success: true, data });
   });
 
   // POST /ai/translate
@@ -161,28 +128,15 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const ai = (fastify as unknown as { ai: AIEngine }).ai;
-    const { text, targetLanguage, sourceLanguage } = parseResult.data;
-
-    const response = await ai.infer({
-      prompt: `Translate the following text${sourceLanguage ? ` from ${sourceLanguage}` : ''} to ${targetLanguage}:\n\n${text}\n\nRespond with valid JSON: { "translated": "translated text string", "detectedLanguage": "source language if detected" }`,
-      systemPrompt:
-        'You are a professional translator. Provide accurate translations while preserving tone and meaning. Always respond with valid JSON only.',
+    const { text, targetLanguage, preserveFormatting } = parseResult.data;
+    const data = await translateService.translate(
+      text,
+      targetLanguage,
+      preserveFormatting ?? false,
       userId,
-      app: 'quantdocs',
-      feature: 'translate',
-      temperature: 0.3,
-      maxTokens: 2048,
-    });
+    );
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(response.content);
-    } catch {
-      throw createAppError('Failed to parse AI response', 500, 'AI_PARSE_ERROR');
-    }
-
-    return reply.send({ success: true, data: parsed });
+    return reply.send({ success: true, data });
   });
 
   // POST /ai/grammar-check
@@ -197,28 +151,10 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const ai = (fastify as unknown as { ai: AIEngine }).ai;
     const { text } = parseResult.data;
+    const data = await grammarService.checkGrammar(text, userId);
 
-    const response = await ai.infer({
-      prompt: `Check the following text for grammar, spelling, and punctuation errors. List all corrections:\n\n${text}\n\nRespond with valid JSON: { "corrected": "corrected text", "issues": [{ "original": "string", "correction": "string", "explanation": "string" }] }`,
-      systemPrompt:
-        'You are a professional editor and proofreader. Identify and correct grammar, spelling, and punctuation issues. Always respond with valid JSON only.',
-      userId,
-      app: 'quantdocs',
-      feature: 'grammar-check',
-      temperature: 0.2,
-      maxTokens: 2048,
-    });
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(response.content);
-    } catch {
-      throw createAppError('Failed to parse AI response', 500, 'AI_PARSE_ERROR');
-    }
-
-    return reply.send({ success: true, data: parsed });
+    return reply.send({ success: true, data });
   });
 
   // POST /ai/table-from-text
@@ -233,28 +169,10 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const ai = (fastify as unknown as { ai: AIEngine }).ai;
-    const { text, format } = parseResult.data;
+    const { text } = parseResult.data;
+    const data = await diagramService.textToTable(text, userId);
 
-    const response = await ai.infer({
-      prompt: `Extract structured data from the following text and format it as a ${format ?? 'html'} table:\n\n${text}\n\nRespond with valid JSON: { "table": "table in requested format", "headers": ["column names"], "rows": [["cell values"]] }`,
-      systemPrompt:
-        'You are a data extraction expert. Convert unstructured text into well-organized tables. Always respond with valid JSON only.',
-      userId,
-      app: 'quantdocs',
-      feature: 'table-from-text',
-      temperature: 0.3,
-      maxTokens: 2048,
-    });
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(response.content);
-    } catch {
-      throw createAppError('Failed to parse AI response', 500, 'AI_PARSE_ERROR');
-    }
-
-    return reply.send({ success: true, data: parsed });
+    return reply.send({ success: true, data });
   });
 
   // POST /ai/diagram-from-text
@@ -269,27 +187,19 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const ai = (fastify as unknown as { ai: AIEngine }).ai;
     const { text, diagramType } = parseResult.data;
-
-    const response = await ai.infer({
-      prompt: `Generate a ${diagramType ?? 'flowchart'} diagram in Mermaid syntax from the following text:\n\n${text}\n\nRespond with valid JSON: { "mermaid": "mermaid diagram code", "description": "brief description of the diagram" }`,
-      systemPrompt:
-        'You are a diagram generation expert. Convert text descriptions into clear Mermaid diagram syntax. Always respond with valid JSON only.',
+    const diagramTypeMap = {
+      flowchart: 'flowchart',
+      sequence: 'sequence',
+      class: 'class',
+      'entity-relationship': 'state',
+    } as const;
+    const data = await diagramService.textToDiagram(
+      text,
+      diagramTypeMap[diagramType ?? 'flowchart'],
       userId,
-      app: 'quantdocs',
-      feature: 'diagram-from-text',
-      temperature: 0.4,
-      maxTokens: 2048,
-    });
+    );
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(response.content);
-    } catch {
-      throw createAppError('Failed to parse AI response', 500, 'AI_PARSE_ERROR');
-    }
-
-    return reply.send({ success: true, data: parsed });
+    return reply.send({ success: true, data });
   });
 }

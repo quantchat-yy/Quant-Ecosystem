@@ -50,6 +50,10 @@ const createFromTemplateSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 });
 
+function sanitizeFilename(title: string): string {
+  return title.replace(/[^\w\s.-]/g, '_').slice(0, 100);
+}
+
 export default async function docsRoutes(fastify: FastifyInstance) {
   const templateService = new TemplateService();
   const exportService = new ExportService();
@@ -184,6 +188,11 @@ export default async function docsRoutes(fastify: FastifyInstance) {
 
   // GET /docs/:id/comments - List comments
   fastify.get<{ Params: { id: string } }>('/:id/comments', async (request, reply) => {
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
     const prisma = (fastify as unknown as { prisma: unknown }).prisma;
     const service = new CommentService(prisma as never);
     const comments = await service.getComments(request.params.id);
@@ -276,26 +285,28 @@ export default async function docsRoutes(fastify: FastifyInstance) {
 
     const { format } = parseResult.data;
 
+    const safeFilename = sanitizeFilename(doc.title);
+
     switch (format) {
       case 'markdown': {
         const markdown = exportService.exportToMarkdown(docContent);
         return reply
           .header('content-type', 'text/markdown')
-          .header('content-disposition', `attachment; filename="${doc.title}.md"`)
+          .header('content-disposition', `attachment; filename="${safeFilename}.md"`)
           .send(markdown);
       }
       case 'html': {
         const html = exportService.exportToHtml(docContent);
         return reply
           .header('content-type', 'text/html')
-          .header('content-disposition', `attachment; filename="${doc.title}.html"`)
+          .header('content-disposition', `attachment; filename="${safeFilename}.html"`)
           .send(html);
       }
       case 'pdf': {
         const pdf = exportService.exportToPdf(docContent);
         return reply
           .header('content-type', 'application/pdf')
-          .header('content-disposition', `attachment; filename="${doc.title}.pdf"`)
+          .header('content-disposition', `attachment; filename="${safeFilename}.pdf"`)
           .send(pdf);
       }
       case 'docx': {
@@ -305,14 +316,14 @@ export default async function docsRoutes(fastify: FastifyInstance) {
             'content-type',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
           )
-          .header('content-disposition', `attachment; filename="${doc.title}.docx"`)
+          .header('content-disposition', `attachment; filename="${safeFilename}.docx"`)
           .send(docx);
       }
       case 'latex': {
         const latex = exportService.exportToLatex(docContent);
         return reply
           .header('content-type', 'application/x-latex')
-          .header('content-disposition', `attachment; filename="${doc.title}.tex"`)
+          .header('content-disposition', `attachment; filename="${safeFilename}.tex"`)
           .send(latex);
       }
     }

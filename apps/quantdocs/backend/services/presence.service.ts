@@ -61,4 +61,27 @@ export class PresenceService {
   clearDocument(docId: string): void {
     this.cursors.delete(docId);
   }
+
+  /**
+   * Remove cursors whose lastUpdated exceeds the given maxAgeMs threshold.
+   * Returns the number of stale cursors removed.
+   */
+  cleanupStaleCursors(maxAgeMs: number): number {
+    const now = Date.now();
+    let removed = 0;
+
+    for (const [docId, docCursors] of this.cursors.entries()) {
+      for (const [userId, cursorInfo] of docCursors.entries()) {
+        if (now - cursorInfo.lastUpdated.getTime() >= maxAgeMs) {
+          docCursors.delete(userId);
+          removed++;
+        }
+      }
+      if (docCursors.size === 0) {
+        this.cursors.delete(docId);
+      }
+    }
+
+    return removed;
+  }
 }
