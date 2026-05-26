@@ -39,3 +39,10 @@ export { SpeechToTextService } from './voice/speech-to-text';
 export { TextToSpeechService } from './voice/text-to-speech';
 export { VoiceCommander } from './voice/voice-commander';
 export type { VoiceConfig, TranscriptionResult, TTSRequest, TTSResponse } from './voice/types';
+
+// Advanced AI
+export * from './advanced/types';
+export { MultimodalAI } from './advanced/multimodal';
+export { AutonomousAgent } from './advanced/autonomous-agent';
+export { MemorySystem } from './advanced/memory-system';
+export { ModelMarketplace } from './advanced/model-marketplace';
