@@ -27,4 +27,7 @@ export interface PrismaClient {
     findFirst: (args: Record<string, unknown>) => Promise<any>;
     findMany: (args: Record<string, unknown>) => Promise<any[]>;
   };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  $queryRaw<T = unknown>(query: TemplateStringsArray, ...values: unknown[]): Promise<T>;
+  $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>;
 }

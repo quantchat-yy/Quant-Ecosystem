@@ -1,5 +1,6 @@
 import type { PrismaClient } from '../types';
 import { createAppError } from '@quant/server-core';
+import crypto from 'node:crypto';
 
 export interface Match {
   id: string;
@@ -116,5 +117,103 @@ export class MatchingService {
       },
       orderBy: { matchedAt: 'desc' },
     });
+  }
+
+  /**
+   * Generate a deterministic embedding vector from a dating profile's attributes.
+   * Uses interests, age, and preferences to create a normalized 256-dimension vector.
+   */
+  generateEmbedding(profile: {
+    interests: string[];
+    age: number;
+    gender: string | null;
+    genderPreference: unknown;
+  }): number[] {
+    const VECTOR_DIM = 256;
+    const vector = new Array<number>(VECTOR_DIM).fill(0);
+
+    // Hash each interest to deterministic positions in the vector
+    for (const interest of profile.interests) {
+      const hash = crypto.createHash('sha256').update(interest).digest();
+      for (let i = 0; i < 8; i++) {
+        const pos = hash[i * 4]! % VECTOR_DIM;
+        const weight = (hash[i * 4 + 1]! + 1) / 256; // value between ~0.004 and 1
+        vector[pos] = (vector[pos] ?? 0) + weight;
+      }
+    }
+
+    // Encode age as a normalized value spread across dimensions
+    const normalizedAge = (profile.age - 18) / 62; // normalize 18-80 to 0-1
+    for (let i = 0; i < 16; i++) {
+      const pos = (i * 16) % VECTOR_DIM;
+      vector[pos] = (vector[pos] ?? 0) + normalizedAge * 0.5;
+    }
+
+    // Encode gender as a hash-based vector component
+    if (profile.gender) {
+      const genderHash = crypto.createHash('sha256').update(profile.gender).digest();
+      for (let i = 0; i < 4; i++) {
+        const pos = genderHash[i]! % VECTOR_DIM;
+        vector[pos] = (vector[pos] ?? 0) + 0.3;
+      }
+    }
+
+    // Normalize to unit length (divide by magnitude)
+    const magnitude = Math.sqrt(vector.reduce((sum, v) => sum + v * v, 0));
+    if (magnitude > 0) {
+      for (let i = 0; i < VECTOR_DIM; i++) {
+        vector[i] = vector[i]! / magnitude;
+      }
+    }
+
+    return vector;
+  }
+
+  /**
+   * Find matches using pgvector cosine similarity.
+   * Uses $queryRaw for vector similarity search.
+   */
+  async findMatches(
+    userId: string,
+    limit: number = 10,
+  ): Promise<Array<{ userId: string; similarity: number }>> {
+    const userProfile = await this.prisma.datingProfile.findUnique({ where: { userId } });
+    if (!userProfile) {
+      throw createAppError('Profile not found', 404, 'PROFILE_NOT_FOUND');
+    }
+
+    const interests = (userProfile.interests as string[]) ?? [];
+    const embedding = this.generateEmbedding({
+      interests,
+      age: userProfile.age,
+      gender: userProfile.gender,
+      genderPreference: userProfile.genderPreference,
+    });
+
+    // Use raw SQL with pgvector cosine similarity operator
+    // Embedding values are self-generated numbers, safe for interpolation.
+    // We use $queryRawUnsafe because Prisma's tagged template parameterization
+    // breaks the ::vector cast when the vector literal is passed as a parameter.
+    const vectorStr = `[${embedding.join(',')}]`;
+
+    const results = await this.prisma.$queryRawUnsafe<
+      Array<{ user_id: string; similarity: number }>
+    >(
+      `SELECT dp.user_id, 1 - (dp.embedding <=> $1::vector) as similarity
+       FROM dating_profiles dp
+       WHERE dp.user_id != $2
+         AND dp.is_active = true
+         AND dp.embedding IS NOT NULL
+       ORDER BY dp.embedding <=> $1::vector
+       LIMIT $3`,
+      vectorStr,
+      userId,
+      limit,
+    );
+
+    return results.map((r: { user_id: string; similarity: number }) => ({
+      userId: r.user_id,
+      similarity: r.similarity,
+    }));
   }
 }

@@ -2,7 +2,14 @@
 // Notifications Package - Barrel Export
 // ============================================================================
 
-export { PushNotificationService } from './services/push-service';
+export { PushNotificationService, PushService } from './services/push-service';
+export { PushPayloadSchema } from './services/push-service';
+export type {
+  PushPayload,
+  PushPlatform as PushServicePlatform,
+  PushResult,
+  PushServiceConfig,
+} from './services/push-service';
 export { InAppNotificationService } from './services/in-app-service';
 export { EmailDigestService } from './services/email-digest-service';
 export { SchedulerService } from './services/scheduler-service';

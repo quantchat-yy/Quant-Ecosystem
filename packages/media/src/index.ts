@@ -3,10 +3,20 @@
 // ============================================================================
 
 export { ImageProcessor } from './services/image-processor';
-export { VideoTranscoder } from './services/video-transcoder';
+export {
+  VideoTranscoder,
+  TranscodeOptionsSchema,
+  TranscodeProfileSchema,
+} from './services/video-transcoder';
+export type {
+  TranscodeOptions,
+  TranscodeInput,
+  TranscodeResult,
+} from './services/video-transcoder';
 export { AudioProcessor } from './services/audio-processor';
 export { UploadManager } from './services/upload-manager';
-export { CDNService } from './services/cdn-service';
+export { CDNService, CDNConfigSchema } from './services/cdn-service';
+export type { CDNConfig, InvalidationResult } from './services/cdn-service';
 export { MetadataExtractor } from './services/metadata-extractor';
 
 export type {
@@ -25,7 +35,7 @@ export type {
   MediaMetadata,
   GPSCoordinates,
   ExifData,
-  CDNConfig,
+  CDNConfig as LegacyCDNConfig,
   CDNEdge,
   ThumbnailOptions,
   WaveformData,

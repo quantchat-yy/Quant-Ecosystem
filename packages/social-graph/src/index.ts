@@ -7,6 +7,13 @@ export { PathFinder } from './core/path-finder';
 export { InfluenceScorer } from './core/influence-scorer';
 export { CommunityDetector } from './core/community-detector';
 export { FollowerManager } from './core/follower-manager';
+export { SocialGraphService } from './services/social-graph.service';
+
+export type {
+  PaginationOptions,
+  PaginatedResult as SocialPaginatedResult,
+  UserRelation,
+} from './services/social-graph.service';
 
 export type {
   GraphNode,
