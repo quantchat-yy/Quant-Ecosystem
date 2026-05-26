@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Implement the core ActivityPub layer: actor model, HTTP signatures (sign + verify), WebFinger endpoint, NodeInfo endpoint, inbox processing (Follow/Like/Create/Announce/Delete), outbox publishing with signatures, server endpoint mounting, and delivery queue with retry. Also implement the Matrix bridge (bridge-bot and room-mapper) and federation moderation (instance blocklist/allowlist). Every source file gets a corresponding .test.ts file.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create packages/federation/src/activitypub/actor.ts - Actor class that generates Ed25519 keypairs (using node:crypto), builds AS2 actor objects with id, type, preferredUsername, inbox, outbox, followers, following, publicKey fields. Export ActorSchema (zod) and Actor class.",
     "Create packages/federation/src/activitypub/actor.test.ts - Tests: actor creation generates valid keypair, actor serializes to valid AS2 JSON, public key is in correct format.",
