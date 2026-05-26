@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Add Git Hosting Prisma models and the git-server service with Smart HTTP protocol, repo CRUD API, authentication, and hook services",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Add Phase 13 models to packages/database/prisma/schema.prisma: Repository, Branch, PullRequest, Review, ReviewComment, Issue, BranchProtection, CIRun, CIJob with enums RepoVisibility, PRStatus, ReviewStatus, IssueStatus, MergeStrategy, CIStatus. Add relations to existing User model (repositories, pullRequests, reviews, reviewComments, issues). Follow the existing naming conventions (@@map for table names, @@index for indexes, @id @default(cuid()) for IDs).",
     "Create services/git-server/package.json with name @quant/git-server, type: module, deps on fastify, zod, @quant/common, @quant/database, @quant/auth, @quant/queue. Scripts: typecheck, test (vitest run), build (tsc). Add vitest.config.ts and tsconfig.json following patterns from services/smtp-inbound.",
@@ -28,5 +28,5 @@
     "NODE_OPTIONS='' npx vitest run from repo root passes with new test files included"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 45 tests pass. Needed to add content type parsers for git protocol MIME types in Fastify POST routes. NODE_OPTIONS must be cleared for pnpm install and git commit-msg hook. Pre-existing shared-ui DOM test failures (26 tests) remain but are unrelated."
 }
