@@ -50,7 +50,10 @@ export const zapConfig: ZAPConfig = {
   authentication: {
     method: 'form',
     loginUrl: '/api/auth/login',
-    credentials: { username: 'test@quant.app', password: 'test-password' },
+    credentials: {
+      username: process.env.ZAP_TEST_USER ?? 'test@quant.app',
+      password: process.env.ZAP_TEST_PASS ?? 'test-password',
+    },
     tokenExtraction: 'Set-Cookie: session=(.+)',
   },
   apps: [

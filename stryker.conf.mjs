@@ -10,6 +10,7 @@ const config = {
   ],
   testRunner: 'vitest',
   reporters: ['html', 'json', 'clear-text', 'progress'],
+  jsonReporter: { fileName: 'reports/mutation/mutation.json' },
   thresholds: { high: 80, low: 60, break: 60 },
   incremental: true,
   concurrency: 4,
