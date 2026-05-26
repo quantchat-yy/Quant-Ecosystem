@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Create Playwright e2e test framework setup with playwright.config.ts and 30 user journey skeleton test definitions covering all 13 apps",
-  "status": "pending",
+  "status": "completed",
   "steps": [
     "Create playwright.config.ts at project root - Valid Playwright configuration with: baseURL from env (default http://localhost:3000), multiple projects (chromium, firefox, webkit), retries:2, workers from env, screenshot on failure, trace on first retry, timeout 30s, outputDir test-results/.",
     "Create packages/testing/src/e2e/index.ts - Export all journey definitions and helpers.",
@@ -23,5 +23,5 @@
     "Run: npx tsc --noEmit -p packages/testing/tsconfig.json"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 6 e2e-journeys tests pass. New e2e files compile cleanly with strict TypeScript. Pre-existing core/ TS errors remain unchanged. Prettier ran via lint-staged and reformatted files. NODE_OPTIONS must be cleared for git commit hooks in sandbox. playwright.config.ts cannot be type-checked without @playwright/test installed but is syntactically valid config."
 }
