@@ -38,3 +38,23 @@ export const GenerateReportJobSchema = z.object({
 });
 
 export type GenerateReportJob = z.infer<typeof GenerateReportJobSchema>;
+
+export const TranscodeJobSchema = z.object({
+  inputPath: z.string(),
+  outputDir: z.string(),
+  userId: z.string(),
+  videoId: z.string(),
+  profiles: z
+    .array(
+      z.object({
+        name: z.string(),
+        width: z.number(),
+        height: z.number(),
+        videoBitrate: z.string(),
+        audioBitrate: z.string(),
+      }),
+    )
+    .optional(),
+});
+
+export type TranscodeJob = z.infer<typeof TranscodeJobSchema>;

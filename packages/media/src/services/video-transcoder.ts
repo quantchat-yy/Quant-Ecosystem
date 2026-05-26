@@ -1,402 +1,240 @@
 // ============================================================================
 // Media - Video Transcoder
-// Multi-resolution transcoding with HLS/DASH manifest generation
+// Real fluent-ffmpeg based HLS transcoding implementation
 // ============================================================================
 
-import type {
-  TranscodeProfile,
-  VideoCodec,
-  AudioCodec,
-  ContainerFormat,
-  StreamingManifest,
-  StreamVariant,
-  StreamSegment,
-  ProcessingJob,
-} from '../types';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { z } from 'zod';
 
-/** Video source information */
-interface VideoSource {
-  id: string;
-  fileName: string;
-  duration: number; // seconds
-  width: number;
-  height: number;
-  videoCodec: VideoCodec;
-  audioCodec: AudioCodec;
-  videoBitrate: number;
-  audioBitrate: number;
-  framerate: number;
-  container: ContainerFormat;
-  size: number;
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+
+/** Schema for transcode profile configuration */
+export const TranscodeProfileSchema = z.object({
+  name: z.string(),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  videoBitrate: z.string(),
+  audioBitrate: z.string(),
+});
+
+/** Schema for transcoding options */
+export const TranscodeOptionsSchema = z.object({
+  inputPath: z.string().min(1),
+  outputDir: z.string().min(1),
+  profiles: z.array(TranscodeProfileSchema).optional(),
+  segmentDuration: z.number().int().positive().default(6),
+});
+
+export type TranscodeOptions = z.infer<typeof TranscodeOptionsSchema>;
+
+/** Input type for transcode method (segmentDuration is optional) */
+export type TranscodeInput = z.input<typeof TranscodeOptionsSchema>;
+
+/** Result of a transcoding operation */
+export interface TranscodeResult {
+  masterPlaylistPath: string;
+  variants: Array<{ name: string; playlistPath: string; resolution: string }>;
+  duration: number;
 }
 
-/** Predefined transcode profiles */
-const PRESET_PROFILES: Record<string, TranscodeProfile> = {
-  '360p': { id: '360p', name: '360p', videoCodec: 'h264', audioCodec: 'aac', container: 'mp4', videoBitrate: 800, audioBitrate: 96, width: 640, height: 360, framerate: 30, preset: 'medium', crf: 28 },
-  '480p': { id: '480p', name: '480p', videoCodec: 'h264', audioCodec: 'aac', container: 'mp4', videoBitrate: 1500, audioBitrate: 128, width: 854, height: 480, framerate: 30, preset: 'medium', crf: 26 },
-  '720p': { id: '720p', name: '720p', videoCodec: 'h264', audioCodec: 'aac', container: 'mp4', videoBitrate: 3000, audioBitrate: 128, width: 1280, height: 720, framerate: 30, preset: 'medium', crf: 23 },
-  '1080p': { id: '1080p', name: '1080p', videoCodec: 'h264', audioCodec: 'aac', container: 'mp4', videoBitrate: 5000, audioBitrate: 192, width: 1920, height: 1080, framerate: 30, preset: 'medium', crf: 22 },
-  '4k': { id: '4k', name: '4K', videoCodec: 'h265', audioCodec: 'aac', container: 'mp4', videoBitrate: 15000, audioBitrate: 256, width: 3840, height: 2160, framerate: 30, preset: 'slow', crf: 20 },
-};
+/** Default HLS transcode profiles */
+const DEFAULT_PROFILES: Array<z.infer<typeof TranscodeProfileSchema>> = [
+  { name: '360p', width: 640, height: 360, videoBitrate: '800k', audioBitrate: '96k' },
+  { name: '720p', width: 1280, height: 720, videoBitrate: '2500k', audioBitrate: '128k' },
+  { name: '1080p', width: 1920, height: 1080, videoBitrate: '5000k', audioBitrate: '192k' },
+];
 
 /**
- * VideoTranscoder - Multi-resolution video transcoding
+ * VideoTranscoder - Real fluent-ffmpeg based video transcoding
  *
- * Provides video transcoding to multiple resolutions and formats,
- * HLS/DASH streaming manifest generation, frame extraction,
- * and segment splitting for adaptive bitrate streaming.
+ * Provides HLS adaptive bitrate transcoding, thumbnail extraction,
+ * and media info retrieval using ffmpeg.
  */
 export class VideoTranscoder {
-  private sources: Map<string, VideoSource>;
-  private jobs: Map<string, ProcessingJob>;
-  private outputs: Map<string, { sourceId: string; profile: TranscodeProfile; outputSize: number }>;
-  private manifests: Map<string, StreamingManifest>;
-  private jobCounter: number = 0;
-
-  constructor() {
-    this.sources = new Map();
-    this.jobs = new Map();
-    this.outputs = new Map();
-    this.manifests = new Map();
-  }
-
   /**
-   * Register a video source for transcoding
+   * Transcode a video to multiple HLS variants
+   * @param options - Validated transcoding options
+   * @returns Transcode result with paths to generated playlists
    */
-  public registerSource(
-    id: string,
-    fileName: string,
-    options: {
-      duration: number;
-      width: number;
-      height: number;
-      videoCodec?: VideoCodec;
-      audioCodec?: AudioCodec;
-      videoBitrate?: number;
-      audioBitrate?: number;
-      framerate?: number;
-      container?: ContainerFormat;
-      size?: number;
-    }
-  ): VideoSource {
-    const source: VideoSource = {
-      id,
-      fileName,
-      duration: options.duration,
-      width: options.width,
-      height: options.height,
-      videoCodec: options.videoCodec || 'h264',
-      audioCodec: options.audioCodec || 'aac',
-      videoBitrate: options.videoBitrate || 5000,
-      audioBitrate: options.audioBitrate || 128,
-      framerate: options.framerate || 30,
-      container: options.container || 'mp4',
-      size: options.size || (options.duration * (options.videoBitrate || 5000) * 125), // bitrate to bytes
-    };
+  async transcode(options: TranscodeInput): Promise<TranscodeResult> {
+    const validated = TranscodeOptionsSchema.parse(options);
+    const profiles = validated.profiles ?? DEFAULT_PROFILES;
+    const { inputPath, outputDir, segmentDuration } = validated;
 
-    this.sources.set(id, source);
-    return source;
-  }
+    await mkdir(outputDir, { recursive: true });
 
-  /**
-   * Transcode a video to a specific profile
-   */
-  public async transcode(sourceId: string, profile: TranscodeProfile): Promise<ProcessingJob> {
-    const source = this.sources.get(sourceId);
-    if (!source) throw new Error(`Source not found: ${sourceId}`);
+    const variants: TranscodeResult['variants'] = [];
 
-    const jobId = this.generateId('job');
-    const job: ProcessingJob = {
-      id: jobId,
-      type: 'transcode',
-      status: 'processing',
-      progress: 0,
-      inputFile: source.fileName,
-      outputFile: this.generateOutputFileName(source.fileName, profile),
-      startedAt: Date.now(),
-      profile,
-    };
-
-    this.jobs.set(jobId, job);
-
-    // Simulate transcoding progress
-    const outputSize = this.estimateOutputSize(source, profile);
-
-    // Complete the job
-    job.status = 'completed';
-    job.progress = 100;
-    job.completedAt = Date.now();
-
-    this.outputs.set(jobId, { sourceId, profile, outputSize });
-
-    return job;
-  }
-
-  /**
-   * Transcode to multiple resolutions simultaneously
-   */
-  public async transcodeMultiple(sourceId: string, profileNames?: string[]): Promise<ProcessingJob[]> {
-    const profiles = profileNames
-      ? profileNames.map(name => PRESET_PROFILES[name]).filter(Boolean)
-      : this.getApplicableProfiles(sourceId);
-
-    const jobs: ProcessingJob[] = [];
     for (const profile of profiles) {
-      const job = await this.transcode(sourceId, profile);
-      jobs.push(job);
-    }
+      const variantDir = join(outputDir, profile.name);
+      await mkdir(variantDir, { recursive: true });
 
-    return jobs;
-  }
+      const playlistPath = join(variantDir, 'playlist.m3u8');
+      const segmentPattern = join(variantDir, 'segment_%03d.ts');
 
-  /**
-   * Generate an HLS (HTTP Live Streaming) manifest
-   */
-  public generateHLS(sourceId: string, options: { segmentDuration?: number; profiles?: string[] } = {}): StreamingManifest {
-    const source = this.sources.get(sourceId);
-    if (!source) throw new Error(`Source not found: ${sourceId}`);
+      await this.runFfmpeg(inputPath, playlistPath, segmentPattern, profile, segmentDuration);
 
-    const segmentDuration = options.segmentDuration || 6; // 6 second segments
-    const profiles = options.profiles
-      ? options.profiles.map(p => PRESET_PROFILES[p]).filter(Boolean)
-      : this.getApplicableProfiles(sourceId);
-
-    const variants: StreamVariant[] = profiles.map(profile => {
-      const numSegments = Math.ceil(source.duration / segmentDuration);
-      const segments: StreamSegment[] = [];
-
-      for (let i = 0; i < numSegments; i++) {
-        const duration = Math.min(segmentDuration, source.duration - i * segmentDuration);
-        segments.push({
-          index: i,
-          url: `/hls/${sourceId}/${profile.id}/segment_${i}.ts`,
-          duration,
-        });
-      }
-
-      return {
+      variants.push({
+        name: profile.name,
+        playlistPath,
         resolution: `${profile.width}x${profile.height}`,
-        width: profile.width || source.width,
-        height: profile.height || source.height,
-        bitrate: profile.videoBitrate || 3000,
-        codec: `${profile.videoCodec || 'h264'},${profile.audioCodec || 'aac'}`,
-        playlistUrl: `/hls/${sourceId}/${profile.id}/playlist.m3u8`,
-        segments,
-      };
-    });
-
-    const manifest: StreamingManifest = {
-      type: 'hls',
-      masterPlaylistUrl: `/hls/${sourceId}/master.m3u8`,
-      variants,
-      duration: source.duration,
-      segmentDuration,
-    };
-
-    this.manifests.set(`hls_${sourceId}`, manifest);
-    return manifest;
-  }
-
-  /**
-   * Generate a DASH (Dynamic Adaptive Streaming over HTTP) manifest
-   */
-  public generateDASH(sourceId: string, options: { segmentDuration?: number; profiles?: string[] } = {}): StreamingManifest {
-    const source = this.sources.get(sourceId);
-    if (!source) throw new Error(`Source not found: ${sourceId}`);
-
-    const segmentDuration = options.segmentDuration || 4;
-    const profiles = options.profiles
-      ? options.profiles.map(p => PRESET_PROFILES[p]).filter(Boolean)
-      : this.getApplicableProfiles(sourceId);
-
-    const variants: StreamVariant[] = profiles.map(profile => {
-      const numSegments = Math.ceil(source.duration / segmentDuration);
-      const segments: StreamSegment[] = [];
-      const segmentSize = ((profile.videoBitrate || 3000) * 1000 / 8) * segmentDuration;
-
-      for (let i = 0; i < numSegments; i++) {
-        const duration = Math.min(segmentDuration, source.duration - i * segmentDuration);
-        segments.push({
-          index: i,
-          url: `/dash/${sourceId}/${profile.id}/chunk_${i}.m4s`,
-          duration,
-          byteRange: { start: i * segmentSize, end: (i + 1) * segmentSize },
-        });
-      }
-
-      return {
-        resolution: `${profile.width}x${profile.height}`,
-        width: profile.width || source.width,
-        height: profile.height || source.height,
-        bitrate: profile.videoBitrate || 3000,
-        codec: `${profile.videoCodec || 'h264'},${profile.audioCodec || 'aac'}`,
-        playlistUrl: `/dash/${sourceId}/${profile.id}/manifest.mpd`,
-        segments,
-      };
-    });
-
-    const manifest: StreamingManifest = {
-      type: 'dash',
-      masterPlaylistUrl: `/dash/${sourceId}/manifest.mpd`,
-      variants,
-      duration: source.duration,
-      segmentDuration,
-    };
-
-    this.manifests.set(`dash_${sourceId}`, manifest);
-    return manifest;
-  }
-
-  /**
-   * Extract frames from a video at specified timestamps
-   */
-  public extractFrames(sourceId: string, timestamps: number[]): Array<{ timestamp: number; width: number; height: number; format: string; size: number }> {
-    const source = this.sources.get(sourceId);
-    if (!source) throw new Error(`Source not found: ${sourceId}`);
-
-    const frames: Array<{ timestamp: number; width: number; height: number; format: string; size: number }> = [];
-
-    for (const ts of timestamps) {
-      if (ts < 0 || ts > source.duration) {
-        throw new Error(`Timestamp ${ts} is out of range (0-${source.duration})`);
-      }
-
-      // Estimate frame size (uncompressed frame as JPEG)
-      const frameSize = Math.round(source.width * source.height * 3 * 0.15); // ~15% compression
-
-      frames.push({
-        timestamp: ts,
-        width: source.width,
-        height: source.height,
-        format: 'jpeg',
-        size: frameSize,
       });
     }
 
-    return frames;
+    // Generate master playlist
+    const masterPlaylistPath = join(outputDir, 'master.m3u8');
+    await this.writeMasterPlaylist(masterPlaylistPath, variants, profiles);
+
+    // Get duration
+    const info = await this.getMediaInfo(inputPath);
+    const duration = info.format?.duration ?? 0;
+
+    return { masterPlaylistPath, variants, duration };
   }
 
   /**
-   * Get available resolutions for a source video
+   * Generate HLS output from a single input
+   * @param inputPath - Path to the input video file
+   * @param outputDir - Directory to write HLS segments
+   * @param segmentDuration - Duration of each segment in seconds
+   * @returns Path to the generated playlist
    */
-  public getResolutions(sourceId: string): Array<{ name: string; width: number; height: number; estimatedSize: number }> {
-    const source = this.sources.get(sourceId);
-    if (!source) throw new Error(`Source not found: ${sourceId}`);
+  async generateHLS(
+    inputPath: string,
+    outputDir: string,
+    segmentDuration: number = 6,
+  ): Promise<string> {
+    await mkdir(outputDir, { recursive: true });
 
-    const resolutions: Array<{ name: string; width: number; height: number; estimatedSize: number }> = [];
+    const playlistPath = join(outputDir, 'playlist.m3u8');
+    const segmentPattern = join(outputDir, 'segment_%03d.ts');
 
-    for (const [name, profile] of Object.entries(PRESET_PROFILES)) {
-      if (profile.width! <= source.width && profile.height! <= source.height) {
-        resolutions.push({
-          name,
-          width: profile.width!,
-          height: profile.height!,
-          estimatedSize: this.estimateOutputSize(source, profile),
-        });
-      }
-    }
-
-    return resolutions.sort((a, b) => a.width - b.width);
+    return new Promise<string>((resolve, reject) => {
+      ffmpeg(inputPath)
+        .addOptions([
+          '-profile:v',
+          'baseline',
+          '-level',
+          '3.0',
+          '-start_number',
+          '0',
+          '-hls_time',
+          String(segmentDuration),
+          '-hls_list_size',
+          '0',
+          '-hls_segment_filename',
+          segmentPattern,
+          '-f',
+          'hls',
+        ])
+        .output(playlistPath)
+        .on('end', () => resolve(playlistPath))
+        .on('error', (err: Error) => reject(err))
+        .run();
+    });
   }
 
   /**
-   * Estimate transcoded file duration (accounts for processing overhead)
+   * Extract a thumbnail from a video at a specific timestamp
+   * @param inputPath - Path to the input video
+   * @param outputPath - Path to write the thumbnail image
+   * @param timestamp - Time in seconds to extract the frame
+   * @returns Path to the generated thumbnail
    */
-  public estimateDuration(sourceId: string, profile: TranscodeProfile): { transcodingTimeMs: number; outputDuration: number } {
-    const source = this.sources.get(sourceId);
-    if (!source) throw new Error(`Source not found: ${sourceId}`);
-
-    // Transcoding speed depends on preset and resolution
-    const presetSpeeds: Record<string, number> = {
-      ultrafast: 10, fast: 5, medium: 2.5, slow: 1, veryslow: 0.5,
-    };
-
-    const speedFactor = presetSpeeds[profile.preset || 'medium'] || 2.5;
-    const resolutionFactor = ((profile.width || 1920) * (profile.height || 1080)) / (1920 * 1080);
-    const transcodingTimeMs = (source.duration / speedFactor) * resolutionFactor * 1000;
-
-    return {
-      transcodingTimeMs: Math.round(transcodingTimeMs),
-      outputDuration: source.duration,
-    };
+  async extractThumbnail(
+    inputPath: string,
+    outputPath: string,
+    timestamp: number,
+  ): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      ffmpeg(inputPath)
+        .seekInput(timestamp)
+        .frames(1)
+        .output(outputPath)
+        .on('end', () => resolve(outputPath))
+        .on('error', (err: Error) => reject(err))
+        .run();
+    });
   }
 
   /**
-   * Split video into segments for streaming
+   * Get media file information using ffprobe
+   * @param inputPath - Path to the media file
+   * @returns ffprobe data containing format and stream information
    */
-  public splitSegments(sourceId: string, segmentDurationSec: number = 6): StreamSegment[] {
-    const source = this.sources.get(sourceId);
-    if (!source) throw new Error(`Source not found: ${sourceId}`);
-
-    const numSegments = Math.ceil(source.duration / segmentDurationSec);
-    const segments: StreamSegment[] = [];
-    const bytesPerSecond = source.size / source.duration;
-
-    for (let i = 0; i < numSegments; i++) {
-      const duration = Math.min(segmentDurationSec, source.duration - i * segmentDurationSec);
-      const start = Math.round(i * segmentDurationSec * bytesPerSecond);
-      const end = Math.round(start + duration * bytesPerSecond);
-
-      segments.push({
-        index: i,
-        url: `/segments/${sourceId}/seg_${i}.ts`,
-        duration,
-        byteRange: { start, end },
+  async getMediaInfo(inputPath: string): Promise<ffmpeg.FfprobeData> {
+    return new Promise<ffmpeg.FfprobeData>((resolve, reject) => {
+      ffmpeg.ffprobe(inputPath, (err, data) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(data);
+        }
       });
-    }
-
-    return segments;
-  }
-
-  /**
-   * Get all transcoding jobs
-   */
-  public getJobs(): ProcessingJob[] {
-    return Array.from(this.jobs.values());
-  }
-
-  /**
-   * Get preset profiles
-   */
-  public getPresets(): TranscodeProfile[] {
-    return Object.values(PRESET_PROFILES);
-  }
-
-  /**
-   * Get a source by ID
-   */
-  public getSource(sourceId: string): VideoSource | undefined {
-    return this.sources.get(sourceId);
+    });
   }
 
   // ---- Private Methods ----
 
-  private getApplicableProfiles(sourceId: string): TranscodeProfile[] {
-    const source = this.sources.get(sourceId);
-    if (!source) return [];
-
-    return Object.values(PRESET_PROFILES).filter(
-      p => (p.width || 0) <= source.width && (p.height || 0) <= source.height
-    );
+  private runFfmpeg(
+    inputPath: string,
+    playlistPath: string,
+    segmentPattern: string,
+    profile: z.infer<typeof TranscodeProfileSchema>,
+    segmentDuration: number,
+  ): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      ffmpeg(inputPath)
+        .videoCodec('libx264')
+        .audioCodec('aac')
+        .size(`${profile.width}x${profile.height}`)
+        .videoBitrate(profile.videoBitrate)
+        .audioBitrate(profile.audioBitrate)
+        .addOptions([
+          '-profile:v',
+          'baseline',
+          '-level',
+          '3.0',
+          '-start_number',
+          '0',
+          '-hls_time',
+          String(segmentDuration),
+          '-hls_list_size',
+          '0',
+          '-hls_segment_filename',
+          segmentPattern,
+          '-f',
+          'hls',
+        ])
+        .output(playlistPath)
+        .on('end', () => resolve())
+        .on('error', (err: Error) => reject(err))
+        .run();
+    });
   }
 
-  private estimateOutputSize(source: VideoSource, profile: TranscodeProfile): number {
-    const videoBitrate = profile.videoBitrate || source.videoBitrate;
-    const audioBitrate = profile.audioBitrate || source.audioBitrate;
-    const totalBitrate = videoBitrate + audioBitrate; // kbps
-    return Math.round((totalBitrate * 1000 / 8) * source.duration); // bytes
-  }
+  private async writeMasterPlaylist(
+    masterPath: string,
+    variants: TranscodeResult['variants'],
+    profiles: Array<z.infer<typeof TranscodeProfileSchema>>,
+  ): Promise<void> {
+    const { writeFile } = await import('node:fs/promises');
+    const { relative, dirname } = await import('node:path');
 
-  private generateOutputFileName(input: string, profile: TranscodeProfile): string {
-    const baseName = input.replace(/\.[^.]+$/, '');
-    return `${baseName}_${profile.id}.${profile.container}`;
-  }
+    let content = '#EXTM3U\n#EXT-X-VERSION:3\n';
 
-  private generateId(prefix: string): string {
-    this.jobCounter++;
-    const timestamp = Date.now().toString(36);
-    const counter = this.jobCounter.toString(36);
-    const random = Math.random().toString(36).substring(2, 8);
-    return `${prefix}_${timestamp}_${counter}_${random}`;
+    for (let i = 0; i < variants.length; i++) {
+      const variant = variants[i]!;
+      const profile = profiles[i]!;
+      const bandwidth = parseInt(profile.videoBitrate) * 1000;
+      const relativePath = relative(dirname(masterPath), variant.playlistPath);
+      content += `#EXT-X-STREAM-INF:BANDWIDTH=${bandwidth},RESOLUTION=${variant.resolution}\n`;
+      content += `${relativePath}\n`;
+    }
+
+    await writeFile(masterPath, content, 'utf-8');
   }
 }

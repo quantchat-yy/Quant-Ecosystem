@@ -18,6 +18,7 @@ function createMockPrisma() {
       findFirst: vi.fn(),
       create: vi.fn(),
     },
+    $queryRaw: vi.fn().mockResolvedValue([]),
   };
 }
 
@@ -136,6 +137,107 @@ describe('MatchingService', () => {
         },
         orderBy: { matchedAt: 'desc' },
       });
+    });
+  });
+
+  describe('generateEmbedding', () => {
+    it('returns a 256-dimension vector', () => {
+      const embedding = service.generateEmbedding({
+        interests: ['music', 'hiking'],
+        age: 25,
+        gender: 'male',
+        genderPreference: ['female'],
+      });
+
+      expect(embedding).toHaveLength(256);
+    });
+
+    it('returns a normalized vector (unit length)', () => {
+      const embedding = service.generateEmbedding({
+        interests: ['cooking', 'travel', 'photography'],
+        age: 30,
+        gender: 'female',
+        genderPreference: ['male'],
+      });
+
+      const magnitude = Math.sqrt(embedding.reduce((sum, v) => sum + v * v, 0));
+      expect(magnitude).toBeCloseTo(1.0, 5);
+    });
+
+    it('produces deterministic output for the same input', () => {
+      const profile = {
+        interests: ['gaming', 'reading'],
+        age: 28,
+        gender: 'male',
+        genderPreference: ['female'],
+      };
+
+      const embedding1 = service.generateEmbedding(profile);
+      const embedding2 = service.generateEmbedding(profile);
+
+      expect(embedding1).toEqual(embedding2);
+    });
+
+    it('produces different output for different inputs', () => {
+      const embedding1 = service.generateEmbedding({
+        interests: ['music'],
+        age: 20,
+        gender: 'male',
+        genderPreference: ['female'],
+      });
+      const embedding2 = service.generateEmbedding({
+        interests: ['cooking'],
+        age: 35,
+        gender: 'female',
+        genderPreference: ['male'],
+      });
+
+      expect(embedding1).not.toEqual(embedding2);
+    });
+  });
+
+  describe('findMatches', () => {
+    it('returns matches sorted by similarity', async () => {
+      prisma.datingProfile.findUnique.mockResolvedValue({
+        userId: 'user-1',
+        age: 25,
+        gender: 'male',
+        genderPreference: ['female'],
+        interests: ['music', 'hiking'],
+      });
+      prisma.$queryRaw.mockResolvedValue([
+        { user_id: 'user-2', similarity: 0.95 },
+        { user_id: 'user-3', similarity: 0.87 },
+      ]);
+
+      const results = await service.findMatches('user-1', 10);
+
+      expect(results).toHaveLength(2);
+      expect(results[0]!.userId).toBe('user-2');
+      expect(results[0]!.similarity).toBe(0.95);
+      expect(results[1]!.userId).toBe('user-3');
+      expect(results[1]!.similarity).toBe(0.87);
+    });
+
+    it('throws PROFILE_NOT_FOUND when user has no profile', async () => {
+      prisma.datingProfile.findUnique.mockResolvedValue(null);
+
+      await expect(service.findMatches('user-1')).rejects.toThrow('Profile not found');
+    });
+
+    it('calls $queryRaw with vector string', async () => {
+      prisma.datingProfile.findUnique.mockResolvedValue({
+        userId: 'user-1',
+        age: 25,
+        gender: 'male',
+        genderPreference: ['female'],
+        interests: ['music'],
+      });
+      prisma.$queryRaw.mockResolvedValue([]);
+
+      await service.findMatches('user-1', 5);
+
+      expect(prisma.$queryRaw).toHaveBeenCalled();
     });
   });
 });
