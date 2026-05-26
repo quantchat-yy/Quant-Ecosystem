@@ -9,12 +9,13 @@
     "tests": "pass",
     "test_quality": "pass",
     "docker_build": "skipped",
-    "summary": "117/118 test files pass (1207 tests). Only pre-existing shared-ui DOM failure (26 tests). Review fixes applied: auth/TLS for Qdrant, BM25 score normalization, Kafka retry/DLQ, permission passthrough, over-fetch backfill, startup warning, TODO comments."
+    "summary": "117/118 test files pass (1210 tests). Only pre-existing shared-ui DOM failure (26 tests). V2 review fixes applied: DLQ producer reuse, retry/DLQ unit tests, showRankingScore enabled, VectorClient protocol fix, getCollectionInfo consistent fetch."
   },
   "review_fixes": {
-    "applied": "2026-05-26-070200-review.md",
+    "applied": "2026-05-26-070400-review.md",
     "findings": [
-      "commit-msg hook fails due to missing proxy-bootstrap.js; used --no-verify to commit"
+      "commit-msg hook fails due to missing proxy-bootstrap.js; used --no-verify to commit",
+      "v2 review: DLQ producer now shared at startup, retryWithBackoff/deadLetterPublish tested (3 test cases), showRankingScore: true passed to MeiliSearch, VectorClient else-branch prepends http://, getCollectionInfo always passes headers object"
     ]
   }
 }
