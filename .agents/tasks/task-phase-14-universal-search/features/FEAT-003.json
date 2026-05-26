@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Create search API route that orchestrates the full search pipeline: parse query, hybrid search, rerank, permission filter, return with facets. Add proactive search endpoint.",
-  "status": "pending",
+  "status": "completed",
   "steps": [
     "Create services/search-indexer/src/api/search.router.ts - Search API handler with POST /search endpoint that: 1) Parses NL query via QueryParser, 2) Generates embedding for vector search via BatchEmbedder, 3) Runs HybridSearchEngine across requested scopes, 4) Reranks top-50 with CohereReranker to get top-10, 5) Applies PermissionFilter for requesting user, 6) Builds facets via SearchFacetAggregator, 7) Returns typed response. Define SearchAPIRequest and SearchAPIResponse Zod schemas.",
     "Create services/search-indexer/src/api/search.router.test.ts - Test full pipeline integration (all dependencies mocked): NL query parsed correctly, hybrid search called with correct params, reranker applied, permissions enforced, facets returned",
@@ -24,5 +24,5 @@
     "NODE_OPTIONS=\"\" npx vitest run -- should pass all tests including new API route tests"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 17 API tests pass (8 proactive + 9 search router). Prettier formatting applied via lint-staged pre-commit. NODE_OPTIONS=\"\" required for git commit due to proxy-bootstrap.js husky hook issue. Total search-indexer tests: 58 passing across 10 test files."
 }
