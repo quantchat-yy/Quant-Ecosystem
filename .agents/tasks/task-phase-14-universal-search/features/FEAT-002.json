@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Create the search-indexer service that consumes Kafka CDC events and indexes documents to both MeiliSearch and Qdrant",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create services/search-indexer/ directory structure with src/ subdirectory and src/handlers/ subdirectory",
     "Create services/search-indexer/package.json with name @quant/search-indexer, dependencies on kafkajs, @quant/search (workspace:*), @quant/ai (workspace:*), @quant/common (workspace:*), zod, pino. Follow cdc-relay package.json pattern.",
