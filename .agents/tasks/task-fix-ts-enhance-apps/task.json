@@ -1,0 +1,16 @@
+{
+  "task_id": "task-fix-ts-enhance-apps",
+  "task_description": "Fix all TypeScript errors in 6 broken TSX files and shared-ui package (159 errors), fix backend type errors in quantchat/quantmail, then enhance all existing 9 core apps with killer micro-features (messaging reactions, voice messages, smart inbox, video chapters, etc.) and add cross-app integration services.",
+  "status": "in_progress",
+  "feature_order": [
+    "FEAT-001",
+    "FEAT-002",
+    "FEAT-003",
+    "FEAT-004",
+    "FEAT-005",
+    "FEAT-006",
+    "FEAT-007",
+    "FEAT-008"
+  ],
+  "blocked_reason": null
+}
