@@ -14,6 +14,10 @@ export const AliasSchema = z.object({
 export type Alias = z.infer<typeof AliasSchema>;
 
 export class EmailAliasesService {
+  /**
+   * In-memory store for email aliases. This is ephemeral and will be lost on
+   * process restart. Will be replaced with database persistence in production.
+   */
   private aliases: Map<string, Alias> = new Map();
 
   resolveAlias(address: string): { targetAddress: string; alias: string } | null {

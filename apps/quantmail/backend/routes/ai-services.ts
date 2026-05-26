@@ -80,7 +80,7 @@ export default async function aiServicesRoutes(fastify: FastifyInstance) {
 
   // POST /ai/triage/batch
   const TriageBatchSchema = z.object({
-    emails: z.array(TriageInputSchema),
+    emails: z.array(TriageInputSchema).max(50),
   });
   fastify.post('/ai/triage/batch', async (request, reply) => {
     const userId = getUserId(request);
@@ -155,7 +155,7 @@ export default async function aiServicesRoutes(fastify: FastifyInstance) {
 
   // POST /ai/unsubscribe/detect
   const UnsubscribeDetectSchema = z.object({
-    emails: z.array(EmailMetadataSchema),
+    emails: z.array(EmailMetadataSchema).max(50),
   });
   fastify.post('/ai/unsubscribe/detect', async (request, reply) => {
     const userId = getUserId(request);
@@ -365,6 +365,7 @@ export default async function aiServicesRoutes(fastify: FastifyInstance) {
     htmlBody: z.string(),
   });
   fastify.post('/infra/strip-trackers', async (request, reply) => {
+    getUserId(request);
     const body = StripTrackersSchema.parse(request.body);
     const result = trackerService.stripTrackers(body.htmlBody);
     return reply.send({ success: true, data: result });
@@ -372,6 +373,7 @@ export default async function aiServicesRoutes(fastify: FastifyInstance) {
 
   // POST /infra/strip-trackers/report
   fastify.post('/infra/strip-trackers/report', async (request, reply) => {
+    getUserId(request);
     const body = StripTrackersSchema.parse(request.body);
     const result = trackerService.getTrackerReport(body.htmlBody);
     return reply.send({ success: true, data: result });

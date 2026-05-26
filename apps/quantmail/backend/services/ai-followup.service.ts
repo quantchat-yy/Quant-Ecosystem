@@ -32,6 +32,10 @@ export type Commitment = z.infer<typeof CommitmentSchema>;
 export type Reminder = z.infer<typeof ReminderSchema>;
 
 export class AIFollowupService {
+  /**
+   * In-memory store for reminders. This is ephemeral and will be lost on process
+   * restart. Will be replaced with database persistence in production.
+   */
   private reminders: Map<string, Reminder> = new Map();
 
   constructor(private readonly ai: AIEngine) {}

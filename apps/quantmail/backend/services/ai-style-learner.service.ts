@@ -32,6 +32,10 @@ export type StyleProfile = z.infer<typeof StyleProfileSchema>;
 export type StyledDraft = z.infer<typeof StyledDraftSchema>;
 
 export class AIStyleLearnerService {
+  /**
+   * In-memory store for user style profiles. This is ephemeral and will be lost on
+   * process restart. Will be replaced with database persistence in production.
+   */
   private styleProfiles: Map<string, StyleProfile> = new Map();
 
   constructor(private readonly ai: AIEngine) {}

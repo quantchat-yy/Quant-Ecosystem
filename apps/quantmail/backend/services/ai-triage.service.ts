@@ -69,13 +69,17 @@ Respond ONLY with valid JSON matching this schema:
     emails: TriageInput[],
     userId: string,
   ): Promise<{ results: TriageResult[]; triaged: number; cost: number }> {
+    const validated = z.array(TriageInputSchema).max(50).parse(emails);
     const results: TriageResult[] = [];
     let totalCost = 0;
 
-    for (const email of emails) {
-      const result = await this.triage(email, userId);
-      results.push(result);
-      totalCost += 0.001; // estimated cost per triage
+    // Process in chunks of 5 for concurrency
+    const chunkSize = 5;
+    for (let i = 0; i < validated.length; i += chunkSize) {
+      const chunk = validated.slice(i, i + chunkSize);
+      const chunkResults = await Promise.all(chunk.map((email) => this.triage(email, userId)));
+      results.push(...chunkResults);
+      totalCost += chunkResults.length * 0.001; // estimated cost per triage
     }
 
     return {

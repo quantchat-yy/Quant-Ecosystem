@@ -36,7 +36,7 @@ export class AIUnsubscribeService {
   constructor(private readonly ai: AIEngine) {}
 
   async detectNewsletters(emails: EmailMetadata[], userId: string): Promise<NewsletterDetection[]> {
-    const validated = emails.map((e) => EmailMetadataSchema.parse(e));
+    const validated = z.array(EmailMetadataSchema).max(50).parse(emails);
 
     const emailList = validated
       .map(

@@ -15,6 +15,10 @@ export type DisposableEmail = z.infer<typeof DisposableEmailSchema>;
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export class DisposableEmailService {
+  /**
+   * In-memory store for disposable email addresses. This is ephemeral and will be
+   * lost on process restart. Will be replaced with database persistence in production.
+   */
   private disposables: Map<string, DisposableEmail> = new Map();
 
   createDisposable(userId: string, ttlMs?: number): DisposableEmail {

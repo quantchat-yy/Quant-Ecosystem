@@ -12,6 +12,20 @@ export const KeyPairSchema = z.object({
 
 export type KeyPair = z.infer<typeof KeyPairSchema>;
 
+/**
+ * Placeholder PGP encryption service using symmetric AES-256-GCM.
+ *
+ * WARNING: This is a demo/placeholder implementation. It does NOT perform actual
+ * PGP asymmetric encryption. The `encrypt` method generates a random AES session
+ * key and embeds it alongside the ciphertext, meaning anyone with the ciphertext
+ * can decrypt it. The `verifySignature` method always returns true for any
+ * well-formed base64 input without verifying against the message or public key.
+ *
+ * Production use requires integration with the `openpgp` package for real
+ * asymmetric RSA/ECC key operations.
+ *
+ * @deprecated Use openpgp package for production
+ */
 export class PGPEncryptionService {
   private keys: Map<string, KeyPair> = new Map();
 
