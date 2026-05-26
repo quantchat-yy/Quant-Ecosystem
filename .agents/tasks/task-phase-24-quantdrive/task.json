@@ -9,6 +9,6 @@
     "tests": "pass",
     "test_quality": "pass",
     "docker_build": "skipped",
-    "summary": "All 82 tests pass across 11 test files. TypeScript strict mode compiles cleanly. Tests exercise real crypto round-trips, quota enforcement, version history, trash retention, AI categorization, sharing key exchange, and error handling."
+    "summary": "All 89 tests pass across 11 test files. TypeScript strict mode compiles cleanly. Tests exercise real crypto round-trips, quota enforcement, version history with encryption key, trash retention, AI categorization via content hashes, sharing key exchange with ownership verification, folder cascade path updates, and comprehensive error handling. Semantic review v2: APPROVED."
   }
 }
