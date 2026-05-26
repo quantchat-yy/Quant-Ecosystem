@@ -9,20 +9,16 @@ import { KillSwitch } from '../kill-switch.js';
 class MockWorkerAgent extends WorkerAgent {
   public executedTasks: AgentTask[] = [];
 
-  constructor(id: string, score: number = 20) {
+  constructor(id: string, permission: PermissionLevel = PermissionLevel.OBSERVE) {
     super({
       id,
       name: `Mock Agent ${id}`,
       icon: 'bot',
-      defaultPermission: PermissionLevel.FULL_AUTO,
+      defaultPermission: permission,
     });
-    // Manually set the score high enough
-    for (let i = 0; i < Math.ceil((score - 20) / 2); i++) {
-      this.trustScore.recordSuccess();
-    }
   }
 
-  async run(task: AgentTask): Promise<void> {
+  async execute(task: AgentTask): Promise<void> {
     this.executedTasks.push(task);
     this.stateMachine.transition(AgentState.EXECUTING);
     this.stateMachine.transition(AgentState.DONE);
@@ -59,7 +55,7 @@ describe('Orchestrator', () => {
 
   it('dispatches tasks to registered workers', async () => {
     const orchestrator = new Orchestrator(createMockAI());
-    const worker = new MockWorkerAgent('worker-1', 40);
+    const worker = new MockWorkerAgent('worker-1', PermissionLevel.SUGGEST);
     orchestrator.registerWorker(worker);
 
     const result = await orchestrator.executeTask('Organize my email');
@@ -69,7 +65,7 @@ describe('Orchestrator', () => {
 
   it('returns task status', async () => {
     const orchestrator = new Orchestrator(createMockAI());
-    const worker = new MockWorkerAgent('worker-1', 40);
+    const worker = new MockWorkerAgent('worker-1', PermissionLevel.SUGGEST);
     orchestrator.registerWorker(worker);
 
     const result = await orchestrator.executeTask('Do something');
@@ -105,8 +101,8 @@ describe('Orchestrator', () => {
     };
 
     const orchestrator = new Orchestrator(ai);
-    // Worker with low trust (score 20 = OBSERVE)
-    const worker = new MockWorkerAgent('worker-1', 20);
+    // Worker with OBSERVE permission cannot handle FULL_AUTO subtask
+    const worker = new MockWorkerAgent('worker-1', PermissionLevel.OBSERVE);
     orchestrator.registerWorker(worker);
 
     await expect(orchestrator.executeTask('Dangerous task')).rejects.toThrow(/No suitable worker/);
@@ -128,7 +124,7 @@ describe('Orchestrator', () => {
     };
 
     const orchestrator = new Orchestrator(ai);
-    const worker = new MockWorkerAgent('worker-1', 20);
+    const worker = new MockWorkerAgent('worker-1', PermissionLevel.OBSERVE);
     orchestrator.registerWorker(worker);
 
     try {
@@ -149,5 +145,76 @@ describe('Orchestrator', () => {
     orchestrator.deregisterWorker('worker-1');
 
     expect(orchestrator.getRunningAgents()).toHaveLength(0);
+  });
+
+  it('submits approval request for ACT_HIGH subtasks', async () => {
+    const ai: AIInferenceAdapter = {
+      infer: vi.fn().mockResolvedValue(
+        JSON.stringify([
+          {
+            id: 'sub-1',
+            description: 'High risk action',
+            dependencies: [],
+            estimatedDuration: 5,
+            requiredPermission: 'ACT_HIGH',
+          },
+        ]),
+      ),
+    };
+
+    const orchestrator = new Orchestrator(ai);
+    const worker = new MockWorkerAgent('worker-1', PermissionLevel.ACT_HIGH);
+    orchestrator.registerWorker(worker);
+
+    await orchestrator.executeTask('Do high-risk thing');
+
+    const pending = orchestrator.approvalQueue.getAll();
+    expect(pending.length).toBe(1);
+    expect(pending[0]!.request.riskLevel).toBe('high');
+    expect(pending[0]!.request.agentId).toBe('worker-1');
+  });
+
+  it('acquires resource locks during parallel dispatch', async () => {
+    const ai: AIInferenceAdapter = {
+      infer: vi.fn().mockResolvedValue(
+        JSON.stringify([
+          {
+            id: 'sub-1',
+            description: 'Task A',
+            dependencies: [],
+            estimatedDuration: 5,
+            requiredPermission: 'OBSERVE',
+          },
+          {
+            id: 'sub-2',
+            description: 'Task B',
+            dependencies: [],
+            estimatedDuration: 5,
+            requiredPermission: 'OBSERVE',
+          },
+        ]),
+      ),
+    };
+
+    const orchestrator = new Orchestrator(ai);
+    const worker = new MockWorkerAgent('worker-1', PermissionLevel.SUGGEST);
+    orchestrator.registerWorker(worker);
+
+    await orchestrator.executeTask('Parallel tasks');
+
+    // After completion, locks should be released
+    expect(orchestrator.conflictResolver.getActiveLocks()).toHaveLength(0);
+  });
+
+  it('uses defaultPermission as floor for dispatch eligibility', async () => {
+    const orchestrator = new Orchestrator(createMockAI());
+    // Worker with FULL_AUTO defaultPermission should handle OBSERVE subtask
+    // even though trust-derived permission may be lower on fresh TrustScore
+    const worker = new MockWorkerAgent('worker-1', PermissionLevel.FULL_AUTO);
+    orchestrator.registerWorker(worker);
+
+    const result = await orchestrator.executeTask('Simple task');
+    expect(result.status).toBe('completed');
+    expect(worker.executedTasks.length).toBeGreaterThan(0);
   });
 });

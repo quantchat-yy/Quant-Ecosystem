@@ -1,6 +1,8 @@
 import { TaskDecomposer, SubTask, AIInferenceAdapter } from './task-decomposer.js';
 import { WorkerAgent, AgentTask } from './worker-agent.js';
 import { PermissionLevel, canAct } from './permissions.js';
+import { ApprovalQueue } from './approval-queue.js';
+import { ConflictResolver } from './conflict-resolver.js';
 
 export type TaskStatus = 'pending' | 'running' | 'completed' | 'failed';
 
@@ -17,9 +19,13 @@ export class Orchestrator {
   private readonly decomposer: TaskDecomposer;
   private workers: Map<string, WorkerAgent> = new Map();
   private tasks: Map<string, OrchestratorTask> = new Map();
+  readonly approvalQueue: ApprovalQueue;
+  readonly conflictResolver: ConflictResolver;
 
   constructor(ai: AIInferenceAdapter) {
     this.decomposer = new TaskDecomposer(ai);
+    this.approvalQueue = new ApprovalQueue();
+    this.conflictResolver = new ConflictResolver();
   }
 
   registerWorker(worker: WorkerAgent): void {
@@ -49,7 +55,24 @@ export class Orchestrator {
       const groups = this.groupByDependencyLevel(prioritized);
 
       for (const group of groups) {
+        // Acquire resource locks for parallel subtasks
+        for (const subtask of group) {
+          const resourceId = subtask.id;
+          const worker = this.findSuitableWorker(subtask.requiredPermission);
+          if (worker) {
+            this.conflictResolver.acquireLock(resourceId, worker.id);
+          }
+        }
+
         await Promise.all(group.map((subtask) => this.dispatchSubtask(subtask)));
+
+        // Release locks after group completes
+        for (const subtask of group) {
+          const lock = this.conflictResolver.getLockHolder(subtask.id);
+          if (lock) {
+            this.conflictResolver.releaseLock(subtask.id, lock);
+          }
+        }
       }
 
       orchestratorTask.status = 'completed';
@@ -79,6 +102,20 @@ export class Orchestrator {
       );
     }
 
+    // Approval gate for high-risk subtasks
+    if (
+      subtask.requiredPermission === PermissionLevel.ACT_HIGH ||
+      subtask.requiredPermission === PermissionLevel.FULL_AUTO
+    ) {
+      const approvalId = `approval-${subtask.id}`;
+      this.approvalQueue.submit({
+        id: approvalId,
+        agentId: worker.id,
+        action: subtask.description,
+        riskLevel: subtask.requiredPermission === PermissionLevel.FULL_AUTO ? 'critical' : 'high',
+      });
+    }
+
     const agentTask: AgentTask = {
       id: subtask.id,
       description: subtask.description,
@@ -93,11 +130,32 @@ export class Orchestrator {
 
   private findSuitableWorker(requiredPermission: PermissionLevel): WorkerAgent | undefined {
     for (const worker of this.workers.values()) {
-      if (canAct(worker.trustScore.getPermissionLevel(), requiredPermission)) {
+      const effectivePermission = this.getEffectivePermission(worker);
+      if (canAct(effectivePermission, requiredPermission)) {
         return worker;
       }
     }
     return undefined;
+  }
+
+  private getEffectivePermission(worker: WorkerAgent): PermissionLevel {
+    const trustDerived = worker.trustScore.getPermissionLevel();
+    const defaultPerm = worker.defaultPermission;
+    // Use defaultPermission as a floor for dispatch eligibility
+    const trustRank = this.permissionRank(trustDerived);
+    const defaultRank = this.permissionRank(defaultPerm);
+    return trustRank >= defaultRank ? trustDerived : defaultPerm;
+  }
+
+  private permissionRank(level: PermissionLevel): number {
+    const ranks: Record<PermissionLevel, number> = {
+      [PermissionLevel.OBSERVE]: 0,
+      [PermissionLevel.SUGGEST]: 1,
+      [PermissionLevel.ACT_LOW]: 2,
+      [PermissionLevel.ACT_HIGH]: 3,
+      [PermissionLevel.FULL_AUTO]: 4,
+    };
+    return ranks[level];
   }
 
   private groupByDependencyLevel(subtasks: SubTask[]): SubTask[][] {

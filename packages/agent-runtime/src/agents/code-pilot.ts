@@ -42,7 +42,7 @@ export class CodePilot extends WorkerAgent {
     });
   }
 
-  async run(task: AgentTask): Promise<void> {
+  async execute(task: AgentTask): Promise<void> {
     this.stateMachine.transition(AgentState.EXECUTING);
 
     try {

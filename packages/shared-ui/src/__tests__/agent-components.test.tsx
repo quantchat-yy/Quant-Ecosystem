@@ -315,7 +315,7 @@ describe('AgentCreator', () => {
     fireEvent.click(screen.getByText('Create Agent'));
     expect(onSubmit).toHaveBeenCalledWith({
       description: 'Monitor emails',
-      permissionLevel: 'standard',
+      permissionLevel: 'SUGGEST',
     });
   });
 

@@ -4,9 +4,11 @@
 
 import React, { useState } from 'react';
 
+export type AgentPermissionLevel = 'OBSERVE' | 'SUGGEST' | 'ACT_LOW' | 'ACT_HIGH' | 'FULL_AUTO';
+
 export interface AgentCreatorConfig {
   description: string;
-  permissionLevel: 'read-only' | 'standard' | 'elevated' | 'admin';
+  permissionLevel: AgentPermissionLevel;
 }
 
 export interface AgentCreatorProps {
@@ -16,8 +18,7 @@ export interface AgentCreatorProps {
 
 export const AgentCreator: React.FC<AgentCreatorProps> = ({ onSubmit, existingAgents }) => {
   const [description, setDescription] = useState('');
-  const [permissionLevel, setPermissionLevel] =
-    useState<AgentCreatorConfig['permissionLevel']>('standard');
+  const [permissionLevel, setPermissionLevel] = useState<AgentPermissionLevel>('SUGGEST');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,15 +50,14 @@ export const AgentCreator: React.FC<AgentCreatorProps> = ({ onSubmit, existingAg
         <select
           id="permission-level"
           value={permissionLevel}
-          onChange={(e) =>
-            setPermissionLevel(e.target.value as AgentCreatorConfig['permissionLevel'])
-          }
+          onChange={(e) => setPermissionLevel(e.target.value as AgentPermissionLevel)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
-          <option value="read-only">Read Only</option>
-          <option value="standard">Standard</option>
-          <option value="elevated">Elevated</option>
-          <option value="admin">Admin</option>
+          <option value="OBSERVE">Observe</option>
+          <option value="SUGGEST">Suggest</option>
+          <option value="ACT_LOW">Act Low</option>
+          <option value="ACT_HIGH">Act High</option>
+          <option value="FULL_AUTO">Full Auto</option>
         </select>
       </div>
 

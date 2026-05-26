@@ -1,5 +1,7 @@
 type HaltCallback = () => Promise<void>;
 
+const HALT_TIMEOUT_MS = 500;
+
 export class KillSwitch {
   private static instance: KillSwitch | null = null;
   private agents: Map<string, HaltCallback> = new Map();
@@ -29,7 +31,9 @@ export class KillSwitch {
   async activate(): Promise<void> {
     this.active = true;
     const callbacks = Array.from(this.agents.values());
-    await Promise.all(callbacks.map((fn) => fn()));
+    const deadline = new Promise<void>((resolve) => setTimeout(resolve, HALT_TIMEOUT_MS));
+    await Promise.race([Promise.allSettled(callbacks.map((fn) => fn())), deadline]);
+    this.agents.clear();
   }
 
   async voiceActivate(): Promise<void> {
@@ -42,6 +46,7 @@ export class KillSwitch {
 
   reset(): void {
     this.active = false;
+    this.agents.clear();
   }
 
   getRegisteredAgentCount(): number {

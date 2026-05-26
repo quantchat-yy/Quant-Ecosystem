@@ -1,8 +1,9 @@
 import { PermissionLevel } from './permissions.js';
 import { AgentState, AgentStateMachine } from './state-machine.js';
-import { TrustScore } from './trust-score.js';
+import { TrustScore, permissionLevelToScore } from './trust-score.js';
 import { AuditTrail, AuditEntry } from './audit-trail.js';
 import { KillSwitch } from './kill-switch.js';
+import { AgentSandbox } from './sandbox.js';
 
 export interface AgentStatus {
   id: string;
@@ -26,23 +27,37 @@ export abstract class WorkerAgent {
   readonly stateMachine: AgentStateMachine;
   readonly trustScore: TrustScore;
   readonly auditTrail: AuditTrail;
+  sandboxed: boolean;
+  private readonly sandbox: AgentSandbox;
 
   constructor(config: {
     id: string;
     name: string;
     icon: string;
     defaultPermission: PermissionLevel;
+    sandboxed?: boolean;
   }) {
     this.id = config.id;
     this.name = config.name;
     this.icon = config.icon;
     this.defaultPermission = config.defaultPermission;
     this.stateMachine = new AgentStateMachine();
-    this.trustScore = new TrustScore();
+    this.trustScore = new TrustScore(permissionLevelToScore(config.defaultPermission));
     this.auditTrail = new AuditTrail();
+    this.sandboxed = config.sandboxed ?? false;
+    this.sandbox = new AgentSandbox(this.sandboxed);
   }
 
-  abstract run(task: AgentTask): Promise<void>;
+  abstract execute(task: AgentTask): Promise<void>;
+
+  async run(task: AgentTask): Promise<void> {
+    if (this.sandboxed) {
+      this.sandbox.execute(this.id, task.description, task.params ?? {});
+      this.logAction(task.description, 'success', false);
+      return;
+    }
+    await this.execute(task);
+  }
 
   start(): void {
     const killSwitch = KillSwitch.getInstance();
@@ -80,6 +95,15 @@ export abstract class WorkerAgent {
       permissionLevel: this.trustScore.getPermissionLevel(),
       trustScore: this.trustScore.getScore(),
     };
+  }
+
+  promoteFromSandbox(): void {
+    this.sandboxed = false;
+    this.sandbox.promote();
+  }
+
+  getSandboxLog(): ReadonlyArray<unknown> {
+    return this.sandbox.getLog();
   }
 
   protected logAction(

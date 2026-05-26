@@ -5,11 +5,11 @@ import { AgentState } from '../state-machine.js';
 import { KillSwitch } from '../kill-switch.js';
 
 class TestWorkerAgent extends WorkerAgent {
-  public runCalled = false;
+  public executeCalled = false;
   public lastTask: AgentTask | null = null;
 
-  async run(task: AgentTask): Promise<void> {
-    this.runCalled = true;
+  async execute(task: AgentTask): Promise<void> {
+    this.executeCalled = true;
     this.lastTask = task;
     this.stateMachine.transition(AgentState.EXECUTING);
     this.logAction(task.description, 'success');
@@ -111,7 +111,7 @@ describe('WorkerAgent', () => {
     });
     agent.start();
     await agent.run({ id: 'task-1', description: 'Do something' });
-    expect(agent.runCalled).toBe(true);
+    expect(agent.executeCalled).toBe(true);
     expect(agent.lastTask?.id).toBe('task-1');
   });
 
@@ -127,8 +127,8 @@ describe('WorkerAgent', () => {
     expect(status.id).toBe('test-agent');
     expect(status.name).toBe('Test Agent');
     expect(status.state).toBe(AgentState.IDLE);
-    expect(status.trustScore).toBe(20);
-    expect(status.permissionLevel).toBe(PermissionLevel.OBSERVE);
+    expect(status.trustScore).toBe(21);
+    expect(status.permissionLevel).toBe(PermissionLevel.SUGGEST);
   });
 
   it('kill switch halts the agent', async () => {
@@ -145,5 +145,57 @@ describe('WorkerAgent', () => {
     await ks.activate();
     // After kill switch, agent should be in IDLE state
     expect(agent.stateMachine.getState()).toBe(AgentState.IDLE);
+  });
+
+  it('routes sandboxed agents through sandbox instead of execute', async () => {
+    const agent = new TestWorkerAgent({
+      id: 'sandboxed-agent',
+      name: 'Sandboxed',
+      icon: 'box',
+      defaultPermission: PermissionLevel.ACT_LOW,
+      sandboxed: true,
+    });
+    agent.start();
+    await agent.run({ id: 'task-1', description: 'Do something risky' });
+
+    // execute should NOT have been called
+    expect(agent.executeCalled).toBe(false);
+    // Sandbox log should have an entry
+    expect(agent.getSandboxLog()).toHaveLength(1);
+  });
+
+  it('non-sandboxed agents route through execute', async () => {
+    const agent = new TestWorkerAgent({
+      id: 'normal-agent',
+      name: 'Normal',
+      icon: 'bot',
+      defaultPermission: PermissionLevel.ACT_LOW,
+      sandboxed: false,
+    });
+    agent.start();
+    await agent.run({ id: 'task-1', description: 'Do something' });
+
+    expect(agent.executeCalled).toBe(true);
+    expect(agent.getSandboxLog()).toHaveLength(0);
+  });
+
+  it('promoteFromSandbox allows execute after promotion', async () => {
+    const agent = new TestWorkerAgent({
+      id: 'promoted-agent',
+      name: 'Promoted',
+      icon: 'star',
+      defaultPermission: PermissionLevel.ACT_LOW,
+      sandboxed: true,
+    });
+
+    agent.start();
+    await agent.run({ id: 'task-1', description: 'Before promotion' });
+    expect(agent.executeCalled).toBe(false);
+
+    agent.promoteFromSandbox();
+    agent.stateMachine.reset();
+    agent.start();
+    await agent.run({ id: 'task-2', description: 'After promotion' });
+    expect(agent.executeCalled).toBe(true);
   });
 });

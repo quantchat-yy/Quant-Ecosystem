@@ -13,6 +13,21 @@ export function scoreToPermissionLevel(score: number): PermissionLevel {
   return PermissionLevel.FULL_AUTO;
 }
 
+export function permissionLevelToScore(level: PermissionLevel): number {
+  switch (level) {
+    case PermissionLevel.OBSERVE:
+      return 20;
+    case PermissionLevel.SUGGEST:
+      return 21;
+    case PermissionLevel.ACT_LOW:
+      return 41;
+    case PermissionLevel.ACT_HIGH:
+      return 61;
+    case PermissionLevel.FULL_AUTO:
+      return 81;
+  }
+}
+
 export class TrustScore {
   private score: number;
   private readonly createdAt: number;

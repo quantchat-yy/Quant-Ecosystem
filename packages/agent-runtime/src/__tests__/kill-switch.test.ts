@@ -81,4 +81,40 @@ describe('KillSwitch', () => {
     ks.reset();
     expect(ks.isActive()).toBe(false);
   });
+
+  it('clears agents map after activation', async () => {
+    const ks = KillSwitch.getInstance();
+    ks.register('agent-1', vi.fn().mockResolvedValue(undefined));
+    ks.register('agent-2', vi.fn().mockResolvedValue(undefined));
+
+    await ks.activate();
+
+    expect(ks.getRegisteredAgentCount()).toBe(0);
+  });
+
+  it('resolves within 500ms even if a callback hangs', async () => {
+    const ks = KillSwitch.getInstance();
+    // Register a callback that never resolves
+    ks.register('hanging-agent', () => new Promise<void>(() => {}));
+    ks.register('fast-agent', vi.fn().mockResolvedValue(undefined));
+
+    const start = Date.now();
+    await ks.activate();
+    const elapsed = Date.now() - start;
+
+    expect(elapsed).toBeLessThan(600);
+    expect(ks.isActive()).toBe(true);
+    expect(ks.getRegisteredAgentCount()).toBe(0);
+  });
+
+  it('reset clears registered agents', () => {
+    const ks = KillSwitch.getInstance();
+    ks.register('agent-1', vi.fn().mockResolvedValue(undefined));
+    ks.register('agent-2', vi.fn().mockResolvedValue(undefined));
+
+    ks.reset();
+
+    expect(ks.getRegisteredAgentCount()).toBe(0);
+    expect(ks.isActive()).toBe(false);
+  });
 });

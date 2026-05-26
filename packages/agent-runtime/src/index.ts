@@ -25,7 +25,7 @@ export { UndoEngine } from './undo-engine.js';
 export type { UndoAction } from './undo-engine.js';
 
 // Trust Score
-export { TrustScore, scoreToPermissionLevel } from './trust-score.js';
+export { TrustScore, scoreToPermissionLevel, permissionLevelToScore } from './trust-score.js';
 
 // Spending Limit
 export { SpendingLimit, SpendingLimitConfigSchema } from './spending-limit.js';

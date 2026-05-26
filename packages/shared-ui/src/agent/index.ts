@@ -15,7 +15,7 @@ export { AgentTimeline } from './AgentTimeline';
 export type { AgentTimelineProps, TimelineEntry } from './AgentTimeline';
 
 export { AgentCreator } from './AgentCreator';
-export type { AgentCreatorProps, AgentCreatorConfig } from './AgentCreator';
+export type { AgentCreatorProps, AgentCreatorConfig, AgentPermissionLevel } from './AgentCreator';
 
 export { AgentMiniWidget } from './AgentMiniWidget';
 export type { AgentMiniWidgetProps } from './AgentMiniWidget';
