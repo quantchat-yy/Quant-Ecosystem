@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-15-ml-recommendations",
+  "task_description": "Phase 15: ML Recommendations - Create @quant/ml-runtime package with ONNX inference, feature store in ml-pipeline, full recommendation models (Two-Tower, collaborative, trending, MMoE, anti-rage, DPP diversity, on-device ranker), A/B testing framework, and Python training scripts.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}
