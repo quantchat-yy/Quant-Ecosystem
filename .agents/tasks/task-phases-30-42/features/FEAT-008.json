@@ -1,0 +1,36 @@
+{
+  "id": "FEAT-008",
+  "type": "feat",
+  "description": "Phase 37: QuantWork - Enterprise Suite App. Create apps/quantwork/ with project management, OKRs, sprint boards, time tracking, HR features, enterprise security (SAML/SCIM/DLP), and team analytics.",
+  "status": "pending",
+  "steps": [
+    "Create apps/quantwork/package.json with deps: @quant/common, @quant/auth, @quant/server-core, @quant/ai, @quant/realtime, fastify, zod, ioredis. Create apps/quantwork/tsconfig.json.",
+    "Create apps/quantwork/backend/app.ts following createApp pattern with routes for projects, hr, security, analytics",
+    "Create apps/quantwork/backend/services/project.service.ts - ProjectManagementService class: createProject, createSprint, addTask, assignTask, updateTaskStatus, getKanbanBoard, getGanttChart, trackTime, getProjectMetrics",
+    "Create apps/quantwork/backend/services/okr.service.ts - OKRService class: createObjective, addKeyResult, updateProgress, getAlignment, getOKRTree, scoreKeyResult, closeOKRCycle",
+    "Create apps/quantwork/backend/services/hr.service.ts - HRService class: getOrgChart, requestLeave, approveLeave, createReview, submitReview, createJobPosting, trackCandidate, scheduleInterview, onboardEmployee",
+    "Create apps/quantwork/backend/services/enterprise-security.service.ts - EnterpriseSecurityService class: configureSAML, configureSCIM, provisionUser, deprovisionUser, getAuditLog, setDLPPolicy, checkDLPCompliance, enforcePolicy",
+    "Create apps/quantwork/backend/services/team-analytics.service.ts - TeamAnalyticsService class: getProductivity, getResourceAllocation, generateReport, getTeamVelocity, getBurndownChart, getCustomReport",
+    "Create apps/quantwork/backend/routes/projects.ts, routes/hr.ts, routes/security.ts, routes/analytics.ts - Fastify route handlers",
+    "Create apps/quantwork/backend/__tests__/project.service.test.ts - Tests for sprint management, task workflow, time tracking",
+    "Create apps/quantwork/backend/__tests__/enterprise-security.service.test.ts - Tests for SAML config, SCIM provisioning, DLP policies",
+    "Create apps/quantwork/backend/__tests__/hr.service.test.ts - Tests for leave management, review cycles, hiring pipeline"
+  ],
+  "acceptance_criteria": [
+    "apps/quantwork/ directory exists with proper package.json and tsconfig.json",
+    "ProjectManagementService handles sprints, tasks, and kanban boards",
+    "OKRService tracks objectives and key results with alignment",
+    "HRService provides org chart, leave, reviews, and hiring",
+    "EnterpriseSecurityService integrates SAML SSO and SCIM provisioning",
+    "TeamAnalyticsService generates productivity and resource reports",
+    "All services use zod for validation",
+    "Unit tests pass for project, security, and HR services",
+    "pnpm typecheck passes"
+  ],
+  "verification": [
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx tsc --noEmit -p apps/quantwork/tsconfig.json",
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx vitest run apps/quantwork/backend/__tests__/ --passWithNoTests"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

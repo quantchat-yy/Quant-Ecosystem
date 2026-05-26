@@ -1,0 +1,37 @@
+{
+  "id": "FEAT-005",
+  "type": "feat",
+  "description": "Phase 34: QuantMaps - Navigation & Location App. Create apps/quantmaps/ with maps, directions, real-time traffic, geofencing, place discovery, reviews, business listings, transportation integration, and AR navigation.",
+  "status": "pending",
+  "steps": [
+    "Create apps/quantmaps/package.json with deps: @quant/common, @quant/auth, @quant/server-core, @quant/ai, fastify, zod, ioredis. Create apps/quantmaps/tsconfig.json.",
+    "Create apps/quantmaps/backend/app.ts following createApp pattern with routes for maps, places, directions, transportation",
+    "Create apps/quantmaps/backend/services/maps.service.ts - MapsService class: getTile, getStaticMap, geocode, reverseGeocode, getElevation, get3DBuildings, getStreetView",
+    "Create apps/quantmaps/backend/services/directions.service.ts - DirectionsService class: getRoute, getAlternativeRoutes, optimizeWaypoints, getETAs, getTrafficConditions, getNavigationInstructions",
+    "Create apps/quantmaps/backend/services/places.service.ts - PlacesService class: searchPlaces, getPlaceDetails, addReview, getReviews, getNearbyPlaces, getBusinessListings, claimBusiness, updateBusinessInfo",
+    "Create apps/quantmaps/backend/services/geofencing.service.ts - GeofencingService class: createGeofence, deleteGeofence, checkLocation, listGeofences, getGeofenceEvents, setGeofenceAlert",
+    "Create apps/quantmaps/backend/services/transportation.service.ts - TransportationService class: getRideEstimate, requestRide, trackDelivery, getPublicTransit, getTransitSchedule, bookRide, cancelRide",
+    "Create apps/quantmaps/backend/services/ar-navigation.service.ts - ARNavigationService class: getAROverlays, getIndoorMap, calculate3DPath, getARLandmarks, getPointsOfInterest",
+    "Create apps/quantmaps/backend/routes/maps.ts, routes/places.ts, routes/directions.ts, routes/transportation.ts - Fastify route handlers",
+    "Create apps/quantmaps/backend/__tests__/directions.service.test.ts - Tests for routing, ETA, traffic",
+    "Create apps/quantmaps/backend/__tests__/places.service.test.ts - Tests for place search, reviews, business listings",
+    "Create apps/quantmaps/backend/__tests__/geofencing.service.test.ts - Tests for geofence CRUD and location checks"
+  ],
+  "acceptance_criteria": [
+    "apps/quantmaps/ directory exists with proper package.json and tsconfig.json",
+    "MapsService provides geocoding, tile rendering, and street view",
+    "DirectionsService computes routes with alternatives and real-time traffic",
+    "PlacesService enables discovery, reviews, and business management",
+    "GeofencingService handles spatial boundaries with event alerts",
+    "TransportationService integrates ride-hailing and public transit",
+    "All services use zod for input validation",
+    "Unit tests pass for directions, places, and geofencing",
+    "pnpm typecheck passes"
+  ],
+  "verification": [
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx tsc --noEmit -p apps/quantmaps/tsconfig.json",
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx vitest run apps/quantmaps/backend/__tests__/ --passWithNoTests"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

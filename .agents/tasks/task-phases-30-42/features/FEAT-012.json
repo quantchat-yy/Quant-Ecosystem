@@ -1,0 +1,38 @@
+{
+  "id": "FEAT-012",
+  "type": "feat",
+  "description": "Phase 41: QuantGov - Governance & Democracy Package. Create packages/governance/ with DAO-style voting, proposal system, community moderation juries, appeals process, platform constitution, algorithmic auditing, and open data/transparency reports.",
+  "status": "pending",
+  "steps": [
+    "Create packages/governance/package.json with deps: @quant/common, @quant/auth, @quant/moderation, zod. Create packages/governance/tsconfig.json extending root.",
+    "Create packages/governance/src/types.ts - Type definitions for Proposal, Vote, DAO, GovernanceToken, Jury, Appeal, Constitution, AuditReport, TransparencyReport, CommunityRule",
+    "Create packages/governance/src/core/voting.ts - VotingSystem class: createProposal, castVote, tallyVotes, getResults, delegateVote, revokeVote, getVotingPower, closeVoting, getQuorum",
+    "Create packages/governance/src/core/dao.ts - DAOManager class: createDAO, joinDAO, leaveDAO, getMembers, distributeTokens, getTokenBalance, proposeAction, executeAction, getTreasury",
+    "Create packages/governance/src/core/community-moderation.ts - CommunityModeration class: selectJury, assignCase, submitVerdict, appealDecision, getJuryPool, getCaseHistory, getModeratorStats, trainModerator",
+    "Create packages/governance/src/core/constitution.ts - ConstitutionService class: getRights, getResponsibilities, amendConstitution, proposeAmendment, ratifyAmendment, checkCompliance, getHistory",
+    "Create packages/governance/src/core/algorithmic-audit.ts - AlgorithmicAuditor class: auditAlgorithm, getAuditReport, detectBias, measureFairness, generateExplanation, getTransparencyReport, scheduleAudit",
+    "Create packages/governance/src/core/open-data.ts - OpenDataService class: getAPIUsageStats, getModerationStats, getFinancialReport, getContentStats, getAlgorithmStats, exportData, getPublicDashboard",
+    "Create packages/governance/src/index.ts barrel export",
+    "Create packages/governance/src/__tests__/voting.test.ts - Tests for proposal creation, voting, tallying, quorum",
+    "Create packages/governance/src/__tests__/community-moderation.test.ts - Tests for jury selection, case assignment, appeals",
+    "Create packages/governance/src/__tests__/algorithmic-audit.test.ts - Tests for bias detection, fairness metrics, reporting"
+  ],
+  "acceptance_criteria": [
+    "packages/governance/ directory exists with proper package.json and tsconfig.json",
+    "VotingSystem handles proposals with quorum-based decision making",
+    "DAOManager manages decentralized organizations with token governance",
+    "CommunityModeration provides jury-based content moderation with appeals",
+    "ConstitutionService codifies platform rules with amendment process",
+    "AlgorithmicAuditor detects bias and generates transparency reports",
+    "OpenDataService publishes platform statistics",
+    "All classes have comprehensive TypeScript types",
+    "Unit tests pass for voting, moderation, and auditing",
+    "pnpm typecheck passes for the package"
+  ],
+  "verification": [
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx tsc --noEmit -p packages/governance/tsconfig.json",
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx vitest run packages/governance/src/__tests__/ --passWithNoTests"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

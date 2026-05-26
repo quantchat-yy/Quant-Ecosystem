@@ -17,3 +17,7 @@ export { TieredRateLimiter } from './core/rate-limiter';
 export { UsageAnalytics } from './core/usage-analytics';
 export { AppMarketplace } from './core/app-marketplace';
 export { PluginSandbox } from './core/plugin-sandbox';
+export { QuantCLI } from './core/cli-tool';
+export { SandboxEnvironment } from './core/sandbox-environment';
+export { APIDocumentationGenerator } from './core/api-documentation';
+export { DeveloperAnalytics } from './core/developer-analytics';

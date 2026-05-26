@@ -1,0 +1,39 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Phase 32: QuantOS - Operating System Layer Package. Create packages/quantos/ with app launcher, window management, notification center, file system abstraction, widget system, workspaces, clipboard sync, and device integration APIs.",
+  "status": "pending",
+  "steps": [
+    "Create packages/quantos/package.json with deps (@quant/common, @quant/realtime, @quant/storage, zod) and tsconfig.json extending root",
+    "Create packages/quantos/src/types.ts - Type definitions for Window, Workspace, Widget, Notification, FileSystemNode, ClipboardItem, DeviceCapability, AppInstance, LaunchConfig",
+    "Create packages/quantos/src/core/app-launcher.ts - AppLauncher class: launchApp, listInstalledApps, installApp, uninstallApp, getAppState, focusApp, minimizeApp, switchApp",
+    "Create packages/quantos/src/core/window-manager.ts - WindowManager class: createWindow, closeWindow, moveWindow, resizeWindow, tileWindows, maximizeWindow, minimizeWindow, getWindowStack, focusWindow",
+    "Create packages/quantos/src/core/notification-center.ts - NotificationCenter class: pushNotification, dismissNotification, getNotifications, markAsRead, setDoNotDisturb, groupNotifications, getUnreadCount",
+    "Create packages/quantos/src/core/file-system.ts - FileSystemAbstraction class: readFile, writeFile, deleteFile, listDirectory, moveFile, copyFile, searchFiles, getFileMetadata, watchFile",
+    "Create packages/quantos/src/core/widget-system.ts - WidgetSystem class: registerWidget, unregisterWidget, layoutWidgets, updateWidget, getWidgetData, configureWidget",
+    "Create packages/quantos/src/core/workspace-manager.ts - WorkspaceManager class: createWorkspace, switchWorkspace, deleteWorkspace, listWorkspaces, moveWindowToWorkspace, getActiveWorkspace",
+    "Create packages/quantos/src/core/clipboard-sync.ts - ClipboardSync class: copy, paste, getHistory, clearHistory, syncClipboard, setMaxHistorySize",
+    "Create packages/quantos/src/core/device-integration.ts - DeviceIntegration class: getCapabilities, requestPermission, accessCamera, accessMicrophone, getLocation, getBiometrics, listContacts",
+    "Create packages/quantos/src/index.ts barrel export for all modules",
+    "Create packages/quantos/src/__tests__/window-manager.test.ts - Tests for window CRUD, tiling, focus management",
+    "Create packages/quantos/src/__tests__/notification-center.test.ts - Tests for notification lifecycle, DND mode, grouping",
+    "Create packages/quantos/src/__tests__/app-launcher.test.ts - Tests for app launch, install, focus switching"
+  ],
+  "acceptance_criteria": [
+    "packages/quantos/ directory exists with proper package.json and tsconfig.json",
+    "All 8 core classes are implemented with full TypeScript types",
+    "WindowManager supports create/close/move/resize/tile/focus operations",
+    "NotificationCenter handles push/dismiss/read with DND mode",
+    "FileSystemAbstraction provides a unified file API",
+    "ClipboardSync supports cross-device clipboard with history",
+    "DeviceIntegration provides permission-gated access to hardware APIs",
+    "Unit tests pass for window manager, notification center, and app launcher",
+    "pnpm typecheck passes for the package"
+  ],
+  "verification": [
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx tsc --noEmit -p packages/quantos/tsconfig.json",
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx vitest run packages/quantos/src/__tests__/ --passWithNoTests"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

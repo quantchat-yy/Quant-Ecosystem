@@ -1,0 +1,32 @@
+{
+  "project_type": "TypeScript monorepo with pnpm workspaces and Turborepo - interconnected platform ecosystem",
+  "language": "TypeScript (strict mode, ES2022 target, ESNext modules)",
+  "build_system": "pnpm workspaces + Turborepo. No separate build step per package (main/types point to src/index.ts directly). typecheck via tsc --noEmit.",
+  "test_framework": "vitest with globals: true. Tests live in __tests__/ directories within backend/ for apps. describe/it/expect/beforeEach pattern.",
+  "build_command": "pnpm typecheck (runs turbo typecheck across all packages)",
+  "test_command": "pnpm test (runs turbo test across all packages with vitest)",
+  "verification_instructions": "1. Run pnpm typecheck to verify no TypeScript errors. 2. Run pnpm test to verify all tests pass.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "pnpm install in the root directory installs all workspace dependencies",
+  "environment_constraints": "COMMON_DEPENDENCIES network mode - can install packages from npm. No Docker daemon likely available. Use host-based TypeScript validation.",
+  "contribution_requirements": "TypeScript strict mode, class-based services with zod validation, barrel exports from index.ts, vitest for tests, fastify for HTTP with @quant/server-core createApp pattern",
+  "key_patterns": "Apps: backend/app.ts (fastify entry using @quant/server-core createApp), backend/services/*.service.ts (class-based), backend/routes/*.ts (fastify routes), backend/__tests__/*.test.ts. Packages: src/index.ts (barrel), src/types.ts (type definitions), src/core/ or src/services/ (implementation classes). package.json uses workspace:* for internal deps. tsconfig.json extends root with references to dependencies.",
+  "relevant_files": [
+    "apps/quantmeet/backend/app.ts",
+    "apps/quantmeet/package.json",
+    "apps/quantmeet/tsconfig.json",
+    "apps/quantmeet/backend/services/room.service.ts",
+    "apps/quantmeet/backend/__tests__/room.service.test.ts",
+    "packages/developer-platform/src/index.ts",
+    "packages/developer-platform/src/types.ts",
+    "packages/developer-platform/src/core/oauth-registry.ts",
+    "packages/payments/src/index.ts",
+    "packages/server-core/package.json",
+    "packages/common/package.json",
+    "package.json",
+    "tsconfig.json",
+    "pnpm-workspace.yaml",
+    "turbo.json"
+  ],
+  "directory_structure": "Root: apps/ (13 user-facing apps), packages/ (36 shared packages), services/ (17 microservices), infra/ (deployment configs). Each app has package.json, tsconfig.json, backend/ (app.ts, services/, routes/, __tests__/). Each package has src/ (index.ts barrel, types.ts, core/ or services/). Packages without their own package.json use the root workspace config."
+}

@@ -1,0 +1,35 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Phase 33: QuantCloud - Infrastructure as a Service App. Create apps/quantcloud/ with VM provisioning, container orchestration, serverless functions, S3-compatible object storage, CDN, load balancers, DNS, and managed database services.",
+  "status": "pending",
+  "steps": [
+    "Create apps/quantcloud/package.json with deps: @quant/common, @quant/auth, @quant/server-core, @quant/storage, fastify, zod, ioredis. Create apps/quantcloud/tsconfig.json.",
+    "Create apps/quantcloud/backend/app.ts following the createApp pattern with route registration for compute, storage, networking, and database services",
+    "Create apps/quantcloud/backend/services/compute.service.ts - ComputeService class: createVM, deleteVM, startVM, stopVM, listVMs, resizeVM, getVMMetrics, createSnapshot, runServerlessFunction, deployContainer",
+    "Create apps/quantcloud/backend/services/object-storage.service.ts - ObjectStorageService class (S3-compatible): createBucket, deleteBucket, putObject, getObject, deleteObject, listObjects, generatePresignedUrl, setBucketPolicy, getStorageMetrics",
+    "Create apps/quantcloud/backend/services/networking.service.ts - NetworkingService class: createLoadBalancer, configureDNS, createVPN, configureFirewall, createSubnet, allocateIP, getCDNConfig, updateCDNOrigins",
+    "Create apps/quantcloud/backend/services/managed-db.service.ts - ManagedDatabaseService class: provisionDatabase (PostgreSQL/Redis/MongoDB/Vector), deleteDatabase, scaleDatabase, createBackup, restoreBackup, getConnectionString, getMetrics",
+    "Create apps/quantcloud/backend/services/serverless.service.ts - ServerlessService class: deployFunction, invokeFunction, listFunctions, getFunctionLogs, setTrigger, configureEnvironment, getInvocationMetrics",
+    "Create apps/quantcloud/backend/routes/compute.ts, routes/storage.ts, routes/networking.ts, routes/databases.ts, routes/serverless.ts - Fastify route handlers",
+    "Create apps/quantcloud/backend/__tests__/compute.service.test.ts - Tests for VM lifecycle, serverless, container operations",
+    "Create apps/quantcloud/backend/__tests__/object-storage.service.test.ts - Tests for S3-compatible operations",
+    "Create apps/quantcloud/backend/__tests__/managed-db.service.test.ts - Tests for database provisioning and management"
+  ],
+  "acceptance_criteria": [
+    "apps/quantcloud/ directory exists with proper package.json and tsconfig.json",
+    "ComputeService supports VM lifecycle plus serverless functions",
+    "ObjectStorageService provides S3-compatible API with presigned URLs",
+    "NetworkingService handles LB, DNS, VPN, firewall, CDN",
+    "ManagedDatabaseService provisions multiple database types",
+    "All services use zod for input validation",
+    "Unit tests pass for compute, storage, and database services",
+    "pnpm typecheck passes for the app"
+  ],
+  "verification": [
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx tsc --noEmit -p apps/quantcloud/tsconfig.json",
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx vitest run apps/quantcloud/backend/__tests__/ --passWithNoTests"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

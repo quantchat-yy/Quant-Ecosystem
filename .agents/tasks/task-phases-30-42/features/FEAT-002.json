@@ -1,0 +1,36 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Phase 31: QuantPay - Payments & Financial Services App. Create apps/quantpay/ with P2P transfers, QR payments, split bills, subscription management, multi-currency support, virtual cards, merchant tools, and integration hooks for tipping/paid features across ecosystem.",
+  "status": "pending",
+  "steps": [
+    "Create apps/quantpay/package.json with deps: @quant/common, @quant/auth, @quant/server-core, @quant/payments (workspace:*), fastify, zod, ioredis. Create apps/quantpay/tsconfig.json extending root with references to packages used.",
+    "Create apps/quantpay/backend/app.ts following quantmeet pattern - createApp from @quant/server-core, register routes for transfers, wallets, merchants, cards",
+    "Create apps/quantpay/backend/services/transfer.service.ts - P2PTransferService class: sendMoney, requestMoney, splitBill, getTransferHistory, cancelTransfer. Zod schemas for inputs.",
+    "Create apps/quantpay/backend/services/wallet.service.ts - WalletService class: createWallet, getBalance, addFunds, withdrawFunds, getTransactionHistory, multi-currency support with exchange rates",
+    "Create apps/quantpay/backend/services/merchant.service.ts - MerchantService class: registerMerchant, createInvoice, generateQRCode, processPayment, getMerchantAnalytics, refundPayment",
+    "Create apps/quantpay/backend/services/card.service.ts - VirtualCardService class: issueCard, freezeCard, setSpendingLimits, getCardTransactions, categorizeTransaction",
+    "Create apps/quantpay/backend/services/subscription.service.ts - SubscriptionManagementService: createPlan, subscribeToPlan, cancelSubscription, upgradePlan, getBillingHistory",
+    "Create apps/quantpay/backend/routes/transfers.ts, routes/wallets.ts, routes/merchants.ts, routes/cards.ts - Fastify route handlers",
+    "Create apps/quantpay/backend/__tests__/transfer.service.test.ts - Tests for P2P transfers, split bills, request money",
+    "Create apps/quantpay/backend/__tests__/wallet.service.test.ts - Tests for wallet operations, multi-currency, balance checks",
+    "Create apps/quantpay/backend/__tests__/merchant.service.test.ts - Tests for merchant registration, QR payments, invoicing"
+  ],
+  "acceptance_criteria": [
+    "apps/quantpay/ directory exists with proper package.json and tsconfig.json",
+    "app.ts creates a Fastify app using @quant/server-core createApp pattern",
+    "P2PTransferService handles money transfers with validation and history",
+    "WalletService supports multi-currency with exchange rate conversion",
+    "MerchantService provides POS integration with QR code generation",
+    "VirtualCardService manages card lifecycle with spending limits",
+    "All services use zod schemas for input validation",
+    "Unit tests pass for transfer, wallet, and merchant services",
+    "pnpm typecheck passes for the app"
+  ],
+  "verification": [
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx tsc --noEmit -p apps/quantpay/tsconfig.json",
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx vitest run apps/quantpay/backend/__tests__/ --passWithNoTests"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

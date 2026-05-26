@@ -622,7 +622,14 @@ export type AppCategory =
   | 'security'
   | 'integrations';
 
-export type AppStatus = 'draft' | 'submitted' | 'in_review' | 'approved' | 'rejected' | 'published' | 'suspended';
+export type AppStatus =
+  | 'draft'
+  | 'submitted'
+  | 'in_review'
+  | 'approved'
+  | 'rejected'
+  | 'published'
+  | 'suspended';
 
 export interface AppPricing {
   model: 'free' | 'one_time' | 'subscription' | 'usage_based';
@@ -770,4 +777,312 @@ export interface AuditEntry {
   resource: string;
   allowed: boolean;
   details?: string;
+}
+
+// ============================================================================
+// CLI Tool Types
+// ============================================================================
+
+export interface CLIConfig {
+  workingDirectory: string;
+  registry: string;
+  authToken: string | null;
+  verbose: boolean;
+  timeout: number;
+}
+
+export interface CLICommand {
+  command: string;
+  args: Record<string, unknown>;
+  timestamp: number;
+  success: boolean;
+}
+
+export interface ScaffoldOptions {
+  name: string;
+  template: 'basic' | 'api' | 'webhook' | 'fullstack' | 'plugin';
+  language?: 'typescript' | 'javascript';
+  description?: string;
+  author?: string;
+}
+
+export interface DeployResult {
+  success: boolean;
+  deploymentId: string;
+  url: string;
+  message: string;
+  timestamp: number;
+}
+
+export interface CLIApp {
+  id: string;
+  name: string;
+  template: string;
+  language: string;
+  description: string;
+  author: string;
+  version: string;
+  createdAt: number;
+  updatedAt: number;
+  status: 'development' | 'staging' | 'published' | 'archived';
+  deployments: CLIDeployment[];
+}
+
+export interface CLIDeployment {
+  id: string;
+  version: string;
+  environment: 'staging' | 'production';
+  timestamp: number;
+  status: 'active' | 'inactive' | 'failed';
+}
+
+export interface ProjectConfig {
+  id: string;
+  name: string;
+  description: string;
+  template: string;
+  createdAt: number;
+  updatedAt: number;
+  settings: Record<string, unknown>;
+}
+
+// ============================================================================
+// Sandbox Environment Types
+// ============================================================================
+
+export interface SandboxConfig {
+  name: string;
+  runtime?: 'node' | 'deno' | 'worker';
+  timeout?: number;
+  memoryLimitMB?: number;
+  cpuLimitMs?: number;
+  networkEnabled?: boolean;
+  storageEnabled?: boolean;
+  maxStorageMB?: number;
+  environment?: Record<string, string>;
+}
+
+export interface Sandbox {
+  id: string;
+  name: string;
+  runtime: string;
+  status: 'ready' | 'running' | 'paused' | 'destroyed';
+  createdAt: number;
+  updatedAt: number;
+  resourceLimits: SandboxResourceLimits;
+  environment: Record<string, string>;
+  executionCount: number;
+  totalCpuMs: number;
+  totalMemoryPeakMB: number;
+}
+
+export interface SandboxResourceLimits {
+  maxMemoryMB: number;
+  maxCpuMs: number;
+  maxExecutionTimeMs: number;
+  maxNetworkRequests: number;
+  maxStorageMB: number;
+  maxConcurrentExecutions: number;
+}
+
+export interface SandboxExecution {
+  id: string;
+  sandboxId: string;
+  status: 'running' | 'completed' | 'failed' | 'timeout';
+  startedAt: number;
+  completedAt: number;
+  durationMs: number;
+  output: string;
+  error: string | null;
+  resourceUsage: {
+    cpuMs: number;
+    memoryPeakMB: number;
+    networkRequests: number;
+  };
+  exitCode: number;
+}
+
+export interface SandboxLog {
+  id: string;
+  sandboxId: string;
+  level: 'info' | 'warn' | 'error' | 'debug';
+  message: string;
+  timestamp: number;
+}
+
+export interface SandboxMetrics {
+  sandboxId: string;
+  totalExecutions: number;
+  completedExecutions: number;
+  failedExecutions: number;
+  avgDurationMs: number;
+  totalCpuMs: number;
+  peakMemoryMB: number;
+  uptime: number;
+  status: string;
+}
+
+// ============================================================================
+// API Documentation Types
+// ============================================================================
+
+export interface DocEndpoint {
+  id?: string;
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  path: string;
+  summary: string;
+  description?: string;
+  tags?: string[];
+  parameters?: DocParameter[];
+  requestBody?: {
+    contentType: string;
+    schema: Record<string, unknown>;
+    required: boolean;
+  };
+  responses?: Record<string, { description: string; schema?: Record<string, unknown> }>;
+  authentication?: 'none' | 'apiKey' | 'bearer' | 'oauth2';
+  rateLimit?: string;
+}
+
+export interface DocParameter {
+  name: string;
+  in: 'path' | 'query' | 'header';
+  required: boolean;
+  type: string;
+  description?: string;
+}
+
+export interface DocSpec {
+  openapi: string;
+  info: {
+    title: string;
+    version: string;
+    description: string;
+  };
+  servers: Array<{ url: string; description: string }>;
+  paths: Record<string, Record<string, unknown>>;
+  tags: Array<{ name: string; description: string }>;
+  components: {
+    securitySchemes: Record<string, unknown>;
+  };
+}
+
+export interface DocCodeSample {
+  language: string;
+  code: string;
+  endpointId: string;
+  title: string;
+}
+
+export interface InteractiveDoc {
+  title: string;
+  version: string;
+  baseUrl: string;
+  sections: Array<{
+    name: string;
+    endpoints: Array<{
+      id: string;
+      method: string;
+      path: string;
+      summary: string;
+      tryItEnabled: boolean;
+      codeSamples: string[];
+    }>;
+  }>;
+  totalEndpoints: number;
+}
+
+// ============================================================================
+// Developer Analytics Types
+// ============================================================================
+
+export interface AnalyticsEvent {
+  id: string;
+  appId: string;
+  endpoint: string;
+  method: string;
+  statusCode: number;
+  latencyMs: number;
+  requestBytes: number;
+  responseBytes: number;
+  userId: string | null;
+  region: string;
+  timestamp: number;
+  metadata: Record<string, unknown>;
+}
+
+export interface UsageOverview {
+  appId: string;
+  totalRequests: number;
+  successfulRequests: number;
+  failedRequests: number;
+  avgLatencyMs: number;
+  totalRequestBytes: number;
+  totalResponseBytes: number;
+  uniqueEndpoints: number;
+  uniqueUsers: number;
+  successRate: number;
+  period: { start: number; end: number };
+}
+
+export interface ErrorRateData {
+  appId: string;
+  totalErrors: number;
+  errorRate: number;
+  clientErrors: number;
+  serverErrors: number;
+  byStatusCode: Record<number, number>;
+  topErrorEndpoints: Array<{ endpoint: string; count: number; rate: number }>;
+  period: { start: number; end: number };
+}
+
+export interface LatencyData {
+  appId: string;
+  endpoint: string;
+  sampleCount: number;
+  p50: number;
+  p75: number;
+  p90: number;
+  p95: number;
+  p99: number;
+  min: number;
+  max: number;
+  mean: number;
+}
+
+export interface TrendData {
+  appId: string;
+  granularity: 'minute' | 'hour' | 'day';
+  dataPoints: Array<{
+    timestamp: number;
+    requests: number;
+    errors: number;
+    avgLatencyMs: number;
+  }>;
+  totalDataPoints: number;
+}
+
+export interface CostProjection {
+  appId: string;
+  projectionDays: number;
+  currentDailyRequests: number;
+  projectedRequests: number;
+  projectedBandwidthGB: number;
+  estimatedCost: {
+    requests: number;
+    bandwidth: number;
+    total: number;
+    currency: string;
+  };
+  confidence: 'low' | 'medium' | 'high';
+}
+
+export interface AnalyticsDashboard {
+  appId: string;
+  generatedAt: number;
+  overview: UsageOverview | null;
+  errorRates: ErrorRateData | null;
+  latency: LatencyData | null;
+  trends: TrendData | null;
+  costProjection: CostProjection | null;
 }

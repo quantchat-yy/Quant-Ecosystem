@@ -1,0 +1,37 @@
+{
+  "id": "FEAT-007",
+  "type": "feat",
+  "description": "Phase 36: QuantLearn - Education Platform App. Create apps/quantlearn/ with interactive courses, live classes, certifications, AI tutor, personalized learning paths, study groups, mentorship, course builder, and code execution sandbox.",
+  "status": "pending",
+  "steps": [
+    "Create apps/quantlearn/package.json with deps: @quant/common, @quant/auth, @quant/server-core, @quant/ai, @quant/realtime, fastify, zod, ioredis. Create apps/quantlearn/tsconfig.json.",
+    "Create apps/quantlearn/backend/app.ts following createApp pattern with routes for courses, classes, tutor, collaboration",
+    "Create apps/quantlearn/backend/services/course.service.ts - CourseService class: createCourse, updateCourse, publishCourse, enrollStudent, getProgress, completeLecture, getCertificate, listCourses, searchCourses",
+    "Create apps/quantlearn/backend/services/ai-tutor.service.ts - AITutorService class: askQuestion, generateQuiz, evaluateAnswer, getPersonalizedPath, explainConcept, generateExercise, provideFeedback, adaptDifficulty",
+    "Create apps/quantlearn/backend/services/live-class.service.ts - LiveClassService class: scheduleClass, startClass, endClass, joinClass, recordClass, getAttendance, getClassReplay, enableWhiteboard",
+    "Create apps/quantlearn/backend/services/collaboration.service.ts - CollaborationService class: createStudyGroup, joinGroup, leaveGroup, findMentor, matchPeer, submitPeerReview, startDiscussion",
+    "Create apps/quantlearn/backend/services/code-sandbox.service.ts - CodeSandboxService class: createSandbox, executeCode, getOutput, resetSandbox, submitSolution, runTests, getLanguages",
+    "Create apps/quantlearn/backend/services/course-builder.service.ts - CourseBuilderService class: createModule, addLesson, addExercise, addAssessment, reorderContent, previewCourse, addMedia",
+    "Create apps/quantlearn/backend/routes/courses.ts, routes/tutor.ts, routes/classes.ts, routes/sandbox.ts - Fastify route handlers",
+    "Create apps/quantlearn/backend/__tests__/course.service.test.ts - Tests for course CRUD, enrollment, progress, certification",
+    "Create apps/quantlearn/backend/__tests__/ai-tutor.service.test.ts - Tests for quiz generation, personalized paths, difficulty adaptation",
+    "Create apps/quantlearn/backend/__tests__/code-sandbox.service.test.ts - Tests for code execution, testing, language support"
+  ],
+  "acceptance_criteria": [
+    "apps/quantlearn/ directory exists with proper package.json and tsconfig.json",
+    "CourseService handles full course lifecycle with enrollment and progress",
+    "AITutorService provides personalized learning with adaptive difficulty",
+    "LiveClassService manages real-time classes with recording",
+    "CollaborationService enables study groups and mentorship",
+    "CodeSandboxService runs code safely with multi-language support",
+    "All services use zod for validation",
+    "Unit tests pass for course, AI tutor, and code sandbox",
+    "pnpm typecheck passes"
+  ],
+  "verification": [
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx tsc --noEmit -p apps/quantlearn/tsconfig.json",
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx vitest run apps/quantlearn/backend/__tests__/ --passWithNoTests"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

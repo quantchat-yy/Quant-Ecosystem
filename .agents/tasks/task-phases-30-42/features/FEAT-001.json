@@ -1,0 +1,33 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Phase 30: Developer Platform Enhancement & CLI Tool - Extend existing packages/developer-platform with enhanced API marketplace, developer CLI scaffolding tool, and sandbox environments. The package already has OAuth registry, API key manager, webhook system, SDK generator, rate limiter, usage analytics, app marketplace, and plugin sandbox. Enhance with CLI tool package and developer sandbox environment support.",
+  "status": "in_progress",
+  "steps": [
+    "Create packages/developer-platform/package.json with proper workspace deps (@quant/common, @quant/auth, zod) and tsconfig.json extending root",
+    "Create packages/developer-platform/src/core/cli-tool.ts - QuantCLI class with commands: scaffoldApp (generates app boilerplate), testApp (runs sandbox tests), deployApp (submission workflow), listApps, generateSDK. Follow class-based pattern from oauth-registry.ts",
+    "Create packages/developer-platform/src/core/sandbox-environment.ts - SandboxEnvironment class with methods: createSandbox (isolated test env), executeSandbox (run code in sandbox), destroySandbox, listSandboxes, getSandboxLogs. Resource limits and timeout enforcement.",
+    "Create packages/developer-platform/src/core/api-documentation.ts - APIDocumentationGenerator class that generates OpenAPI spec from route definitions, with interactive examples and multi-language code samples",
+    "Create packages/developer-platform/src/core/developer-analytics.ts - DeveloperAnalytics class providing detailed per-app metrics: API call volume, error rates, latency percentiles, usage trends, cost projections",
+    "Create packages/developer-platform/src/__tests__/cli-tool.test.ts - Tests for CLI tool scaffolding, app generation, and deployment commands",
+    "Create packages/developer-platform/src/__tests__/sandbox-environment.test.ts - Tests for sandbox creation, execution, resource limits, and cleanup",
+    "Update packages/developer-platform/src/index.ts barrel to export new modules (CLITool, SandboxEnvironment, APIDocumentationGenerator, DeveloperAnalytics)",
+    "Update packages/developer-platform/src/types.ts with new type definitions for CLI commands, sandbox configs, documentation schemas"
+  ],
+  "acceptance_criteria": [
+    "packages/developer-platform/package.json exists with correct workspace dependencies",
+    "CLITool class implements scaffoldApp, testApp, deployApp, listApps, generateSDK methods",
+    "SandboxEnvironment class implements create, execute, destroy lifecycle with resource limits",
+    "APIDocumentationGenerator produces structured OpenAPI-like documentation from route definitions",
+    "All new classes follow the existing class-based pattern with proper TypeScript types",
+    "Unit tests pass for CLI tool and sandbox environment",
+    "Barrel export in index.ts includes all new exports",
+    "pnpm typecheck passes for the package"
+  ],
+  "verification": [
+    "Run: cd /projects/sandbox/Quant-Ecosystem && pnpm typecheck --filter @quant/developer-platform 2>/dev/null || npx tsc --noEmit -p packages/developer-platform/tsconfig.json",
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx vitest run packages/developer-platform/src/__tests__/ --passWithNoTests"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

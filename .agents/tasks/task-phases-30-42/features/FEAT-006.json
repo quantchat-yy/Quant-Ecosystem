@@ -1,0 +1,38 @@
+{
+  "id": "FEAT-006",
+  "type": "feat",
+  "description": "Phase 35: QuantHealth - Health & Fitness App. Create apps/quanthealth/ with health dashboard, activity tracking, sleep analysis, wearable integration, nutrition tracking, and telemedicine features.",
+  "status": "pending",
+  "steps": [
+    "Create apps/quanthealth/package.json with deps: @quant/common, @quant/auth, @quant/server-core, @quant/ai, fastify, zod, ioredis. Create apps/quanthealth/tsconfig.json.",
+    "Create apps/quanthealth/backend/app.ts following createApp pattern with routes for health, fitness, nutrition, telemedicine",
+    "Create apps/quanthealth/backend/services/health-dashboard.service.ts - HealthDashboardService class: getDashboard, getHealthScore, getInsights, getHealthTrends, setHealthGoals, getGoalProgress, generateReport",
+    "Create apps/quanthealth/backend/services/activity-tracker.service.ts - ActivityTrackerService class: logActivity, getSteps, getWorkouts, startWorkout, endWorkout, getActivityHistory, getCaloriesBurned, getActiveMinutes",
+    "Create apps/quanthealth/backend/services/sleep-analysis.service.ts - SleepAnalysisService class: logSleep, getSleepScore, getSleepPatterns, getSleepStages, getRecommendations, setSleepGoal",
+    "Create apps/quanthealth/backend/services/wearable.service.ts - WearableIntegrationService class: pairDevice, syncData, getHeartRate, getSpO2, getECG, getBodyTemperature, getStress, disconnectDevice",
+    "Create apps/quanthealth/backend/services/nutrition.service.ts - NutritionService class: logMeal, searchFood, getMacros, getDailyIntake, createMealPlan, getRecipeSuggestions, setNutritionGoals, scanBarcode",
+    "Create apps/quanthealth/backend/services/telemedicine.service.ts - TelemedicineService class: bookAppointment, joinConsultation, getPrescriptions, uploadHealthRecords, getProviders, cancelAppointment, getConsultationNotes",
+    "Create apps/quanthealth/backend/routes/health.ts, routes/fitness.ts, routes/nutrition.ts, routes/telemedicine.ts - Fastify route handlers",
+    "Create apps/quanthealth/backend/__tests__/activity-tracker.service.test.ts - Tests for workout logging, step tracking, calorie computation",
+    "Create apps/quanthealth/backend/__tests__/nutrition.service.test.ts - Tests for meal logging, macro calculation, meal plans",
+    "Create apps/quanthealth/backend/__tests__/telemedicine.service.test.ts - Tests for appointment booking, consultation lifecycle"
+  ],
+  "acceptance_criteria": [
+    "apps/quanthealth/ directory exists with proper package.json and tsconfig.json",
+    "HealthDashboardService aggregates health metrics into a unified score",
+    "ActivityTrackerService tracks workouts, steps, and calories",
+    "SleepAnalysisService provides sleep stage analysis and recommendations",
+    "WearableIntegrationService syncs data from paired devices",
+    "NutritionService handles meal logging with macro tracking",
+    "TelemedicineService manages appointment lifecycle and health records",
+    "All services use zod for validation",
+    "Unit tests pass for activity, nutrition, and telemedicine",
+    "pnpm typecheck passes"
+  ],
+  "verification": [
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx tsc --noEmit -p apps/quanthealth/tsconfig.json",
+    "Run: cd /projects/sandbox/Quant-Ecosystem && npx vitest run apps/quanthealth/backend/__tests__/ --passWithNoTests"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
