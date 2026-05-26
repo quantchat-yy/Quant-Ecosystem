@@ -59,11 +59,11 @@ describe('RecordingService', () => {
   });
 
   describe('stopRecording', () => {
-    it('updates status to processing and sets stoppedAt', () => {
+    it('updates status to completed and sets stoppedAt', () => {
       const recording = service.startRecording('room-1', 'user-1');
       const stopped = service.stopRecording(recording.id);
 
-      expect(stopped.status).toBe('processing');
+      expect(stopped.status).toBe('completed');
       expect(stopped.stoppedAt).toBeInstanceOf(Date);
       expect(stopped.duration).toBeGreaterThanOrEqual(0);
     });
@@ -106,7 +106,7 @@ describe('RecordingService', () => {
 
       const fetched = service.getRecording(recording.id);
 
-      expect(fetched.status).toBe('processing');
+      expect(fetched.status).toBe('completed');
       expect(fetched.stoppedAt).not.toBeNull();
     });
   });

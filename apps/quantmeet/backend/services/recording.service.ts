@@ -49,7 +49,7 @@ export class RecordingService {
       throw createAppError('Recording is not active', 400, 'RECORDING_NOT_ACTIVE');
     }
 
-    recording.status = 'processing';
+    recording.status = 'completed';
     recording.stoppedAt = new Date();
     recording.duration = Math.floor(
       (recording.stoppedAt.getTime() - recording.startedAt.getTime()) / 1000,

@@ -13,6 +13,11 @@ export interface ActionItem {
   status: 'pending' | 'in_progress' | 'completed';
 }
 
+/**
+ * Local AIInference interface for scaffold purposes.
+ * This interface mirrors the patterns in @quant/ai and should be aligned
+ * with the actual @quant/ai package types in a future integration pass.
+ */
 export interface AIInference {
   generateText(prompt: string): Promise<string>;
 }

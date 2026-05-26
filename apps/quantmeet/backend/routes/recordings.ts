@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
 import { RecordingService } from '../services/recording.service';
-import type { StorageClient } from '@quant/storage';
+import { StorageClient } from '@quant/storage';
 
 const startRecordingSchema = z.object({
   userId: z.string().min(1),
@@ -17,8 +17,15 @@ const idParamSchema = z.object({
 });
 
 export default async function recordingsRoutes(fastify: FastifyInstance) {
-  const storage = (fastify as unknown as { storage: StorageClient }).storage;
-  const recordingService = new RecordingService(storage as StorageClient);
+  const storage = new StorageClient({
+    endpoint: process.env['STORAGE_ENDPOINT'] ?? 'http://localhost:9000',
+    region: process.env['STORAGE_REGION'] ?? 'us-east-1',
+    bucket: process.env['STORAGE_BUCKET'] ?? 'quant-recordings',
+    accessKeyId: process.env['STORAGE_ACCESS_KEY_ID'] ?? 'minioadmin',
+    secretAccessKey: process.env['STORAGE_SECRET_ACCESS_KEY'] ?? 'minioadmin',
+    forcePathStyle: true,
+  });
+  const recordingService = new RecordingService(storage);
 
   fastify.post<{ Params: { roomId: string } }>('/:roomId/start', async (request, reply) => {
     const paramResult = roomIdParamSchema.safeParse(request.params);

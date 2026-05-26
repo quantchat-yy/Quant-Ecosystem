@@ -54,6 +54,11 @@ export default async function wsRoutes(fastify: FastifyInstance) {
   }
 
   fastify.get('/', { websocket: true }, (socket: WebSocket) => {
+    // TODO: Authentication should be added here. In production, validate a JWT token
+    // passed as a query parameter or in the initial WebSocket upgrade headers.
+    // Example: const token = request.query.token; verify(token, jwtSecret);
+    // Until then, any connected socket can join rooms without proving identity.
+
     socket.on('message', (rawData: Buffer | string) => {
       let message: WsMessage;
       try {
@@ -66,12 +71,27 @@ export default async function wsRoutes(fastify: FastifyInstance) {
 
       switch (message.type) {
         case 'join-room': {
-          if (!message.roomId || !message.participantId) {
+          if (
+            !message.roomId ||
+            typeof message.roomId !== 'string' ||
+            message.roomId.trim().length === 0
+          ) {
             socket.send(
-              JSON.stringify({ type: 'error', message: 'roomId and participantId required' }),
+              JSON.stringify({ type: 'error', message: 'roomId must be a non-empty string' }),
             );
             return;
           }
+          if (!message.participantId || typeof message.participantId !== 'string') {
+            socket.send(
+              JSON.stringify({
+                type: 'error',
+                message: 'participantId must be a non-empty string',
+              }),
+            );
+            return;
+          }
+          // TODO: Validate that the room exists in RoomService and that the participant
+          // has been authenticated and authorized to join this room.
           const connections = rooms.get(message.roomId) ?? [];
           connections.push({
             socket,
