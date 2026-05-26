@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Integrate E2E encryption into QuantChat message service and create ZK Email modules for QuantMail. Modify apps/quantchat/backend/services/message.service.ts to support E2E encrypted conversations. Create packages/auth/src/e2e/zk-email/ with keypair, encrypted-storage, client-search, and key-discovery modules.",
-  "status": "pending",
+  "status": "completed",
   "steps": [
     "Modify apps/quantchat/backend/services/message.service.ts: Add an optional 'encryption' field to SendMessageInput. When encryption is 'e2e', the service wraps content through E2E encryption (per-recipient using SignalSession). The service stores ciphertext only. Add encryptForRecipients() helper method.",
     "Create apps/quantchat/backend/__tests__/e2e-message.service.test.ts - Test that when encryption:'e2e' is set, the stored message content is not the original plaintext. Test the round-trip: encrypted message can be decrypted by recipient.",
@@ -31,5 +31,5 @@
     "NODE_OPTIONS='' npx vitest run apps/quantchat"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 169 tests pass (120 in packages/auth, 49 in apps/quantchat). Pre-existing TS6305 errors about packages/common dist output still present (unrelated). The openpgp v6 API uses type: 'curve25519' (not curve: 'curve25519'), and encryptKey/decryptKey accept a single passphrase string that is auto-filled for all key packets. Keys generated with passphrase are returned encrypted, so they need decryptKey before use in decrypt operations. Prettier pre-commit hook reformatted files on commit."
 }
