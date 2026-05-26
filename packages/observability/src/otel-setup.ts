@@ -86,6 +86,11 @@ export class OTelSetup {
     const metrics = this.metrics;
 
     const spanMap = new Map<string, Span>();
+    const spanTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+    // TTL-based cleanup: if onResponse never fires (dropped connection, timeout),
+    // remove the span entry after 60 seconds to prevent memory leaks.
+    const SPAN_TTL_MS = 60_000;
 
     app.addHook('onRequest', (...args: unknown[]) => {
       const request = args[0] as { id?: string; method?: string; url?: string } | undefined;
@@ -104,6 +109,22 @@ export class OTelSetup {
       );
       if (span) {
         spanMap.set(requestId, span);
+
+        // Set a TTL timer to clean up the span if onResponse never fires
+        const timer = setTimeout(() => {
+          if (spanMap.has(requestId)) {
+            tracer.endSpan(span.id, { code: 'error', message: 'Span TTL expired (no response)' });
+            spanMap.delete(requestId);
+            spanTimers.delete(requestId);
+          }
+        }, SPAN_TTL_MS);
+
+        // Unref the timer so it does not prevent process exit
+        if (typeof timer === 'object' && 'unref' in timer) {
+          timer.unref();
+        }
+
+        spanTimers.set(requestId, timer);
       }
       if (metrics) {
         metrics.incrementCounter('http_requests_total', 1, {
@@ -121,6 +142,13 @@ export class OTelSetup {
       const requestId = request?.id ?? '';
       const span = spanMap.get(requestId);
       if (span) {
+        // Clear the TTL timer since we received a response
+        const timer = spanTimers.get(requestId);
+        if (timer) {
+          clearTimeout(timer);
+          spanTimers.delete(requestId);
+        }
+
         const statusCode = reply?.statusCode ?? 200;
         tracer.setSpanAttributes(span.id, {
           'http.status_code': statusCode,

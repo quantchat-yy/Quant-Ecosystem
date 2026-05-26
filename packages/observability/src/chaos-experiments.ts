@@ -46,9 +46,16 @@ export class ChaosExperimentRunner {
   }
 
   /**
-   * Create a disk fill experiment for a target service.
+   * Simulate disk pressure for a target service.
+   *
+   * NOTE: The underlying ChaosEngine only supports 'memory' | 'cpu' resource types.
+   * This method uses memory allocation as a proxy to simulate disk pressure, since
+   * true disk I/O fault injection is not supported by the engine. Consumers should
+   * be aware that this does not fill actual disk space; it increases memory usage
+   * to approximate the resource contention caused by a full disk.
    */
   diskFill(targetService: string, fillPercentage: number): ChaosExperiment {
+    // Using memory as a proxy for disk pressure - see JSDoc above for explanation.
     return this.engine.createExperiment(
       `disk-fill-${targetService}`,
       'resource',

@@ -22,7 +22,7 @@ export { ServiceSLODefinitions, parseSLOConfig, getServiceSLO } from './slo-defi
 export { BurnRateCalculator } from './slo-burn-rate';
 export { ChaosExperimentRunner } from './chaos-experiments';
 export { RunbookGenerator } from './runbook-generator';
-export { SyntheticMonitor } from './synthetic-monitor';
+export { SyntheticMonitor, HttpClientFn } from './synthetic-monitor';
 export { DashboardConfigGenerator } from './dashboard-config';
 export { PagerDutyIntegration } from './pagerduty-integration';
 

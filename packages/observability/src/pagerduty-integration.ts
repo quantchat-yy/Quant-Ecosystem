@@ -8,9 +8,11 @@ export class PagerDutyIntegration {
   private routingKey: string;
   private incidents: Map<string, PagerDutyIncident> = new Map();
   private incidentCounter: number = 0;
+  private maxIncidents: number;
 
-  constructor(routingKey: string) {
+  constructor(routingKey: string, options?: { maxIncidents?: number }) {
     this.routingKey = routingKey;
+    this.maxIncidents = options?.maxIncidents ?? 1000;
   }
 
   /**
@@ -38,6 +40,7 @@ export class PagerDutyIntegration {
     };
 
     this.incidents.set(id, incident);
+    this.evictOldResolvedIncidents();
     return incident;
   }
 
@@ -139,5 +142,30 @@ export class PagerDutyIntegration {
    */
   getIncident(id: string): PagerDutyIncident | null {
     return this.incidents.get(id) ?? null;
+  }
+
+  /**
+   * Evict the oldest resolved incidents when the map exceeds maxIncidents.
+   */
+  private evictOldResolvedIncidents(): void {
+    if (this.incidents.size <= this.maxIncidents) return;
+
+    // Collect resolved incidents sorted by updatedAt (oldest first)
+    const resolvedEntries: Array<[string, PagerDutyIncident]> = [];
+    for (const [key, incident] of this.incidents) {
+      if (incident.status === 'resolved') {
+        resolvedEntries.push([key, incident]);
+      }
+    }
+
+    resolvedEntries.sort((a, b) => a[1].updatedAt - b[1].updatedAt);
+
+    // Remove oldest resolved incidents until we are at or below maxIncidents
+    let toRemove = this.incidents.size - this.maxIncidents;
+    for (const [key] of resolvedEntries) {
+      if (toRemove <= 0) break;
+      this.incidents.delete(key);
+      toRemove--;
+    }
   }
 }

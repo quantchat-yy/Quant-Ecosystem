@@ -4,6 +4,15 @@
 
 import { ProbeConfig, ProbeResult, JourneyStep, JourneyResult } from './types';
 
+/**
+ * HTTP client function type for executing probe checks.
+ * In production, inject a real HTTP client (e.g., fetch-based) via the constructor.
+ */
+export type HttpClientFn = (
+  url: string,
+  options?: { timeout?: number; headers?: Record<string, string> },
+) => Promise<{ statusCode: number }>;
+
 interface RegisteredProbe {
   name: string;
   config: ProbeConfig;
@@ -18,6 +27,23 @@ interface RegisteredJourney {
 export class SyntheticMonitor {
   private probes: Map<string, RegisteredProbe> = new Map();
   private journeys: Map<string, RegisteredJourney> = new Map();
+  private httpClient: HttpClientFn;
+
+  constructor(httpClient?: HttpClientFn) {
+    this.httpClient = httpClient ?? SyntheticMonitor.defaultHttpClient;
+  }
+
+  /**
+   * Default stub HTTP client. Always returns statusCode 200.
+   * This exists for testing and development. In production, provide a real
+   * HTTP client via the constructor parameter.
+   */
+  private static defaultHttpClient: HttpClientFn = async (
+    _url: string,
+    _options?: { timeout?: number; headers?: Record<string, string> },
+  ): Promise<{ statusCode: number }> => {
+    return { statusCode: 200 };
+  };
 
   /**
    * Register a probe for health checking.
@@ -202,11 +228,19 @@ export class SyntheticMonitor {
     return Array.from(this.journeys.keys());
   }
 
+  /**
+   * Execute an HTTP check against the probe's configured URL.
+   *
+   * This is a simulation stub by default that always returns { statusCode: 200 }.
+   * For production use, inject a real HTTP client (e.g., using fetch or got) via the
+   * constructor's `httpClient` parameter. The injected client will be called with the
+   * probe's URL, timeout, and headers, allowing real endpoint health verification.
+   */
   private async executeCheck(config: ProbeConfig): Promise<{ statusCode: number }> {
-    // Simulated HTTP check - in production this would make real HTTP calls.
-    // Returns 200 as the simulated response for the configured URL.
-    void config;
-    return { statusCode: 200 };
+    return this.httpClient(config.url, {
+      timeout: config.timeout,
+      headers: config.headers,
+    });
   }
 
   private timeoutPromise(timeoutMs: number): Promise<never> {

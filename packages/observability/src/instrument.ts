@@ -6,6 +6,7 @@ import { DistributedTracer } from './core/distributed-tracer';
 import { InstrumentOptions } from './types';
 
 let globalTracer: DistributedTracer | null = null;
+let hasWarnedMissingTracer = false;
 
 /**
  * Configure the tracer instance used by the @instrument() decorator.
@@ -33,6 +34,13 @@ export function instrument(options?: InstrumentOptions) {
     descriptor.value = function (this: unknown, ...args: unknown[]) {
       const tracer = globalTracer;
       if (!tracer) {
+        if (!hasWarnedMissingTracer) {
+          hasWarnedMissingTracer = true;
+          console.warn(
+            '[@quant/observability] @instrument() decorator invoked before configureInstrument() was called. ' +
+              'Tracing is disabled. Call configureInstrument(tracer) during application startup.',
+          );
+        }
         return originalMethod.apply(this, args);
       }
 
