@@ -541,6 +541,37 @@ importers:
         specifier: ^3.25.23
         version: 3.25.76
 
+  apps/quantpay:
+    dependencies:
+      '@quant/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@quant/payments':
+        specifier: workspace:*
+        version: link:../../packages/payments
+      '@quant/server-core':
+        specifier: workspace:*
+        version: link:../../packages/server-core
+      fastify:
+        specifier: ^5.3.3
+        version: 5.8.5
+      ioredis:
+        specifier: ^5.6.1
+        version: 5.10.1
+      zod:
+        specifier: ^3.25.23
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
   apps/quantsync:
     dependencies:
       '@quant/ai':

@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Phase 31: QuantPay - Payments & Financial Services App. Create apps/quantpay/ with P2P transfers, QR payments, split bills, subscription management, multi-currency support, virtual cards, merchant tools, and integration hooks for tipping/paid features across ecosystem.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create apps/quantpay/package.json with deps: @quant/common, @quant/auth, @quant/server-core, @quant/payments (workspace:*), fastify, zod, ioredis. Create apps/quantpay/tsconfig.json extending root with references to packages used.",
     "Create apps/quantpay/backend/app.ts following quantmeet pattern - createApp from @quant/server-core, register routes for transfers, wallets, merchants, cards",
