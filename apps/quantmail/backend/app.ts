@@ -5,6 +5,7 @@ import threadsRoutes from './routes/threads';
 import foldersRoutes from './routes/folders';
 import contactsRoutes from './routes/contacts';
 import aiRoutes from './routes/ai';
+import aiServicesRoutes from './routes/ai-services';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -37,6 +38,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(foldersRoutes, { prefix: '/folders' });
   await app.register(contactsRoutes, { prefix: '/contacts' });
   await app.register(aiRoutes, { prefix: '/emails' });
+  await app.register(aiServicesRoutes, { prefix: '/api/v1' });
 
   return app;
 }

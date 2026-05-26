@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Create 5 email infrastructure services (aliases, disposable email, tracking pixel stripper, PGP encryption, undo send) and Fastify routes for all AI services with proper Zod schemas.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create apps/quantmail/backend/services/email-aliases.service.ts - Handles user+anything@quant.email routing to user@quant.email. Methods: resolveAlias(address), createAlias(userId, alias), listAliases(userId), deleteAlias(userId, aliasId). Use Zod for alias validation.",
     "Create apps/quantmail/backend/services/disposable-email.service.ts - Creates random@quant.email addresses that expire in 24h. Use crypto.randomBytes for generating addresses. Methods: createDisposable(userId, ttlMs?), getDisposable(address), listActive(userId), revokeDisposable(address, userId).",

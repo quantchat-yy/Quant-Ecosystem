@@ -253,6 +253,9 @@ importers:
       '@quant/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@quant/queue':
+        specifier: workspace:*
+        version: link:../../packages/queue
       '@quant/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime
@@ -6925,14 +6928,6 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 1.2.0
 
-  '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@22.19.19))':
-    dependencies:
-      '@vitest/spy': 2.1.9
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      vite: 5.4.21(@types/node@22.19.19)
-
   '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@25.9.1))':
     dependencies:
       '@vitest/spy': 2.1.9
@@ -9582,7 +9577,7 @@ snapshots:
   vitest@2.1.9(@types/node@22.19.19)(jsdom@25.0.1):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@22.19.19))
+      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@25.9.1))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9

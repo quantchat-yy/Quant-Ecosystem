@@ -19,6 +19,7 @@
     "@quant/ai": "workspace:*",
     "@quant/common": "workspace:*",
     "@quant/database": "workspace:*",
+    "@quant/queue": "workspace:*",
     "@quant/realtime": "workspace:*",
     "@quant/server-core": "workspace:*",
     "@quant/shared-ui": "workspace:*",
