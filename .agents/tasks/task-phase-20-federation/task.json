@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-20-federation",
+  "task_description": "Phase 20: Federation (ActivityPub + Matrix) - Implement a complete federation package with ActivityPub protocol support (actor, inbox, outbox, HTTP signatures, WebFinger, NodeInfo, delivery queue), Matrix bridge (bridge-bot, room-mapper), and federation moderation (instance blocklist/allowlist).",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}
