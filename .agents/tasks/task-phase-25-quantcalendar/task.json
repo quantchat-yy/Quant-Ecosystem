@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-25-quantcalendar",
+  "task_description": "Phase 25: Create apps/quantcalendar/ - a standalone calendar app with AI scheduling, recurring events, booking links, buffer time, focus blocks, cancel detection, rescheduling, and weekly digests.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}

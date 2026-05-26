@@ -61,6 +61,11 @@ export const QUANT_APPS: Record<QuantApp, { name: string; description: string; c
     description: 'Encrypted cloud storage with AI-powered file organization',
     color: '#2ECC71',
   },
+  quantcalendar: {
+    name: 'QuantCalendar',
+    description: 'Calendar with AI scheduling, booking links, and smart time management',
+    color: '#FF8C00',
+  },
 };
 
 /** API Base URLs */

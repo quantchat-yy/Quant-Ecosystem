@@ -160,7 +160,8 @@ export type QuantApp =
   | 'quantmax'
   | 'quantai'
   | 'quantdocs'
-  | 'quantdrive';
+  | 'quantdrive'
+  | 'quantcalendar';
 
 /** OAuth2 token response */
 export interface OAuthTokenResponse {
