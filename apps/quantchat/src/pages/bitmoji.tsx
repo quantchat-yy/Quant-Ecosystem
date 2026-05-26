@@ -58,7 +58,21 @@ const HAIR_STYLES: CategoryOption[] = [
   { id: 'wavy', label: 'Wavy', preview: '\u{1F9D1}' },
 ];
 
-const HAIR_COLORS = ['#000000', '#2C1B18', '#4A3728', '#8B6914', '#B8860B', '#D4A76A', '#E8C07A', '#FF4500', '#8B0000', '#FF69B4', '#800080', '#4169E1', '#00CED1'];
+const HAIR_COLORS = [
+  '#000000',
+  '#2C1B18',
+  '#4A3728',
+  '#8B6914',
+  '#B8860B',
+  '#D4A76A',
+  '#E8C07A',
+  '#FF4500',
+  '#8B0000',
+  '#FF69B4',
+  '#800080',
+  '#4169E1',
+  '#00CED1',
+];
 
 const EYE_SHAPES: CategoryOption[] = [
   { id: 'round', label: 'Round', preview: '\u{1F441}' },
@@ -82,16 +96,35 @@ const OUTFITS: CategoryOption[] = [
   { id: 'polo', label: 'Polo', preview: '\u{1F455}' },
 ];
 
-const ACCESSORIES = ['glasses', 'sunglasses', 'earrings', 'necklace', 'hat', 'headband', 'piercing', 'scarf'];
+const ACCESSORIES = [
+  'glasses',
+  'sunglasses',
+  'earrings',
+  'necklace',
+  'hat',
+  'headband',
+  'piercing',
+  'scarf',
+];
 
 type EditorTab = 'face' | 'hair' | 'eyes' | 'nose' | 'mouth' | 'outfit' | 'accessories';
 
 export const BitmojiPage: React.FC<BitmojiPageProps> = ({ userId }) => {
   const [config, setConfig] = useState<AvatarConfig>({
-    faceShape: 'oval', skinTone: '#FFDBB4', hairStyle: 'medium', hairColor: '#2C1B18',
-    eyeShape: 'almond', eyeColor: '#634E34', noseShape: 'small', mouthShape: 'smile',
-    eyebrowShape: 'natural', facialHair: 'none', outfit: 'casual_tee', outfitColor: '#4A90D9',
-    accessories: [], background: '#FFFC00'
+    faceShape: 'oval',
+    skinTone: '#FFDBB4',
+    hairStyle: 'medium',
+    hairColor: '#2C1B18',
+    eyeShape: 'almond',
+    eyeColor: '#634E34',
+    noseShape: 'small',
+    mouthShape: 'smile',
+    eyebrowShape: 'natural',
+    facialHair: 'none',
+    outfit: 'casual_tee',
+    outfitColor: '#4A90D9',
+    accessories: [],
+    background: '#FFFC00',
   });
   const [activeTab, setActiveTab] = useState<EditorTab>('face');
   const [loading, setLoading] = useState<boolean>(true);
@@ -104,47 +137,67 @@ export const BitmojiPage: React.FC<BitmojiPageProps> = ({ userId }) => {
   const fetchCurrentAvatar = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/bitmoji/current', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
-      if (response.ok) { const data = await response.json(); if (data.config) setConfig(data.config); }
-    } catch (err) { console.error('Failed to load avatar:', err); }
-    finally { setLoading(false); }
+      const response = await fetch('/api/bitmoji/current', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.config) setConfig(data.config);
+      }
+    } catch (err) {
+      console.error('Failed to load avatar:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { fetchCurrentAvatar(); }, [fetchCurrentAvatar]);
+  useEffect(() => {
+    fetchCurrentAvatar();
+  }, [fetchCurrentAvatar]);
 
-  const updateConfig = useCallback((updates: Partial<AvatarConfig>) => {
-    setConfig(prev => {
-      const newConfig = { ...prev, ...updates };
-      setHistory(h => [...h.slice(0, historyIndex + 1), prev]);
-      setHistoryIndex(i => i + 1);
-      return newConfig;
-    });
-  }, [historyIndex]);
+  const updateConfig = useCallback(
+    (updates: Partial<AvatarConfig>) => {
+      setConfig((prev) => {
+        const newConfig = { ...prev, ...updates };
+        setHistory((h) => [...h.slice(0, historyIndex + 1), prev]);
+        setHistoryIndex((i) => i + 1);
+        return newConfig;
+      });
+    },
+    [historyIndex],
+  );
 
   const handleUndo = useCallback(() => {
     if (historyIndex >= 0) {
       setConfig(history[historyIndex]);
-      setHistoryIndex(i => i - 1);
+      setHistoryIndex((i) => i - 1);
     }
   }, [history, historyIndex]);
 
   const handleRandomize = useCallback(() => {
-    const random = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+    const random = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
     const randomConfig: AvatarConfig = {
-      faceShape: random(FACE_SHAPES).id, skinTone: random(SKIN_TONES),
-      hairStyle: random(HAIR_STYLES).id, hairColor: random(HAIR_COLORS),
-      eyeShape: random(EYE_SHAPES).id, eyeColor: random(EYE_COLORS),
+      faceShape: random(FACE_SHAPES).id,
+      skinTone: random(SKIN_TONES),
+      hairStyle: random(HAIR_STYLES).id,
+      hairColor: random(HAIR_COLORS),
+      eyeShape: random(EYE_SHAPES).id,
+      eyeColor: random(EYE_COLORS),
       noseShape: random(['small', 'medium', 'large', 'pointed', 'button', 'wide']),
       mouthShape: random(['smile', 'neutral', 'grin', 'pout', 'open']),
       eyebrowShape: random(['natural', 'thick', 'thin', 'arched', 'straight']),
       facialHair: random(['none', 'beard', 'mustache', 'goatee', 'stubble']),
       outfit: random(OUTFITS).id,
-      outfitColor: `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`,
+      outfitColor: `#${Math.floor(Math.random() * 16777215)
+        .toString(16)
+        .padStart(6, '0')}`,
       accessories: ACCESSORIES.filter(() => Math.random() > 0.7),
-      background: `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`
+      background: `#${Math.floor(Math.random() * 16777215)
+        .toString(16)
+        .padStart(6, '0')}`,
     };
-    setHistory(h => [...h, config]);
-    setHistoryIndex(i => i + 1);
+    setHistory((h) => [...h, config]);
+    setHistoryIndex((i) => i + 1);
     setConfig(randomConfig);
   }, [config]);
 
@@ -153,18 +206,26 @@ export const BitmojiPage: React.FC<BitmojiPageProps> = ({ userId }) => {
     try {
       const response = await fetch('/api/bitmoji/save', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ config })
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ config }),
       });
       if (!response.ok) throw new Error('Failed to save avatar');
-    } catch (err) { setError(err instanceof Error ? err.message : 'Save failed'); }
-    finally { setSaving(false); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
   }, [config]);
 
   const toggleAccessory = useCallback((acc: string) => {
-    setConfig(prev => ({
+    setConfig((prev) => ({
       ...prev,
-      accessories: prev.accessories.includes(acc) ? prev.accessories.filter(a => a !== acc) : [...prev.accessories, acc]
+      accessories: prev.accessories.includes(acc)
+        ? prev.accessories.filter((a) => a !== acc)
+        : [...prev.accessories, acc],
     }));
   }, []);
 
@@ -172,16 +233,27 @@ export const BitmojiPage: React.FC<BitmojiPageProps> = ({ userId }) => {
     return { faceEmoji: '\u{1F9D1}', hairEmoji: config.hairStyle === 'bald' ? '' : '\u{1F487}' };
   }, [config]);
 
-  if (loading) return <div className="bitmoji-loading"><div className="spinner">Loading avatar editor...</div></div>;
+  if (loading)
+    return (
+      <div className="bitmoji-loading">
+        <div className="spinner">Loading avatar editor...</div>
+      </div>
+    );
 
   return (
     <div className="bitmoji-page">
       <header className="bitmoji-header">
         <h1>Create Your Avatar</h1>
         <div className="header-actions">
-          <button onClick={handleUndo} disabled={historyIndex < 0} className="undo-btn">Undo</button>
-          <button onClick={handleRandomize} className="random-btn">Randomize</button>
-          <button onClick={handleSave} disabled={saving} className="save-btn">{saving ? 'Saving...' : 'Save Avatar'}</button>
+          <button onClick={handleUndo} disabled={historyIndex < 0} className="undo-btn">
+            Undo
+          </button>
+          <button onClick={handleRandomize} className="random-btn">
+            Randomize
+          </button>
+          <button onClick={handleSave} disabled={saving} className="save-btn">
+            {saving ? 'Saving...' : 'Save Avatar'}
+          </button>
         </div>
       </header>
 
@@ -190,30 +262,66 @@ export const BitmojiPage: React.FC<BitmojiPageProps> = ({ userId }) => {
           <div className="avatar-preview" style={{ backgroundColor: config.background }}>
             <div className="avatar-body" style={{ color: config.skinTone }}>
               <div className="avatar-face" style={{ borderColor: config.skinTone }}>
-                <div className="face-shape" data-shape={config.faceShape} style={{ backgroundColor: config.skinTone }}>
-                  <div className="hair" style={{ backgroundColor: config.hairColor }} data-style={config.hairStyle}></div>
+                <div
+                  className="face-shape"
+                  data-shape={config.faceShape}
+                  style={{ backgroundColor: config.skinTone }}
+                >
+                  <div
+                    className="hair"
+                    style={{ backgroundColor: config.hairColor }}
+                    data-style={config.hairStyle}
+                  ></div>
                   <div className="eyebrows" data-shape={config.eyebrowShape}></div>
-                  <div className="eyes" data-shape={config.eyeShape}><div className="iris" style={{ backgroundColor: config.eyeColor }}></div></div>
+                  <div className="eyes" data-shape={config.eyeShape}>
+                    <div className="iris" style={{ backgroundColor: config.eyeColor }}></div>
+                  </div>
                   <div className="nose" data-shape={config.noseShape}></div>
                   <div className="mouth" data-shape={config.mouthShape}></div>
-                  {config.facialHair !== 'none' && <div className="facial-hair" data-type={config.facialHair} style={{ backgroundColor: config.hairColor }}></div>}
+                  {config.facialHair !== 'none' && (
+                    <div
+                      className="facial-hair"
+                      data-type={config.facialHair}
+                      style={{ backgroundColor: config.hairColor }}
+                    ></div>
+                  )}
                 </div>
               </div>
-              <div className="avatar-outfit" style={{ backgroundColor: config.outfitColor }} data-outfit={config.outfit}></div>
-              {config.accessories.map(acc => <div key={acc} className={`accessory accessory-${acc}`}></div>)}
+              <div
+                className="avatar-outfit"
+                style={{ backgroundColor: config.outfitColor }}
+                data-outfit={config.outfit}
+              ></div>
+              {config.accessories.map((acc) => (
+                <div key={acc} className={`accessory accessory-${acc}`}></div>
+              ))}
             </div>
           </div>
           <div className="animation-controls">
-            {['idle', 'wave', 'dance', 'laugh', 'think'].map(anim => (
-              <button key={anim} onClick={() => setPreviewAnimation(anim)} className={previewAnimation === anim ? 'active' : ''}>{anim}</button>
+            {['idle', 'wave', 'dance', 'laugh', 'think'].map((anim) => (
+              <button
+                key={anim}
+                onClick={() => setPreviewAnimation(anim)}
+                className={previewAnimation === anim ? 'active' : ''}
+              >
+                {anim}
+              </button>
             ))}
           </div>
         </div>
 
         <div className="editor-panel">
           <nav className="editor-tabs">
-            {(['face', 'hair', 'eyes', 'nose', 'mouth', 'outfit', 'accessories'] as EditorTab[]).map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)} className={activeTab === tab ? 'active' : ''}>{tab.charAt(0).toUpperCase() + tab.slice(1)}</button>
+            {(
+              ['face', 'hair', 'eyes', 'nose', 'mouth', 'outfit', 'accessories'] as EditorTab[]
+            ).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={activeTab === tab ? 'active' : ''}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
             ))}
           </nav>
 
@@ -221,54 +329,210 @@ export const BitmojiPage: React.FC<BitmojiPageProps> = ({ userId }) => {
             {activeTab === 'face' && (
               <div className="face-editor">
                 <h3>Face Shape</h3>
-                <div className="options-grid">{FACE_SHAPES.map(shape => (<button key={shape.id} onClick={() => updateConfig({ faceShape: shape.id })} className={config.faceShape === shape.id ? 'selected' : ''}><span className="option-preview">{shape.preview}</span><span>{shape.label}</span></button>))}</div>
+                <div className="options-grid">
+                  {FACE_SHAPES.map((shape) => (
+                    <button
+                      key={shape.id}
+                      onClick={() => updateConfig({ faceShape: shape.id })}
+                      className={config.faceShape === shape.id ? 'selected' : ''}
+                    >
+                      <span className="option-preview">{shape.preview}</span>
+                      <span>{shape.label}</span>
+                    </button>
+                  ))}
+                </div>
                 <h3>Skin Tone</h3>
-                <div className="color-picker-row">{SKIN_TONES.map(tone => (<button key={tone} onClick={() => updateConfig({ skinTone: tone })} className={`color-swatch ${config.skinTone === tone ? 'selected' : ''}`} style={{ backgroundColor: tone }}></button>))}</div>
+                <div className="color-picker-row">
+                  {SKIN_TONES.map((tone) => (
+                    <button
+                      key={tone}
+                      onClick={() => updateConfig({ skinTone: tone })}
+                      className={`color-swatch ${config.skinTone === tone ? 'selected' : ''}`}
+                      style={{ backgroundColor: tone }}
+                    ></button>
+                  ))}
+                </div>
                 <h3>Facial Hair</h3>
-                <div className="options-row">{['none', 'stubble', 'mustache', 'goatee', 'beard', 'full'].map(fh => (<button key={fh} onClick={() => updateConfig({ facialHair: fh })} className={config.facialHair === fh ? 'selected' : ''}>{fh}</button>))}</div>
+                <div className="options-row">
+                  {['none', 'stubble', 'mustache', 'goatee', 'beard', 'full'].map((fh) => (
+                    <button
+                      key={fh}
+                      onClick={() => updateConfig({ facialHair: fh })}
+                      className={config.facialHair === fh ? 'selected' : ''}
+                    >
+                      {fh}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             {activeTab === 'hair' && (
               <div className="hair-editor">
                 <h3>Hairstyle</h3>
-                <div className="options-grid">{HAIR_STYLES.map(style => (<button key={style.id} onClick={() => updateConfig({ hairStyle: style.id })} className={config.hairStyle === style.id ? 'selected' : ''}><span className="option-preview">{style.preview}</span><span>{style.label}</span></button>))}</div>
+                <div className="options-grid">
+                  {HAIR_STYLES.map((style) => (
+                    <button
+                      key={style.id}
+                      onClick={() => updateConfig({ hairStyle: style.id })}
+                      className={config.hairStyle === style.id ? 'selected' : ''}
+                    >
+                      <span className="option-preview">{style.preview}</span>
+                      <span>{style.label}</span>
+                    </button>
+                  ))}
+                </div>
                 <h3>Hair Color</h3>
-                <div className="color-picker-row">{HAIR_COLORS.map(color => (<button key={color} onClick={() => updateConfig({ hairColor: color })} className={`color-swatch ${config.hairColor === color ? 'selected' : ''}`} style={{ backgroundColor: color }}></button>))}</div>
+                <div className="color-picker-row">
+                  {HAIR_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => updateConfig({ hairColor: color })}
+                      className={`color-swatch ${config.hairColor === color ? 'selected' : ''}`}
+                      style={{ backgroundColor: color }}
+                    ></button>
+                  ))}
+                </div>
               </div>
             )}
             {activeTab === 'eyes' && (
               <div className="eyes-editor">
                 <h3>Eye Shape</h3>
-                <div className="options-grid">{EYE_SHAPES.map(shape => (<button key={shape.id} onClick={() => updateConfig({ eyeShape: shape.id })} className={config.eyeShape === shape.id ? 'selected' : ''}><span className="option-preview">{shape.preview}</span><span>{shape.label}</span></button>))}</div>
+                <div className="options-grid">
+                  {EYE_SHAPES.map((shape) => (
+                    <button
+                      key={shape.id}
+                      onClick={() => updateConfig({ eyeShape: shape.id })}
+                      className={config.eyeShape === shape.id ? 'selected' : ''}
+                    >
+                      <span className="option-preview">{shape.preview}</span>
+                      <span>{shape.label}</span>
+                    </button>
+                  ))}
+                </div>
                 <h3>Eye Color</h3>
-                <div className="color-picker-row">{EYE_COLORS.map(color => (<button key={color} onClick={() => updateConfig({ eyeColor: color })} className={`color-swatch ${config.eyeColor === color ? 'selected' : ''}`} style={{ backgroundColor: color }}></button>))}</div>
+                <div className="color-picker-row">
+                  {EYE_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => updateConfig({ eyeColor: color })}
+                      className={`color-swatch ${config.eyeColor === color ? 'selected' : ''}`}
+                      style={{ backgroundColor: color }}
+                    ></button>
+                  ))}
+                </div>
                 <h3>Eyebrow Shape</h3>
-                <div className="options-row">{['natural', 'thick', 'thin', 'arched', 'straight', 'bushy'].map(eb => (<button key={eb} onClick={() => updateConfig({ eyebrowShape: eb })} className={config.eyebrowShape === eb ? 'selected' : ''}>{eb}</button>))}</div>
+                <div className="options-row">
+                  {['natural', 'thick', 'thin', 'arched', 'straight', 'bushy'].map((eb) => (
+                    <button
+                      key={eb}
+                      onClick={() => updateConfig({ eyebrowShape: eb })}
+                      className={config.eyebrowShape === eb ? 'selected' : ''}
+                    >
+                      {eb}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             {activeTab === 'nose' && (
-              <div className="nose-editor"><h3>Nose Shape</h3><div className="options-row">{['small', 'medium', 'large', 'pointed', 'button', 'wide', 'upturned', 'roman'].map(ns => (<button key={ns} onClick={() => updateConfig({ noseShape: ns })} className={config.noseShape === ns ? 'selected' : ''}>{ns}</button>))}</div></div>
+              <div className="nose-editor">
+                <h3>Nose Shape</h3>
+                <div className="options-row">
+                  {[
+                    'small',
+                    'medium',
+                    'large',
+                    'pointed',
+                    'button',
+                    'wide',
+                    'upturned',
+                    'roman',
+                  ].map((ns) => (
+                    <button
+                      key={ns}
+                      onClick={() => updateConfig({ noseShape: ns })}
+                      className={config.noseShape === ns ? 'selected' : ''}
+                    >
+                      {ns}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
             {activeTab === 'mouth' && (
-              <div className="mouth-editor"><h3>Mouth Shape</h3><div className="options-row">{['smile', 'neutral', 'grin', 'pout', 'open', 'smirk', 'laugh', 'teeth'].map(ms => (<button key={ms} onClick={() => updateConfig({ mouthShape: ms })} className={config.mouthShape === ms ? 'selected' : ''}>{ms}</button>))}</div></div>
+              <div className="mouth-editor">
+                <h3>Mouth Shape</h3>
+                <div className="options-row">
+                  {['smile', 'neutral', 'grin', 'pout', 'open', 'smirk', 'laugh', 'teeth'].map(
+                    (ms) => (
+                      <button
+                        key={ms}
+                        onClick={() => updateConfig({ mouthShape: ms })}
+                        className={config.mouthShape === ms ? 'selected' : ''}
+                      >
+                        {ms}
+                      </button>
+                    ),
+                  )}
+                </div>
+              </div>
             )}
             {activeTab === 'outfit' && (
               <div className="outfit-editor">
                 <h3>Outfit</h3>
-                <div className="options-grid">{OUTFITS.map(o => (<button key={o.id} onClick={() => updateConfig({ outfit: o.id })} className={config.outfit === o.id ? 'selected' : ''}><span className="option-preview">{o.preview}</span><span>{o.label}</span></button>))}</div>
+                <div className="options-grid">
+                  {OUTFITS.map((o) => (
+                    <button
+                      key={o.id}
+                      onClick={() => updateConfig({ outfit: o.id })}
+                      className={config.outfit === o.id ? 'selected' : ''}
+                    >
+                      <span className="option-preview">{o.preview}</span>
+                      <span>{o.label}</span>
+                    </button>
+                  ))}
+                </div>
                 <h3>Color</h3>
-                <input type="color" value={config.outfitColor} onChange={(e) => updateConfig({ outfitColor: e.target.value })} className="color-input" />
+                <input
+                  type="color"
+                  value={config.outfitColor}
+                  onChange={(e) => updateConfig({ outfitColor: e.target.value })}
+                  className="color-input"
+                />
                 <h3>Background</h3>
-                <input type="color" value={config.background} onChange={(e) => updateConfig({ background: e.target.value })} className="color-input" />
+                <input
+                  type="color"
+                  value={config.background}
+                  onChange={(e) => updateConfig({ background: e.target.value })}
+                  className="color-input"
+                />
               </div>
             )}
             {activeTab === 'accessories' && (
-              <div className="accessories-editor"><h3>Accessories</h3><div className="accessories-grid">{ACCESSORIES.map(acc => (<button key={acc} onClick={() => toggleAccessory(acc)} className={config.accessories.includes(acc) ? 'selected' : ''}>{acc}</button>))}</div></div>
+              <div className="accessories-editor">
+                <h3>Accessories</h3>
+                <div className="accessories-grid">
+                  {ACCESSORIES.map((acc) => (
+                    <button
+                      key={acc}
+                      onClick={() => toggleAccessory(acc)}
+                      className={config.accessories.includes(acc) ? 'selected' : ''}
+                    >
+                      {acc}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>
       </div>
-      {error && <div className="error-toast">{error}<button onClick={() => setError(null)}>Dismiss</button></div>}
+      {error && (
+        <div className="error-toast">
+          {error}
+          <button onClick={() => setError(null)}>Dismiss</button>
+        </div>
+      )}
     </div>
   );
 };

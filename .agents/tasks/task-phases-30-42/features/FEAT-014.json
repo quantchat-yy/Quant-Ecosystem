@@ -1,0 +1,26 @@
+{
+  "id": "FEAT-014",
+  "type": "fix",
+  "description": "Fix all TypeScript errors in the codebase to make the build pass green. There are errors in 6 TSX files: apps/quantchat/src/components/StoryCreator.tsx, apps/quantchat/src/pages/bitmoji.tsx, apps/quantchat/src/pages/spotlight.tsx, apps/quantmail/src/components/FileManager.tsx, apps/quantmail/src/pages/drive.tsx, apps/quantmail/src/pages/security.tsx. All errors are JSX syntax issues (numeric literals in template expressions, broken JSX tags).",
+  "status": "in_progress",
+  "steps": [
+    "Read apps/quantchat/src/components/StoryCreator.tsx around lines 153-155 and fix the numeric literal issues (likely Tailwind classes like `w-[100px]` not properly escaped in JSX template literals)",
+    "Read apps/quantchat/src/pages/bitmoji.tsx around lines 130-175 and fix the broken JSX (missing closing tags, improper template syntax). This file has the most errors.",
+    "Read apps/quantchat/src/pages/spotlight.tsx around lines 128-134 and fix numeric literal issues",
+    "Read apps/quantmail/src/components/FileManager.tsx around lines 245 and 282 and fix numeric literal issues",
+    "Read apps/quantmail/src/pages/drive.tsx around line 282 and fix numeric literal issue",
+    "Read apps/quantmail/src/pages/security.tsx around line 374 and fix numeric literal issue",
+    "Run npx tsc --noEmit to confirm zero errors"
+  ],
+  "acceptance_criteria": [
+    "Running `npx tsc --noEmit` produces zero TypeScript errors",
+    "All 3271+ existing tests still pass",
+    "No functional changes - only syntax fixes"
+  ],
+  "verification": [
+    "Run: unset NODE_OPTIONS && npx tsc --noEmit (should produce no output)",
+    "Run: unset NODE_OPTIONS && npx vitest run (all tests pass)"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
