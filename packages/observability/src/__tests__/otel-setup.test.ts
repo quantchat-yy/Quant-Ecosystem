@@ -55,10 +55,10 @@ describe('OTelSetup', () => {
     otel.setup();
 
     let middleware:
-      | ((params: unknown, next: (p: unknown) => Promise<unknown>) => Promise<unknown>)
+      | ((params: { model?: string; action?: string; args?: unknown }, next: (params: unknown) => Promise<unknown>) => Promise<unknown>)
       | null = null;
     const mockClient = {
-      $use: (mw: (params: unknown, next: (p: unknown) => Promise<unknown>) => Promise<unknown>) => {
+      $use: (mw: (params: { model?: string; action?: string; args?: unknown }, next: (params: unknown) => Promise<unknown>) => Promise<unknown>) => {
         middleware = mw;
       },
     };
@@ -68,7 +68,7 @@ describe('OTelSetup', () => {
 
     // Simulate a query
     const params = { model: 'User', action: 'findMany', args: {} };
-    const next = async (p: unknown) => [{ id: 1 }];
+    const next = async (_p: unknown) => [{ id: 1 }];
     await middleware!(params, next);
 
     const tracer = otel.getTracer();
