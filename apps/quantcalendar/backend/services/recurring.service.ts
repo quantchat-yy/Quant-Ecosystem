@@ -44,12 +44,14 @@ export class RecurringService {
             });
             count++;
           }
-        } else {
-          count++;
         }
+        // Exception dates do NOT decrement count (RFC 5545: COUNT = generated instances)
       } else {
         if (this.matchesRule(current, rule)) {
-          count++;
+          const dateKey = current.toISOString().split('T')[0];
+          if (!exceptionSet.has(dateKey)) {
+            count++;
+          }
         }
       }
 
@@ -101,6 +103,9 @@ export class RecurringService {
         case 'BYMONTH':
           rule.byMonth = value.split(',').map((v) => parseInt(v, 10));
           break;
+        case 'EXDATE':
+          rule.exceptions = value.split(',').map((v) => this.parseRRuleDate(v));
+          break;
       }
     }
 
@@ -128,6 +133,10 @@ export class RecurringService {
 
     if (rule.byMonth && rule.byMonth.length > 0) {
       parts.push(`BYMONTH=${rule.byMonth.join(',')}`);
+    }
+
+    if (rule.exceptions && rule.exceptions.length > 0) {
+      parts.push(`EXDATE=${rule.exceptions.map((d) => this.formatRRuleDate(d)).join(',')}`);
     }
 
     return `RRULE:${parts.join(';')}`;

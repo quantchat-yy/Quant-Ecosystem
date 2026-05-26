@@ -253,7 +253,7 @@ describe('EventService', () => {
   });
 
   describe('updateAttendeeStatus', () => {
-    it('updates an attendee status', async () => {
+    it('updates an attendee status when caller is the attendee', async () => {
       const existingEvent = {
         id: 'event-1',
         title: 'Meeting',
@@ -278,9 +278,65 @@ describe('EventService', () => {
         attendees: (args.data as Record<string, unknown>)['attendees'],
       }));
 
-      const result = await service.updateAttendeeStatus('event-1', 'user-2', 'accepted');
+      const result = await service.updateAttendeeStatus('event-1', 'user-2', 'user-2', 'accepted');
 
       expect(result.attendees[0]!.status).toBe('accepted');
+    });
+
+    it('updates an attendee status when caller is the event owner', async () => {
+      const existingEvent = {
+        id: 'event-1',
+        title: 'Meeting',
+        description: '',
+        startTime: new Date('2024-01-15T10:00:00Z'),
+        endTime: new Date('2024-01-15T11:00:00Z'),
+        allDay: false,
+        location: '',
+        userId: 'user-1',
+        attendees: JSON.stringify([
+          { userId: 'user-2', email: 'bob@test.com', name: 'Bob', status: 'pending' },
+        ]),
+        recurrenceRule: null,
+        status: 'confirmed',
+        reminders: '[]',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      prisma.event.findUnique.mockResolvedValue(existingEvent);
+      prisma.event.update.mockImplementation(async (args) => ({
+        ...existingEvent,
+        attendees: (args.data as Record<string, unknown>)['attendees'],
+      }));
+
+      const result = await service.updateAttendeeStatus('event-1', 'user-2', 'user-1', 'accepted');
+
+      expect(result.attendees[0]!.status).toBe('accepted');
+    });
+
+    it('throws 403 when caller is neither the attendee nor event owner', async () => {
+      const existingEvent = {
+        id: 'event-1',
+        title: 'Meeting',
+        description: '',
+        startTime: new Date('2024-01-15T10:00:00Z'),
+        endTime: new Date('2024-01-15T11:00:00Z'),
+        allDay: false,
+        location: '',
+        userId: 'user-1',
+        attendees: JSON.stringify([
+          { userId: 'user-2', email: 'bob@test.com', name: 'Bob', status: 'pending' },
+        ]),
+        recurrenceRule: null,
+        status: 'confirmed',
+        reminders: '[]',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      prisma.event.findUnique.mockResolvedValue(existingEvent);
+
+      await expect(
+        service.updateAttendeeStatus('event-1', 'user-2', 'user-3', 'accepted'),
+      ).rejects.toThrow('Not authorized to update attendee status');
     });
   });
 });

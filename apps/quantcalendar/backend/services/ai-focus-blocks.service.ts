@@ -78,9 +78,10 @@ export class AIFocusBlocksService {
     }
 
     // Use AI to pick best slots
+    let selectedGaps = eligibleGaps;
     try {
-      await this.ai.infer({
-        prompt: `Given these available time gaps for deep work: ${JSON.stringify(eligibleGaps.map((g) => ({ start: g.start.toISOString(), end: g.end.toISOString() })))}, select the best ones for focused deep work blocks. Respond with JSON array of indices: [0, 1, ...]`,
+      const response = await this.ai.infer({
+        prompt: `Given these available time gaps for deep work: ${JSON.stringify(eligibleGaps.map((g, i) => ({ index: i, start: g.start.toISOString(), end: g.end.toISOString() })))}, select the best ones for focused deep work blocks. Respond with JSON array of indices: [0, 1, ...]`,
         systemPrompt:
           'You are a productivity assistant. Pick the best time slots for deep work focus blocks based on typical energy patterns.',
         userId,
@@ -89,14 +90,24 @@ export class AIFocusBlocksService {
         temperature: 0.3,
         maxTokens: 256,
       });
+
+      const indices = JSON.parse(response.content) as number[];
+      if (Array.isArray(indices) && indices.length > 0) {
+        const filtered = indices
+          .filter((i) => typeof i === 'number' && i >= 0 && i < eligibleGaps.length)
+          .map((i) => eligibleGaps[i]!);
+        if (filtered.length > 0) {
+          selectedGaps = filtered;
+        }
+      }
     } catch {
-      // Continue with all eligible gaps even if AI fails
+      // Fall back to all eligible gaps if AI fails or returns unparseable response
     }
 
     const focusEvents: CalendarEvent[] = [];
     const now = new Date();
 
-    for (const gap of eligibleGaps) {
+    for (const gap of selectedGaps) {
       const created = await this.prisma.event.create({
         data: {
           title: 'Deep Work',

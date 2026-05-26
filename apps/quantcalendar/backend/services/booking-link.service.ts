@@ -140,6 +140,27 @@ export class BookingLinkService {
 
     const startTime = new Date(slot);
     const endTime = new Date(startTime.getTime() + link.duration * 60 * 1000);
+
+    // Check for conflicting events before creating to prevent double-booking
+    const existingEvents = await this.prisma.event.findMany({
+      where: {
+        userId: link.userId,
+        startTime: { gte: startTime },
+        endTime: { lte: endTime },
+      },
+    });
+
+    // Also check for events that overlap with the requested slot
+    const overlapping = (existingEvents as Array<Record<string, unknown>>).some((e) => {
+      const eStart = new Date(e['startTime'] as string | Date);
+      const eEnd = new Date(e['endTime'] as string | Date);
+      return eStart < endTime && eEnd > startTime;
+    });
+
+    if (overlapping) {
+      throw createAppError('Slot is no longer available', 409, 'SLOT_UNAVAILABLE');
+    }
+
     const now = new Date();
 
     const event = await this.prisma.event.create({

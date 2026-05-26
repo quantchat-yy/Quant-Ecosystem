@@ -135,6 +135,8 @@ describe('BookingLinkService', () => {
         updatedAt: new Date(),
       });
 
+      prisma.event.findMany.mockResolvedValue([]);
+
       prisma.event.create.mockImplementation(async (args: { data: Record<string, unknown> }) => ({
         id: 'event-booked-1',
         ...args.data,
@@ -153,6 +155,39 @@ describe('BookingLinkService', () => {
         }),
       });
       expect(result).toBeDefined();
+    });
+
+    it('rejects booking when slot is already taken', async () => {
+      prisma.bookingLink.findUnique.mockResolvedValue({
+        id: 'link-1',
+        userId: 'user-1',
+        slug: 'john-30min',
+        title: '30 Minute Meeting',
+        description: '',
+        duration: 30,
+        availableDays: JSON.stringify([1, 2, 3, 4, 5]),
+        startHour: 9,
+        endHour: 17,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      prisma.event.findMany.mockResolvedValue([
+        {
+          startTime: new Date('2024-01-17T10:00:00'),
+          endTime: new Date('2024-01-17T10:30:00'),
+        },
+      ]);
+
+      await expect(
+        service.confirmBooking('john-30min', new Date('2024-01-17T10:00:00'), {
+          name: 'Bob',
+          email: 'bob@test.com',
+        }),
+      ).rejects.toThrow('Slot is no longer available');
+
+      expect(prisma.event.create).not.toHaveBeenCalled();
     });
   });
 });

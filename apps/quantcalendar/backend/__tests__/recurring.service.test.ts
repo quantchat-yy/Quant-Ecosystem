@@ -160,37 +160,76 @@ describe('RecurringService', () => {
   });
 
   describe('exceptions', () => {
-    it('skips exception dates', () => {
+    it('skips exception dates during expansion', () => {
       const event = createTestEvent({
-        recurrenceRule: 'RRULE:FREQ=DAILY',
+        recurrenceRule: 'RRULE:FREQ=DAILY;EXDATE=20240103T000000Z',
       });
 
       const startRange = new Date('2024-01-01T00:00:00Z');
       const endRange = new Date('2024-01-05T23:59:59Z');
 
-      // Manually add exceptions by parsing and modifying
-      const rule = service.parseRRule(event.recurrenceRule!);
-      rule.exceptions = [new Date('2024-01-03T00:00:00Z')];
-      event.recurrenceRule = service.serializeRRule(rule);
+      const occurrences = service.expandRecurrence(event, startRange, endRange);
 
-      // Re-parse, but we need to handle exceptions differently
-      // Since serializeRRule doesn't serialize exceptions, let's test via parseRRule + expandRecurrence
-      // Instead, we'll create a custom test using the rule directly
-      const occurrencesBase = service.expandRecurrence(event, startRange, endRange);
+      // 5 days minus 1 exception = 4 occurrences
+      expect(occurrences).toHaveLength(4);
+      const dates = occurrences.map((o) => o.startTime.toISOString().split('T')[0]);
+      expect(dates).not.toContain('2024-01-03');
+      expect(dates).toContain('2024-01-01');
+      expect(dates).toContain('2024-01-02');
+      expect(dates).toContain('2024-01-04');
+      expect(dates).toContain('2024-01-05');
+    });
 
-      // The serialization doesn't include exceptions, so expand directly
-      // Let's test the internal behavior
-      expect(occurrencesBase).toHaveLength(5); // without exceptions in rrule string
-
-      // Test with a modified approach - inject exceptions directly
-      const eventWithException = createTestEvent({
-        recurrenceRule: 'RRULE:FREQ=DAILY;COUNT=5',
+    it('exceptions do not consume COUNT (RFC 5545)', () => {
+      const event = createTestEvent({
+        recurrenceRule: 'RRULE:FREQ=DAILY;COUNT=5;EXDATE=20240103T000000Z',
       });
 
-      // For testing, we'll verify parseRRule handles exceptions when present
-      const parsedRule = service.parseRRule('RRULE:FREQ=DAILY');
-      parsedRule.exceptions = [new Date('2024-01-03')];
-      expect(parsedRule.exceptions).toHaveLength(1);
+      const startRange = new Date('2024-01-01T00:00:00Z');
+      const endRange = new Date('2024-01-10T23:59:59Z');
+
+      const occurrences = service.expandRecurrence(event, startRange, endRange);
+
+      // COUNT=5 means 5 generated instances; the exception does not decrement count
+      expect(occurrences).toHaveLength(5);
+      const dates = occurrences.map((o) => o.startTime.toISOString().split('T')[0]);
+      expect(dates).not.toContain('2024-01-03');
+      // Should be: Jan 1, 2, 4, 5, 6
+      expect(dates).toContain('2024-01-01');
+      expect(dates).toContain('2024-01-02');
+      expect(dates).toContain('2024-01-04');
+      expect(dates).toContain('2024-01-05');
+      expect(dates).toContain('2024-01-06');
+    });
+
+    it('handles multiple exception dates', () => {
+      const event = createTestEvent({
+        recurrenceRule: 'RRULE:FREQ=DAILY;EXDATE=20240102T000000Z,20240104T000000Z',
+      });
+
+      const startRange = new Date('2024-01-01T00:00:00Z');
+      const endRange = new Date('2024-01-05T23:59:59Z');
+
+      const occurrences = service.expandRecurrence(event, startRange, endRange);
+
+      // 5 days minus 2 exceptions = 3 occurrences
+      expect(occurrences).toHaveLength(3);
+      const dates = occurrences.map((o) => o.startTime.toISOString().split('T')[0]);
+      expect(dates).not.toContain('2024-01-02');
+      expect(dates).not.toContain('2024-01-04');
+    });
+
+    it('serializes and parses EXDATE correctly', () => {
+      const rule = service.parseRRule('RRULE:FREQ=DAILY;EXDATE=20240103T000000Z,20240105T000000Z');
+
+      expect(rule.exceptions).toHaveLength(2);
+      expect(rule.exceptions![0]!.toISOString().split('T')[0]).toBe('2024-01-03');
+      expect(rule.exceptions![1]!.toISOString().split('T')[0]).toBe('2024-01-05');
+
+      const serialized = service.serializeRRule(rule);
+      expect(serialized).toContain('EXDATE=');
+      expect(serialized).toContain('20240103T000000Z');
+      expect(serialized).toContain('20240105T000000Z');
     });
   });
 

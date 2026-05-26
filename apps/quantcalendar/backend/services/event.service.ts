@@ -191,6 +191,7 @@ export class EventService {
   async updateAttendeeStatus(
     eventId: string,
     attendeeUserId: string,
+    callerUserId: string,
     status: Attendee['status'],
   ): Promise<CalendarEvent> {
     const event = await this.prisma.event.findUnique({ where: { id: eventId } });
@@ -200,6 +201,12 @@ export class EventService {
     }
 
     const record = this.toCalendarEvent(event);
+
+    // Authorization: caller must be the attendee being updated or the event owner
+    if (callerUserId !== attendeeUserId && callerUserId !== record.userId) {
+      throw createAppError('Not authorized to update attendee status', 403, 'UNAUTHORIZED');
+    }
+
     const attendees = record.attendees.map((a) =>
       a.userId === attendeeUserId ? { ...a, status } : a,
     );

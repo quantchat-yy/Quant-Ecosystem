@@ -26,6 +26,9 @@ export class AIRescheduleService {
   ) {}
 
   async rescheduleEvents(userId: string, instruction: string): Promise<RescheduleResult> {
+    // NOTE: instruction is interpolated directly into the prompt without sanitization.
+    // This is acceptable for now since results are only returned to the caller,
+    // but should be hardened if automated actions are wired up later.
     // Use AI to parse the natural language instruction
     const parseResponse = await this.ai.infer({
       prompt: `Parse this scheduling instruction and identify the source and target days:

@@ -36,6 +36,7 @@ describe('AIFocusBlocksService', () => {
         { startTime: new Date('2024-01-15T14:00:00'), endTime: new Date('2024-01-15T15:00:00') },
       ]);
 
+      // AI returns both gap indices
       ai.infer.mockResolvedValue({
         content: JSON.stringify([0, 1]),
       });
@@ -53,6 +54,31 @@ describe('AIFocusBlocksService', () => {
       expect(result.events[0]!.title).toBe('Deep Work');
     });
 
+    it('uses AI response to select a subset of gaps', async () => {
+      const date = new Date('2024-01-15');
+
+      prisma.event.findMany.mockResolvedValue([
+        { startTime: new Date('2024-01-15T09:00:00'), endTime: new Date('2024-01-15T10:00:00') },
+        { startTime: new Date('2024-01-15T14:00:00'), endTime: new Date('2024-01-15T15:00:00') },
+      ]);
+
+      // AI returns only the first gap index
+      ai.infer.mockResolvedValue({
+        content: JSON.stringify([0]),
+      });
+
+      prisma.event.create.mockImplementation(async (args: { data: Record<string, unknown> }) => ({
+        id: `focus-${Date.now()}`,
+        ...args.data,
+      }));
+
+      const result = await service.reserveFocusBlocks('user-1', date);
+
+      // Only the first gap (10:00-14:00) should be selected by AI
+      expect(result.blocksCreated).toBe(1);
+      expect(result.events).toHaveLength(1);
+    });
+
     it('respects minBlockMinutes parameter', async () => {
       const date = new Date('2024-01-15');
 
@@ -63,7 +89,7 @@ describe('AIFocusBlocksService', () => {
       ]);
 
       ai.infer.mockResolvedValue({
-        content: JSON.stringify([0]),
+        content: JSON.stringify([0, 1]),
       });
 
       prisma.event.create.mockImplementation(async (args: { data: Record<string, unknown> }) => ({

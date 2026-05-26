@@ -223,12 +223,18 @@ export default async function eventsRoutes(fastify: FastifyInstance) {
         throw parseResult.error;
       }
 
+      const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+      if (!userId) {
+        throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+      }
+
       const prisma = (fastify as unknown as { prisma: unknown }).prisma;
       const service = new EventService(prisma as never);
 
       const event = await service.updateAttendeeStatus(
         request.params.id,
         request.params.attendeeId,
+        userId,
         parseResult.data.status,
       );
 

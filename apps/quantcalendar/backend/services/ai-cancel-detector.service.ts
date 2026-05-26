@@ -11,6 +11,9 @@ export class AICancelDetectorService {
   constructor(private readonly ai: AIEngine) {}
 
   async detectCancellation(messageText: string): Promise<CancelDetectionResult> {
+    // NOTE: messageText is interpolated directly into the prompt without sanitization.
+    // This is acceptable for now since results are only returned to the caller,
+    // but should be hardened if automated actions (e.g., auto-cancel) are wired up later.
     const response = await this.ai.infer({
       prompt: `Analyze the following message and determine if it indicates a meeting cancellation or intent to not attend:
 
