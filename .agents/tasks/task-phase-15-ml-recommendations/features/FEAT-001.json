@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Create @quant/ml-runtime package with ONNX inference (server + browser), model loader, and feature store in packages/ml-pipeline/src/feature-store/",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create packages/ml-runtime/package.json following @quant/auth pattern: name @quant/ml-runtime, private:true, type:module, main:src/index.ts, scripts with typecheck and test. Dependencies: onnxruntime-node, onnxruntime-web, zod, @quant/storage (workspace:*). DevDeps: @types/node, typescript, vitest.",
     "Create packages/ml-runtime/tsconfig.json extending ../../tsconfig.json with outDir:./dist, rootDir:./src, composite:true, include:['src/**/*'], exclude:['node_modules','dist'].",
@@ -40,5 +40,5 @@
   ],
   "verification": ["NODE_OPTIONS='' npx vitest run --reporter=verbose 2>&1 | tail -40"],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Pre-existing test failures in packages/shared-ui (26 tests, ReferenceError: document is not defined - needs jsdom environment). NODE_OPTIONS must be empty for pnpm/vitest AND git commit hooks. Model loader needed sequence counter to break Date.now() ties in version eviction sort. The ml-pipeline package had no package.json/tsconfig.json/vitest.config.ts - created them following @quant/auth pattern."
 }
