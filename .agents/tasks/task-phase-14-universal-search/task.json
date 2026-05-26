@@ -1,7 +1,7 @@
 {
   "task_id": "task-phase-14-universal-search",
   "task_description": "Phase 14: Universal Search - Hybrid BM25 + Vector search with cross-app capabilities, natural language query parsing, Cohere reranking, permission filtering, and proactive contextual search",
-  "status": "in_progress",
+  "status": "completed",
   "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
   "blocked_reason": null,
   "verification": {
