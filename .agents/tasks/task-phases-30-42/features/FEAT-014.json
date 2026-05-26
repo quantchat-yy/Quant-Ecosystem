@@ -2,7 +2,7 @@
   "id": "FEAT-014",
   "type": "fix",
   "description": "Fix all TypeScript errors in the codebase to make the build pass green. There are errors in 6 TSX files: apps/quantchat/src/components/StoryCreator.tsx, apps/quantchat/src/pages/bitmoji.tsx, apps/quantchat/src/pages/spotlight.tsx, apps/quantmail/src/components/FileManager.tsx, apps/quantmail/src/pages/drive.tsx, apps/quantmail/src/pages/security.tsx. All errors are JSX syntax issues (numeric literals in template expressions, broken JSX tags).",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Read apps/quantchat/src/components/StoryCreator.tsx around lines 153-155 and fix the numeric literal issues (likely Tailwind classes like `w-[100px]` not properly escaped in JSX template literals)",
     "Read apps/quantchat/src/pages/bitmoji.tsx around lines 130-175 and fix the broken JSX (missing closing tags, improper template syntax). This file has the most errors.",
@@ -22,5 +22,5 @@
     "Run: unset NODE_OPTIONS && npx vitest run (all tests pass)"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Fixed 6 TSX files. Root causes: (1) Unicode escape sequences like \\u{1F600} in JSX text content are parsed as literal \\u followed by JSX expression {1F600} causing TS1351 numeric literal errors - fixed by wrapping in string expressions like {'\\u{1F600}'}. (2) Generic type <T> in bitmoji.tsx interpreted as JSX element - fixed with trailing comma <T,>. Note: TS6305 errors about missing dist/ output files are pre-existing and unrelated to code quality - they occur because composite project references expect built output."
 }
