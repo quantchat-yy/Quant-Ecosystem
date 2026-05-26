@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Implement all AI services for QuantDocs (ai-write, ai-grammar, ai-translate, ai-diagram) and create comprehensive tests for all services.",
-  "status": "pending",
+  "status": "completed",
   "steps": [
     "Create apps/quantdocs/backend/services/ai-write.service.ts - AIWriteService class with constructor(ai: AIEngine). Methods: writeFromOutline(bullets: string[], context, userId) - converts bullet outline to full doc; expandSection(paragraph: string, instructions: string, userId) - adds detail to a paragraph; simplify(text: string, audienceLevel: 'child' | 'general' | 'technical', userId) - rewrites for target audience. Follow pattern from apps/quantmail/backend/services/ai-compose.service.ts: use ai.infer() with JSON response parsing, zod validation of output, createAppError on parse failures.",
     "Create apps/quantdocs/backend/services/ai-grammar.service.ts - AIGrammarService class with constructor(ai: AIEngine). Methods: checkGrammar(text: string, userId) returns { corrections: GrammarCorrection[], overallScore: number }. GrammarCorrection: { original, corrected, explanation, position: { start, end } }. Use ai.infer() with structured JSON output.",
@@ -36,5 +36,5 @@
     "Run: NODE_OPTIONS='' npx vitest run from workspace root - all quantdocs tests pass"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 72 tests pass across 10 test files. Tests must be run from apps/quantdocs directory (not root with --project flag) for vitest to find them. The yjs two-client merge test works correctly using Y.encodeStateAsUpdate with state vectors for delta exchange."
 }
