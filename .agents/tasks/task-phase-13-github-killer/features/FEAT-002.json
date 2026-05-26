@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Create PR, Issue, Review, and Branch Protection services in apps/quantmail/backend/services/ with full CRUD and merge operations",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create apps/quantmail/backend/services/pr.service.ts - PullRequestService class with: createPR(input), listPRs(repoId, filters), getPR(repoId, number), mergePR(repoId, number, strategy: squash|rebase|merge), closePR(repoId, number), getDiff(repoId, number). Use Zod schemas for inputs. Constructor takes PrismaClient.",
     "Create apps/quantmail/backend/services/review.service.ts - ReviewService class with: submitReview(prId, reviewerId, status, body), addComment(prId, authorId, filePath, line, body), requestChanges(prId, reviewerId, body), listReviews(prId). Constructor takes PrismaClient.",
