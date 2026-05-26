@@ -56,6 +56,11 @@ export const QUANT_APPS: Record<QuantApp, { name: string; description: string; c
     description: 'Collaborative document editing with real-time co-authoring',
     color: '#4A90D9',
   },
+  quantdrive: {
+    name: 'QuantDrive',
+    description: 'Encrypted cloud storage with AI-powered file organization',
+    color: '#2ECC71',
+  },
 };
 
 /** API Base URLs */
