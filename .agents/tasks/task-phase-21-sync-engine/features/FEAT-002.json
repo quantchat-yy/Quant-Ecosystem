@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Implement the complete CRDT sync engine: Yjs document wrapper, Yjs array/list wrapper, structured state management, sync protocol (WebSocket + HTTP fallback), conflict resolution, IndexedDB local store, service worker for offline queuing, and sync status management. All with comprehensive tests.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create packages/sync-engine/src/crdt-document.ts - A Yjs Doc wrapper class that supports creating/editing text, maps, and arrays. Provide methods: getText(name), getMap(name), getArray(name), applyUpdate(update: Uint8Array), getStateVector(), encodeState(). Emit events on changes. Use Zod schemas for configuration validation.",
     "Create packages/sync-engine/src/crdt-list.ts - A Yjs Array wrapper for ordered lists (feeds, messages). Methods: push(item), insert(index, item), delete(index), get(index), toArray(), length, observe(callback). Support merging from remote updates.",
