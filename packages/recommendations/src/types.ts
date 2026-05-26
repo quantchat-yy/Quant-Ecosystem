@@ -400,4 +400,11 @@ export interface ExperimentResultType {
   lift: number;
   significant: boolean;
   bucketStats: Record<string, { exposures: number; conversions: number; rate: number }>;
+  comparisons: Array<{
+    control: string;
+    treatment: string;
+    pValue: number;
+    lift: number;
+    significant: boolean;
+  }>;
 }

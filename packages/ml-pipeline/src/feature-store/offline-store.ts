@@ -21,8 +21,8 @@ export const OfflineStoreConfigSchema = z.object({
   bucket: z.string().default('ml-feature-store'),
   basePath: z.string().default('features/'),
   partitionBy: z.enum(['date', 'entity_type', 'both']).default('both'),
-  format: z.enum(['parquet', 'json']).default('parquet'),
-  compressionCodec: z.enum(['snappy', 'gzip', 'zstd', 'none']).default('snappy'),
+  format: z.enum(['parquet', 'json']).default('json'),
+  compressionCodec: z.enum(['snappy', 'gzip', 'zstd', 'none']).default('none'),
   maxPartitionSize: z
     .number()
     .int()
@@ -70,6 +70,11 @@ export class OfflineFeatureStore {
 
   constructor(s3: S3Client, config?: Partial<OfflineStoreConfig>) {
     this.config = OfflineStoreConfigSchema.parse(config ?? {});
+    if (this.config.format === 'parquet') {
+      throw new Error(
+        'Parquet format is not yet supported. Use format: "json" instead. Parquet support is planned for a future release.',
+      );
+    }
     this.s3 = s3;
   }
 

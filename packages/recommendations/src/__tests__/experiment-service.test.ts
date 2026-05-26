@@ -145,4 +145,53 @@ describe('ExperimentService', () => {
 
     expect(buckets.size).toBe(3);
   });
+
+  it('should compute results for all treatment buckets in multi-arm experiment', () => {
+    const service = new ExperimentService();
+    service.registerExperiment({
+      id: 'multi-arm',
+      name: 'Multi-arm Test',
+      buckets: ['control', 'variant_a', 'variant_b'],
+      trafficAllocation: { control: 0.34, variant_a: 0.33, variant_b: 0.33 },
+    });
+
+    // control: 10% conversion
+    for (let i = 0; i < 100; i++) {
+      service.logExposure(`ctrl_${i}`, 'multi-arm', 'control');
+      if (i < 10) service.logConversion(`ctrl_${i}`, 'multi-arm', true);
+    }
+    // variant_a: 20% conversion
+    for (let i = 0; i < 100; i++) {
+      service.logExposure(`va_${i}`, 'multi-arm', 'variant_a');
+      if (i < 20) service.logConversion(`va_${i}`, 'multi-arm', true);
+    }
+    // variant_b: 30% conversion
+    for (let i = 0; i < 100; i++) {
+      service.logExposure(`vb_${i}`, 'multi-arm', 'variant_b');
+      if (i < 30) service.logConversion(`vb_${i}`, 'multi-arm', true);
+    }
+
+    const result = service.computeResult('multi-arm');
+
+    // Should have comparisons for both treatments vs control
+    expect(result.comparisons).toHaveLength(2);
+    expect(result.comparisons[0].control).toBe('control');
+    expect(result.comparisons[0].treatment).toBe('variant_a');
+    expect(result.comparisons[1].control).toBe('control');
+    expect(result.comparisons[1].treatment).toBe('variant_b');
+
+    // variant_b should have higher lift than variant_a
+    expect(result.comparisons[1].lift).toBeGreaterThan(result.comparisons[0].lift);
+
+    // Both should have valid p-values
+    expect(result.comparisons[0].pValue).toBeGreaterThanOrEqual(0);
+    expect(result.comparisons[0].pValue).toBeLessThanOrEqual(1);
+    expect(result.comparisons[1].pValue).toBeGreaterThanOrEqual(0);
+    expect(result.comparisons[1].pValue).toBeLessThanOrEqual(1);
+
+    // bucket stats for all 3 buckets
+    expect(result.bucketStats['control'].rate).toBeCloseTo(0.1);
+    expect(result.bucketStats['variant_a'].rate).toBeCloseTo(0.2);
+    expect(result.bucketStats['variant_b'].rate).toBeCloseTo(0.3);
+  });
 });

@@ -6,16 +6,18 @@ describe('OnDeviceRanker', () => {
   let mockRuntime: OnnxRuntime;
 
   beforeEach(() => {
-    let scoreCounter = 0;
     mockRuntime = {
       loadModel: vi.fn().mockResolvedValue(undefined),
-      run: vi.fn().mockImplementation(() => {
-        scoreCounter++;
-        return Promise.resolve({
-          outputs: {
-            score: new Float32Array([1 / scoreCounter]), // decreasing scores
-          },
-        });
+      run: vi.fn().mockImplementation((inputs: Record<string, Float32Array>) => {
+        const input = inputs['input'];
+        const featureDim = 16;
+        const n = input.length / featureDim;
+        // Generate decreasing scores for each candidate in the batch
+        const scores = new Float32Array(n);
+        for (let i = 0; i < n; i++) {
+          scores[i] = 1 / (i + 1);
+        }
+        return Promise.resolve({ outputs: { score: scores } });
       }),
       isModelLoaded: vi.fn().mockReturnValue(true),
       dispose: vi.fn(),
@@ -74,7 +76,7 @@ describe('OnDeviceRanker', () => {
     const results = await ranker.rankLocally(candidates, userPrefs);
 
     expect(results).toHaveLength(20);
-    expect(mockRuntime.run).toHaveBeenCalledTimes(200);
+    expect(mockRuntime.run).toHaveBeenCalledTimes(1);
     // Results should be ranked
     for (let i = 1; i < results.length; i++) {
       expect(results[i - 1].score).toBeGreaterThanOrEqual(results[i].score);

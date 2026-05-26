@@ -40,7 +40,7 @@ describe('OfflineFeatureStore', () => {
       bucket: 'test-bucket',
       basePath: 'features/',
       partitionBy: 'both',
-      format: 'parquet',
+      format: 'json',
     });
   });
 
@@ -78,7 +78,7 @@ describe('OfflineFeatureStore', () => {
       };
 
       const key = await store.writeFeatures(dataset);
-      expect(key).toContain('item/2024/03/20/data.parquet');
+      expect(key).toContain('item/2024/03/20/data.json');
     });
   });
 
@@ -208,6 +208,30 @@ describe('OfflineFeatureStore', () => {
     it('returns null for non-existent partition', async () => {
       const info = await store.getPartitionInfo('user', Date.now());
       expect(info).toBeNull();
+    });
+  });
+
+  describe('format validation', () => {
+    it('throws when parquet format is requested', () => {
+      expect(
+        () =>
+          new OfflineFeatureStore(s3, {
+            bucket: 'test-bucket',
+            basePath: 'features/',
+            format: 'parquet',
+          }),
+      ).toThrow('Parquet format is not yet supported');
+    });
+
+    it('accepts json format without throwing', () => {
+      expect(
+        () =>
+          new OfflineFeatureStore(s3, {
+            bucket: 'test-bucket',
+            basePath: 'features/',
+            format: 'json',
+          }),
+      ).not.toThrow();
     });
   });
 });

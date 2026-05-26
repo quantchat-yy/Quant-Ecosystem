@@ -237,12 +237,12 @@ export class ModelLoader {
   }
 
   private async computeChecksum(data: ArrayBuffer): Promise<string> {
-    // Use a simple hash for environments without crypto.subtle
-    const bytes = new Uint8Array(data);
-    let hash = 0;
-    for (let i = 0; i < bytes.length; i++) {
-      hash = ((hash << 5) - hash + bytes[i]) | 0;
-    }
-    return Math.abs(hash).toString(16).padStart(8, '0');
+    const algorithm = this.config.checksumAlgorithm === 'md5' ? 'SHA-256' : 'SHA-256';
+    // crypto.subtle only supports SHA-family; use SHA-256 for both config options
+    const hashBuffer = await crypto.subtle.digest(algorithm, data);
+    const hashArray = new Uint8Array(hashBuffer);
+    return Array.from(hashArray)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
   }
 }

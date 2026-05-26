@@ -3,4 +3,9 @@
 // ============================================================================
 
 export { ExperimentService } from './experiment-service';
-export type { ExperimentConfig, ExperimentResult, ExposureRecord } from './experiment-service';
+export type {
+  BucketComparison,
+  ExperimentConfig,
+  ExperimentResult,
+  ExposureRecord,
+} from './experiment-service';

@@ -22,12 +22,21 @@ export interface ConversionRecord {
   converted: boolean;
 }
 
+export interface BucketComparison {
+  control: string;
+  treatment: string;
+  pValue: number;
+  lift: number;
+  significant: boolean;
+}
+
 export interface ExperimentResult {
   experimentId: string;
   pValue: number;
   lift: number;
   significant: boolean;
   bucketStats: Record<string, { exposures: number; conversions: number; rate: number }>;
+  comparisons: BucketComparison[];
 }
 
 export class ExperimentService {
@@ -106,24 +115,38 @@ export class ExperimentService {
       bucketStats[bucket] = { exposures: exposureCount, conversions: conversionCount, rate };
     }
 
-    // Z-test for proportions (control vs first treatment)
+    // Compute pairwise comparisons: each treatment vs control
     const buckets = experiment.buckets;
     const control = bucketStats[buckets[0]];
-    const treatment = bucketStats[buckets[1]] ?? control;
+    const comparisons: BucketComparison[] = [];
 
-    const { pValue, lift } = this.zTestForProportions(
-      control.conversions,
-      control.exposures,
-      treatment.conversions,
-      treatment.exposures,
-    );
+    for (let i = 1; i < buckets.length; i++) {
+      const treatment = bucketStats[buckets[i]];
+      const { pValue, lift } = this.zTestForProportions(
+        control.conversions,
+        control.exposures,
+        treatment.conversions,
+        treatment.exposures,
+      );
+      comparisons.push({
+        control: buckets[0],
+        treatment: buckets[i],
+        pValue,
+        lift,
+        significant: pValue < 0.05,
+      });
+    }
+
+    // Top-level pValue/lift use first treatment for backward compatibility
+    const primaryComparison = comparisons[0] ?? { pValue: 1, lift: 0 };
 
     return {
       experimentId,
-      pValue,
-      lift,
-      significant: pValue < 0.05,
+      pValue: primaryComparison.pValue,
+      lift: primaryComparison.lift,
+      significant: primaryComparison.pValue < 0.05,
       bucketStats,
+      comparisons,
     };
   }
 
