@@ -37,10 +37,27 @@ export type InvoiceStatus = 'draft' | 'open' | 'paid' | 'void' | 'uncollectible'
 export type RefundStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
 
 /** Wallet transaction type */
-export type WalletTransactionType = 'credit' | 'debit' | 'transfer_in' | 'transfer_out' | 'refund' | 'fee' | 'reward';
+export type WalletTransactionType =
+  | 'credit'
+  | 'debit'
+  | 'transfer_in'
+  | 'transfer_out'
+  | 'refund'
+  | 'fee'
+  | 'reward';
 
 /** Currency codes (ISO 4217) */
-export type CurrencyCode = 'USD' | 'EUR' | 'GBP' | 'INR' | 'JPY' | 'CNY' | 'AUD' | 'CAD' | 'CHF' | 'BRL';
+export type CurrencyCode =
+  | 'USD'
+  | 'EUR'
+  | 'GBP'
+  | 'INR'
+  | 'JPY'
+  | 'CNY'
+  | 'AUD'
+  | 'CAD'
+  | 'CHF'
+  | 'BRL';
 
 /** Payment gateway provider */
 export type GatewayProvider = 'stripe' | 'paypal' | 'razorpay' | 'square' | 'braintree' | 'adyen';
@@ -367,4 +384,114 @@ export interface Address {
   state: string;
   postalCode: string;
   country: string;
+}
+
+// ============================================================================
+// Creator Economy Types
+// ============================================================================
+
+/** Creator account verification status */
+export type CreatorAccountStatus = 'pending' | 'active' | 'restricted' | 'disabled';
+
+/** Creator account linked via Stripe Connect */
+export interface CreatorAccount {
+  id: string;
+  creatorId: string;
+  stripeAccountId: string;
+  status: CreatorAccountStatus;
+  email: string;
+  country: string;
+  onboardingUrl: string;
+  createdAt: number;
+}
+
+/** Revenue share entry type */
+export type RevShareType = 'ad_revenue' | 'tip';
+
+/** Revenue share ledger entry */
+export interface RevShareEntry {
+  id: string;
+  type: RevShareType;
+  creatorId: string;
+  grossAmount: number;
+  creatorShare: number;
+  platformShare: number;
+  referenceId: string;
+  createdAt: number;
+}
+
+/** Creator wallet balance breakdown */
+export interface CreatorWalletBalance {
+  earnings: number;
+  pending: number;
+  available: number;
+  currency: CurrencyCode;
+}
+
+/** Creator subscription tier */
+export interface CreatorSubscriptionTier {
+  id: string;
+  creatorId: string;
+  name: string;
+  priceMonthly: number;
+  benefits: string[];
+  subscriberCount: number;
+  active: boolean;
+  createdAt: number;
+}
+
+/** Creator subscription (fan subscribing to creator) */
+export interface CreatorSubscription {
+  id: string;
+  fanId: string;
+  creatorId: string;
+  tierId: string;
+  status: 'active' | 'cancelled';
+  startedAt: number;
+  cancelledAt?: number;
+}
+
+/** Tip record */
+export interface TipRecord {
+  id: string;
+  fromUserId: string;
+  toCreatorId: string;
+  amount: number;
+  creatorShare: number;
+  platformShare: number;
+  message?: string;
+  createdAt: number;
+}
+
+/** Cashout status lifecycle */
+export type CashoutStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+/** Cashout method */
+export type CashoutMethod = 'bank_transfer' | 'instant';
+
+/** Cashout request */
+export interface CashoutRequest {
+  id: string;
+  creatorId: string;
+  amount: number;
+  method: CashoutMethod;
+  status: CashoutStatus;
+  requestedAt: number;
+  processedAt?: number;
+}
+
+/** Ledger entry type */
+export type LedgerEntryType = 'credit' | 'debit' | 'transfer' | 'fee' | 'revenue' | 'payout';
+
+/** Immutable ledger entry */
+export interface LedgerEntry {
+  id: string;
+  accountId: string;
+  type: LedgerEntryType;
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  referenceId?: string;
+  metadata?: Record<string, string>;
+  createdAt: number;
 }
