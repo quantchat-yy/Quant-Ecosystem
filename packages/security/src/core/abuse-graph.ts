@@ -31,11 +31,15 @@ export class AbuseGraph {
   private adjacencyList: Map<string, Map<string, number>>;
   private incomingReports: Map<string, Map<string, number>>;
   private reportTimestamps: Map<string, number[]>;
+  private cachedClusters: SybilCluster[] | null;
+  private clustersDirty: boolean;
 
   constructor() {
     this.adjacencyList = new Map();
     this.incomingReports = new Map();
     this.reportTimestamps = new Map();
+    this.cachedClusters = null;
+    this.clustersDirty = true;
   }
 
   /** Add a report edge from reporter to target */
@@ -56,6 +60,8 @@ export class AbuseGraph {
       this.reportTimestamps.set(reporterId, []);
     }
     this.reportTimestamps.get(reporterId)!.push(Date.now());
+
+    this.clustersDirty = true;
   }
 
   /** Add multiple reports at once */
@@ -68,9 +74,13 @@ export class AbuseGraph {
   /**
    * Detect sybil clusters - groups of users with high interconnection
    * who target the same users. Uses connected component analysis with
-   * density thresholding.
+   * density thresholding. Results are cached until the graph is modified.
    */
   detectSybilClusters(minClusterSize: number = 3, densityThreshold: number = 0.5): SybilCluster[] {
+    if (!this.clustersDirty && this.cachedClusters !== null) {
+      return this.cachedClusters;
+    }
+
     const clusters: SybilCluster[] = [];
     const reporters = Array.from(this.adjacencyList.keys());
 
@@ -170,6 +180,9 @@ export class AbuseGraph {
       }
     }
 
+    this.cachedClusters = clusters;
+    this.clustersDirty = false;
+
     return clusters;
   }
 
@@ -226,5 +239,7 @@ export class AbuseGraph {
     this.adjacencyList.clear();
     this.incomingReports.clear();
     this.reportTimestamps.clear();
+    this.cachedClusters = null;
+    this.clustersDirty = true;
   }
 }

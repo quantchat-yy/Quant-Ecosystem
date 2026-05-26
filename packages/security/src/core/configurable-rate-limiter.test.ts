@@ -40,6 +40,19 @@ describe('ConfigurableRateLimiter', () => {
       expect(result.retryAfterMs).toBeGreaterThan(0);
     });
 
+    it('should return retryAfterMs that reflects actual time remaining in window', async () => {
+      // Exhaust the limit
+      for (let i = 0; i < 5; i++) {
+        await limiter.checkLimit({ userId: 'user1', action: 'api_call' });
+      }
+
+      // Denied request should have retryAfterMs <= windowMs
+      const result = await limiter.checkLimit({ userId: 'user1', action: 'api_call' });
+      expect(result.allowed).toBe(false);
+      expect(result.retryAfterMs).toBeGreaterThan(0);
+      expect(result.retryAfterMs).toBeLessThanOrEqual(60000);
+    });
+
     it('should allow requests for unconfigured actions', async () => {
       const result = await limiter.checkLimit({ userId: 'user1', action: 'unknown_action' });
       expect(result.allowed).toBe(true);
@@ -146,5 +159,17 @@ describe('InMemoryRateLimitStore', () => {
     await store.increment('key1', 60000);
     await store.reset('key1');
     expect(await store.get('key1')).toBeNull();
+  });
+
+  it('should return TTL for an active key', async () => {
+    await store.increment('key1', 60000);
+    const ttl = await store.getTTL('key1');
+    expect(ttl).toBeGreaterThan(0);
+    expect(ttl).toBeLessThanOrEqual(60000);
+  });
+
+  it('should return null TTL for unknown key', async () => {
+    const ttl = await store.getTTL('unknown');
+    expect(ttl).toBeNull();
   });
 });

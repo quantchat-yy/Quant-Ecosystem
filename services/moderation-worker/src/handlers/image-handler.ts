@@ -36,8 +36,9 @@ export class ImageModerationHandler {
   }
 
   async handle(job: ModerationJob): Promise<ModerationResult> {
-    // Compute perceptual hash from URL string as proxy
-    const imageHash = this.hasher.computeSimHash(job.content);
+    // In production, the image would be fetched from job.content (URL) first.
+    // Here we compute a perceptual image hash from the content bytes.
+    const imageHash = this.hasher.computeImageHash(Buffer.from(job.content));
 
     // Check against known-bad hashes
     if (this.knownBadHashes.has(imageHash)) {

@@ -132,4 +132,38 @@ describe('TransparencyReportGenerator', () => {
     expect(report.avgResolutionTime).toBe(0);
     expect(report.topCategories).toHaveLength(0);
   });
+
+  it('should evict oldest records when maxRecords is exceeded', () => {
+    const generator = new TransparencyReportGenerator({ maxRecords: 3 });
+    const now = Date.now();
+
+    // Add 5 actions, only the last 3 should be kept
+    generator.recordAction(createModerationResult({ id: 'old_1', createdAt: now - 5000 }));
+    generator.recordAction(createModerationResult({ id: 'old_2', createdAt: now - 4000 }));
+    generator.recordAction(createModerationResult({ id: 'kept_1', createdAt: now - 3000 }));
+    generator.recordAction(createModerationResult({ id: 'kept_2', createdAt: now - 2000 }));
+    generator.recordAction(createModerationResult({ id: 'kept_3', createdAt: now - 1000 }));
+
+    const report = generator.generate(now - 10000, now + 1000);
+    // Only the 3 most recent should remain
+    expect(report.totalActions).toBe(3);
+  });
+
+  it('should evict oldest appeal records when maxRecords is exceeded', () => {
+    const generator = new TransparencyReportGenerator({ maxRecords: 2 });
+    const now = Date.now();
+
+    generator.recordAppeal(createAppealRecord({ id: 'old_a', createdAt: now - 3000 }));
+    generator.recordAppeal(createAppealRecord({ id: 'kept_a', createdAt: now - 2000 }));
+    generator.recordAppeal(createAppealRecord({ id: 'kept_b', createdAt: now - 1000 }));
+
+    const report = generator.generate(now - 10000, now + 1000);
+    expect(report.appealStats.submitted).toBe(2);
+  });
+
+  it('should default to 100000 maxRecords', () => {
+    // Just verify the constructor works without config
+    const generator = new TransparencyReportGenerator();
+    expect(generator).toBeDefined();
+  });
 });

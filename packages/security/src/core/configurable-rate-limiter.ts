@@ -28,6 +28,7 @@ export interface RateLimitStore {
   get(key: string): Promise<number | null>;
   increment(key: string, windowMs: number): Promise<number>;
   reset(key: string): Promise<void>;
+  getTTL(key: string): Promise<number | null>;
 }
 
 /** In-memory rate limit store entry */
@@ -73,6 +74,17 @@ export class InMemoryRateLimitStore implements RateLimitStore {
   async reset(key: string): Promise<void> {
     this.store.delete(key);
   }
+
+  async getTTL(key: string): Promise<number | null> {
+    const entry = this.store.get(key);
+    if (!entry) return null;
+    const now = Date.now();
+    if (now > entry.expiresAt) {
+      this.store.delete(key);
+      return null;
+    }
+    return entry.expiresAt - now;
+  }
 }
 
 /**
@@ -114,17 +126,17 @@ export class ConfigurableRateLimiter {
     }
 
     const key = this.buildKey(params, rule);
-    const now = Date.now();
     const count = await this.store.increment(key, rule.windowMs);
-    const resetAt = now + rule.windowMs;
+    const ttl = await this.store.getTTL(key);
+    const retryAfterMs = ttl ?? rule.windowMs;
+    const resetAt = Date.now() + retryAfterMs;
 
     if (count > rule.maxRequests) {
-      const retryAfterMs = rule.windowMs - ((count - rule.maxRequests) > 1 ? 0 : rule.windowMs);
       return {
         allowed: false,
         remaining: 0,
         resetAt,
-        retryAfterMs: rule.windowMs,
+        retryAfterMs,
       };
     }
 

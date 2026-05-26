@@ -5,29 +5,45 @@
 
 import type { AppealRecord, ModerationResult, TransparencyReport } from '../types';
 
+export interface TransparencyReportConfig {
+  maxRecords?: number;
+}
+
+const DEFAULT_MAX_RECORDS = 100_000;
+
 /**
  * TransparencyReportGenerator - Generates transparency reports
  *
  * Aggregates moderation actions and appeal outcomes into structured
- * reports for a given time period.
+ * reports for a given time period. Enforces a maximum record limit
+ * to prevent unbounded memory growth; oldest records are evicted
+ * when the limit is exceeded.
  */
 export class TransparencyReportGenerator {
   private moderationActions: ModerationResult[];
   private appealRecords: AppealRecord[];
+  private readonly maxRecords: number;
 
-  constructor() {
+  constructor(config?: TransparencyReportConfig) {
     this.moderationActions = [];
     this.appealRecords = [];
+    this.maxRecords = config?.maxRecords ?? DEFAULT_MAX_RECORDS;
   }
 
   /** Record a moderation action for reporting */
   recordAction(result: ModerationResult): void {
     this.moderationActions.push(result);
+    if (this.moderationActions.length > this.maxRecords) {
+      this.moderationActions = this.moderationActions.slice(-this.maxRecords);
+    }
   }
 
   /** Record an appeal for reporting */
   recordAppeal(record: AppealRecord): void {
     this.appealRecords.push(record);
+    if (this.appealRecords.length > this.maxRecords) {
+      this.appealRecords = this.appealRecords.slice(-this.maxRecords);
+    }
   }
 
   /** Generate a transparency report for the given time range */

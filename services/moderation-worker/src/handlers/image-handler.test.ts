@@ -40,7 +40,7 @@ describe('ImageModerationHandler', () => {
     });
 
     const classifier = { classify: vi.fn().mockResolvedValue(nsfwResult) };
-    const hasher = { computeSimHash: vi.fn().mockReturnValue('abc123') };
+    const hasher = { computeImageHash: vi.fn().mockReturnValue('abc123') };
     const policyDecision: PolicyDecision = {
       action: 'remove',
       severity: 'high',
@@ -99,7 +99,7 @@ describe('ImageModerationHandler', () => {
   it('triggers immediate removal for known-bad hash', async () => {
     const classifier = { classify: vi.fn() };
     const knownBadHash = 'deadbeef12345678';
-    const hasher = { computeSimHash: vi.fn().mockReturnValue(knownBadHash) };
+    const hasher = { computeImageHash: vi.fn().mockReturnValue(knownBadHash) };
     const policyEngine = { evaluate: vi.fn() };
     const actionExecutor = {
       execute: vi.fn().mockResolvedValue({
@@ -152,7 +152,7 @@ describe('ImageModerationHandler', () => {
   it('approves safe image without executing action', async () => {
     const safeResult = createMockImageResult();
     const classifier = { classify: vi.fn().mockResolvedValue(safeResult) };
-    const hasher = { computeSimHash: vi.fn().mockReturnValue('safe_hash') };
+    const hasher = { computeImageHash: vi.fn().mockReturnValue('safe_hash') };
     const policyDecision: PolicyDecision = {
       action: 'approve',
       severity: 'none',

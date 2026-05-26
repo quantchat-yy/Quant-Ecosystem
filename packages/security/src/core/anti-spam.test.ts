@@ -29,7 +29,8 @@ describe('AntiSpamFilter', () => {
       filter.train([...spamSamples, ...hamSamples]);
 
       const spamInput: SpamInput = {
-        content: 'BUY NOW!!! CLICK HERE for FREE MONEY! Act now, limited time offer! GUARANTEED WINNER!',
+        content:
+          'BUY NOW!!! CLICK HERE for FREE MONEY! Act now, limited time offer! GUARANTEED WINNER!',
         metadata: {
           linkCount: 5,
           capsRatio: 0.7,
@@ -143,11 +144,23 @@ describe('AntiSpamFilter', () => {
 
       filter.classify({
         content: 'buy now free',
-        metadata: { linkCount: 5, capsRatio: 0.8, senderReputation: 0.1, recipientCount: 100, hasAttachments: false },
+        metadata: {
+          linkCount: 5,
+          capsRatio: 0.8,
+          senderReputation: 0.1,
+          recipientCount: 100,
+          hasAttachments: false,
+        },
       });
       filter.classify({
         content: 'hello friend meeting',
-        metadata: { linkCount: 0, capsRatio: 0, senderReputation: 0.9, recipientCount: 1, hasAttachments: false },
+        metadata: {
+          linkCount: 0,
+          capsRatio: 0,
+          senderReputation: 0.9,
+          recipientCount: 1,
+          hasAttachments: false,
+        },
       });
 
       const stats = filter.getStats();
@@ -174,6 +187,65 @@ describe('AntiSpamFilter', () => {
       filter.addToWhitelist('user@example.com');
       expect(filter.isWhitelisted('user@example.com')).toBe(true);
       expect(filter.isBlacklisted('user@example.com')).toBe(false);
+    });
+
+    it('whitelisted sender should immediately return isSpam: false', () => {
+      filter.addToWhitelist('trusted@example.com');
+      // Train with spam to ensure it would normally be detected as spam
+      filter.train([
+        { content: 'buy now free money click here', isSpam: true },
+        { content: 'normal hello meeting', isSpam: false },
+      ]);
+      const result = filter.classify({
+        content: 'BUY NOW FREE MONEY CLICK HERE!!!',
+        sender: 'trusted@example.com',
+        metadata: {
+          linkCount: 10,
+          capsRatio: 0.9,
+          senderReputation: 0.0,
+          recipientCount: 100,
+          hasAttachments: false,
+        },
+      });
+      expect(result.isSpam).toBe(false);
+      expect(result.confidence).toBe(1);
+      expect(result.score).toBe(0);
+    });
+
+    it('blacklisted sender should immediately return isSpam: true', () => {
+      filter.addToBlacklist('spammer@evil.com');
+      const result = filter.classify({
+        content: 'Hi, can we meet tomorrow?',
+        sender: 'spammer@evil.com',
+        metadata: {
+          linkCount: 0,
+          capsRatio: 0,
+          senderReputation: 0.99,
+          recipientCount: 1,
+          hasAttachments: false,
+        },
+      });
+      expect(result.isSpam).toBe(true);
+      expect(result.confidence).toBe(1);
+      expect(result.score).toBe(1);
+    });
+
+    it('should still classify normally if sender is not in whitelist or blacklist', () => {
+      filter.addToWhitelist('other@example.com');
+      filter.addToBlacklist('otherspam@evil.com');
+      const result = filter.classify({
+        content: 'Hello world',
+        sender: 'unknown@example.com',
+        metadata: {
+          linkCount: 0,
+          capsRatio: 0,
+          senderReputation: 0.8,
+          recipientCount: 1,
+          hasAttachments: false,
+        },
+      });
+      // Should go through normal classification pipeline
+      expect(result.features.length).toBeGreaterThan(1);
     });
   });
 });

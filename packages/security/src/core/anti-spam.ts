@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 export const SpamInputSchema = z.object({
   content: z.string(),
+  sender: z.string().optional(),
   metadata: z.object({
     linkCount: z.number().min(0),
     capsRatio: z.number().min(0).max(1),
@@ -93,8 +94,25 @@ export class AntiSpamFilter {
     const parsed = SpamInputSchema.parse(input);
     const features: SpamFeature[] = [];
 
-    // Check blacklist/whitelist via metadata sender reputation as proxy
-    // In a real system, we'd check sender ID
+    // Check whitelist/blacklist by sender
+    if (parsed.sender) {
+      if (this.whitelist.has(parsed.sender)) {
+        return {
+          isSpam: false,
+          confidence: 1,
+          score: 0,
+          features: [{ name: 'whitelist', value: 0, weight: 1 }],
+        };
+      }
+      if (this.blacklist.has(parsed.sender)) {
+        return {
+          isSpam: true,
+          confidence: 1,
+          score: 1,
+          features: [{ name: 'blacklist', value: 1, weight: 1 }],
+        };
+      }
+    }
 
     // Feature scoring
     const linkScore = this.scoreLinkDensity(parsed.metadata.linkCount, parsed.content.length);
