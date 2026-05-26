@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "feat",
   "description": "Add Fastify routes for all Git/PR/Issue/CI/AI DevTools operations in apps/quantmail/backend/routes/ and register them in app.ts",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create apps/quantmail/backend/routes/git.ts - Fastify plugin with routes for git operations: POST /git/repos (create repo), GET /git/repos/:owner/:name, DELETE /git/repos/:owner/:name, PATCH /git/repos/:owner/:name (update settings), GET /git/repos/:owner/:name/branches (list branches).",
     "Create apps/quantmail/backend/routes/pull-requests.ts - Fastify plugin: POST /git/repos/:owner/:name/pulls (create PR), GET /git/repos/:owner/:name/pulls (list), GET /git/repos/:owner/:name/pulls/:number, POST /git/repos/:owner/:name/pulls/:number/merge, POST /git/repos/:owner/:name/pulls/:number/close, GET /git/repos/:owner/:name/pulls/:number/diff.",
