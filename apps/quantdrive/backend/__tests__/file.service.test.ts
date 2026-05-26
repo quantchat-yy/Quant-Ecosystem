@@ -27,7 +27,7 @@ describe('FileService', () => {
   });
 
   describe('uploadFile', () => {
-    it('encrypts content and stores file with IV and authTag', async () => {
+    it('encrypts content and stores file with IV, authTag, and contentHash', async () => {
       let capturedData: Record<string, unknown> = {};
       prisma.file.create.mockImplementation(async (args: { data: Record<string, unknown> }) => {
         capturedData = args.data;
@@ -53,7 +53,37 @@ describe('FileService', () => {
       expect(capturedData['encryptionAuthTag']).toBeDefined();
       expect((capturedData['encryptionAuthTag'] as string).length).toBe(32); // 16 bytes hex
 
+      // contentHash should be a 64-char SHA-256 hex string
+      expect(capturedData['contentHash']).toBeDefined();
+      expect((capturedData['contentHash'] as string).length).toBe(64);
+
       expect(result).toBeDefined();
+    });
+
+    it('produces same contentHash for same plaintext content', async () => {
+      const capturedCalls: Array<Record<string, unknown>> = [];
+      prisma.file.create.mockImplementation(async (args: { data: Record<string, unknown> }) => {
+        capturedCalls.push(args.data);
+        return { id: `file-${capturedCalls.length}`, ...args.data };
+      });
+
+      const plaintext = Buffer.from('Identical content for hash test');
+
+      await service.uploadFile({
+        name: 'file1.txt',
+        content: plaintext,
+        mimeType: 'text/plain',
+        userId: 'user-1',
+      });
+
+      await service.uploadFile({
+        name: 'file2.txt',
+        content: plaintext,
+        mimeType: 'text/plain',
+        userId: 'user-1',
+      });
+
+      expect(capturedCalls[0]!['contentHash']).toBe(capturedCalls[1]!['contentHash']);
     });
   });
 
@@ -130,7 +160,7 @@ describe('FileService', () => {
   });
 
   describe('updateFile', () => {
-    it('creates a version when content is updated', async () => {
+    it('creates a version with encryptionKey when content is updated', async () => {
       const existingFile = {
         id: 'file-1',
         name: 'test.txt',
@@ -140,6 +170,7 @@ describe('FileService', () => {
         encryptionIV: 'aabbccdd00112233aabbccdd',
         encryptionAuthTag: 'aabbccdd00112233aabbccdd00112233',
         encryptionKey: 'a'.repeat(64),
+        contentHash: 'oldhash',
         userId: 'user-1',
         folderId: null,
         isDeleted: false,
@@ -162,6 +193,7 @@ describe('FileService', () => {
           encryptedContent: 'oldEncrypted',
           encryptionIV: 'aabbccdd00112233aabbccdd',
           encryptionAuthTag: 'aabbccdd00112233aabbccdd00112233',
+          encryptionKey: 'a'.repeat(64),
           size: 100,
         }),
       });

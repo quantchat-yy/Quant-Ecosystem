@@ -2,6 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
 import { FileService } from '../services/file.service';
+import { StorageQuotaService } from '../services/storage-quota.service';
+import { AISearchContentService } from '../services/ai-search-content.service';
 
 const uploadFileSchema = z.object({
   name: z.string().min(1).max(255),
@@ -30,8 +32,12 @@ export default async function filesRoutes(fastify: FastifyInstance) {
 
     const prisma = (fastify as unknown as { prisma: unknown }).prisma;
     const service = new FileService(prisma as never);
+    const quotaService = new StorageQuotaService(prisma as never);
 
     const contentBuffer = Buffer.from(parseResult.data.content, 'base64');
+
+    // Enforce storage quota before upload
+    await quotaService.checkQuota(userId, contentBuffer.length);
 
     const file = await service.uploadFile({
       name: parseResult.data.name,
@@ -40,6 +46,20 @@ export default async function filesRoutes(fastify: FastifyInstance) {
       userId,
       folderId: parseResult.data.folderId,
     });
+
+    // Index file content for search
+    try {
+      const ai = (fastify as unknown as { ai: unknown }).ai;
+      const searchService = new AISearchContentService(ai as never, prisma as never);
+      await searchService.indexFile(
+        file.id,
+        contentBuffer.toString('utf-8'),
+        parseResult.data.mimeType,
+        userId,
+      );
+    } catch {
+      // Search indexing failure should not block upload
+    }
 
     return reply.status(201).send({ success: true, data: file });
   });

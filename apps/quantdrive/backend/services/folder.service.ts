@@ -10,7 +10,14 @@ export interface PrismaClient {
       where: Record<string, unknown>;
       data: Record<string, unknown>;
     }) => Promise<unknown>;
+    updateMany: (args: {
+      where: Record<string, unknown>;
+      data: Record<string, unknown>;
+    }) => Promise<{ count: number }>;
     delete: (args: { where: Record<string, unknown> }) => Promise<unknown>;
+    count: (args: Record<string, unknown>) => Promise<number>;
+  };
+  file: {
     count: (args: Record<string, unknown>) => Promise<number>;
   };
 }
@@ -118,6 +125,7 @@ export class FolderService {
       throw createAppError('Not authorized to access target folder', 403, 'UNAUTHORIZED');
     }
 
+    const oldPath = folder.path;
     const newPath = `${parentRecord.path}/${folder.name}`;
 
     const updated = await this.prisma.folder.update({
@@ -125,7 +133,31 @@ export class FolderService {
       data: { parentId: newParentId, path: newPath, updatedAt: new Date() },
     });
 
+    // Cascade path updates to all descendant folders
+    await this.cascadePathUpdates(oldPath, newPath, userId);
+
     return updated as unknown as FolderRecord;
+  }
+
+  private async cascadePathUpdates(
+    oldPath: string,
+    newPath: string,
+    userId: string,
+  ): Promise<void> {
+    // Find all descendant folders whose path starts with the old path
+    const descendants = await this.prisma.folder.findMany({
+      where: { userId, path: { startsWith: oldPath + '/' } },
+    });
+
+    const descendantRecords = descendants as unknown as FolderRecord[];
+
+    for (const descendant of descendantRecords) {
+      const updatedPath = newPath + descendant.path.slice(oldPath.length);
+      await this.prisma.folder.update({
+        where: { id: descendant.id },
+        data: { path: updatedPath, updatedAt: new Date() },
+      });
+    }
   }
 
   async deleteFolder(folderId: string, userId: string): Promise<FolderRecord> {
@@ -137,9 +169,34 @@ export class FolderService {
       throw createAppError('Cannot delete folder with children', 400, 'FOLDER_HAS_CHILDREN');
     }
 
+    const fileCount = await this.prisma.file.count({ where: { folderId } });
+
+    if (fileCount > 0) {
+      throw createAppError('Cannot delete folder that contains files', 400, 'FOLDER_HAS_FILES');
+    }
+
     const deleted = await this.prisma.folder.delete({ where: { id: folderId } });
 
     return deleted as unknown as FolderRecord;
+  }
+
+  async renameFolder(folderId: string, userId: string, newName: string): Promise<FolderRecord> {
+    const folder = await this.getFolder(folderId, userId);
+
+    const oldPath = folder.path;
+    const pathParts = oldPath.split('/');
+    pathParts[pathParts.length - 1] = newName;
+    const newPath = pathParts.join('/');
+
+    const updated = await this.prisma.folder.update({
+      where: { id: folderId },
+      data: { name: newName, path: newPath, updatedAt: new Date() },
+    });
+
+    // Cascade path updates to descendants
+    await this.cascadePathUpdates(oldPath, newPath, userId);
+
+    return updated as unknown as FolderRecord;
   }
 
   async getFolderPath(folderId: string, userId: string): Promise<BreadcrumbItem[]> {

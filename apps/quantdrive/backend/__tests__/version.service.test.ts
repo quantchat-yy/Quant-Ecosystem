@@ -45,11 +45,13 @@ describe('VersionService', () => {
         encryptedContent: 'encrypted',
         encryptionIV: 'iv-hex',
         encryptionAuthTag: 'tag-hex',
+        encryptionKey: 'key-hex',
         size: 1024,
         userId: 'user-1',
       });
 
       expect(result.versionNumber).toBe(1);
+      expect(result.encryptionKey).toBe('key-hex');
     });
 
     it('increments version number based on latest', async () => {
@@ -70,6 +72,7 @@ describe('VersionService', () => {
         encryptedContent: 'encrypted',
         encryptionIV: 'iv-hex',
         encryptionAuthTag: 'tag-hex',
+        encryptionKey: 'key-hex',
         size: 2048,
         userId: 'user-1',
       });
@@ -133,7 +136,7 @@ describe('VersionService', () => {
   });
 
   describe('restoreVersion', () => {
-    it('updates file with version data', async () => {
+    it('updates file with version data including encryptionKey', async () => {
       const version = {
         id: 'ver-1',
         fileId: 'file-1',
@@ -141,6 +144,7 @@ describe('VersionService', () => {
         encryptedContent: 'old-encrypted',
         encryptionIV: 'old-iv',
         encryptionAuthTag: 'old-tag',
+        encryptionKey: 'old-key',
         size: 500,
         createdAt: new Date(),
       };
@@ -163,6 +167,7 @@ describe('VersionService', () => {
           encryptedContent: 'old-encrypted',
           encryptionIV: 'old-iv',
           encryptionAuthTag: 'old-tag',
+          encryptionKey: 'old-key',
           size: 500,
           updatedAt: expect.any(Date),
         },

@@ -76,14 +76,14 @@ describe('AIDuplicateService', () => {
   });
 
   describe('findDuplicates', () => {
-    it('groups similar files together', async () => {
-      const sameContent = Buffer.from('duplicate content here').toString('base64');
+    it('groups files with same contentHash together', async () => {
+      const sameHash = 'a'.repeat(64);
       const files = [
         {
           id: 'file-1',
           name: 'copy1.txt',
           size: 22,
-          encryptedContent: sameContent,
+          contentHash: sameHash,
           userId: 'user-1',
           isDeleted: false,
         },
@@ -91,7 +91,7 @@ describe('AIDuplicateService', () => {
           id: 'file-2',
           name: 'copy2.txt',
           size: 22,
-          encryptedContent: sameContent,
+          contentHash: sameHash,
           userId: 'user-1',
           isDeleted: false,
         },
@@ -104,23 +104,13 @@ describe('AIDuplicateService', () => {
       expect(result.groups[0]!.files.length).toBe(2);
     });
 
-    it('returns no groups when all files are unique', async () => {
-      // Create content that will produce genuinely different hashes
-      const contentA = Buffer.alloc(256);
-      for (let i = 0; i < 256; i++) {
-        contentA[i] = i < 128 ? 0 : 255;
-      }
-      const contentB = Buffer.alloc(256);
-      for (let i = 0; i < 256; i++) {
-        contentB[i] = i % 2 === 0 ? 200 : 10;
-      }
-
+    it('returns no groups when all files have unique hashes', async () => {
       const files = [
         {
           id: 'file-1',
           name: 'unique1.txt',
           size: 256,
-          encryptedContent: contentA.toString('base64'),
+          contentHash: 'a'.repeat(64),
           userId: 'user-1',
           isDeleted: false,
         },
@@ -128,7 +118,7 @@ describe('AIDuplicateService', () => {
           id: 'file-2',
           name: 'unique2.txt',
           size: 256,
-          encryptedContent: contentB.toString('base64'),
+          contentHash: 'b'.repeat(64),
           userId: 'user-1',
           isDeleted: false,
         },

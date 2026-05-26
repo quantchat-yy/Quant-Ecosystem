@@ -8,7 +8,11 @@ function createMockPrisma() {
       findUnique: vi.fn(),
       findMany: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
       delete: vi.fn(),
+      count: vi.fn(),
+    },
+    file: {
       count: vi.fn(),
     },
   };
@@ -119,7 +123,7 @@ describe('FolderService', () => {
   });
 
   describe('moveFolder', () => {
-    it('updates folder path to target parent path', async () => {
+    it('updates folder path to target parent path and cascades to descendants', async () => {
       const folder = {
         id: 'folder-1',
         name: 'Work',
@@ -138,6 +142,15 @@ describe('FolderService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+      const childFolder = {
+        id: 'folder-3',
+        name: 'Reports',
+        userId: 'user-1',
+        parentId: 'folder-1',
+        path: '/Work/Reports',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
       prisma.folder.findUnique
         .mockResolvedValueOnce(folder) // getFolder call
@@ -149,14 +162,55 @@ describe('FolderService', () => {
         path: '/Documents/Work',
       });
 
+      // findMany returns descendant folders for cascade
+      prisma.folder.findMany.mockResolvedValue([childFolder]);
+
       const result = await service.moveFolder('folder-1', 'user-1', 'folder-2');
 
       expect(result.path).toBe('/Documents/Work');
+      // Verify cascade update was called for the child
+      expect(prisma.folder.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'folder-3' },
+          data: expect.objectContaining({ path: '/Documents/Work/Reports' }),
+        }),
+      );
+    });
+  });
+
+  describe('renameFolder', () => {
+    it('updates folder name and path', async () => {
+      const folder = {
+        id: 'folder-1',
+        name: 'OldName',
+        userId: 'user-1',
+        parentId: null,
+        path: '/OldName',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      prisma.folder.findUnique.mockResolvedValue(folder);
+      prisma.folder.update.mockResolvedValue({
+        ...folder,
+        name: 'NewName',
+        path: '/NewName',
+      });
+      prisma.folder.findMany.mockResolvedValue([]);
+
+      const result = await service.renameFolder('folder-1', 'user-1', 'NewName');
+
+      expect(result.name).toBe('NewName');
+      expect(result.path).toBe('/NewName');
+      expect(prisma.folder.update).toHaveBeenCalledWith({
+        where: { id: 'folder-1' },
+        data: expect.objectContaining({ name: 'NewName', path: '/NewName' }),
+      });
     });
   });
 
   describe('deleteFolder', () => {
-    it('deletes folder when it has no children', async () => {
+    it('deletes folder when it has no children and no files', async () => {
       const folder = {
         id: 'folder-1',
         name: 'Empty',
@@ -168,6 +222,7 @@ describe('FolderService', () => {
       };
       prisma.folder.findUnique.mockResolvedValue(folder);
       prisma.folder.count.mockResolvedValue(0);
+      prisma.file.count.mockResolvedValue(0);
       prisma.folder.delete.mockResolvedValue(folder);
 
       const result = await service.deleteFolder('folder-1', 'user-1');
@@ -191,6 +246,25 @@ describe('FolderService', () => {
 
       await expect(service.deleteFolder('folder-1', 'user-1')).rejects.toThrow(
         'Cannot delete folder with children',
+      );
+    });
+
+    it('throws when folder contains files', async () => {
+      const folder = {
+        id: 'folder-1',
+        name: 'HasFiles',
+        userId: 'user-1',
+        parentId: null,
+        path: '/HasFiles',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      prisma.folder.findUnique.mockResolvedValue(folder);
+      prisma.folder.count.mockResolvedValue(0);
+      prisma.file.count.mockResolvedValue(5);
+
+      await expect(service.deleteFolder('folder-1', 'user-1')).rejects.toThrow(
+        'Cannot delete folder that contains files',
       );
     });
   });

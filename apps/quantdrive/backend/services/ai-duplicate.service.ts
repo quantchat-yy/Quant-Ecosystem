@@ -8,7 +8,7 @@ interface FileRecord {
   id: string;
   name: string;
   size: number;
-  encryptedContent: string;
+  contentHash: string;
   userId: string;
   isDeleted: boolean;
 }
@@ -76,43 +76,20 @@ export class AIDuplicateService {
     const records = files as unknown as FileRecord[];
     const hashMap = new Map<string, Array<{ id: string; name: string; size: number }>>();
 
-    // Compute hashes for each file
-    const fileHashes: Array<{
-      file: { id: string; name: string; size: number };
-      hash: string;
-    }> = [];
-
+    // Group files by their stored content hash (SHA-256 of plaintext computed at upload)
     for (const record of records) {
-      const content = Buffer.from(record.encryptedContent, 'base64');
-      const hash = this.computeHash(content);
-      fileHashes.push({
-        file: { id: record.id, name: record.name, size: record.size },
-        hash,
-      });
+      const hash = record.contentHash;
+      if (!hashMap.has(hash)) {
+        hashMap.set(hash, []);
+      }
+      hashMap.get(hash)!.push({ id: record.id, name: record.name, size: record.size });
     }
 
-    // Group files by similar hash (hamming distance < 5)
+    // Only include groups with more than one file (duplicates)
     const groups: DuplicateGroup[] = [];
-    const assigned = new Set<number>();
-
-    for (let i = 0; i < fileHashes.length; i++) {
-      if (assigned.has(i)) continue;
-
-      const group: Array<{ id: string; name: string; size: number }> = [fileHashes[i]!.file];
-      assigned.add(i);
-
-      for (let j = i + 1; j < fileHashes.length; j++) {
-        if (assigned.has(j)) continue;
-
-        const distance = this.hammingDistance(fileHashes[i]!.hash, fileHashes[j]!.hash);
-        if (distance < 5) {
-          group.push(fileHashes[j]!.file);
-          assigned.add(j);
-        }
-      }
-
-      if (group.length > 1) {
-        groups.push({ hash: fileHashes[i]!.hash, files: group });
+    for (const [hash, fileGroup] of hashMap) {
+      if (fileGroup.length > 1) {
+        groups.push({ hash, files: fileGroup });
       }
     }
 

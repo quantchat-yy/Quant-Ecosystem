@@ -95,7 +95,12 @@ export default async function foldersRoutes(fastify: FastifyInstance) {
       return reply.send({ success: true, data: folder });
     }
 
-    // If no parentId, just get and return the folder (name updates not in service)
+    if (parseResult.data.name) {
+      const folder = await service.renameFolder(request.params.id, userId, parseResult.data.name);
+      return reply.send({ success: true, data: folder });
+    }
+
+    // If neither parentId nor name provided, just get and return the folder
     const folder = await service.getFolder(request.params.id, userId);
     return reply.send({ success: true, data: folder });
   });

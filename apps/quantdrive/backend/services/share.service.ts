@@ -15,6 +15,12 @@ export interface PrismaClient {
   user: {
     findUnique: (args: { where: Record<string, unknown> }) => Promise<unknown>;
   };
+  file: {
+    findUnique: (args: { where: Record<string, unknown> }) => Promise<unknown>;
+  };
+  folder: {
+    findUnique: (args: { where: Record<string, unknown> }) => Promise<unknown>;
+  };
 }
 
 export type SharePermission = 'read' | 'write';
@@ -60,6 +66,19 @@ export class ShareService {
       throw createAppError('Recipient user not found', 404, 'USER_NOT_FOUND');
     }
 
+    // Verify ownership of the file
+    const file = await this.prisma.file.findUnique({ where: { id: input.fileId } });
+
+    if (!file) {
+      throw createAppError('File not found', 404, 'FILE_NOT_FOUND');
+    }
+
+    const fileRecord = file as unknown as { userId: string };
+
+    if (fileRecord.userId !== input.ownerUserId) {
+      throw createAppError('Not authorized to share this file', 403, 'UNAUTHORIZED');
+    }
+
     const share = await this.prisma.share.create({
       data: {
         fileId: input.fileId,
@@ -83,6 +102,19 @@ export class ShareService {
 
     if (!recipient) {
       throw createAppError('Recipient user not found', 404, 'USER_NOT_FOUND');
+    }
+
+    // Verify ownership of the folder
+    const folder = await this.prisma.folder.findUnique({ where: { id: input.folderId } });
+
+    if (!folder) {
+      throw createAppError('Folder not found', 404, 'FOLDER_NOT_FOUND');
+    }
+
+    const folderRecord = folder as unknown as { userId: string };
+
+    if (folderRecord.userId !== input.ownerUserId) {
+      throw createAppError('Not authorized to share this folder', 403, 'UNAUTHORIZED');
     }
 
     const share = await this.prisma.share.create({

@@ -13,6 +13,12 @@ function createMockPrisma() {
     user: {
       findUnique: vi.fn(),
     },
+    file: {
+      findUnique: vi.fn(),
+    },
+    folder: {
+      findUnique: vi.fn(),
+    },
   };
 }
 
@@ -28,6 +34,7 @@ describe('ShareService', () => {
   describe('shareFile', () => {
     it('creates a share with status pending', async () => {
       prisma.user.findUnique.mockResolvedValue({ id: 'user-2', name: 'Recipient' });
+      prisma.file.findUnique.mockResolvedValue({ id: 'file-1', userId: 'user-1' });
       prisma.share.create.mockImplementation(async (args: { data: Record<string, unknown> }) => {
         return { id: 'share-1', ...args.data };
       });
@@ -57,11 +64,42 @@ describe('ShareService', () => {
         }),
       ).rejects.toThrow('Recipient user not found');
     });
+
+    it('throws when file not found', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'user-2', name: 'Recipient' });
+      prisma.file.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.shareFile({
+          fileId: 'file-missing',
+          ownerUserId: 'user-1',
+          sharedWithUserId: 'user-2',
+          encryptedFileKey: 'key',
+          permission: 'read',
+        }),
+      ).rejects.toThrow('File not found');
+    });
+
+    it('throws when caller does not own the file', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'user-2', name: 'Recipient' });
+      prisma.file.findUnique.mockResolvedValue({ id: 'file-1', userId: 'user-other' });
+
+      await expect(
+        service.shareFile({
+          fileId: 'file-1',
+          ownerUserId: 'user-1',
+          sharedWithUserId: 'user-2',
+          encryptedFileKey: 'key',
+          permission: 'read',
+        }),
+      ).rejects.toThrow('Not authorized to share this file');
+    });
   });
 
   describe('shareFolder', () => {
     it('creates a share with folderId set and fileId null', async () => {
       prisma.user.findUnique.mockResolvedValue({ id: 'user-2', name: 'Recipient' });
+      prisma.folder.findUnique.mockResolvedValue({ id: 'folder-1', userId: 'user-1' });
       prisma.share.create.mockImplementation(async (args: { data: Record<string, unknown> }) => {
         return { id: 'share-2', ...args.data };
       });
@@ -77,6 +115,36 @@ describe('ShareService', () => {
       expect(result.folderId).toBe('folder-1');
       expect(result.fileId).toBeNull();
       expect(result.status).toBe('pending');
+    });
+
+    it('throws when caller does not own the folder', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'user-2', name: 'Recipient' });
+      prisma.folder.findUnique.mockResolvedValue({ id: 'folder-1', userId: 'user-other' });
+
+      await expect(
+        service.shareFolder({
+          folderId: 'folder-1',
+          ownerUserId: 'user-1',
+          sharedWithUserId: 'user-2',
+          encryptedFileKey: 'key',
+          permission: 'read',
+        }),
+      ).rejects.toThrow('Not authorized to share this folder');
+    });
+
+    it('throws when folder not found', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'user-2', name: 'Recipient' });
+      prisma.folder.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.shareFolder({
+          folderId: 'folder-missing',
+          ownerUserId: 'user-1',
+          sharedWithUserId: 'user-2',
+          encryptedFileKey: 'key',
+          permission: 'read',
+        }),
+      ).rejects.toThrow('Folder not found');
     });
   });
 

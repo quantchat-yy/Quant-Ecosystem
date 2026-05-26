@@ -25,6 +25,7 @@ export interface FileVersion {
   encryptedContent: string;
   encryptionIV: string;
   encryptionAuthTag: string;
+  encryptionKey: string;
   size: number;
   createdAt: Date;
 }
@@ -34,6 +35,7 @@ export interface CreateVersionInput {
   encryptedContent: string;
   encryptionIV: string;
   encryptionAuthTag: string;
+  encryptionKey: string;
   size: number;
   userId: string;
 }
@@ -77,6 +79,7 @@ export class VersionService {
         encryptedContent: input.encryptedContent,
         encryptionIV: input.encryptionIV,
         encryptionAuthTag: input.encryptionAuthTag,
+        encryptionKey: input.encryptionKey,
         size: input.size,
         createdAt: new Date(),
       },
@@ -139,6 +142,7 @@ export class VersionService {
         encryptedContent: version.encryptedContent,
         encryptionIV: version.encryptionIV,
         encryptionAuthTag: version.encryptionAuthTag,
+        encryptionKey: version.encryptionKey,
         size: version.size,
         updatedAt: new Date(),
       },

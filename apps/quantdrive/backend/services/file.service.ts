@@ -1,6 +1,11 @@
 import crypto from 'node:crypto';
 import { createAppError } from '@quant/server-core';
 
+/** Compute SHA-256 hash of plaintext content for duplicate detection */
+function computeContentHash(content: Buffer): string {
+  return crypto.createHash('sha256').update(content).digest('hex');
+}
+
 /** Minimal PrismaClient interface for dependency injection */
 export interface PrismaClient {
   file: {
@@ -28,6 +33,7 @@ export interface FileRecord {
   encryptionIV: string;
   encryptionAuthTag: string;
   encryptionKey: string;
+  contentHash: string;
   userId: string;
   folderId: string | null;
   isDeleted: boolean;
@@ -67,6 +73,8 @@ export class FileService {
     const encrypted = Buffer.concat([cipher.update(input.content), cipher.final()]);
     const authTag = cipher.getAuthTag();
 
+    const contentHash = computeContentHash(input.content);
+
     const file = await this.prisma.file.create({
       data: {
         name: input.name,
@@ -76,6 +84,7 @@ export class FileService {
         encryptionIV: iv.toString('hex'),
         encryptionAuthTag: authTag.toString('hex'),
         encryptionKey: key.toString('hex'),
+        contentHash,
         userId: input.userId,
         folderId: input.folderId ?? null,
         isDeleted: false,
@@ -152,13 +161,14 @@ export class FileService {
     }
 
     if (input.content) {
-      // Save current version before updating
+      // Save current version before updating (including encryption key)
       await this.prisma.fileVersion.create({
         data: {
           fileId,
           encryptedContent: existing.encryptedContent,
           encryptionIV: existing.encryptionIV,
           encryptionAuthTag: existing.encryptionAuthTag,
+          encryptionKey: existing.encryptionKey,
           size: existing.size,
           createdAt: new Date(),
         },
@@ -175,6 +185,7 @@ export class FileService {
       data['encryptionIV'] = iv.toString('hex');
       data['encryptionAuthTag'] = authTag.toString('hex');
       data['encryptionKey'] = key.toString('hex');
+      data['contentHash'] = computeContentHash(input.content);
       data['size'] = input.content.length;
     }
 
