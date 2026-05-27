@@ -35,7 +35,7 @@ export interface MemoryEntry {
   accessLog: MemoryAccess[];
   explanation: string;
   accessScopes: string[];
-  writeSignal: 'explicit' | 'digest-approved';
+  writeSignal: 'explicit' | 'digest-approved' | 'pending-review';
   status: 'active' | 'pending';
   tags: string[];
 }
@@ -68,7 +68,7 @@ export const MemoryEntrySchema = z.object({
   ),
   explanation: z.string(),
   accessScopes: z.array(z.string()),
-  writeSignal: z.enum(['explicit', 'digest-approved']),
+  writeSignal: z.enum(['explicit', 'digest-approved', 'pending-review']),
   status: z.enum(['active', 'pending']),
   tags: z.array(z.string()),
 });

@@ -25,7 +25,7 @@ interface MemoryItem {
   accessLog: MemoryAccess[];
   explanation: string;
   accessScopes: string[];
-  writeSignal: 'explicit' | 'digest-approved';
+  writeSignal: 'explicit' | 'digest-approved' | 'pending-review';
   status: 'active' | 'pending';
   tags: string[];
   locked?: boolean;
@@ -85,6 +85,9 @@ export default function MemoryPage(): JSX.Element {
   const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showDisclosure, setShowDisclosure] = useState<boolean>(false);
+  // NOTE: Lock/unlock is client-side only for now (ephemeral state stored in React useState).
+  // Locked IDs are lost on page refresh. Backend persistence of lock state is planned
+  // for a future phase (e.g., a `locked` field or `accessScopes: []` override).
   const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 

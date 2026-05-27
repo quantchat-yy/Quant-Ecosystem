@@ -72,7 +72,7 @@ const importBodySchema = z.object({
       ),
       explanation: z.string(),
       accessScopes: z.array(z.string()),
-      writeSignal: z.enum(['explicit', 'digest-approved']),
+      writeSignal: z.enum(['explicit', 'digest-approved', 'pending-review']),
       status: z.enum(['active', 'pending']),
       tags: z.array(z.string()),
     }),
@@ -121,6 +121,14 @@ export default async function memoryRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
+    const existing = service.getMemory(request.params.id);
+    if (!existing) {
+      throw createAppError('Memory not found', 404, 'NOT_FOUND');
+    }
+    if (existing.userId !== userId) {
+      throw createAppError('Forbidden', 403, 'FORBIDDEN');
+    }
+
     const parseResult = updateMemorySchema.safeParse(request.body);
     if (!parseResult.success) {
       throw parseResult.error;
@@ -139,6 +147,14 @@ export default async function memoryRoutes(fastify: FastifyInstance) {
     const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
     if (!userId) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const existing = service.getMemory(request.params.id);
+    if (!existing) {
+      throw createAppError('Memory not found', 404, 'NOT_FOUND');
+    }
+    if (existing.userId !== userId) {
+      throw createAppError('Forbidden', 403, 'FORBIDDEN');
     }
 
     const deleted = service.deleteMemory(request.params.id);
@@ -178,6 +194,14 @@ export default async function memoryRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
+    const existing = service.getMemory(request.params.id);
+    if (!existing) {
+      throw createAppError('Candidate not found or not pending', 404, 'NOT_FOUND');
+    }
+    if (existing.userId !== userId) {
+      throw createAppError('Forbidden', 403, 'FORBIDDEN');
+    }
+
     const memory = service.approveCandidate(request.params.id);
     if (!memory) {
       throw createAppError('Candidate not found or not pending', 404, 'NOT_FOUND');
@@ -191,6 +215,14 @@ export default async function memoryRoutes(fastify: FastifyInstance) {
     const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
     if (!userId) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const existing = service.getMemory(request.params.id);
+    if (!existing) {
+      throw createAppError('Candidate not found or not pending', 404, 'NOT_FOUND');
+    }
+    if (existing.userId !== userId) {
+      throw createAppError('Forbidden', 403, 'FORBIDDEN');
     }
 
     const rejected = service.rejectCandidate(request.params.id);
@@ -218,7 +250,15 @@ export default async function memoryRoutes(fastify: FastifyInstance) {
 
     const format = queryResult.data.format ?? 'json';
     const exported = service.exportMemories(userId, format);
-    return reply.send({ success: true, data: exported });
+
+    // Send raw content with appropriate content type to avoid double-encoding
+    if (format === 'json') {
+      return reply.header('Content-Type', 'application/json').send(exported);
+    } else if (format === 'markdown') {
+      return reply.header('Content-Type', 'text/markdown').send(exported);
+    } else {
+      return reply.header('Content-Type', 'text/csv').send(exported);
+    }
   });
 
   // POST /import - import memories from JSON

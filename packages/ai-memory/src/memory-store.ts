@@ -55,7 +55,7 @@ export class AIMemoryStore {
       createdAt: now,
       updatedAt: now,
       accessLog: [],
-      writeSignal: 'explicit',
+      writeSignal: 'pending-review',
       status: 'pending',
     };
     this.memories.set(id, full);
@@ -171,6 +171,10 @@ export class AIMemoryStore {
     return true;
   }
 
+  // TODO: Access scope enforcement at query time is planned for a future phase.
+  // Currently getUserMemories returns all active, non-expired entries for a user
+  // regardless of the requesting app's identity. Scope filtering will be added
+  // when app-level identity is passed through the API layer.
   getUserMemories(userId: string): MemoryEntry[] {
     const now = Date.now();
     return Array.from(this.memories.values()).filter(

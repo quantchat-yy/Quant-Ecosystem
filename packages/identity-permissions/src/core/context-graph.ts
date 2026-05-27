@@ -11,6 +11,11 @@ export class ContextGraph {
     this.nodes.set(node.id, node);
   }
 
+  // NOTE: Edges are bidirectional - addEdge creates symmetric links in both nodes.
+  // This is correct for undirected relationships (e.g., "related-to", "shared-with")
+  // but conflates semantics for directed relationships (e.g., "edited", "mentioned-in").
+  // Supporting directed edge semantics would require a future enhancement with
+  // asymmetric insertion or a reverse relationship type.
   addEdge(fromId: string, toId: string, relationship: ContextEdgeType): boolean {
     const fromNode = this.nodes.get(fromId);
     const toNode = this.nodes.get(toId);

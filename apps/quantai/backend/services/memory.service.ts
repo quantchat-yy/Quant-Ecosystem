@@ -24,7 +24,7 @@ export interface CreateMemoryData {
   source: string;
   sourceApp: string;
   explanation: string;
-  writeSignal: 'explicit' | 'digest-approved';
+  writeSignal: 'explicit' | 'digest-approved' | 'pending-review';
   accessScopes: string[];
   tags: string[];
   expiresAt?: number;
@@ -84,6 +84,10 @@ export class MemoryService {
       expiresAt: data.expiresAt,
       status: 'active',
     });
+  }
+
+  getMemory(id: string): MemoryEntry | undefined {
+    return this.store.get(id);
   }
 
   updateMemory(id: string, data: UpdateMemoryData): MemoryEntry | undefined {
