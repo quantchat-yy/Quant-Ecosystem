@@ -1,39 +1,9 @@
-// FIXME(phase-23): replace mock with real API
 'use client';
 
 import { AppShell, TopBar, BottomNav, ChatList } from '@quant/shared-ui';
-import type { ChatListItem, NavItem } from '@quant/shared-ui';
-
-const mockConversations: ChatListItem[] = [
-  {
-    id: '1',
-    name: 'Alice Johnson',
-    lastMessage: 'Hey! Are you coming to the event tonight?',
-    timestamp: '1m ago',
-    unreadCount: 2,
-  },
-  {
-    id: '2',
-    name: 'Bob Smith',
-    lastMessage: 'Just sent you the files',
-    timestamp: '1h ago',
-    unreadCount: 0,
-  },
-  {
-    id: '3',
-    name: 'Team Chat',
-    lastMessage: 'Meeting moved to 3pm',
-    timestamp: '2h ago',
-    unreadCount: 5,
-  },
-  {
-    id: '4',
-    name: 'David Park',
-    lastMessage: 'Thanks for the help!',
-    timestamp: '1d ago',
-    unreadCount: 0,
-  },
-];
+import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
+import type { NavItem } from '@quant/shared-ui';
+import { useConversations } from '../hooks/useConversations';
 
 const navItems: NavItem[] = [
   { id: 'chats', label: 'Chats', icon: <span>&#128172;</span> },
@@ -43,11 +13,29 @@ const navItems: NavItem[] = [
 ];
 
 export default function ChatListPage() {
+  const { data, isLoading, error, refetch } = useConversations();
+
+  if (isLoading) return <LoadingState variant="skeleton" text="Loading conversations..." />;
+  if (error) return <ErrorState message={error.message} onRetry={() => void refetch()} />;
+
+  const conversations = data ?? [];
+
+  if (conversations.length === 0)
+    return <EmptyState title="No conversations" description="Start a new chat to get connected" />;
+
+  const chatItems = conversations.map((conv) => ({
+    id: conv.id,
+    name: conv.name || 'Chat',
+    lastMessage: conv.lastMessage?.content || '',
+    timestamp: conv.lastActivityAt ? new Date(conv.lastActivityAt).toLocaleString() : '',
+    unreadCount: conv.unreadCount || 0,
+  }));
+
   return (
     <AppShell topBar={<TopBar title="QuantChat" />}>
       <div className="flex flex-col h-full pb-16">
         <ChatList
-          items={mockConversations}
+          items={chatItems}
           onSelect={(id) => {
             window.location.href = `/chat/${id}`;
           }}

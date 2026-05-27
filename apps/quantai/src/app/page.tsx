@@ -1,17 +1,9 @@
-// FIXME(phase-23): replace mock with real API
 'use client';
 
 import { AIChat, AppShell, Sidebar } from '@quant/shared-ui';
-import type { SidebarItem, AIChatMessage } from '@quant/shared-ui';
-
-const mockMessages: AIChatMessage[] = [
-  {
-    id: '1',
-    role: 'assistant',
-    content: 'Hello! I am QuantAI, your intelligent assistant. How can I help you today?',
-    timestamp: 'Just now',
-  },
-];
+import { LoadingState, ErrorState } from '@quant/shared-ui';
+import type { SidebarItem } from '@quant/shared-ui';
+import { useAIChat } from '../hooks/useAIChat';
 
 const sidebarItems: SidebarItem[] = [
   { id: 'chat', label: 'Chat', icon: <span>&#128172;</span>, active: true },
@@ -21,6 +13,18 @@ const sidebarItems: SidebarItem[] = [
 ];
 
 export default function AIPage() {
+  const { messages, isLoading, error, sendMessage, isStreaming } = useAIChat();
+
+  if (isLoading) return <LoadingState variant="skeleton" text="Loading AI assistant..." />;
+  if (error) return <ErrorState message={error} onRetry={() => window.location.reload()} />;
+
+  const chatMessages = messages.map((msg) => ({
+    id: msg.id,
+    role: msg.role as 'user' | 'assistant',
+    content: msg.content,
+    timestamp: msg.timestamp,
+  }));
+
   return (
     <AppShell
       sidebar={
@@ -43,9 +47,9 @@ export default function AIPage() {
         </div>
         <div className="flex-1 overflow-hidden">
           <AIChat
-            messages={mockMessages}
+            messages={chatMessages}
             onSendMessage={(content) => {
-              console.log('Send to AI:', content);
+              sendMessage(content);
             }}
           />
         </div>

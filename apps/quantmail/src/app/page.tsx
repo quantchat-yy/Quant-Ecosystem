@@ -1,66 +1,9 @@
-// FIXME(phase-23): replace mock with real API
 'use client';
 
 import { AppShell, Sidebar, SearchInput, Card, Badge } from '@quant/shared-ui';
+import { LoadingState, ErrorState, EmptyState, Skeleton } from '@quant/shared-ui';
 import type { SidebarItem } from '@quant/shared-ui';
-
-interface Email {
-  id: string;
-  from: string;
-  subject: string;
-  preview: string;
-  timestamp: string;
-  read: boolean;
-  starred: boolean;
-}
-
-const mockEmails: Email[] = [
-  {
-    id: '1',
-    from: 'Team Notifications',
-    subject: 'Sprint Review - Week 42 Summary',
-    preview: 'Here is the summary of completed tasks for this week...',
-    timestamp: '30m ago',
-    read: false,
-    starred: true,
-  },
-  {
-    id: '2',
-    from: 'Alice Johnson',
-    subject: 'Re: Project Proposal',
-    preview: 'I reviewed the document and have some suggestions...',
-    timestamp: '1h ago',
-    read: false,
-    starred: false,
-  },
-  {
-    id: '3',
-    from: 'Security Alert',
-    subject: 'New login from Chrome on Mac',
-    preview: 'We noticed a new sign-in to your account from...',
-    timestamp: '2h ago',
-    read: true,
-    starred: false,
-  },
-  {
-    id: '4',
-    from: 'Bob Smith',
-    subject: 'Lunch tomorrow?',
-    preview: 'Hey, are you free for lunch tomorrow around noon?',
-    timestamp: '1d ago',
-    read: true,
-    starred: false,
-  },
-  {
-    id: '5',
-    from: 'Newsletter',
-    subject: 'Weekly Tech Digest',
-    preview: 'Top stories: AI advances, new framework releases...',
-    timestamp: '2d ago',
-    read: true,
-    starred: false,
-  },
-];
+import { useInbox } from '../hooks/useInbox';
 
 const sidebarItems: SidebarItem[] = [
   { id: 'inbox', label: 'Inbox', icon: <span>&#128229;</span>, active: true },
@@ -72,6 +15,8 @@ const sidebarItems: SidebarItem[] = [
 ];
 
 export default function InboxPage() {
+  const { data, isLoading, error, refetch } = useInbox();
+
   return (
     <AppShell
       sidebar={
@@ -91,35 +36,51 @@ export default function InboxPage() {
           />
         </div>
         <div className="flex-1 overflow-y-auto">
-          {mockEmails.map((email) => (
-            <Card
-              key={email.id}
-              padding="none"
-              className={`mx-4 my-2 p-4 cursor-pointer hover:bg-[var(--quant-muted)] transition-colors ${
-                !email.read ? 'border-l-4 border-l-quant-primary' : ''
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm ${!email.read ? 'font-semibold' : 'font-normal'}`}>
-                      {email.from}
-                    </span>
-                    {!email.read && <Badge variant="info">New</Badge>}
+          {isLoading && (
+            <div className="p-4 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} variant="rect" width="100%" height="80px" />
+              ))}
+            </div>
+          )}
+          {error && <ErrorState message={error.message} onRetry={() => void refetch()} />}
+          {!isLoading && !error && (!data || data.length === 0) && (
+            <EmptyState title="Inbox is empty" description="No emails to show" />
+          )}
+          {!isLoading &&
+            !error &&
+            data &&
+            data.map((email) => (
+              <Card
+                key={email.id}
+                padding="none"
+                className={`mx-4 my-2 p-4 cursor-pointer hover:bg-[var(--quant-muted)] transition-colors ${
+                  !email.isRead ? 'border-l-4 border-l-quant-primary' : ''
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-sm ${!email.isRead ? 'font-semibold' : 'font-normal'}`}
+                      >
+                        {email.from?.name || email.from?.email}
+                      </span>
+                      {!email.isRead && <Badge variant="info">New</Badge>}
+                    </div>
+                    <h3 className={`text-sm mt-1 ${!email.isRead ? 'font-semibold' : ''}`}>
+                      {email.subject}
+                    </h3>
+                    <p className="text-xs text-[var(--quant-muted-foreground)] mt-1 truncate">
+                      {email.snippet}
+                    </p>
                   </div>
-                  <h3 className={`text-sm mt-1 ${!email.read ? 'font-semibold' : ''}`}>
-                    {email.subject}
-                  </h3>
-                  <p className="text-xs text-[var(--quant-muted-foreground)] mt-1 truncate">
-                    {email.preview}
-                  </p>
+                  <span className="text-xs text-[var(--quant-muted-foreground)] whitespace-nowrap ml-4">
+                    {email.receivedAt ? new Date(email.receivedAt).toLocaleDateString() : ''}
+                  </span>
                 </div>
-                <span className="text-xs text-[var(--quant-muted-foreground)] whitespace-nowrap ml-4">
-                  {email.timestamp}
-                </span>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            ))}
         </div>
       </div>
     </AppShell>

@@ -1,10 +1,11 @@
-// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantEdits - Asset Library
 // Tabs: Uploads/Stock/Music/Stickers/Fonts, upload, folders, search, favorites
 // ============================================================================
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
+import { useAssets } from '../hooks/useAssets';
 
 interface Asset {
   id: string;
@@ -29,73 +30,34 @@ interface Folder {
 }
 
 interface AssetLibraryProps {
-  projectId: string;
-  onDragToTimeline: (asset: Asset) => void;
+  projectId?: string;
+  onDragToTimeline?: (asset: Asset) => void;
 }
 
 type TabType = 'uploads' | 'stock' | 'music' | 'stickers' | 'fonts';
 
 const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline }) => {
   const [activeTab, setActiveTab] = useState<TabType>('uploads');
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [folders, setFolders] = useState<Folder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFolder, setSelectedFolder] = useState<string>('all');
   const [showFavorites, setShowFavorites] = useState(false);
   const [showRecent, setShowRecent] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Map<string, number>>(new Map());
   const [isDragging, setIsDragging] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'size'>('date');
   const [draggedAsset, setDraggedAsset] = useState<Asset | null>(null);
   const [showNewFolderInput, setShowNewFolderInput] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [folders, setFolders] = useState<Folder[]>([
+    { id: 'all', name: 'All Assets', assetCount: 0, color: '#6366f1' },
+  ]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const loadAssets = async () => {
-      setLoading(true);
-      try {
-        const types: Asset['type'][] = ['image', 'video', 'audio', 'font', 'sticker'];
-        const mockAssets: Asset[] = Array.from({ length: 30 }, (_, i) => ({
-          id: `asset-${i}`,
-          name: `${['Background', 'Clip', 'Sound', 'Overlay', 'Logo', 'Music'][i % 6]}_${i + 1}.${['jpg', 'mp4', 'mp3', 'png', 'ttf'][i % 5]}`,
-          type: types[i % 5],
-          url: `/assets/${i}.${['jpg', 'mp4', 'mp3', 'png', 'ttf'][i % 5]}`,
-          thumbnail: `/assets/thumb-${i}.jpg`,
-          size: Math.floor(Math.random() * 50 + 1) * 1024 * 1024,
-          duration: i % 5 === 1 || i % 5 === 2 ? Math.floor(Math.random() * 120) + 5 : undefined,
-          dimensions: i % 5 !== 2 && i % 5 !== 4 ? { width: 1920, height: 1080 } : undefined,
-          folder: ['All', 'Backgrounds', 'Music', 'Graphics'][i % 4],
-          uploadedAt: new Date(Date.now() - i * 3600000).toISOString(),
-          isFavorite: i < 5,
-          tags: [
-            ['nature', 'landscape'],
-            ['urban', 'city'],
-            ['abstract', 'modern'],
-            ['minimal', 'clean'],
-          ][i % 4],
-        }));
-        setAssets(mockAssets);
-        setFolders([
-          { id: 'all', name: 'All Assets', assetCount: 30, color: '#6366f1' },
-          { id: 'backgrounds', name: 'Backgrounds', assetCount: 8, color: '#10b981' },
-          { id: 'music', name: 'Music', assetCount: 7, color: '#f59e0b' },
-          { id: 'graphics', name: 'Graphics', assetCount: 6, color: '#ec4899' },
-          { id: 'footage', name: 'Footage', assetCount: 9, color: '#8b5cf6' },
-        ]);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load assets');
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadAssets();
-  }, [projectId, activeTab]);
+  const { data: assetsData, isLoading, error, refetch } = useAssets(activeTab, searchQuery);
+
+  const assets: Asset[] = (assetsData ?? []) as Asset[];
 
   const filteredAssets = useMemo(() => {
     let result = assets
@@ -107,12 +69,12 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
         if (activeTab === 'fonts') return a.type === 'font';
         return true;
       })
-      .filter((a) => selectedFolder === 'all' || a.folder.toLowerCase() === selectedFolder)
+      .filter((a) => selectedFolder === 'all' || a.folder?.toLowerCase() === selectedFolder)
       .filter((a) => !showFavorites || a.isFavorite)
       .filter(
         (a) =>
           a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          a.tags.some((t) => t.includes(searchQuery.toLowerCase())),
+          (a.tags && a.tags.some((t) => t.includes(searchQuery.toLowerCase()))),
       );
 
     if (showRecent) result = result.slice(0, 10);
@@ -162,14 +124,15 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
   }, []);
 
   const handleDragEnd = useCallback(() => {
-    if (draggedAsset) {
+    if (draggedAsset && onDragToTimeline) {
       onDragToTimeline(draggedAsset);
       setDraggedAsset(null);
     }
   }, [draggedAsset, onDragToTimeline]);
 
   const handleToggleFavorite = useCallback((id: string) => {
-    setAssets((prev) => prev.map((a) => (a.id === id ? { ...a, isFavorite: !a.isFavorite } : a)));
+    // Optimistic toggle - would need mutation in production
+    console.log('Toggle favorite:', id);
   }, []);
 
   const handleCreateFolder = useCallback(() => {
@@ -184,7 +147,7 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
   }, [newFolderName]);
 
   const handleDeleteAsset = useCallback((id: string) => {
-    setAssets((prev) => prev.filter((a) => a.id !== id));
+    console.log('Delete asset:', id);
   }, []);
 
   const formatSize = useCallback((bytes: number): string => {
@@ -193,23 +156,12 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
     return `${(bytes / 1024).toFixed(0)} KB`;
   }, []);
 
-  if (loading) {
-    return (
-      <div className="assets-loading">
-        <div className="loading-spinner" />
-        <p>Loading assets...</p>
-      </div>
-    );
+  if (isLoading) {
+    return <LoadingState variant="skeleton" text="Loading assets..." />;
   }
 
   if (error) {
-    return (
-      <div className="assets-error">
-        <h3>Failed to load assets</h3>
-        <p>{error}</p>
-        <button onClick={() => window.location.reload()}>Retry</button>
-      </div>
-    );
+    return <ErrorState message={error.message} onRetry={() => void refetch()} />;
   }
 
   return (
@@ -342,13 +294,12 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
         </div>
       </div>
 
-      <div className={`assets-${viewMode}`}>
+      <div className="assets-grid">
         {filteredAssets.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📂</div>
-            <h3>No assets found</h3>
-            <p>{showFavorites ? 'No favorites yet' : 'Upload files or browse stock media'}</p>
-          </div>
+          <EmptyState
+            title="No assets found"
+            description={showFavorites ? 'No favorites yet' : 'Upload files or browse stock media'}
+          />
         ) : (
           filteredAssets.map((asset) => (
             <div

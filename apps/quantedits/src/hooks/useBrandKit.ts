@@ -3,7 +3,8 @@
 // Brand kit state: load kits, apply brand, check consistency
 // ============================================================================
 
-import { useState, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '../services/api-client';
 
 interface BrandKit {
   id: string;
@@ -21,71 +22,75 @@ interface ConsistencyIssue {
   suggestion: string;
 }
 
-interface UseBrandKitReturn {
-  kits: BrandKit[];
-  activeKit: BrandKit | null;
-  issues: ConsistencyIssue[];
-  isLoading: boolean;
-  loadKits: () => Promise<void>;
-  setActiveKit: (kitId: string) => void;
-  applyToProject: (elements: unknown[]) => Promise<{ applied: number; skipped: number }>;
-  checkConsistency: (elements: unknown[]) => Promise<ConsistencyIssue[]>;
-  createKit: (name: string) => Promise<BrandKit>;
-  deleteKit: (kitId: string) => Promise<void>;
-}
+export function useBrandKit() {
+  const queryClient = useQueryClient();
 
-export function useBrandKit(): UseBrandKitReturn {
-  const [kits, setKits] = useState<BrandKit[]>([]);
-  const [activeKit, setActiveKitState] = useState<BrandKit | null>(null);
-  const [issues, setIssues] = useState<ConsistencyIssue[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const kitsQuery = useQuery({
+    queryKey: ['brand-kits'],
+    queryFn: async () => {
+      const response = await apiClient.listBrandKits();
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to load brand kits');
+      }
+      return (response.data ?? []) as BrandKit[];
+    },
+  });
 
-  const loadKits = useCallback(async () => {
-    setIsLoading(true);
-    await new Promise(r => setTimeout(r, 300));
-    const mockKits: BrandKit[] = [
-      { id: 'kit-1', name: 'Primary Brand', isDefault: true, colors: { primary: '#6366f1', secondary: '#8b5cf6', accent: '#10b981', background: '#ffffff', text: '#1f2937' }, fonts: { heading: 'Inter', body: 'Inter', accent: 'Fira Code' }, logos: [{ id: 'l1', url: '/logos/primary.png', variant: 'primary' }] },
-      { id: 'kit-2', name: 'Dark Theme', isDefault: false, colors: { primary: '#ec4899', secondary: '#f97316', accent: '#06b6d4', background: '#0f172a', text: '#f8fafc' }, fonts: { heading: 'Poppins', body: 'Inter', accent: 'JetBrains Mono' }, logos: [] },
-    ];
-    setKits(mockKits);
-    setActiveKitState(mockKits.find(k => k.isDefault) || mockKits[0]);
-    setIsLoading(false);
-  }, []);
+  const createKitMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const response = await apiClient.createBrandKit({ name });
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to create brand kit');
+      }
+      return response.data as BrandKit;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['brand-kits'] });
+    },
+  });
 
-  const setActiveKit = useCallback((kitId: string) => {
-    const kit = kits.find(k => k.id === kitId);
-    if (kit) setActiveKitState(kit);
-  }, [kits]);
+  const deleteKitMutation = useMutation({
+    mutationFn: async (kitId: string) => {
+      const response = await apiClient.deleteBrandKit(kitId);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to delete brand kit');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['brand-kits'] });
+    },
+  });
 
-  const applyToProject = useCallback(async (elements: unknown[]): Promise<{ applied: number; skipped: number }> => {
-    if (!activeKit) return { applied: 0, skipped: 0 };
-    await new Promise(r => setTimeout(r, 200));
-    return { applied: Math.floor(elements.length * 0.7), skipped: Math.ceil(elements.length * 0.3) };
-  }, [activeKit]);
+  const applyMutation = useMutation({
+    mutationFn: async ({ kitId, elements }: { kitId: string; elements: unknown[] }) => {
+      const response = await apiClient.applyBrandKit(kitId, elements);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to apply brand kit');
+      }
+      return response.data as { applied: number; skipped: number };
+    },
+  });
 
-  const checkConsistency = useCallback(async (elements: unknown[]): Promise<ConsistencyIssue[]> => {
-    if (!activeKit) return [];
-    await new Promise(r => setTimeout(r, 200));
-    const newIssues: ConsistencyIssue[] = [
-      { element: 'text-1', issue: 'Font not in brand kit', severity: 'warning', suggestion: `Use ${activeKit.fonts.heading}` },
-      { element: 'shape-3', issue: 'Color not in palette', severity: 'info', suggestion: `Use brand primary ${activeKit.colors.primary}` },
-    ];
-    setIssues(newIssues);
-    return newIssues;
-  }, [activeKit]);
+  const consistencyMutation = useMutation({
+    mutationFn: async ({ kitId, elements }: { kitId: string; elements: unknown[] }) => {
+      const response = await apiClient.checkBrandConsistency(kitId, elements);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to check consistency');
+      }
+      return (response.data ?? []) as ConsistencyIssue[];
+    },
+  });
 
-  const createKit = useCallback(async (name: string): Promise<BrandKit> => {
-    const newKit: BrandKit = { id: `kit-${Date.now()}`, name, isDefault: false, colors: { primary: '#000000', secondary: '#333333', accent: '#666666', background: '#ffffff', text: '#000000' }, fonts: { heading: 'Inter', body: 'Inter', accent: 'monospace' }, logos: [] };
-    setKits(prev => [...prev, newKit]);
-    return newKit;
-  }, []);
-
-  const deleteKit = useCallback(async (kitId: string) => {
-    setKits(prev => prev.filter(k => k.id !== kitId));
-    if (activeKit?.id === kitId) setActiveKitState(null);
-  }, [activeKit]);
-
-  return { kits, activeKit, issues, isLoading, loadKits, setActiveKit, applyToProject, checkConsistency, createKit, deleteKit };
+  return {
+    kits: kitsQuery.data ?? [],
+    isLoading: kitsQuery.isLoading,
+    error: kitsQuery.error,
+    refetch: kitsQuery.refetch,
+    createKit: createKitMutation.mutateAsync,
+    deleteKit: deleteKitMutation.mutateAsync,
+    applyToProject: applyMutation.mutateAsync,
+    checkConsistency: consistencyMutation.mutateAsync,
+  };
 }
 
 export default useBrandKit;

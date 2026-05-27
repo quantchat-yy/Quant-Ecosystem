@@ -1,10 +1,12 @@
-// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantEdits - Project Gallery Home
 // Tabs: Recent/Templates/Shared, create new button, project cards, import media
 // ============================================================================
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
+import { useProjects } from '../hooks/useProjects';
+import { useTemplates } from '../hooks/useTemplates';
 
 interface Project {
   id: string;
@@ -37,10 +39,6 @@ interface SharedProject {
   sharedAt: string;
   permission: 'view' | 'comment' | 'edit';
   lastEdited: string;
-}
-
-interface ProjectGalleryProps {
-  userId: string;
 }
 
 type TabType = 'recent' | 'templates' | 'shared';
@@ -204,70 +202,31 @@ const SharedProjectCard: React.FC<{ project: SharedProject; onOpen: (id: string)
   );
 };
 
-const ProjectGallery: React.FC<ProjectGalleryProps> = ({ userId }) => {
+const ProjectGallery: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('recent');
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [sharedProjects, setSharedProjects] = useState<SharedProject[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedType, setSelectedType] = useState<ProjectType>('video');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'type'>('date');
   const [isDraggingFile, setIsDraggingFile] = useState(false);
 
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const mockProjects: Project[] = Array.from({ length: 12 }, (_, i) => ({
-          id: `proj-${i}`,
-          title: `Project ${i + 1}`,
-          thumbnail: `/thumbnails/project-${i}.jpg`,
-          lastEdited: new Date(Date.now() - i * 3600000 * 24).toISOString(),
-          duration: Math.floor(Math.random() * 300) + 30,
-          type: (['video', 'photo', 'design'] as const)[i % 3],
-          status: (['draft', 'processing', 'complete'] as const)[i % 3],
-          collaborators: i % 3 === 0 ? ['Alice', 'Bob'] : [],
-          resolution: i % 2 === 0 ? '1920x1080' : '1080x1920',
-          fps: 30,
-        }));
-        setProjects(mockProjects);
-        setTemplates(
-          Array.from({ length: 8 }, (_, i) => ({
-            id: `tmpl-${i}`,
-            title: `Template ${i + 1}`,
-            thumbnail: `/thumbnails/template-${i}.jpg`,
-            category: ['Social Media', 'Marketing', 'Education', 'Entertainment'][i % 4],
-            duration: 30 + i * 15,
-            aspectRatio: ['16:9', '9:16', '1:1', '4:5'][i % 4],
-            uses: Math.floor(Math.random() * 10000),
-          })),
-        );
-        setSharedProjects(
-          Array.from({ length: 5 }, (_, i) => ({
-            id: `shared-${i}`,
-            title: `Shared Project ${i + 1}`,
-            thumbnail: `/thumbnails/shared-${i}.jpg`,
-            sharedBy: ['Alice', 'Bob', 'Charlie'][i % 3],
-            sharedAt: new Date(Date.now() - i * 86400000).toISOString(),
-            permission: (['view', 'comment', 'edit'] as const)[i % 3],
-            lastEdited: new Date(Date.now() - i * 7200000).toISOString(),
-          })),
-        );
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load projects');
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, [userId]);
+  const {
+    data: projectsData,
+    isLoading: projectsLoading,
+    error: projectsError,
+    refetch: refetchProjects,
+  } = useProjects();
+  const {
+    data: templatesData,
+    isLoading: templatesLoading,
+    error: templatesError,
+  } = useTemplates();
+
+  const projects: Project[] = (projectsData ?? []) as Project[];
+  const templates: Template[] = (templatesData ?? []) as Template[];
+  const sharedProjects: SharedProject[] = [];
 
   const filteredProjects = useMemo(() => {
-    let filtered = projects.filter((p) =>
+    let filtered = projects.filter((p: Project) =>
       p.title.toLowerCase().includes(searchQuery.toLowerCase()),
     );
     if (sortBy === 'date')
@@ -278,7 +237,6 @@ const ProjectGallery: React.FC<ProjectGalleryProps> = ({ userId }) => {
   }, [projects, searchQuery, sortBy]);
 
   const handleCreateProject = useCallback((type: ProjectType) => {
-    setSelectedType(type);
     setShowCreateModal(false);
     console.log(`Creating new ${type} project`);
   }, []);
@@ -287,20 +245,9 @@ const ProjectGallery: React.FC<ProjectGalleryProps> = ({ userId }) => {
     console.log(`Opening project ${id}`);
   }, []);
 
-  const handleDuplicateProject = useCallback(
-    (id: string) => {
-      const project = projects.find((p) => p.id === id);
-      if (project) {
-        const duplicate = {
-          ...project,
-          id: `proj-dup-${Date.now()}`,
-          title: `${project.title} (Copy)`,
-        };
-        setProjects((prev) => [duplicate, ...prev]);
-      }
-    },
-    [projects],
-  );
+  const handleDuplicateProject = useCallback((id: string) => {
+    console.log(`Duplicating project ${id}`);
+  }, []);
 
   const handleUseTemplate = useCallback((id: string) => {
     console.log(`Using template ${id}`);
@@ -325,24 +272,12 @@ const ProjectGallery: React.FC<ProjectGalleryProps> = ({ userId }) => {
     setIsDraggingFile(false);
   }, []);
 
-  if (loading) {
-    return (
-      <div className="gallery-loading">
-        <div className="loading-spinner" />
-        <p>Loading your projects...</p>
-      </div>
-    );
+  if (projectsLoading || templatesLoading) {
+    return <LoadingState variant="skeleton" text="Loading your projects..." />;
   }
 
-  if (error) {
-    return (
-      <div className="gallery-error">
-        <div className="error-icon">!</div>
-        <h3>Something went wrong</h3>
-        <p>{error}</p>
-        <button onClick={() => window.location.reload()}>Try Again</button>
-      </div>
-    );
+  if (projectsError) {
+    return <ErrorState message={projectsError.message} onRetry={() => void refetchProjects()} />;
   }
 
   return (
@@ -453,14 +388,12 @@ const ProjectGallery: React.FC<ProjectGalleryProps> = ({ userId }) => {
         {activeTab === 'recent' && (
           <div className="projects-grid">
             {filteredProjects.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">🎬</div>
-                <h3>No projects yet</h3>
-                <p>Create your first project or import media to get started</p>
-                <button className="create-btn" onClick={() => setShowCreateModal(true)}>
-                  Create Project
-                </button>
-              </div>
+              <EmptyState
+                title="No projects yet"
+                description="Create your first project or import media to get started"
+                actionLabel="Create Project"
+                onAction={() => setShowCreateModal(true)}
+              />
             ) : (
               filteredProjects.map((project) => (
                 <ProjectCard
@@ -476,25 +409,22 @@ const ProjectGallery: React.FC<ProjectGalleryProps> = ({ userId }) => {
 
         {activeTab === 'templates' && (
           <div className="templates-grid">
-            {templates.map((template) => (
-              <TemplateCard key={template.id} template={template} onUse={handleUseTemplate} />
-            ))}
+            {templates.length === 0 ? (
+              <EmptyState title="No templates" description="Templates will appear here" />
+            ) : (
+              templates.map((template) => (
+                <TemplateCard key={template.id} template={template} onUse={handleUseTemplate} />
+              ))
+            )}
           </div>
         )}
 
         {activeTab === 'shared' && (
           <div className="shared-grid">
-            {sharedProjects.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">🤝</div>
-                <h3>No shared projects</h3>
-                <p>Projects shared with you will appear here</p>
-              </div>
-            ) : (
-              sharedProjects.map((project) => (
-                <SharedProjectCard key={project.id} project={project} onOpen={handleOpenProject} />
-              ))
-            )}
+            <EmptyState
+              title="No shared projects"
+              description="Projects shared with you will appear here"
+            />
           </div>
         )}
       </div>

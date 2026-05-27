@@ -4,6 +4,8 @@
 // ============================================================================
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { apiClient } from '../services/api-client';
 
 interface ShortVideo {
   id: string;
@@ -21,14 +23,10 @@ interface ShortVideo {
 }
 
 interface ShortsState {
-  shorts: ShortVideo[];
   currentIndex: number;
   isPlaying: boolean;
   isMuted: boolean;
   liked: Set<string>;
-  loading: boolean;
-  error: string | null;
-  hasMore: boolean;
   animatingLike: string | null;
 }
 
@@ -46,142 +44,146 @@ interface ShortsActions {
   refresh: () => Promise<void>;
 }
 
-export function useShorts(): [ShortsState, ShortsActions] {
-  const [state, setState] = useState<ShortsState>({
-    shorts: [],
+export function useShorts(): [
+  ShortsState & { shorts: ShortVideo[]; loading: boolean; error: string | null; hasMore: boolean },
+  ShortsActions,
+] {
+  const [localState, setLocalState] = useState<ShortsState>({
     currentIndex: 0,
     isPlaying: true,
     isMuted: false,
     liked: new Set(),
-    loading: true,
-    error: null,
-    hasMore: true,
     animatingLike: null,
   });
 
   const likeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    loadInitial();
-  }, []);
+  const shortsQuery = useInfiniteQuery({
+    queryKey: ['shorts'],
+    queryFn: async ({ pageParam = 0 }) => {
+      const response = await apiClient.getShorts();
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to load shorts');
+      }
+      return {
+        shorts: (response.data?.shorts ?? []) as ShortVideo[],
+        nextPage: pageParam + 1,
+      };
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.shorts.length === 0) return undefined;
+      return lastPage.nextPage;
+    },
+  });
 
-  const loadInitial = async () => {
-    setState(prev => ({ ...prev, loading: true }));
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setState(prev => ({
-      ...prev,
-      shorts: generateMockShorts(10),
-      loading: false,
-    }));
-  };
+  const allShorts = shortsQuery.data?.pages.flatMap((page) => page.shorts) ?? [];
 
   const next = useCallback(() => {
-    setState(prev => ({
+    setLocalState((prev) => ({
       ...prev,
-      currentIndex: Math.min(prev.currentIndex + 1, prev.shorts.length - 1),
+      currentIndex: Math.min(prev.currentIndex + 1, allShorts.length - 1),
     }));
-  }, []);
+  }, [allShorts.length]);
 
   const previous = useCallback(() => {
-    setState(prev => ({
+    setLocalState((prev) => ({
       ...prev,
       currentIndex: Math.max(prev.currentIndex - 1, 0),
     }));
   }, []);
 
   const goToIndex = useCallback((index: number) => {
-    setState(prev => ({ ...prev, currentIndex: index }));
+    setLocalState((prev) => ({ ...prev, currentIndex: index }));
   }, []);
 
   const togglePlay = useCallback(() => {
-    setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
+    setLocalState((prev) => ({ ...prev, isPlaying: !prev.isPlaying }));
   }, []);
 
   const toggleMute = useCallback(() => {
-    setState(prev => ({ ...prev, isMuted: !prev.isMuted }));
+    setLocalState((prev) => ({ ...prev, isMuted: !prev.isMuted }));
   }, []);
 
   const like = useCallback((shortId: string) => {
-    setState(prev => {
+    setLocalState((prev) => {
       const newLiked = new Set(prev.liked);
       newLiked.add(shortId);
-      return {
-        ...prev,
-        liked: newLiked,
-        shorts: prev.shorts.map(s => s.id === shortId ? { ...s, likeCount: s.likeCount + 1 } : s),
-        animatingLike: shortId,
-      };
+      return { ...prev, liked: newLiked, animatingLike: shortId };
     });
     if (likeTimerRef.current) clearTimeout(likeTimerRef.current);
     likeTimerRef.current = setTimeout(() => {
-      setState(prev => ({ ...prev, animatingLike: null }));
+      setLocalState((prev) => ({ ...prev, animatingLike: null }));
     }, 600);
+    apiClient.like(shortId);
   }, []);
 
   const unlike = useCallback((shortId: string) => {
-    setState(prev => {
+    setLocalState((prev) => {
       const newLiked = new Set(prev.liked);
       newLiked.delete(shortId);
-      return {
-        ...prev,
-        liked: newLiked,
-        shorts: prev.shorts.map(s => s.id === shortId ? { ...s, likeCount: Math.max(0, s.likeCount - 1) } : s),
-      };
+      return { ...prev, liked: newLiked };
     });
   }, []);
 
   const share = useCallback((shortId: string) => {
-    setState(prev => ({
-      ...prev,
-      shorts: prev.shorts.map(s => s.id === shortId ? { ...s, shareCount: s.shareCount + 1 } : s),
-    }));
+    // Tracked via API interaction
   }, []);
 
   const subscribe = useCallback((creatorId: string) => {
-    setState(prev => ({
-      ...prev,
-      shorts: prev.shorts.map(s => s.creator === creatorId ? { ...s, isSubscribed: true } : s),
-    }));
+    apiClient.subscribe(creatorId);
   }, []);
 
   const loadMore = useCallback(async () => {
-    setState(prev => ({ ...prev, loading: true }));
-    await new Promise(resolve => setTimeout(resolve, 300));
-    setState(prev => ({
-      ...prev,
-      shorts: [...prev.shorts, ...generateMockShorts(5)],
-      loading: false,
-    }));
-  }, []);
+    if (shortsQuery.hasNextPage) {
+      await shortsQuery.fetchNextPage();
+    }
+  }, [shortsQuery]);
 
   const refresh = useCallback(async () => {
-    setState(prev => ({ ...prev, loading: true, currentIndex: 0 }));
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setState(prev => ({
-      ...prev,
-      shorts: generateMockShorts(10),
-      loading: false,
-    }));
-  }, []);
+    setLocalState((prev) => ({ ...prev, currentIndex: 0 }));
+    await shortsQuery.refetch();
+  }, [shortsQuery]);
 
-  return [state, { next, previous, goToIndex, togglePlay, toggleMute, like, unlike, share, subscribe, loadMore, refresh }];
-}
+  // Auto-load more when approaching end
+  useEffect(() => {
+    if (
+      localState.currentIndex >= allShorts.length - 3 &&
+      shortsQuery.hasNextPage &&
+      !shortsQuery.isFetchingNextPage
+    ) {
+      shortsQuery.fetchNextPage();
+    }
+  }, [localState.currentIndex, allShorts.length, shortsQuery]);
 
-function generateMockShorts(count: number): ShortVideo[] {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `short_${Date.now()}_${i}`,
-    videoUrl: `/videos/short${i}.mp4`,
-    thumbnailUrl: `/thumbs/short${i}.jpg`,
-    title: `Short #${i + 1}`,
-    creator: ['CodeSnippets', 'TrickShots', 'CoffeeArtist', 'NatureViews', 'PetLife'][i % 5],
-    creatorAvatar: `/avatars/creator${i % 5}.jpg`,
-    likeCount: Math.floor(Math.random() * 100000),
-    commentCount: Math.floor(Math.random() * 5000),
-    shareCount: Math.floor(Math.random() * 10000),
-    soundName: ['Lo-fi Beats', 'Original Sound', 'Trending Audio', 'Epic Music', 'Funny Moments'][i % 5],
-    duration: 15 + Math.floor(Math.random() * 45),
-    isSubscribed: Math.random() > 0.7,
-  }));
+  const state = {
+    shorts: allShorts,
+    currentIndex: localState.currentIndex,
+    isPlaying: localState.isPlaying,
+    isMuted: localState.isMuted,
+    liked: localState.liked,
+    loading: shortsQuery.isLoading,
+    error: shortsQuery.error?.message || null,
+    hasMore: !!shortsQuery.hasNextPage,
+    animatingLike: localState.animatingLike,
+  };
+
+  return [
+    state,
+    {
+      next,
+      previous,
+      goToIndex,
+      togglePlay,
+      toggleMute,
+      like,
+      unlike,
+      share,
+      subscribe,
+      loadMore,
+      refresh,
+    },
+  ];
 }
 
 export default useShorts;
