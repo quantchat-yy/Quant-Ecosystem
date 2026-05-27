@@ -1313,6 +1313,9 @@ importers:
       '@quant/ml-runtime':
         specifier: workspace:*
         version: link:../ml-runtime
+      '@quant/triton-client':
+        specifier: workspace:*
+        version: link:../triton-client
       zod:
         specifier: ^3.24.0
         version: 3.25.76
@@ -1574,6 +1577,22 @@ importers:
       vitest:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@25.9.1)(jsdom@25.0.1)
+
+  packages/triton-client:
+    dependencies:
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
 
   packages/universal-timeline:
     dependencies:

@@ -488,3 +488,45 @@ services:
         initialDelaySeconds: 5
         periodSeconds: 5
     websocket: true
+
+  triton-inference-server:
+    enabled: true
+    replicaCount: 2
+    image:
+      repository: nvcr.io/nvidia/tritonserver
+      tag: 24.01-py3
+      pullPolicy: IfNotPresent
+    port: 8000
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 4000m
+        memory: 8Gi
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 8
+      targetCPUUtilization: 70
+      targetMemoryUtilization: 80
+    pdb:
+      enabled: true
+      minAvailable: 1
+    networkPolicy:
+      enabled: true
+      allowedNamespaces:
+        - quant-system
+    env:
+      - name: MODEL_REPOSITORY
+        value: /models
+    secrets: []
+    probes:
+      liveness:
+        path: /v2/health/live
+        initialDelaySeconds: 30
+        periodSeconds: 10
+      readiness:
+        path: /v2/health/ready
+        initialDelaySeconds: 15
+        periodSeconds: 5

@@ -1,5 +1,5 @@
 {
-  "name": "@quant/recommendations",
+  "name": "@quant/triton-client",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -12,9 +12,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "zod": "^3.24.0",
-    "@quant/ml-runtime": "workspace:*",
-    "@quant/triton-client": "workspace:*"
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
