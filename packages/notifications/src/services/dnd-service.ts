@@ -119,8 +119,9 @@ export class DndService {
   }
 
   private isInDndWindow(config: DndConfig, now: Date): boolean {
-    const currentDay = now.getDay();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const userTime = this.toTimezone(now, config.timezone);
+    const currentDay = userTime.getDay();
+    const currentMinutes = userTime.getHours() * 60 + userTime.getMinutes();
 
     for (const schedule of config.schedule) {
       if (this.matchesSchedule(schedule, currentDay, currentMinutes)) {
@@ -129,6 +130,39 @@ export class DndService {
     }
 
     return false;
+  }
+
+  /**
+   * Convert a Date to the equivalent local time in the given IANA timezone.
+   * Returns a new Date whose getHours/getMinutes/getDay reflect the target timezone.
+   */
+  private toTimezone(date: Date, timezone: string): Date {
+    try {
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      });
+      const parts = formatter.formatToParts(date);
+      const get = (type: string): number =>
+        parseInt(parts.find((p) => p.type === type)?.value ?? '0', 10);
+      return new Date(
+        get('year'),
+        get('month') - 1,
+        get('day'),
+        get('hour'),
+        get('minute'),
+        get('second'),
+      );
+    } catch {
+      // Fallback to server-local time if timezone is invalid
+      return date;
+    }
   }
 
   private matchesSchedule(

@@ -1,6 +1,13 @@
 /**
  * WhiteboardService - Yjs-backed infinite canvas (tldraw-style).
  * Uses Y.Map for shapes and Y.Array for layer ordering.
+ *
+ * NOTE: This service manages its own Y.Doc lifecycle independently of YjsServer.
+ * Whiteboard documents are NOT persisted to Postgres/S3 and are NOT subject to
+ * the eviction policy managed by YjsServer. This is acceptable for v1 where
+ * whiteboard state is ephemeral/session-scoped. Future versions may route
+ * whiteboard docs through YjsServer or accept PersistenceAdapter/StorageAdapter
+ * options for durable storage.
  */
 import * as Y from 'yjs';
 

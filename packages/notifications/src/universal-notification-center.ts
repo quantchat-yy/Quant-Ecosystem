@@ -12,6 +12,8 @@ import type {
   SnoozeDuration,
   SnoozedNotification,
 } from './types';
+import { DndService } from './services/dnd-service';
+import { DedupService } from './services/dedup-service';
 
 export type NotificationApp =
   | 'quantchat'
@@ -99,8 +101,8 @@ export class UniversalNotificationCenter {
   private preferences: Map<string, UniversalNotificationPreferences> = new Map();
   private counter = 0;
 
-  // DND
-  private dndConfigs: Map<string, DndConfig> = new Map();
+  // DND (delegates to DndService)
+  private dndService: DndService = new DndService();
   private dndQueues: Map<string, UniversalNotification[]> = new Map();
 
   // Thread mutes
@@ -110,8 +112,8 @@ export class UniversalNotificationCenter {
   private snoozedNotifications: Map<string, SnoozedNotification> = new Map();
   private snoozedPayloads: Map<string, UniversalNotification> = new Map();
 
-  // Dedup
-  private deliveredIds: Map<string, Set<string>> = new Map(); // userId -> set of notifIds
+  // Dedup (delegates to DedupService)
+  private dedupService: DedupService = new DedupService();
 
   // Important-only
   private importantOnlyMode: Map<string, ImportantOnlyConfig> = new Map();
@@ -125,6 +127,7 @@ export class UniversalNotificationCenter {
     { notifications: UniversalNotification[]; windowStart: number }
   > = new Map();
   private batchWindowMs = 5 * 60 * 1000; // 5 minutes
+  private batchFlushTimer: ReturnType<typeof setInterval> | null = null;
 
   send(
     notification: Omit<UniversalNotification, 'id' | 'timestamp' | 'read'>,
@@ -188,9 +191,10 @@ export class UniversalNotificationCenter {
       }
     }
 
-    // Check DND
-    if (this.isDndActive(userId)) {
-      if (full.priority !== 'critical' || !this.dndConfigs.get(userId)?.allowCritical) {
+    // Check DND (delegates to DndService)
+    if (this.dndService.isActive(userId)) {
+      const dndConfig = this.dndService.getConfig(userId);
+      if (full.priority !== 'critical' || !dndConfig?.allowCritical) {
         // Queue for later
         const queue = this.dndQueues.get(userId) ?? [];
         queue.push(full);
@@ -199,13 +203,12 @@ export class UniversalNotificationCenter {
       }
     }
 
-    // Cross-device dedup
-    const userDelivered = this.deliveredIds.get(userId) ?? new Set();
-    if (userDelivered.has(full.id)) {
+    // Cross-device dedup (by content-derived key, not by unique ID)
+    const dedupKey = this.getDeduplicationKey(full);
+    if (this.dedupService.isDelivered(dedupKey, userId)) {
       return null;
     }
-    userDelivered.add(full.id);
-    this.deliveredIds.set(userId, userDelivered);
+    this.dedupService.markDelivered(dedupKey, userId, 'pipeline');
 
     // Notify subscribers
     for (const [, callbacks] of this.subscribers) {
@@ -264,40 +267,57 @@ export class UniversalNotificationCenter {
     return all;
   }
 
-  // --- DND Management ---
+  /**
+   * Flush only expired batch windows (those past the batch window duration).
+   * This is called by the periodic flush timer and can also be called externally.
+   */
+  flushExpiredBatches(): UniversalNotification[] {
+    const now = Date.now();
+    const flushed: UniversalNotification[] = [];
+    for (const [key, window] of this.batchWindows) {
+      if (now - window.windowStart >= this.batchWindowMs) {
+        flushed.push(...window.notifications);
+        this.batchWindows.delete(key);
+      }
+    }
+    return flushed;
+  }
+
+  /**
+   * Start a periodic timer that flushes expired batch windows.
+   * The timer runs at the batch window interval (default 5 minutes).
+   * Call stopBatchFlushInterval() to clean up.
+   */
+  startBatchFlushInterval(): void {
+    if (this.batchFlushTimer) return;
+    this.batchFlushTimer = setInterval(() => {
+      this.flushExpiredBatches();
+    }, this.batchWindowMs);
+    this.batchFlushTimer.unref();
+  }
+
+  /**
+   * Stop the periodic batch flush timer.
+   */
+  stopBatchFlushInterval(): void {
+    if (this.batchFlushTimer) {
+      clearInterval(this.batchFlushTimer);
+      this.batchFlushTimer = null;
+    }
+  }
+
+  // --- DND Management (delegates to DndService) ---
 
   setDndConfig(userId: string, config: DndConfig): void {
-    this.dndConfigs.set(userId, config);
+    this.dndService.configure(userId, config);
   }
 
   getDndConfig(userId: string): DndConfig | undefined {
-    return this.dndConfigs.get(userId);
+    return this.dndService.getConfig(userId);
   }
 
   isDndActive(userId: string): boolean {
-    const config = this.dndConfigs.get(userId);
-    if (!config || !config.enabled) return false;
-
-    const now = new Date();
-    const currentDay = now.getDay();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-    for (const schedule of config.schedule) {
-      if (!schedule.daysOfWeek.includes(currentDay)) continue;
-
-      const [startH, startM] = schedule.startTime.split(':').map(Number);
-      const [endH, endM] = schedule.endTime.split(':').map(Number);
-      const startMinutes = (startH ?? 0) * 60 + (startM ?? 0);
-      const endMinutes = (endH ?? 0) * 60 + (endM ?? 0);
-
-      if (startMinutes > endMinutes) {
-        if (currentMinutes >= startMinutes || currentMinutes < endMinutes) return true;
-      } else {
-        if (currentMinutes >= startMinutes && currentMinutes < endMinutes) return true;
-      }
-    }
-
-    return false;
+    return this.dndService.isActive(userId);
   }
 
   flushDndQueue(userId: string): UniversalNotification[] {
@@ -612,6 +632,15 @@ export class UniversalNotificationCenter {
       background: 0,
     };
     return (levels[priority] ?? 0) >= (levels[minUrgency] ?? 0);
+  }
+
+  /**
+   * Derive a content-based deduplication key for a notification.
+   * Two notifications with the same type, app, thread, and recipient
+   * are considered duplicates for cross-device delivery.
+   */
+  private getDeduplicationKey(notification: UniversalNotification): string {
+    return `${notification.type}:${notification.app}:${notification.threadId ?? ''}:${notification.senderId ?? ''}`;
   }
 
   private calculateSnoozeResume(duration: SnoozeDuration, now: number): number {

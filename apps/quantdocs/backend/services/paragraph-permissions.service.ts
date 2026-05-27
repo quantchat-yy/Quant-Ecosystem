@@ -1,6 +1,16 @@
 /**
  * ParagraphPermissionsService - Per-paragraph permission enforcement for collaborative docs.
  * Supports owner, editor, viewer roles with read, write, delete actions.
+ *
+ * KNOWN LIMITATION (v1): Permission checks operate at the application layer before
+ * applying a Yjs binary update. A single Yjs update is opaque and can contain changes
+ * spanning multiple paragraphs. When `applyUpdateWithPermissions` is called with a
+ * single `paragraphId`, only that paragraph's permission is verified. If a client
+ * packs edits to multiple paragraphs into one update, non-specified paragraphs bypass
+ * the permission check. True enforcement would require operating at the Y.Doc
+ * observation layer (e.g., `doc.on('update')` with origin-based authorization) or
+ * splitting updates per paragraph before applying. This is a fundamental tension with
+ * CRDT binary updates and is documented as an accepted v1 limitation.
  */
 
 export type PermissionRole = 'owner' | 'editor' | 'viewer';

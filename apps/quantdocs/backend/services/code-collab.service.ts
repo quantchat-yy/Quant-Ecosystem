@@ -1,6 +1,13 @@
 /**
  * CodeCollabService - Realtime code editing support (CodeMirror 6 + Yjs adapter).
  * Uses Y.Text with language metadata for syntax-aware collaboration.
+ *
+ * NOTE: This service manages its own Y.Doc lifecycle independently of YjsServer.
+ * Code documents are NOT persisted to Postgres/S3 and are NOT subject to the
+ * eviction policy managed by YjsServer. This is acceptable for v1 where code
+ * collaboration state is ephemeral/session-scoped. Future versions may route
+ * code docs through YjsServer or accept PersistenceAdapter/StorageAdapter
+ * options for durable storage.
  */
 import * as Y from 'yjs';
 

@@ -82,15 +82,79 @@ export class VersionHistoryService {
     docA.destroy();
     docB.destroy();
 
-    // Simple diff: count character additions and removals
-    const addedChars = Math.max(0, textB.length - textA.length);
-    const removedChars = Math.max(0, textA.length - textB.length);
+    // Character-level diff using longest common subsequence (LCS)
+    const { added, removed } = this.computeCharDiff(textA, textB);
 
     return {
       checkpointA: checkpointIdA,
       checkpointB: checkpointIdB,
-      addedChars,
-      removedChars,
+      addedChars: added,
+      removedChars: removed,
     };
+  }
+
+  /**
+   * Compute the number of added and removed characters between two strings
+   * using a simple edit-distance approach (Myers-like greedy).
+   * Returns the count of characters that were inserted and deleted.
+   */
+  private computeCharDiff(a: string, b: string): { added: number; removed: number } {
+    // Compute LCS length using a space-optimized DP approach
+    const m = a.length;
+    const n = b.length;
+
+    // For very large strings, fall back to a simpler heuristic
+    if (m * n > 10_000_000) {
+      // Approximate using line-level comparison
+      return this.approximateCharDiff(a, b);
+    }
+
+    // Standard DP for LCS length (two-row optimization)
+    let prev = new Uint32Array(n + 1);
+    let curr = new Uint32Array(n + 1);
+
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        if (a[i - 1] === b[j - 1]) {
+          curr[j] = prev[j - 1]! + 1;
+        } else {
+          curr[j] = Math.max(prev[j]!, curr[j - 1]!);
+        }
+      }
+      [prev, curr] = [curr, prev];
+      curr.fill(0);
+    }
+
+    const lcsLength = prev[n]!;
+    const removed = m - lcsLength;
+    const added = n - lcsLength;
+
+    return { added, removed };
+  }
+
+  /**
+   * Approximate diff for very large strings by splitting into lines
+   * and counting character changes per added/removed lines.
+   */
+  private approximateCharDiff(a: string, b: string): { added: number; removed: number } {
+    const linesA = new Set(a.split('\n'));
+    const linesB = new Set(b.split('\n'));
+
+    let removed = 0;
+    let added = 0;
+
+    for (const line of linesA) {
+      if (!linesB.has(line)) {
+        removed += line.length + 1; // +1 for newline
+      }
+    }
+
+    for (const line of linesB) {
+      if (!linesA.has(line)) {
+        added += line.length + 1;
+      }
+    }
+
+    return { added, removed };
   }
 }
