@@ -25,76 +25,13 @@ spec:
     - host: {{ .Values.global.domain }}
       http:
         paths:
-          - path: /api/identity
+          - path: /api/ws
             pathType: Prefix
             backend:
               service:
-                name: {{ include "quant-platform.fullname" . }}-identity
+                name: {{ include "quant-platform.fullname" . }}-ws-gateway
                 port:
-                  number: 3001
-          - path: /api/chat
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "quant-platform.fullname" . }}-chat-api
-                port:
-                  number: 3002
-          - path: /api/mail
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "quant-platform.fullname" . }}-mail-api
-                port:
-                  number: 3001
-          - path: /api/ai
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "quant-platform.fullname" . }}-ai-api
-                port:
-                  number: 3020
-          - path: /api/sync
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "quant-platform.fullname" . }}-sync-api
-                port:
-                  number: 3004
-          - path: /api/ads
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "quant-platform.fullname" . }}-ads-api
-                port:
-                  number: 3005
-          - path: /api/tube
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "quant-platform.fullname" . }}-tube-api
-                port:
-                  number: 3006
-          - path: /api/neon
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "quant-platform.fullname" . }}-neon-api
-                port:
-                  number: 3007
-          - path: /api/edits
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "quant-platform.fullname" . }}-edits-api
-                port:
-                  number: 3008
-          - path: /api/max
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "quant-platform.fullname" . }}-max-api
-                port:
-                  number: 3009
+                  number: 8080
     - host: ws.{{ .Values.global.domain }}
       http:
         paths:
