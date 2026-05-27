@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Phase 15 - Onboarding package: Create packages/onboarding with account onboarding flow, workspace onboarding, role-based onboarding (personal, team admin, creator, advertiser, developer), demo mode, import/connect flows, sample data generation, guided AI setup, privacy setup, and notification preference setup. All as typed interfaces, flow state machines, and utility functions.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "1. Create packages/onboarding/package.json with dependencies on zod, @quant/common. Add typecheck, test, build, lint scripts following the same pattern as other packages.",
     "2. Create packages/onboarding/tsconfig.json extending the root tsconfig pattern used by other packages.",
