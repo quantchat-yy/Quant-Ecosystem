@@ -1,7 +1,22 @@
 {
   "task_id": "task-phase-20-trust-safety",
   "task_description": "Phase 20: Real Trust & Safety (legal liability layer). Eliminate criminal-negligence risk of NoOp CSAM matcher. Build the safety stack that lets you ship UGC at all. Includes CSAM hash matching, perceptual hashing, text/image/video classification, live moderation, account integrity, appeals workflow, age gating, safety microfeatures, and DPIA documentation.",
-  "status": "in_progress",
+  "status": "completed",
   "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004", "FEAT-005"],
-  "blocked_reason": null
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "All 5 features implemented + semantic review fixes applied. @quant/moderation: 350 tests passing (27 test files), typecheck clean, build clean, lint clean (0 errors). @quant/moderation-worker: 26 tests passing (6 test files), typecheck clean."
+  },
+  "review_fixes_applied": [
+    "Phone OTP uses crypto.randomInt() instead of Math.random()",
+    "CSAM checkHash wrapped in try/catch - any error (including timeout) returns action=remove with csam_check_failed flag (fail-closed)",
+    "Video frame extraction gated on FFMPEG_ENABLED env var; logs warning when using mock backend",
+    "TextClassifier.mapToScoreCard documented as @deprecated when called without explicit response parameter",
+    "Grooming detector counts per-category keyword matches and boosts weight by Math.min(matchCount * 0.5, 1.5)",
+    "PhoneVerificationService JSDoc documents in-memory state limitation and need for external store in production"
+  ]
 }
