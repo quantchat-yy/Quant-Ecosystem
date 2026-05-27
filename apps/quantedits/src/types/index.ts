@@ -4,13 +4,68 @@
 // ============================================================================
 
 export type ProjectType = 'video' | 'photo' | 'design' | 'presentation' | 'story' | 'reel';
-export type LayerType = 'video' | 'audio' | 'image' | 'text' | 'shape' | 'effect' | 'overlay' | 'sticker';
-export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten' | 'color-dodge' | 'color-burn' | 'hard-light' | 'soft-light' | 'difference' | 'exclusion';
-export type ExportFormat = 'mp4' | 'mov' | 'avi' | 'webm' | 'gif' | 'png' | 'jpg' | 'webp' | 'svg' | 'pdf';
+export type LayerType =
+  | 'video'
+  | 'audio'
+  | 'image'
+  | 'text'
+  | 'shape'
+  | 'effect'
+  | 'overlay'
+  | 'sticker';
+export type BlendMode =
+  | 'normal'
+  | 'multiply'
+  | 'screen'
+  | 'overlay'
+  | 'darken'
+  | 'lighten'
+  | 'color-dodge'
+  | 'color-burn'
+  | 'hard-light'
+  | 'soft-light'
+  | 'difference'
+  | 'exclusion';
+export type ExportFormat =
+  | 'mp4'
+  | 'mov'
+  | 'avi'
+  | 'webm'
+  | 'gif'
+  | 'png'
+  | 'jpg'
+  | 'webp'
+  | 'svg'
+  | 'pdf';
 export type ExportQuality = 'draft' | 'standard' | 'high' | 'ultra' | '4k' | '8k';
-export type EffectCategory = 'filter' | 'transition' | 'animation' | 'text-effect' | 'color-grade' | 'blur' | 'distortion' | 'stylize';
-export type AssetCategory = 'font' | 'music' | 'stock-photo' | 'stock-video' | 'icon' | 'shape' | 'background' | 'sticker' | 'brand-kit';
-export type TemplateCategory = 'social-media' | 'presentation' | 'video' | 'photo' | 'story' | 'thumbnail' | 'ad' | 'poster';
+export type EffectCategory =
+  | 'filter'
+  | 'transition'
+  | 'animation'
+  | 'text-effect'
+  | 'color-grade'
+  | 'blur'
+  | 'distortion'
+  | 'stylize';
+export type AssetCategory =
+  | 'font'
+  | 'music'
+  | 'stock-photo'
+  | 'stock-video'
+  | 'icon'
+  | 'shape'
+  | 'background'
+  | 'sticker'
+  | 'brand-kit';
+export type TemplateCategory =
+  | 'social-media'
+  | 'presentation'
+  | 'video'
+  | 'photo'
+  | 'story'
+  | 'thumbnail'
+  | 'ad'
+  | 'poster';
 
 export interface Project {
   id: string;
@@ -214,7 +269,7 @@ export interface TemplateVariable {
   name: string;
   type: 'text' | 'image' | 'color' | 'video';
   defaultValue: string;
-  placeholder: string;
+  hint: string;
   layerId: string;
 }
 
@@ -268,7 +323,14 @@ export interface ExportJob {
   projectId: string;
   userId: string;
   config: ExportConfig;
-  status: 'queued' | 'processing' | 'rendering' | 'encoding' | 'publishing' | 'completed' | 'failed';
+  status:
+    | 'queued'
+    | 'processing'
+    | 'rendering'
+    | 'encoding'
+    | 'publishing'
+    | 'completed'
+    | 'failed';
   progress: number;
   outputUrl?: string;
   error?: string;
@@ -301,7 +363,16 @@ export interface Comment {
 }
 
 export interface AIEditRequest {
-  type: 'background-removal' | 'upscale' | 'style-transfer' | 'auto-caption' | 'voice-clone' | 'object-removal' | 'color-grade' | 'auto-edit' | 'enhance';
+  type:
+    | 'background-removal'
+    | 'upscale'
+    | 'style-transfer'
+    | 'auto-caption'
+    | 'voice-clone'
+    | 'object-removal'
+    | 'color-grade'
+    | 'auto-edit'
+    | 'enhance';
   projectId: string;
   layerId?: string;
   params: Record<string, unknown>;

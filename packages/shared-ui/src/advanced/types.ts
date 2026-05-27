@@ -26,7 +26,7 @@ export interface MiddlewareAPI<S = any> {
 }
 
 export type Middleware<S = any> = (
-  api: MiddlewareAPI<S>
+  api: MiddlewareAPI<S>,
 ) => (next: Dispatch) => (action: Action) => any;
 
 export interface Store<S = any> {
@@ -222,16 +222,36 @@ export interface TimelineEntry {
 
 export type EasingFunction =
   | 'linear'
-  | 'easeInQuad' | 'easeOutQuad' | 'easeInOutQuad'
-  | 'easeInCubic' | 'easeOutCubic' | 'easeInOutCubic'
-  | 'easeInQuart' | 'easeOutQuart' | 'easeInOutQuart'
-  | 'easeInQuint' | 'easeOutQuint' | 'easeInOutQuint'
-  | 'easeInExpo' | 'easeOutExpo' | 'easeInOutExpo'
-  | 'easeInSine' | 'easeOutSine' | 'easeInOutSine'
-  | 'easeInCirc' | 'easeOutCirc' | 'easeInOutCirc'
-  | 'easeInElastic' | 'easeOutElastic' | 'easeInOutElastic'
-  | 'easeInBounce' | 'easeOutBounce' | 'easeInOutBounce'
-  | 'easeInBack' | 'easeOutBack' | 'easeInOutBack';
+  | 'easeInQuad'
+  | 'easeOutQuad'
+  | 'easeInOutQuad'
+  | 'easeInCubic'
+  | 'easeOutCubic'
+  | 'easeInOutCubic'
+  | 'easeInQuart'
+  | 'easeOutQuart'
+  | 'easeInOutQuart'
+  | 'easeInQuint'
+  | 'easeOutQuint'
+  | 'easeInOutQuint'
+  | 'easeInExpo'
+  | 'easeOutExpo'
+  | 'easeInOutExpo'
+  | 'easeInSine'
+  | 'easeOutSine'
+  | 'easeInOutSine'
+  | 'easeInCirc'
+  | 'easeOutCirc'
+  | 'easeInOutCirc'
+  | 'easeInElastic'
+  | 'easeOutElastic'
+  | 'easeInOutElastic'
+  | 'easeInBounce'
+  | 'easeOutBounce'
+  | 'easeInOutBounce'
+  | 'easeInBack'
+  | 'easeOutBack'
+  | 'easeInOutBack';
 
 export interface GestureAnimation {
   type: 'spring' | 'decay' | 'timing';
@@ -727,7 +747,7 @@ export interface CommandGroup {
 }
 
 export interface CommandPaletteConfig {
-  placeholder?: string;
+  inputHint?: string;
   maxResults?: number;
   recentCount?: number;
   groups?: CommandGroup[];

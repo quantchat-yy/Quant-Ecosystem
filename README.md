@@ -1,62 +1,85 @@
 # Quant Ecosystem
 
-A comprehensive 9-app interconnected platform built as a TypeScript monorepo. Each app integrates deeply with shared services for authentication, AI, real-time communication, and UI components.
+A 13-app interconnected platform built as a TypeScript monorepo. Each app integrates deeply with shared packages for authentication, AI, real-time communication, and UI components.
 
 ## Architecture Overview
 
 ```
 quant-ecosystem/
-├── apps/                    # 9 Application frontends + backends
-│   ├── quantchat/          # Instant messaging (Snapchat-like)
-│   ├── quantmail/          # Email + Central OAuth provider (Gmail+GitHub)
-│   ├── quantsync/          # Social feed (Twitter/Reddit)
+├── apps/                    # 13 Application frontends + backends
+│   ├── quantai/            # Central AI assistant hub
 │   ├── quantads/           # Advertising platform
-│   ├── quantube/           # Video & music streaming (YouTube+Spotify)
-│   ├── quantneon/          # Photo/video sharing (Instagram)
+│   ├── quantcalendar/      # Calendar and scheduling
+│   ├── quantchat/          # Instant messaging (Snapchat-like)
+│   ├── quantdocs/          # Collaborative documents
+│   ├── quantdrive/         # Cloud file storage
 │   ├── quantedits/         # Video/photo editor (CapCut)
+│   ├── quantmail/          # Email + Central OAuth provider (Gmail+GitHub)
 │   ├── quantmax/           # Short video + dating + random chat (TikTok/Tinder/Omegle)
-│   └── quantai/            # Central AI assistant hub
-├── packages/               # Shared libraries
+│   ├── quantmeet/          # Video conferencing
+│   ├── quantneon/          # Photo/video sharing (Instagram)
+│   ├── quantsync/          # Social feed (Twitter/Reddit)
+│   └── quantube/           # Video & music streaming (YouTube+Spotify)
+├── packages/               # Shared libraries (39 active)
 │   ├── common/             # Types, constants, utilities, validators
 │   ├── database/           # Database schemas and models for all apps
 │   ├── auth/               # Authentication (QuantMail as OAuth provider)
 │   ├── ai/                 # Central AI engine with domain services
 │   ├── shared-ui/          # Reusable React UI components
 │   └── realtime/           # WebSocket infrastructure
+├── services/               # Infrastructure workers (17 services, 10 are stubs)
 └── scripts/                # Build and dev scripts
 ```
 
+## Current Status
+
+- **13 apps total:** 9 with frontend pages, 4 backend-only (quantcalendar, quantdocs, quantdrive, quantmeet)
+- **Frontend pages:** ~41% use mock data (tracked in `.agents/state/mock-debt.csv`)
+- **Services:** 10 of 17 are health-only stubs pending architecture decision
+- **Packages:** 39 active (7 empty packages removed in Phase 18)
+- **All CI gates pass:** typecheck, test, build, lint, audit
+
 ## Apps
 
-| App | Description | Key Features |
-|-----|-------------|--------------|
-| **QuantChat** | Instant messaging | Disappearing messages, stories, video calls, group chats, smart replies |
-| **QuantMail** | Email platform | Full email client, central OAuth2 provider for ecosystem SSO |
-| **QuantSync** | Social network | Posts, threads, communities, polls, trending topics |
-| **QuantAds** | Ad platform | Campaign management, targeting, analytics, creative tools |
-| **QuantTube** | Streaming | Video/music upload, live streaming, channels, playlists |
-| **QuantNeon** | Photos | Photo/video sharing, filters, stories, close friends |
-| **QuantEdits** | Editor | Timeline-based video/photo editing, effects, exports |
-| **QuantMax** | Multi-mode | Short videos (TikTok), random video chat (Omegle), dating (Tinder) |
-| **QuantAI** | AI Hub | Conversational AI, device control, multi-model support |
+| App               | Description        | Key Features                                                            |
+| ----------------- | ------------------ | ----------------------------------------------------------------------- |
+| **QuantAI**       | AI Hub             | Conversational AI, device control, multi-model support                  |
+| **QuantAds**      | Ad platform        | Campaign management, targeting, analytics, creative tools               |
+| **QuantCalendar** | Calendar           | Scheduling, events, reminders (backend only)                            |
+| **QuantChat**     | Instant messaging  | Disappearing messages, stories, video calls, group chats, smart replies |
+| **QuantDocs**     | Documents          | Collaborative editing, templates (backend only)                         |
+| **QuantDrive**    | Cloud storage      | File storage, sharing, sync (backend only)                              |
+| **QuantEdits**    | Editor             | Timeline-based video/photo editing, effects, exports                    |
+| **QuantMail**     | Email platform     | Full email client, central OAuth2 provider for ecosystem SSO            |
+| **QuantMax**      | Multi-mode         | Short videos (TikTok), random video chat (Omegle), dating (Tinder)      |
+| **QuantMeet**     | Video conferencing | Meetings, screen sharing, breakout rooms (backend only)                 |
+| **QuantNeon**     | Photos             | Photo/video sharing, filters, stories, close friends                    |
+| **QuantSync**     | Social network     | Posts, threads, communities, polls, trending topics                     |
+| **QuantTube**     | Streaming          | Video/music upload, live streaming, channels, playlists                 |
 
 ## Shared Packages
 
 ### @quant/common
+
 Shared utilities used across all apps:
+
 - **Types**: User, Session, ApiResponse, PaginatedResult, Notification, etc.
 - **Constants**: App configs, API endpoints, WebSocket events, rate limits, error codes
 - **Utils**: generateId, debounce, throttle, deepClone, retry, paginate, formatDate, etc.
 - **Validators**: Email, phone, URL, username, password, file upload validation
 
 ### @quant/database
+
 Complete database schema definitions and model classes:
+
 - **Schemas**: Users, messages, emails, posts, ads, media, profiles, AI sessions, notifications
 - **Models**: Base CRUD model with filtering, pagination, hooks; specialized models per domain
 - **Migrations**: SQL migration definitions for PostgreSQL
 
 ### @quant/auth
+
 Authentication and authorization with QuantMail as the central identity provider:
+
 - **QuantMail OAuth2 Provider**: Authorization code flow with PKCE, all ecosystem apps registered
 - **Phone Auth Provider**: SMS verification for QuantChat with rate limiting
 - **Token Service**: JWT generation, validation, refresh token rotation, theft detection
@@ -64,7 +87,9 @@ Authentication and authorization with QuantMail as the central identity provider
 - **Auth Middleware**: Express-compatible middleware for route protection
 
 ### @quant/ai
+
 Central AI engine with specialized services per domain:
+
 - **Engine**: Request routing, caching, rate limiting, cost tracking, streaming
 - **Context Manager**: Conversation history, long-term memory, context optimization
 - **Model Router**: Intelligent model selection based on capabilities, cost, latency
@@ -75,7 +100,9 @@ Central AI engine with specialized services per domain:
 - **Device Control AI**: Natural language commands, scene creation, safety validation (QuantAI)
 
 ### @quant/shared-ui
+
 Reusable React components with TypeScript props interfaces:
+
 - **Base**: Button, Input, Modal, Avatar, Card, Badge, Toast, Loader
 - **Media**: VideoPlayer, AudioPlayer, ImageViewer
 - **Chat**: ChatBubble, ChatInput, ChatList, TypingIndicator
@@ -86,7 +113,9 @@ Reusable React components with TypeScript props interfaces:
 - **Themes**: Light, Dark, Neon
 
 ### @quant/realtime
+
 WebSocket infrastructure for real-time features:
+
 - **WebSocket Server**: Connection management, message routing, authentication
 - **WebSocket Client**: Auto-reconnection, message queuing, typed events
 - **Channel Manager**: Rooms/channels, members, history, broadcasting
@@ -127,6 +156,7 @@ Each app has a specialized AI service that understands its domain context.
 ## Real-time Architecture
 
 WebSocket connections power live features across the ecosystem:
+
 - **QuantChat**: Message delivery, typing indicators, read receipts
 - **QuantSync**: Live post interactions, comments, trending updates
 - **QuantTube**: Live stream chat, viewer counts, donations
@@ -138,7 +168,7 @@ WebSocket connections power live features across the ecosystem:
 
 - **Language**: TypeScript (strict mode)
 - **Runtime**: Node.js 22+
-- **Monorepo**: npm workspaces
+- **Monorepo**: pnpm workspaces + turborepo
 - **Frontend**: React with JSX
 - **Styling**: Tailwind CSS utility classes
 - **Database**: PostgreSQL (schemas defined in @quant/database)
@@ -148,19 +178,26 @@ WebSocket connections power live features across the ecosystem:
 ## Getting Started
 
 ```bash
-# Structure is defined via npm workspaces
-# All code is self-contained TypeScript - no external dependencies needed
+# Install dependencies
+pnpm install --frozen-lockfile
 
 # Type check all packages
-npx tsc --noEmit
+pnpm typecheck
 
-# Run validation
-node scripts/test.js
+# Run tests
+pnpm test
+
+# Build all packages and apps
+pnpm build
+
+# Lint
+pnpm lint
 ```
 
 ## Project Structure Conventions
 
 - Each app: `apps/<name>/src/` with pages, components, services, types
+- Each app backend: `apps/<name>/backend/` with routes, services, tests
 - Each package: `packages/<name>/src/index.ts` as barrel export
 - All files use proper TypeScript type annotations
 - Components use `.tsx` extension with props interfaces

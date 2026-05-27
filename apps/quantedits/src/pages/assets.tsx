@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantEdits - Asset Library
 // Tabs: Uploads/Stock/Music/Stickers/Fonts, upload, folders, search, favorites
@@ -72,7 +73,12 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
           folder: ['All', 'Backgrounds', 'Music', 'Graphics'][i % 4],
           uploadedAt: new Date(Date.now() - i * 3600000).toISOString(),
           isFavorite: i < 5,
-          tags: [['nature', 'landscape'], ['urban', 'city'], ['abstract', 'modern'], ['minimal', 'clean']][i % 4],
+          tags: [
+            ['nature', 'landscape'],
+            ['urban', 'city'],
+            ['abstract', 'modern'],
+            ['minimal', 'clean'],
+          ][i % 4],
         }));
         setAssets(mockAssets);
         setFolders([
@@ -93,7 +99,7 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
 
   const filteredAssets = useMemo(() => {
     let result = assets
-      .filter(a => {
+      .filter((a) => {
         if (activeTab === 'uploads') return true;
         if (activeTab === 'stock') return a.type === 'image' || a.type === 'video';
         if (activeTab === 'music') return a.type === 'audio';
@@ -101,44 +107,55 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
         if (activeTab === 'fonts') return a.type === 'font';
         return true;
       })
-      .filter(a => selectedFolder === 'all' || a.folder.toLowerCase() === selectedFolder)
-      .filter(a => !showFavorites || a.isFavorite)
-      .filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()) || a.tags.some(t => t.includes(searchQuery.toLowerCase())));
+      .filter((a) => selectedFolder === 'all' || a.folder.toLowerCase() === selectedFolder)
+      .filter((a) => !showFavorites || a.isFavorite)
+      .filter(
+        (a) =>
+          a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          a.tags.some((t) => t.includes(searchQuery.toLowerCase())),
+      );
 
     if (showRecent) result = result.slice(0, 10);
-    if (sortBy === 'date') result.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+    if (sortBy === 'date')
+      result.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
     else if (sortBy === 'name') result.sort((a, b) => a.name.localeCompare(b.name));
     else if (sortBy === 'size') result.sort((a, b) => b.size - a.size);
     return result;
   }, [assets, activeTab, selectedFolder, showFavorites, showRecent, searchQuery, sortBy]);
 
-  const handleFileUpload = useCallback((files: FileList | null) => {
-    if (!files) return;
-    Array.from(files).forEach(file => {
-      const progress = new Map(uploadProgress);
-      progress.set(file.name, 0);
-      setUploadProgress(progress);
-      const interval = setInterval(() => {
-        setUploadProgress(prev => {
-          const next = new Map(prev);
-          const current = next.get(file.name) || 0;
-          if (current >= 100) {
-            clearInterval(interval);
-            next.delete(file.name);
+  const handleFileUpload = useCallback(
+    (files: FileList | null) => {
+      if (!files) return;
+      Array.from(files).forEach((file) => {
+        const progress = new Map(uploadProgress);
+        progress.set(file.name, 0);
+        setUploadProgress(progress);
+        const interval = setInterval(() => {
+          setUploadProgress((prev) => {
+            const next = new Map(prev);
+            const current = next.get(file.name) || 0;
+            if (current >= 100) {
+              clearInterval(interval);
+              next.delete(file.name);
+              return next;
+            }
+            next.set(file.name, current + 10);
             return next;
-          }
-          next.set(file.name, current + 10);
-          return next;
-        });
-      }, 200);
-    });
-  }, [uploadProgress]);
+          });
+        }, 200);
+      });
+    },
+    [uploadProgress],
+  );
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    handleFileUpload(e.dataTransfer.files);
-  }, [handleFileUpload]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      handleFileUpload(e.dataTransfer.files);
+    },
+    [handleFileUpload],
+  );
 
   const handleDragStart = useCallback((asset: Asset) => {
     setDraggedAsset(asset);
@@ -152,19 +169,22 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
   }, [draggedAsset, onDragToTimeline]);
 
   const handleToggleFavorite = useCallback((id: string) => {
-    setAssets(prev => prev.map(a => a.id === id ? { ...a, isFavorite: !a.isFavorite } : a));
+    setAssets((prev) => prev.map((a) => (a.id === id ? { ...a, isFavorite: !a.isFavorite } : a)));
   }, []);
 
   const handleCreateFolder = useCallback(() => {
     if (newFolderName.trim()) {
-      setFolders(prev => [...prev, { id: newFolderName.toLowerCase(), name: newFolderName, assetCount: 0, color: '#64748b' }]);
+      setFolders((prev) => [
+        ...prev,
+        { id: newFolderName.toLowerCase(), name: newFolderName, assetCount: 0, color: '#64748b' },
+      ]);
       setNewFolderName('');
       setShowNewFolderInput(false);
     }
   }, [newFolderName]);
 
   const handleDeleteAsset = useCallback((id: string) => {
-    setAssets(prev => prev.filter(a => a.id !== id));
+    setAssets((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
   const formatSize = useCallback((bytes: number): string => {
@@ -195,14 +215,18 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
   return (
     <div className="asset-library">
       <div className="library-tabs">
-        {([
+        {[
           { id: 'uploads' as TabType, label: 'Uploads', icon: '📁' },
           { id: 'stock' as TabType, label: 'Stock', icon: '🖼' },
           { id: 'music' as TabType, label: 'Music', icon: '🎵' },
           { id: 'stickers' as TabType, label: 'Stickers', icon: '✨' },
           { id: 'fonts' as TabType, label: 'Fonts', icon: '🔤' },
-        ]).map(tab => (
-          <button key={tab.id} className={`lib-tab ${activeTab === tab.id ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)}>
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            className={`lib-tab ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
             <span>{tab.icon}</span>
             <span>{tab.label}</span>
           </button>
@@ -213,7 +237,10 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
         ref={dropZoneRef}
         className={`upload-zone ${isDragging ? 'dragging' : ''}`}
         onDrop={handleDrop}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
         onDragLeave={() => setIsDragging(false)}
         onClick={() => fileInputRef.current?.click()}
       >
@@ -222,7 +249,14 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
           <p>Drop files here or click to upload</p>
           <span className="upload-formats">MP4, MOV, JPG, PNG, MP3, WAV, GIF, SVG</span>
         </div>
-        <input ref={fileInputRef} type="file" multiple accept="video/*,image/*,audio/*,.ttf,.otf,.woff" hidden onChange={(e) => handleFileUpload(e.target.files)} />
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="video/*,image/*,audio/*,.ttf,.otf,.woff"
+          hidden
+          onChange={(e) => handleFileUpload(e.target.files)}
+        />
       </div>
 
       {uploadProgress.size > 0 && (
@@ -248,8 +282,24 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
           onChange={(e) => setSearchQuery(e.target.value)}
         />
         <div className="quick-filters">
-          <button className={`filter-btn ${showRecent ? 'active' : ''}`} onClick={() => { setShowRecent(!showRecent); setShowFavorites(false); }}>Recent</button>
-          <button className={`filter-btn ${showFavorites ? 'active' : ''}`} onClick={() => { setShowFavorites(!showFavorites); setShowRecent(false); }}>Favorites</button>
+          <button
+            className={`filter-btn ${showRecent ? 'active' : ''}`}
+            onClick={() => {
+              setShowRecent(!showRecent);
+              setShowFavorites(false);
+            }}
+          >
+            Recent
+          </button>
+          <button
+            className={`filter-btn ${showFavorites ? 'active' : ''}`}
+            onClick={() => {
+              setShowFavorites(!showFavorites);
+              setShowRecent(false);
+            }}
+          >
+            Favorites
+          </button>
         </div>
         <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
           <option value="date">Newest</option>
@@ -261,7 +311,7 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
       <div className="library-sidebar">
         <h4>Folders</h4>
         <div className="folder-list">
-          {folders.map(folder => (
+          {folders.map((folder) => (
             <button
               key={folder.id}
               className={`folder-item ${selectedFolder === folder.id ? 'active' : ''}`}
@@ -274,11 +324,20 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
           ))}
           {showNewFolderInput ? (
             <div className="new-folder-input">
-              <input type="text" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} placeholder="Folder name" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()} />
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Folder name"
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+              />
               <button onClick={handleCreateFolder}>+</button>
             </div>
           ) : (
-            <button className="add-folder-btn" onClick={() => setShowNewFolderInput(true)}>+ New Folder</button>
+            <button className="add-folder-btn" onClick={() => setShowNewFolderInput(true)}>
+              + New Folder
+            </button>
           )}
         </div>
       </div>
@@ -291,7 +350,7 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
             <p>{showFavorites ? 'No favorites yet' : 'Upload files or browse stock media'}</p>
           </div>
         ) : (
-          filteredAssets.map(asset => (
+          filteredAssets.map((asset) => (
             <div
               key={asset.id}
               className="asset-item"
@@ -302,21 +361,26 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
               <div className="asset-thumbnail">
                 <img src={asset.thumbnail} alt={asset.name} />
                 {asset.type === 'video' && asset.duration && (
-                  <span className="asset-duration">{Math.floor(asset.duration / 60)}:{(asset.duration % 60).toString().padStart(2, '0')}</span>
+                  <span className="asset-duration">
+                    {Math.floor(asset.duration / 60)}:
+                    {(asset.duration % 60).toString().padStart(2, '0')}
+                  </span>
                 )}
-                {asset.type === 'audio' && (
-                  <div className="audio-waveform">♪</div>
-                )}
+                {asset.type === 'audio' && <div className="audio-waveform">♪</div>}
               </div>
               <div className="asset-info">
-                <span className="asset-name" title={asset.name}>{asset.name}</span>
+                <span className="asset-name" title={asset.name}>
+                  {asset.name}
+                </span>
                 <span className="asset-size">{formatSize(asset.size)}</span>
               </div>
               <div className="asset-actions">
                 <button className="fav-btn" onClick={() => handleToggleFavorite(asset.id)}>
                   {asset.isFavorite ? '★' : '☆'}
                 </button>
-                <button className="delete-btn" onClick={() => handleDeleteAsset(asset.id)}>✕</button>
+                <button className="delete-btn" onClick={() => handleDeleteAsset(asset.id)}>
+                  ✕
+                </button>
               </div>
             </div>
           ))

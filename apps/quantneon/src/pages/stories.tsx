@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantNeon - Story Viewer Page
 // Progress bars, tap navigation, interactive elements, reactions
@@ -59,11 +60,36 @@ interface StoryUser {
 
 const generateStoryUsers = (): StoryUser[] => {
   const users = [
-    { id: 'su1', username: 'travel_vibes', avatarUrl: 'https://picsum.photos/seed/su1/80/80', isVerified: true },
-    { id: 'su2', username: 'food_diary', avatarUrl: 'https://picsum.photos/seed/su2/80/80', isVerified: false },
-    { id: 'su3', username: 'fitness_daily', avatarUrl: 'https://picsum.photos/seed/su3/80/80', isVerified: true },
-    { id: 'su4', username: 'art_studio', avatarUrl: 'https://picsum.photos/seed/su4/80/80', isVerified: false },
-    { id: 'su5', username: 'tech_news', avatarUrl: 'https://picsum.photos/seed/su5/80/80', isVerified: true },
+    {
+      id: 'su1',
+      username: 'travel_vibes',
+      avatarUrl: 'https://picsum.photos/seed/su1/80/80',
+      isVerified: true,
+    },
+    {
+      id: 'su2',
+      username: 'food_diary',
+      avatarUrl: 'https://picsum.photos/seed/su2/80/80',
+      isVerified: false,
+    },
+    {
+      id: 'su3',
+      username: 'fitness_daily',
+      avatarUrl: 'https://picsum.photos/seed/su3/80/80',
+      isVerified: true,
+    },
+    {
+      id: 'su4',
+      username: 'art_studio',
+      avatarUrl: 'https://picsum.photos/seed/su4/80/80',
+      isVerified: false,
+    },
+    {
+      id: 'su5',
+      username: 'tech_news',
+      avatarUrl: 'https://picsum.photos/seed/su5/80/80',
+      isVerified: true,
+    },
   ];
 
   return users.map((user, ui) => ({
@@ -108,7 +134,7 @@ const generateStoryUsers = (): StoryUser[] => {
 
       return {
         id: `story-${ui}-${si}`,
-        type: si % 3 === 0 ? 'video' as const : 'image' as const,
+        type: si % 3 === 0 ? ('video' as const) : ('image' as const),
         mediaUrl: `https://picsum.photos/seed/story${ui}${si}/400/700`,
         duration: si % 3 === 0 ? 15 : 5,
         timestamp: `${Math.floor(Math.random() * 12) + 1}h ago`,
@@ -148,7 +174,7 @@ const StoriesPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        await new Promise(resolve => setTimeout(resolve, 400));
+        await new Promise((resolve) => setTimeout(resolve, 400));
         setStoryUsers(generateStoryUsers());
       } catch (err) {
         setError('Failed to load stories.');
@@ -173,7 +199,7 @@ const StoriesPage: React.FC = () => {
     const increment = (interval / duration) * 100;
 
     progressRef.current = setInterval(() => {
-      setProgress(prev => {
+      setProgress((prev) => {
         if (prev >= 100) {
           handleNextStory();
           return 0;
@@ -189,15 +215,15 @@ const StoriesPage: React.FC = () => {
 
   // Navigation
   const handleNextStory = useCallback(() => {
-    setStoryUsers(users => {
+    setStoryUsers((users) => {
       if (users.length === 0) return users;
       const currentUser = users[currentUserIndex];
       if (!currentUser) return users;
 
       if (currentStoryIndex < currentUser.stories.length - 1) {
-        setCurrentStoryIndex(prev => prev + 1);
+        setCurrentStoryIndex((prev) => prev + 1);
       } else if (currentUserIndex < users.length - 1) {
-        setCurrentUserIndex(prev => prev + 1);
+        setCurrentUserIndex((prev) => prev + 1);
         setCurrentStoryIndex(0);
       }
       setProgress(0);
@@ -210,9 +236,9 @@ const StoriesPage: React.FC = () => {
 
   const handlePrevStory = useCallback(() => {
     if (currentStoryIndex > 0) {
-      setCurrentStoryIndex(prev => prev - 1);
+      setCurrentStoryIndex((prev) => prev - 1);
     } else if (currentUserIndex > 0) {
-      setCurrentUserIndex(prev => prev - 1);
+      setCurrentUserIndex((prev) => prev - 1);
       const prevUser = storyUsers[currentUserIndex - 1];
       if (prevUser) {
         setCurrentStoryIndex(prevUser.stories.length - 1);
@@ -224,17 +250,20 @@ const StoriesPage: React.FC = () => {
     setQuestionAnswer('');
   }, [currentStoryIndex, currentUserIndex, storyUsers]);
 
-  const handleTap = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const width = rect.width;
+  const handleTap = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const width = rect.width;
 
-    if (x < width / 3) {
-      handlePrevStory();
-    } else if (x > (width * 2) / 3) {
-      handleNextStory();
-    }
-  }, [handlePrevStory, handleNextStory]);
+      if (x < width / 3) {
+        handlePrevStory();
+      } else if (x > (width * 2) / 3) {
+        handleNextStory();
+      }
+    },
+    [handlePrevStory, handleNextStory],
+  );
 
   // Pause on long press
   const handlePauseStart = useCallback(() => {
@@ -296,7 +325,11 @@ const StoriesPage: React.FC = () => {
           </div>
           <p className="text-white text-center">{error}</p>
           <button
-            onClick={() => { setError(null); setStoryUsers(generateStoryUsers()); setLoading(false); }}
+            onClick={() => {
+              setError(null);
+              setStoryUsers(generateStoryUsers());
+              setLoading(false);
+            }}
             className="px-6 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition-colors"
           >
             Retry
@@ -315,7 +348,9 @@ const StoriesPage: React.FC = () => {
             <span className="text-4xl">📸</span>
           </div>
           <h2 className="text-white text-xl font-semibold">No Stories</h2>
-          <p className="text-gray-400 text-center">Stories from people you follow will appear here.</p>
+          <p className="text-gray-400 text-center">
+            Stories from people you follow will appear here.
+          </p>
         </div>
       </div>
     );
@@ -335,7 +370,8 @@ const StoriesPage: React.FC = () => {
             <div
               className="h-full bg-white rounded-full transition-all"
               style={{
-                width: i < currentStoryIndex ? '100%' : i === currentStoryIndex ? `${progress}%` : '0%',
+                width:
+                  i < currentStoryIndex ? '100%' : i === currentStoryIndex ? `${progress}%` : '0%',
               }}
             />
           </div>
@@ -346,7 +382,11 @@ const StoriesPage: React.FC = () => {
       <div className="absolute top-6 left-3 right-3 z-30 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full overflow-hidden border border-white/50">
-            <img src={currentUser.avatarUrl} alt={currentUser.username} className="w-full h-full object-cover" />
+            <img
+              src={currentUser.avatarUrl}
+              alt={currentUser.username}
+              className="w-full h-full object-cover"
+            />
           </div>
           <div className="flex items-center gap-1">
             <span className="text-white text-sm font-semibold">{currentUser.username}</span>
@@ -359,10 +399,17 @@ const StoriesPage: React.FC = () => {
           <span className="text-gray-400 text-xs">{currentStory.timestamp}</span>
         </div>
         <div className="flex items-center gap-3">
-          {paused && <span className="text-white text-xs bg-white/20 px-2 py-0.5 rounded">Paused</span>}
+          {paused && (
+            <span className="text-white text-xs bg-white/20 px-2 py-0.5 rounded">Paused</span>
+          )}
           <button onClick={handleClose} className="text-white hover:text-gray-300">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -378,102 +425,131 @@ const StoriesPage: React.FC = () => {
         onTouchStart={handlePauseStart}
         onTouchEnd={handlePauseEnd}
       >
-        <img
-          src={currentStory.mediaUrl}
-          alt="Story"
-          className="w-full h-full object-cover"
-        />
+        <img src={currentStory.mediaUrl} alt="Story" className="w-full h-full object-cover" />
 
         {/* Interactive Elements */}
         {currentStory.interactive && (
           <div className="absolute inset-x-6 top-1/3 z-20">
             {/* Poll */}
-            {currentStory.interactive.type === 'poll' && (() => {
-              const poll = currentStory.interactive!.data as PollData;
-              const totalVotes = poll.votesA + poll.votesB;
-              const percentA = totalVotes > 0 ? Math.round((poll.votesA / totalVotes) * 100) : 50;
-              const percentB = 100 - percentA;
-              return (
-                <div className="bg-white/95 rounded-2xl p-4 backdrop-blur-sm">
-                  <p className="text-black font-bold text-center mb-3">{poll.question}</p>
-                  <div className="space-y-2">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handlePollVote('A'); }}
-                      className={`relative w-full py-3 px-4 rounded-xl text-left font-semibold overflow-hidden transition-all ${
-                        pollVote === 'A' ? 'bg-blue-500 text-white' : pollVote ? 'bg-gray-200 text-black' : 'bg-gray-100 text-black hover:bg-gray-200'
-                      }`}
-                    >
-                      {pollVote && (
-                        <div className="absolute inset-y-0 left-0 bg-blue-200/50 transition-all" style={{ width: `${percentA}%` }} />
-                      )}
-                      <span className="relative z-10">{poll.optionA}</span>
-                      {pollVote && <span className="relative z-10 float-right">{percentA}%</span>}
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handlePollVote('B'); }}
-                      className={`relative w-full py-3 px-4 rounded-xl text-left font-semibold overflow-hidden transition-all ${
-                        pollVote === 'B' ? 'bg-blue-500 text-white' : pollVote ? 'bg-gray-200 text-black' : 'bg-gray-100 text-black hover:bg-gray-200'
-                      }`}
-                    >
-                      {pollVote && (
-                        <div className="absolute inset-y-0 left-0 bg-blue-200/50 transition-all" style={{ width: `${percentB}%` }} />
-                      )}
-                      <span className="relative z-10">{poll.optionB}</span>
-                      {pollVote && <span className="relative z-10 float-right">{percentB}%</span>}
-                    </button>
+            {currentStory.interactive.type === 'poll' &&
+              (() => {
+                const poll = currentStory.interactive!.data as PollData;
+                const totalVotes = poll.votesA + poll.votesB;
+                const percentA = totalVotes > 0 ? Math.round((poll.votesA / totalVotes) * 100) : 50;
+                const percentB = 100 - percentA;
+                return (
+                  <div className="bg-white/95 rounded-2xl p-4 backdrop-blur-sm">
+                    <p className="text-black font-bold text-center mb-3">{poll.question}</p>
+                    <div className="space-y-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePollVote('A');
+                        }}
+                        className={`relative w-full py-3 px-4 rounded-xl text-left font-semibold overflow-hidden transition-all ${
+                          pollVote === 'A'
+                            ? 'bg-blue-500 text-white'
+                            : pollVote
+                              ? 'bg-gray-200 text-black'
+                              : 'bg-gray-100 text-black hover:bg-gray-200'
+                        }`}
+                      >
+                        {pollVote && (
+                          <div
+                            className="absolute inset-y-0 left-0 bg-blue-200/50 transition-all"
+                            style={{ width: `${percentA}%` }}
+                          />
+                        )}
+                        <span className="relative z-10">{poll.optionA}</span>
+                        {pollVote && <span className="relative z-10 float-right">{percentA}%</span>}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePollVote('B');
+                        }}
+                        className={`relative w-full py-3 px-4 rounded-xl text-left font-semibold overflow-hidden transition-all ${
+                          pollVote === 'B'
+                            ? 'bg-blue-500 text-white'
+                            : pollVote
+                              ? 'bg-gray-200 text-black'
+                              : 'bg-gray-100 text-black hover:bg-gray-200'
+                        }`}
+                      >
+                        {pollVote && (
+                          <div
+                            className="absolute inset-y-0 left-0 bg-blue-200/50 transition-all"
+                            style={{ width: `${percentB}%` }}
+                          />
+                        )}
+                        <span className="relative z-10">{poll.optionB}</span>
+                        {pollVote && <span className="relative z-10 float-right">{percentB}%</span>}
+                      </button>
+                    </div>
+                    {pollVote && (
+                      <p className="text-center text-gray-500 text-xs mt-2">
+                        {totalVotes.toLocaleString()} votes
+                      </p>
+                    )}
                   </div>
-                  {pollVote && <p className="text-center text-gray-500 text-xs mt-2">{totalVotes.toLocaleString()} votes</p>}
-                </div>
-              );
-            })()}
+                );
+              })()}
 
             {/* Question */}
-            {currentStory.interactive.type === 'question' && (() => {
-              const q = currentStory.interactive!.data as QuestionData;
-              return (
-                <div className="bg-white/95 rounded-2xl p-4 backdrop-blur-sm">
-                  <p className="text-black font-bold text-center mb-3">{q.question}</p>
-                  <input
-                    type="text"
-                    value={questionAnswer}
-                    onChange={(e) => { e.stopPropagation(); setQuestionAnswer(e.target.value); }}
-                    onClick={(e) => e.stopPropagation()}
-                    placeholder="Type your answer..."
-                    className="w-full py-2 px-4 bg-gray-100 rounded-full text-black text-sm outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-              );
-            })()}
+            {currentStory.interactive.type === 'question' &&
+              (() => {
+                const q = currentStory.interactive!.data as QuestionData;
+                return (
+                  <div className="bg-white/95 rounded-2xl p-4 backdrop-blur-sm">
+                    <p className="text-black font-bold text-center mb-3">{q.question}</p>
+                    <input
+                      type="text"
+                      value={questionAnswer}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        setQuestionAnswer(e.target.value);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      placeholder="Type your answer..."
+                      className="w-full py-2 px-4 bg-gray-100 rounded-full text-black text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                );
+              })()}
 
             {/* Quiz */}
-            {currentStory.interactive.type === 'quiz' && (() => {
-              const quiz = currentStory.interactive!.data as QuizData;
-              return (
-                <div className="bg-white/95 rounded-2xl p-4 backdrop-blur-sm">
-                  <p className="text-black font-bold text-center mb-3">{quiz.question}</p>
-                  <div className="space-y-2">
-                    {quiz.options.map((option, i) => (
-                      <button
-                        key={i}
-                        onClick={(e) => { e.stopPropagation(); handleQuizAnswer(i); }}
-                        className={`w-full py-2.5 px-4 rounded-xl text-left font-medium transition-all ${
-                          quizAnswer === null
-                            ? 'bg-gray-100 text-black hover:bg-gray-200'
-                            : i === quiz.correctIndex
-                              ? 'bg-green-500 text-white'
-                              : quizAnswer === i
-                                ? 'bg-red-500 text-white'
-                                : 'bg-gray-200 text-gray-500'
-                        }`}
-                        disabled={quizAnswer !== null}
-                      >
-                        {option}
-                      </button>
-                    ))}
+            {currentStory.interactive.type === 'quiz' &&
+              (() => {
+                const quiz = currentStory.interactive!.data as QuizData;
+                return (
+                  <div className="bg-white/95 rounded-2xl p-4 backdrop-blur-sm">
+                    <p className="text-black font-bold text-center mb-3">{quiz.question}</p>
+                    <div className="space-y-2">
+                      {quiz.options.map((option, i) => (
+                        <button
+                          key={i}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleQuizAnswer(i);
+                          }}
+                          className={`w-full py-2.5 px-4 rounded-xl text-left font-medium transition-all ${
+                            quizAnswer === null
+                              ? 'bg-gray-100 text-black hover:bg-gray-200'
+                              : i === quiz.correctIndex
+                                ? 'bg-green-500 text-white'
+                                : quizAnswer === i
+                                  ? 'bg-red-500 text-white'
+                                  : 'bg-gray-200 text-gray-500'
+                          }`}
+                          disabled={quizAnswer !== null}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })()}
           </div>
         )}
       </div>
@@ -494,14 +570,22 @@ const StoriesPage: React.FC = () => {
             type="text"
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
-            onFocus={() => { setPaused(true); setShowReplyInput(true); }}
-            onBlur={() => { setPaused(false); setShowReplyInput(false); }}
+            onFocus={() => {
+              setPaused(true);
+              setShowReplyInput(true);
+            }}
+            onBlur={() => {
+              setPaused(false);
+              setShowReplyInput(false);
+            }}
             onKeyDown={(e) => e.key === 'Enter' && handleSendReply()}
             placeholder={`Reply to ${currentUser.username}...`}
             className="flex-1 py-2.5 px-4 bg-transparent border border-white/40 rounded-full text-white text-sm placeholder-white/60 outline-none focus:border-white"
           />
           {replyText.trim() ? (
-            <button onClick={handleSendReply} className="text-white font-semibold text-sm">Send</button>
+            <button onClick={handleSendReply} className="text-white font-semibold text-sm">
+              Send
+            </button>
           ) : (
             <div className="flex gap-2">
               {QUICK_REACTIONS.map((emoji, i) => (
@@ -522,8 +606,18 @@ const StoriesPage: React.FC = () => {
       <div className="absolute bottom-16 left-4 z-20">
         <div className="flex items-center gap-1 text-white/70 text-xs">
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+            />
           </svg>
           <span>{currentStory.viewCount.toLocaleString()}</span>
         </div>

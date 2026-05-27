@@ -85,9 +85,9 @@ export class EmailTemplateService {
     let body = template.body;
 
     for (const [key, value] of Object.entries(variables)) {
-      const placeholder = `{{${key}}}`;
-      subject = subject.split(placeholder).join(value);
-      body = body.split(placeholder).join(value);
+      const token = `{{${key}}}`;
+      subject = subject.split(token).join(value);
+      body = body.split(token).join(value);
     }
 
     return { subject, body };

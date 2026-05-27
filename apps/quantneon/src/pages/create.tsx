@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantNeon - Create Post Flow
 // Multi-image selection, filters, caption, tagging, location, share
@@ -50,7 +51,20 @@ interface GalleryImage {
 // Mock Data
 // ---------------------------------------------------------------------------
 
-const AVAILABLE_FILTERS = ['Normal', 'Clarendon', 'Gingham', 'Moon', 'Lark', 'Reyes', 'Juno', 'Slumber', 'Crema', 'Ludwig', 'Aden', 'Perpetua'];
+const AVAILABLE_FILTERS = [
+  'Normal',
+  'Clarendon',
+  'Gingham',
+  'Moon',
+  'Lark',
+  'Reyes',
+  'Juno',
+  'Slumber',
+  'Crema',
+  'Ludwig',
+  'Aden',
+  'Perpetua',
+];
 
 const generateGalleryImages = (): GalleryImage[] => {
   return Array.from({ length: 24 }, (_, i) => ({
@@ -70,10 +84,34 @@ const LOCATION_RESULTS: LocationResult[] = [
 ];
 
 const MUSIC_RESULTS: MusicTrack[] = [
-  { id: 'mt1', title: 'Blinding Lights', artist: 'The Weeknd', duration: '3:20', coverUrl: 'https://picsum.photos/seed/music1/60/60' },
-  { id: 'mt2', title: 'Levitating', artist: 'Dua Lipa', duration: '3:24', coverUrl: 'https://picsum.photos/seed/music2/60/60' },
-  { id: 'mt3', title: 'Watermelon Sugar', artist: 'Harry Styles', duration: '2:54', coverUrl: 'https://picsum.photos/seed/music3/60/60' },
-  { id: 'mt4', title: 'Save Your Tears', artist: 'The Weeknd', duration: '3:36', coverUrl: 'https://picsum.photos/seed/music4/60/60' },
+  {
+    id: 'mt1',
+    title: 'Blinding Lights',
+    artist: 'The Weeknd',
+    duration: '3:20',
+    coverUrl: 'https://picsum.photos/seed/music1/60/60',
+  },
+  {
+    id: 'mt2',
+    title: 'Levitating',
+    artist: 'Dua Lipa',
+    duration: '3:24',
+    coverUrl: 'https://picsum.photos/seed/music2/60/60',
+  },
+  {
+    id: 'mt3',
+    title: 'Watermelon Sugar',
+    artist: 'Harry Styles',
+    duration: '2:54',
+    coverUrl: 'https://picsum.photos/seed/music3/60/60',
+  },
+  {
+    id: 'mt4',
+    title: 'Save Your Tears',
+    artist: 'The Weeknd',
+    duration: '3:36',
+    coverUrl: 'https://picsum.photos/seed/music4/60/60',
+  },
 ];
 
 const MAX_CAPTION_LENGTH = 2200;
@@ -114,7 +152,7 @@ const CreatePostPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        await new Promise(resolve => setTimeout(resolve, 400));
+        await new Promise((resolve) => setTimeout(resolve, 400));
         setGalleryImages(generateGalleryImages());
       } catch (err) {
         setError('Failed to load gallery.');
@@ -127,14 +165,14 @@ const CreatePostPage: React.FC = () => {
 
   // Select/deselect image
   const handleToggleImage = useCallback((imageId: string) => {
-    setGalleryImages(prev => {
-      const image = prev.find(img => img.id === imageId);
+    setGalleryImages((prev) => {
+      const image = prev.find((img) => img.id === imageId);
       if (!image) return prev;
 
       if (image.isSelected) {
         // Deselect
         const removedOrder = image.order;
-        return prev.map(img => {
+        return prev.map((img) => {
           if (img.id === imageId) return { ...img, isSelected: false, order: null };
           if (img.order !== null && removedOrder !== null && img.order > removedOrder) {
             return { ...img, order: img.order - 1 };
@@ -143,11 +181,11 @@ const CreatePostPage: React.FC = () => {
         });
       } else {
         // Select (max 10)
-        const selectedCount = prev.filter(img => img.isSelected).length;
+        const selectedCount = prev.filter((img) => img.isSelected).length;
         if (selectedCount >= 10) return prev;
         const newOrder = selectedCount + 1;
-        return prev.map(img =>
-          img.id === imageId ? { ...img, isSelected: true, order: newOrder } : img
+        return prev.map((img) =>
+          img.id === imageId ? { ...img, isSelected: true, order: newOrder } : img,
         );
       }
     });
@@ -156,9 +194,9 @@ const CreatePostPage: React.FC = () => {
   // Sync selected images to preview
   useEffect(() => {
     const selected = galleryImages
-      .filter(img => img.isSelected)
+      .filter((img) => img.isSelected)
       .sort((a, b) => (a.order || 0) - (b.order || 0))
-      .map(img => ({
+      .map((img) => ({
         id: img.id,
         url: img.url,
         order: img.order || 0,
@@ -174,22 +212,22 @@ const CreatePostPage: React.FC = () => {
 
   // Filter change for selected image
   const handleFilterChange = useCallback((imageId: string, filter: string) => {
-    setSelectedImages(prev =>
-      prev.map(img => img.id === imageId ? { ...img, filter } : img)
-    );
+    setSelectedImages((prev) => prev.map((img) => (img.id === imageId ? { ...img, filter } : img)));
   }, []);
 
   // Rotation
   const handleRotate = useCallback((imageId: string) => {
-    setSelectedImages(prev =>
-      prev.map(img => img.id === imageId ? { ...img, rotation: (img.rotation + 90) % 360 } : img)
+    setSelectedImages((prev) =>
+      prev.map((img) =>
+        img.id === imageId ? { ...img, rotation: (img.rotation + 90) % 360 } : img,
+      ),
     );
   }, []);
 
   // Crop mode
   const handleCropChange = useCallback((imageId: string, cropMode: SelectedImage['cropMode']) => {
-    setSelectedImages(prev =>
-      prev.map(img => img.id === imageId ? { ...img, cropMode } : img)
+    setSelectedImages((prev) =>
+      prev.map((img) => (img.id === imageId ? { ...img, cropMode } : img)),
     );
   }, []);
 
@@ -215,31 +253,32 @@ const CreatePostPage: React.FC = () => {
       x: 50,
       y: 50,
     };
-    setTaggedPeople(prev => [...prev, newTag]);
+    setTaggedPeople((prev) => [...prev, newTag]);
     setTagQuery('');
     setShowTagPeople(false);
   }, []);
 
   const handleRemoveTag = useCallback((tagId: string) => {
-    setTaggedPeople(prev => prev.filter(t => t.id !== tagId));
+    setTaggedPeople((prev) => prev.filter((t) => t.id !== tagId));
   }, []);
 
   // Share/Post
   const handleShare = useCallback(async () => {
     if (selectedImages.length === 0) return;
     setSharing(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     setSharing(false);
     // Navigate back on success
   }, [selectedImages]);
 
-  const filteredLocations = LOCATION_RESULTS.filter(l =>
-    l.name.toLowerCase().includes(locationQuery.toLowerCase())
+  const filteredLocations = LOCATION_RESULTS.filter((l) =>
+    l.name.toLowerCase().includes(locationQuery.toLowerCase()),
   );
 
-  const filteredMusic = MUSIC_RESULTS.filter(m =>
-    m.title.toLowerCase().includes(musicQuery.toLowerCase()) ||
-    m.artist.toLowerCase().includes(musicQuery.toLowerCase())
+  const filteredMusic = MUSIC_RESULTS.filter(
+    (m) =>
+      m.title.toLowerCase().includes(musicQuery.toLowerCase()) ||
+      m.artist.toLowerCase().includes(musicQuery.toLowerCase()),
   );
 
   // Loading state
@@ -264,7 +303,11 @@ const CreatePostPage: React.FC = () => {
           </div>
           <p className="text-white text-center">{error}</p>
           <button
-            onClick={() => { setError(null); setGalleryImages(generateGalleryImages()); setLoading(false); }}
+            onClick={() => {
+              setError(null);
+              setGalleryImages(generateGalleryImages());
+              setLoading(false);
+            }}
             className="px-6 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition-colors"
           >
             Retry
@@ -278,7 +321,10 @@ const CreatePostPage: React.FC = () => {
     <div className="min-h-screen bg-black text-white flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-black/90 backdrop-blur-sm border-b border-gray-800 px-4 py-3 flex items-center justify-between">
-        <button onClick={() => window.history.back()} className="text-sm text-gray-400 hover:text-white">
+        <button
+          onClick={() => window.history.back()}
+          className="text-sm text-gray-400 hover:text-white"
+        >
           Cancel
         </button>
         <h1 className="font-semibold">New Post</h1>
@@ -315,7 +361,10 @@ const CreatePostPage: React.FC = () => {
                 />
                 <div className="absolute top-2 right-2 flex gap-1">
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleRotate(img.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRotate(img.id);
+                    }}
                     className="w-6 h-6 bg-black/60 rounded-full flex items-center justify-center text-white text-xs"
                   >
                     ↻
@@ -331,10 +380,12 @@ const CreatePostPage: React.FC = () => {
           {/* Per-image filter selector */}
           {selectedImages.length > 0 && (
             <div className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-hide">
-              {AVAILABLE_FILTERS.map(filter => (
+              {AVAILABLE_FILTERS.map((filter) => (
                 <button
                   key={filter}
-                  onClick={() => handleFilterChange(selectedImages[currentPreviewIndex]?.id || '', filter)}
+                  onClick={() =>
+                    handleFilterChange(selectedImages[currentPreviewIndex]?.id || '', filter)
+                  }
                   className={`px-3 py-1 rounded-full text-xs whitespace-nowrap transition-all ${
                     selectedImages[currentPreviewIndex]?.filter === filter
                       ? 'bg-white text-black font-medium'
@@ -359,7 +410,7 @@ const CreatePostPage: React.FC = () => {
         )}
 
         <div className="grid grid-cols-4 gap-0.5 px-0.5">
-          {galleryImages.map(image => (
+          {galleryImages.map((image) => (
             <div
               key={image.id}
               className="relative aspect-square cursor-pointer overflow-hidden"
@@ -392,13 +443,20 @@ const CreatePostPage: React.FC = () => {
               rows={3}
             />
             <div className="flex items-center justify-between mt-1">
-              <span className={`text-xs ${caption.length > MAX_CAPTION_LENGTH * 0.9 ? 'text-orange-400' : 'text-gray-500'}`}>
+              <span
+                className={`text-xs ${caption.length > MAX_CAPTION_LENGTH * 0.9 ? 'text-orange-400' : 'text-gray-500'}`}
+              >
                 {caption.length}/{MAX_CAPTION_LENGTH}
               </span>
               {location && (
                 <div className="flex items-center gap-1 text-xs text-blue-400">
                   <span>📍 {location.name}</span>
-                  <button onClick={() => setLocation(null)} className="text-gray-500 hover:text-white ml-1">x</button>
+                  <button
+                    onClick={() => setLocation(null)}
+                    className="text-gray-500 hover:text-white ml-1"
+                  >
+                    x
+                  </button>
                 </div>
               )}
             </div>
@@ -416,8 +474,18 @@ const CreatePostPage: React.FC = () => {
                 {taggedPeople.length > 0 && (
                   <span className="text-xs text-gray-400">{taggedPeople.length} tagged</span>
                 )}
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <svg
+                  className="w-4 h-4 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
                 </svg>
               </div>
             </button>
@@ -430,8 +498,18 @@ const CreatePostPage: React.FC = () => {
               <span className="text-sm">Add Location</span>
               <div className="flex items-center gap-2">
                 {location && <span className="text-xs text-gray-400">{location.name}</span>}
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <svg
+                  className="w-4 h-4 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
                 </svg>
               </div>
             </button>
@@ -444,8 +522,18 @@ const CreatePostPage: React.FC = () => {
               <span className="text-sm">Add Music</span>
               <div className="flex items-center gap-2">
                 {music && <span className="text-xs text-gray-400">{music.title}</span>}
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <svg
+                  className="w-4 h-4 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
                 </svg>
               </div>
             </button>
@@ -456,8 +544,18 @@ const CreatePostPage: React.FC = () => {
               className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-800/50"
             >
               <span className="text-sm">Advanced Settings</span>
-              <svg className={`w-4 h-4 text-gray-500 transition-transform ${showAdvancedSettings ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              <svg
+                className={`w-4 h-4 text-gray-500 transition-transform ${showAdvancedSettings ? 'rotate-90' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
               </svg>
             </button>
 
@@ -469,7 +567,9 @@ const CreatePostPage: React.FC = () => {
                     onClick={() => setHideLikeCounts(!hideLikeCounts)}
                     className={`w-10 h-5 rounded-full transition-colors ${hideLikeCounts ? 'bg-blue-500' : 'bg-gray-600'}`}
                   >
-                    <div className={`w-4 h-4 bg-white rounded-full transition-transform ${hideLikeCounts ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    <div
+                      className={`w-4 h-4 bg-white rounded-full transition-transform ${hideLikeCounts ? 'translate-x-5' : 'translate-x-0.5'}`}
+                    />
                   </button>
                 </div>
                 <div className="flex items-center justify-between">
@@ -478,7 +578,9 @@ const CreatePostPage: React.FC = () => {
                     onClick={() => setDisableComments(!disableComments)}
                     className={`w-10 h-5 rounded-full transition-colors ${disableComments ? 'bg-blue-500' : 'bg-gray-600'}`}
                   >
-                    <div className={`w-4 h-4 bg-white rounded-full transition-transform ${disableComments ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    <div
+                      className={`w-4 h-4 bg-white rounded-full transition-transform ${disableComments ? 'translate-x-5' : 'translate-x-0.5'}`}
+                    />
                   </button>
                 </div>
               </div>
@@ -491,7 +593,9 @@ const CreatePostPage: React.FC = () => {
                 onClick={() => setShareToStories(!shareToStories)}
                 className={`w-10 h-5 rounded-full transition-colors ${shareToStories ? 'bg-blue-500' : 'bg-gray-600'}`}
               >
-                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${shareToStories ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                <div
+                  className={`w-4 h-4 bg-white rounded-full transition-transform ${shareToStories ? 'translate-x-5' : 'translate-x-0.5'}`}
+                />
               </button>
             </div>
           </div>
@@ -504,7 +608,12 @@ const CreatePostPage: React.FC = () => {
           <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-800">
             <button onClick={() => setShowLocationSearch(false)} className="text-white">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </button>
             <input
@@ -517,7 +626,7 @@ const CreatePostPage: React.FC = () => {
             />
           </div>
           <div className="flex-1 overflow-y-auto">
-            {filteredLocations.map(loc => (
+            {filteredLocations.map((loc) => (
               <button
                 key={loc.id}
                 onClick={() => handleSelectLocation(loc)}
@@ -542,7 +651,12 @@ const CreatePostPage: React.FC = () => {
           <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-800">
             <button onClick={() => setShowMusicSearch(false)} className="text-white">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </button>
             <input
@@ -555,7 +669,7 @@ const CreatePostPage: React.FC = () => {
             />
           </div>
           <div className="flex-1 overflow-y-auto">
-            {filteredMusic.map(track => (
+            {filteredMusic.map((track) => (
               <button
                 key={track.id}
                 onClick={() => handleSelectMusic(track)}

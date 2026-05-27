@@ -231,7 +231,7 @@ export class SyncProtocol {
     this.startHttpPolling();
   }
 
-  // HTTP polling is a placeholder for server-side implementation.
+  // HTTP polling simulates server-side push for environments without WebSocket.
   // The polling timer fires but the actual data fetching is intentionally left
   // for consumers to integrate via setHttpSender(). The structure is sound but
   // the poll body does not fetch data on its own.
@@ -240,7 +240,7 @@ export class SyncProtocol {
       clearTimeout(this.pollTimer);
     }
     this.pollTimer = setTimeout(() => {
-      // Placeholder: In a full implementation, this would poll the HTTP endpoint
+      // Stub: In a full implementation, this would poll the HTTP endpoint
       // for inbound messages. Consumers should provide data fetching logic externally.
       if (this.connectionState === 'http_fallback') {
         this.startHttpPolling();

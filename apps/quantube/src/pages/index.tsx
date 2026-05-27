@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantTube - Home Page
 // Video platform home with category tabs, video grid, infinite scroll, search
@@ -64,7 +65,8 @@ function formatDuration(seconds: number): string {
   const hrs = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
-  if (hrs > 0) return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  if (hrs > 0)
+    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
@@ -82,12 +84,18 @@ function formatTimeAgo(dateStr: string): string {
 
 function generateMockVideos(category: string, page: number): Video[] {
   const titles = [
-    'Building a Full Stack App in 10 Minutes', 'Epic Gaming Montage 2024',
-    'Top 10 Travel Destinations', 'Live Coding Session: React Hooks',
-    'Official Music Video - Summer Vibes', 'Breaking News: Tech Conference',
-    'Workout Routine for Beginners', 'Cooking Italian Pasta from Scratch',
-    'How to Start a Business in 2024', 'Machine Learning Explained Simply',
-    'Best Budget Smartphones Review', 'Day in My Life as a Developer',
+    'Building a Full Stack App in 10 Minutes',
+    'Epic Gaming Montage 2024',
+    'Top 10 Travel Destinations',
+    'Live Coding Session: React Hooks',
+    'Official Music Video - Summer Vibes',
+    'Breaking News: Tech Conference',
+    'Workout Routine for Beginners',
+    'Cooking Italian Pasta from Scratch',
+    'How to Start a Business in 2024',
+    'Machine Learning Explained Simply',
+    'Best Budget Smartphones Review',
+    'Day in My Life as a Developer',
   ];
   const channels = ['TechMaster', 'GamePro', 'TravelWorld', 'CodeStream', 'MusicHub', 'NewsToday'];
   return Array.from({ length: 12 }, (_, i) => ({
@@ -102,11 +110,15 @@ function generateMockVideos(category: string, page: number): Video[] {
     duration: Math.floor(Math.random() * 3600) + 30,
     isLive: category === 'live' || Math.random() < 0.05,
     isShort: category === 'shorts' || (Math.random() < 0.1 && category === 'all'),
-    category: category === 'all' ? CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)].id : category,
+    category:
+      category === 'all' ? CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)].id : category,
   }));
 }
 
-const VideoCard: React.FC<{ video: Video; onSelect: (id: string) => void }> = ({ video, onSelect }) => {
+const VideoCard: React.FC<{ video: Video; onSelect: (id: string) => void }> = ({
+  video,
+  onSelect,
+}) => {
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -156,9 +168,7 @@ const VideoCard: React.FC<{ video: Video; onSelect: (id: string) => void }> = ({
           <h3 className="text-sm font-medium text-white line-clamp-2 leading-tight">
             {video.title}
           </h3>
-          <p className="text-xs text-gray-400 mt-1 hover:text-gray-300">
-            {video.channelName}
-          </p>
+          <p className="text-xs text-gray-400 mt-1 hover:text-gray-300">{video.channelName}</p>
           <p className="text-xs text-gray-500">
             {formatViewCount(video.views)} · {formatTimeAgo(video.uploadedAt)}
           </p>
@@ -187,7 +197,9 @@ const SidebarNav: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen
   ];
 
   return (
-    <aside className={`sidebar fixed left-0 top-14 h-full bg-gray-900 transition-transform z-40 ${isOpen ? 'translate-x-0 w-64' : '-translate-x-full w-0'}`}>
+    <aside
+      className={`sidebar fixed left-0 top-14 h-full bg-gray-900 transition-transform z-40 ${isOpen ? 'translate-x-0 w-64' : '-translate-x-full w-0'}`}
+    >
       <nav className="p-4 space-y-1 overflow-y-auto h-full pb-20">
         {navItems.map((item) => (
           <a
@@ -201,9 +213,7 @@ const SidebarNav: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen
           </a>
         ))}
       </nav>
-      {isOpen && (
-        <div className="fixed inset-0 bg-black/50 z-[-1] lg:hidden" onClick={onClose} />
-      )}
+      {isOpen && <div className="fixed inset-0 bg-black/50 z-[-1] lg:hidden" onClick={onClose} />}
     </aside>
   );
 };
@@ -226,10 +236,10 @@ export const HomePage: React.FC = () => {
   const loadingRef = useRef(false);
 
   const loadVideos = useCallback((category: string, page: number, append: boolean = false) => {
-    setState(prev => ({ ...prev, loading: !append, error: null }));
+    setState((prev) => ({ ...prev, loading: !append, error: null }));
     try {
       const newVideos = generateMockVideos(category, page);
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         videos: append ? [...prev.videos, ...newVideos] : newVideos,
         loading: false,
@@ -237,7 +247,11 @@ export const HomePage: React.FC = () => {
         page,
       }));
     } catch (err) {
-      setState(prev => ({ ...prev, loading: false, error: 'Failed to load videos. Please try again.' }));
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: 'Failed to load videos. Please try again.',
+      }));
     }
   }, []);
 
@@ -252,30 +266,39 @@ export const HomePage: React.FC = () => {
           loadingRef.current = true;
           const nextPage = state.page + 1;
           loadVideos(state.activeCategory, nextPage, true);
-          setTimeout(() => { loadingRef.current = false; }, 500);
+          setTimeout(() => {
+            loadingRef.current = false;
+          }, 500);
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
     if (observerRef.current) observer.observe(observerRef.current);
     return () => observer.disconnect();
   }, [state.hasMore, state.page, state.activeCategory, loadVideos]);
 
   const handleCategoryChange = useCallback((categoryId: string) => {
-    setState(prev => ({ ...prev, activeCategory: categoryId, page: 1, videos: [], hasMore: true }));
+    setState((prev) => ({
+      ...prev,
+      activeCategory: categoryId,
+      page: 1,
+      videos: [],
+      hasMore: true,
+    }));
   }, []);
 
   const handleSearch = useCallback((query: string) => {
-    setState(prev => ({ ...prev, searchQuery: query }));
+    setState((prev) => ({ ...prev, searchQuery: query }));
     if (query.length >= 2) {
-      setState(prev => ({ ...prev, isSearching: true }));
-      const results = generateMockVideos('all', 1).filter(v =>
-        v.title.toLowerCase().includes(query.toLowerCase()) ||
-        v.channelName.toLowerCase().includes(query.toLowerCase())
+      setState((prev) => ({ ...prev, isSearching: true }));
+      const results = generateMockVideos('all', 1).filter(
+        (v) =>
+          v.title.toLowerCase().includes(query.toLowerCase()) ||
+          v.channelName.toLowerCase().includes(query.toLowerCase()),
       );
-      setState(prev => ({ ...prev, searchResults: results, isSearching: false }));
+      setState((prev) => ({ ...prev, searchResults: results, isSearching: false }));
     } else {
-      setState(prev => ({ ...prev, searchResults: [], isSearching: false }));
+      setState((prev) => ({ ...prev, searchResults: [], isSearching: false }));
     }
   }, []);
 
@@ -284,7 +307,7 @@ export const HomePage: React.FC = () => {
   }, []);
 
   const toggleSidebar = useCallback(() => {
-    setState(prev => ({ ...prev, sidebarOpen: !prev.sidebarOpen }));
+    setState((prev) => ({ ...prev, sidebarOpen: !prev.sidebarOpen }));
   }, []);
 
   if (state.error) {
@@ -332,13 +355,22 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-2 ml-4">
-          <button className="p-2 rounded-full hover:bg-gray-800" aria-label="Notifications">🔔</button>
-          <button className="p-2 rounded-full hover:bg-gray-800" aria-label="Upload">📤</button>
-          <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-sm font-bold">U</div>
+          <button className="p-2 rounded-full hover:bg-gray-800" aria-label="Notifications">
+            🔔
+          </button>
+          <button className="p-2 rounded-full hover:bg-gray-800" aria-label="Upload">
+            📤
+          </button>
+          <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-sm font-bold">
+            U
+          </div>
         </div>
       </header>
 
-      <SidebarNav isOpen={state.sidebarOpen} onClose={() => setState(prev => ({ ...prev, sidebarOpen: false }))} />
+      <SidebarNav
+        isOpen={state.sidebarOpen}
+        onClose={() => setState((prev) => ({ ...prev, sidebarOpen: false }))}
+      />
 
       <main className="pt-14">
         <div className="category-tabs sticky top-14 z-30 bg-gray-950 border-b border-gray-800 px-4 py-2 overflow-x-auto flex gap-2 scrollbar-hide">

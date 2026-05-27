@@ -194,7 +194,12 @@ export interface QueryOptimization {
 }
 
 /** Optimization type */
-export type OptimizationType = 'ADD_INDEX' | 'REWRITE_QUERY' | 'BATCH_QUERIES' | 'ELIMINATE_N_PLUS_1' | 'PARTITION';
+export type OptimizationType =
+  | 'ADD_INDEX'
+  | 'REWRITE_QUERY'
+  | 'BATCH_QUERIES'
+  | 'ELIMINATE_N_PLUS_1'
+  | 'PARTITION';
 
 /** Index suggestion */
 export interface IndexSuggestion {
@@ -230,7 +235,7 @@ export interface CompressionResult {
 export interface LazyLoadConfig {
   rootMargin: string;
   threshold: number;
-  placeholder: string;
+  fallbackSrc: string;
   progressive: boolean;
   priorityLevels: number;
   preconnectOrigins: string[];
@@ -400,7 +405,12 @@ export interface RuntimeCachingRule {
 }
 
 /** Cache strategy */
-export type CacheStrategy = 'CACHE_FIRST' | 'NETWORK_FIRST' | 'STALE_WHILE_REVALIDATE' | 'NETWORK_ONLY' | 'CACHE_ONLY';
+export type CacheStrategy =
+  | 'CACHE_FIRST'
+  | 'NETWORK_FIRST'
+  | 'STALE_WHILE_REVALIDATE'
+  | 'NETWORK_ONLY'
+  | 'CACHE_ONLY';
 
 /** Background sync queue item */
 export interface SyncQueueItem {

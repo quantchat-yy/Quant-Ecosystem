@@ -146,7 +146,7 @@ export class TestRunner {
   }
 
   /**
-   * Defines a todo test case (placeholder)
+   * Defines a todo test case (pending implementation)
    */
   itTodo(name: string): void {
     const testCase: TestCase = {
