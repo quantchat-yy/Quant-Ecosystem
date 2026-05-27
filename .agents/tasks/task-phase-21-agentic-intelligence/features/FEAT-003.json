@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Refactor CodePilot, ResearchPilot, FinancePilot, and HealthPilot to extend IntelligentAgent with LLM-driven logic. Each uses AI for its domain-specific analysis instead of hardcoded rules.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Refactor packages/agent-runtime/src/agents/code-pilot.ts to extend IntelligentAgent. Replace hardcoded analyzeChanges() string-matching (console.log, 'any' type) with AI-powered code review: call aiEngine.infer() with diff content and system prompt for code review. Register tools: 'code.review', 'code.suggest_fix', 'code.open_pr', 'code.run_tests'. Keep CodeChange, CodeReviewResult, CodeIssue, CodeSuggestion interfaces stable.",
     "Refactor packages/agent-runtime/src/agents/research-pilot.ts to extend IntelligentAgent. Replace hardcoded generateSummary()/extractKeyFindings() with AI summarization: call aiEngine.infer() for web research summarization with citation extraction. Register tools: 'research.web_fetch', 'research.summarize', 'research.extract_citations', 'research.export_to_docs'. Keep ResearchSource, ResearchResult interfaces stable.",
