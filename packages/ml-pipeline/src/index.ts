@@ -16,6 +16,9 @@ export {
   OnlineStoreConfigSchema,
   OfflineStoreConfigSchema,
   PipelineConfigSchema,
+  FeatureAggregator,
+  NatsFeatureConsumer,
+  BackfillJob,
 } from './feature-store';
 
 export type {
@@ -37,7 +40,26 @@ export type {
   RawEvent,
   MaterializedFeature,
   PipelineStats,
+  UserEvent,
+  EventType,
+  AggregatedFeatures,
+  NatsSubscriber,
 } from './feature-store';
+
+// Embedding Service
+export {
+  EmbeddingService,
+  OpenAIEmbeddingBackend,
+  TritonEmbeddingBackend,
+} from './embedding-service';
+
+export type {
+  EmbeddingBackend,
+  HttpClient,
+  OpenAIEmbeddingConfig,
+  TritonEmbeddingConfig,
+  EmbeddingItem,
+} from './embedding-service';
 
 export { FeatureStore } from './core/feature-store';
 export { ModelRegistry } from './core/model-registry';

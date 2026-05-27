@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Real feature store, real-time signals pipeline, and vector embedding service. Upgrade the existing feature-store in packages/ml-pipeline to wire to real Redis (online) and S3 (offline) with proper pipeline. Add NATS-based event aggregator for real-time signals. Add embedding service that calls OpenAI text-embedding-3-small and self-hosted multilingual-e5 via Triton.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Enhance packages/ml-pipeline/src/feature-store/pipeline.ts: add a FeatureAggregator class that consumes user events from NATS (interface NatsSubscriber for DI), computes rolling aggregates (view count, click rate, session duration, topic affinities), and writes to OnlineFeatureStore. Add a BackfillJob class that reads from OnlineFeatureStore and writes historical snapshots to OfflineFeatureStore on a schedule.",
     "Create packages/ml-pipeline/src/feature-store/nats-consumer.ts: NatsFeatureConsumer class implementing NatsSubscriber interface. Subscribes to 'user.events.*' subjects. Parses event payloads (view, click, like, share, dwell, dismiss). Calls FeatureAggregator.processEvent() for each.",
