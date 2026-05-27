@@ -202,15 +202,21 @@ export default function MemoryPage(): JSX.Element {
   }, []);
 
   const handleExport = useCallback(async () => {
-    const data = await apiFetch<string>('/export?format=json');
-    if (data) {
-      const blob = new Blob([data], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'memory-export.json';
-      a.click();
-      URL.revokeObjectURL(url);
+    try {
+      const res = await fetch(`${API_BASE}/export?format=json`);
+      if (!res.ok) return;
+      const data = await res.text();
+      if (data) {
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'memory-export.json';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      // Export failed silently
     }
   }, []);
 

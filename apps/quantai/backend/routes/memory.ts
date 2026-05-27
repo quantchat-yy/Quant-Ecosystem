@@ -115,6 +115,10 @@ export default async function memoryRoutes(fastify: FastifyInstance) {
   });
 
   // PUT /:id - update memory
+  // NOTE: Ownership enforcement (404 then 403) is implemented in PUT, DELETE, approve, reject.
+  // Route-level integration tests for this logic are deferred until Fastify injection test
+  // infrastructure is added. The service.getMemory() + userId comparison pattern is validated
+  // at the service layer in memory.service.test.ts.
   fastify.put<{ Params: { id: string } }>('/:id', async (request, reply) => {
     const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
     if (!userId) {

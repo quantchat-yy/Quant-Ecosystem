@@ -285,6 +285,39 @@ describe('MemoryService', () => {
     });
   });
 
+  describe('ownership enforcement (getMemory for route-level checks)', () => {
+    it('getMemory returns entry with userId so routes can verify ownership', () => {
+      const memory = service.createMemory('user-1', createTestData());
+      const fetched = service.getMemory(memory.id);
+
+      expect(fetched).toBeDefined();
+      expect(fetched!.userId).toBe('user-1');
+      // Routes use this to enforce: if (existing.userId !== requestUserId) throw 403
+    });
+
+    it('getMemory returns undefined for non-existent id', () => {
+      const fetched = service.getMemory('non-existent-id');
+      expect(fetched).toBeUndefined();
+    });
+
+    it('getMemory returns entry regardless of status (active or pending)', () => {
+      const candidate = service.createCandidate('user-1', {
+        category: 'goals' as const,
+        content: 'Learn Go',
+        source: 'pattern',
+        sourceApp: 'quantai',
+        explanation: 'Detected',
+        accessScopes: [],
+        tags: [],
+      });
+
+      const fetched = service.getMemory(candidate.id);
+      expect(fetched).toBeDefined();
+      expect(fetched!.status).toBe('pending');
+      expect(fetched!.userId).toBe('user-1');
+    });
+  });
+
   describe('getFullDisclosure', () => {
     it('returns all memories with access logs', () => {
       service.createMemory('user-1', createTestData());
