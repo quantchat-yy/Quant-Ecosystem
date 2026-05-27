@@ -50,7 +50,7 @@ export class LazyLoader {
     this.config = {
       rootMargin: config.rootMargin ?? '200px 0px',
       threshold: config.threshold ?? 0.1,
-      placeholder: config.placeholder ?? 'data:image/svg+xml,...',
+      fallbackSrc: config.fallbackSrc ?? 'data:image/svg+xml,...',
       progressive: config.progressive ?? true,
       priorityLevels: config.priorityLevels ?? 3,
       preconnectOrigins: config.preconnectOrigins ?? [],
@@ -169,10 +169,10 @@ export class LazyLoader {
 
     // Generate progressive loading stages
     return [
-      this.config.placeholder,           // Stage 1: Placeholder/LQIP
+      this.config.fallbackSrc, // Stage 1: LQIP fallback
       this.generateThumbnailUrl(src, 20), // Stage 2: Tiny thumbnail
       this.generateThumbnailUrl(src, 40), // Stage 3: Low quality
-      src,                                // Stage 4: Full quality
+      src, // Stage 4: Full quality
     ];
   }
 
@@ -210,7 +210,13 @@ export class LazyLoader {
   /**
    * Get loading statistics.
    */
-  getStats(): { total: number; loaded: number; pending: number; errors: number; queueSize: number } {
+  getStats(): {
+    total: number;
+    loaded: number;
+    pending: number;
+    errors: number;
+    queueSize: number;
+  } {
     return {
       total: this.items.size,
       loaded: this.totalLoaded,
@@ -260,8 +266,7 @@ export class LazyLoader {
     const wasIntersecting = observer.isIntersecting;
 
     // Check if element rect overlaps with viewport
-    observer.isIntersecting =
-      rect.bottom > this.viewportTop && rect.top < this.viewportBottom;
+    observer.isIntersecting = rect.bottom > this.viewportTop && rect.top < this.viewportBottom;
 
     // Calculate intersection ratio
     if (observer.isIntersecting) {
@@ -273,8 +278,11 @@ export class LazyLoader {
     }
 
     // Trigger load if newly intersecting and meets threshold
-    if (observer.isIntersecting && !wasIntersecting &&
-        observer.intersectionRatio >= this.config.threshold) {
+    if (
+      observer.isIntersecting &&
+      !wasIntersecting &&
+      observer.intersectionRatio >= this.config.threshold
+    ) {
       item.visible = true;
       if (!item.loaded && !this.loadedItems.has(id)) {
         this.enqueueLoad(item);

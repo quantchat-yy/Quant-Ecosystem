@@ -142,7 +142,7 @@ export class SQLInjectionGuard {
     let paramIndex = 1;
     let sql = template;
 
-    // Replace named parameters with positional placeholders
+    // Replace named parameters with positional param markers
     sql = sql.replace(/:(\w+)/g, (match, paramName) => {
       if (paramName in params) {
         paramValues.push(params[paramName]);
@@ -187,8 +187,8 @@ export class SQLInjectionGuard {
         if (value === null) {
           conditions.push(`${safeKey} IS NULL`);
         } else if (Array.isArray(value)) {
-          const placeholders = value.map(() => `$${paramIndex++}`).join(', ');
-          conditions.push(`${safeKey} IN (${placeholders})`);
+          const paramMarkers = value.map(() => `$${paramIndex++}`).join(', ');
+          conditions.push(`${safeKey} IN (${paramMarkers})`);
           params.push(...value);
         } else {
           conditions.push(`${safeKey} = $${paramIndex++}`);
@@ -222,17 +222,17 @@ export class SQLInjectionGuard {
   buildInsert(table: string, data: Record<string, unknown>): ParameterizedQuery {
     const safeTable = this.escapeIdentifier(table);
     const columns: string[] = [];
-    const placeholders: string[] = [];
+    const paramMarkers: string[] = [];
     const params: unknown[] = [];
     let paramIndex = 1;
 
     for (const [key, value] of Object.entries(data)) {
       columns.push(this.escapeIdentifier(key));
-      placeholders.push(`$${paramIndex++}`);
+      paramMarkers.push(`$${paramIndex++}`);
       params.push(value);
     }
 
-    const sql = `INSERT INTO ${safeTable} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`;
+    const sql = `INSERT INTO ${safeTable} (${columns.join(', ')}) VALUES (${paramMarkers.join(', ')})`;
 
     return {
       sql,

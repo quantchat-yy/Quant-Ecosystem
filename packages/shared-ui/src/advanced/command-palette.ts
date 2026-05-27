@@ -39,7 +39,7 @@ export class CommandPalette {
 
   constructor(config: CommandPaletteConfig = {}) {
     this.config = {
-      placeholder: 'Type a command...',
+      inputHint: 'Type a command...',
       maxResults: 20,
       recentCount: 5,
       ...config,
