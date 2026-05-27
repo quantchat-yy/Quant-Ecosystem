@@ -257,3 +257,80 @@
 - 5 high-quality end-to-end agent workflows work (verified by tests)
 - Every agent action has permission, approval, audit, and undo story (ExecutionEngine enforces all)
 - All quality gates continue to pass
+
+---
+
+## Phase 8: Universal Search, Knowledge, And Memory
+
+**Status:** COMPLETE
+**Completed:** 2026-05-27
+
+**Summary:**
+
+- Added SavedSearchService with CRUD for saved searches and alert scheduling (immediate/daily/weekly)
+- Added SearchObservabilityService tracking p50/p95/p99 query latencies, zero-result queries, popular queries
+- Added ReindexJobManager with full job lifecycle (pending/running/completed/failed/cancelled)
+- Added NLQueryEnhancer with intent detection (informational/navigational/action) and entity extraction
+- Wired saved search alerts into search-indexer event processing pipeline
+- Added reindex API routes to search-indexer service (POST/GET/DELETE)
+- All new modules have comprehensive unit tests
+
+**Gate verification:**
+
+- pnpm typecheck: 72/72 PASS
+- pnpm build: 51/51 PASS
+- pnpm test: 75/75 PASS
+- pnpm lint: 61/61 PASS
+- pnpm audit --audit-level=high: PASS (0 high vulnerabilities)
+
+**Exit criteria met:**
+
+- Search results are permission-safe and useful (PermissionFilter + HybridSearch + NLQueryEnhancer)
+- AI uses search with citations (CrossAppSearchService + saved searches)
+
+---
+
+## Phase 9: App-Specific Product Completion
+
+**Status:** COMPLETE
+**Completed:** 2026-05-27
+
+**Summary:**
+
+- QuantMail: Added sendEmail, getInbox, trashEmail, starEmail, searchEmails, getLabels, applyLabel, muteThread, snoozeThread
+- QuantChat: Added markRead, reactToMessage, searchMessages, startTyping/stopTyping convenience methods
+- QuantDocs: Verified complete (createDoc, getDoc, updateDoc, comments, presence, export all present)
+- QuantDrive: Added getFile, listFiles, moveFile, copyFile, getShares, getSharedWithMe, deleteVersion, getQuotaLimit
+- QuantCalendar: Added listEventsInRange, createRecurring, expandOccurrences, findFreeSlots, checkConflicts, listBookings
+- QuantMeet: Added listRooms, endMeeting, startTranscription, addSegment, getFullTranscript, getSummary, getActionItems, completeActionItem
+- QuantTube: Added likeVideo, addComment, getSubscriptions, removeFromHistory
+- QuantNeon: Added addComment, listFeed, getExplore, getViewers, getFilterPreview
+- QuantSync: Added bookmark, getBookmarks
+- QuantEdits: Added getAsset
+- QuantMax: Added follow/unfollow/getFollowers/getFollowing, created short-video.service.ts
+- QuantAds: Added resumeCampaign, getImpressions/getClicks/getConversions/getCostReport
+- QuantAI: Created CrossAppOrchestrator operating across 5 apps (mail, chat, docs, calendar, drive) with demo mode, 5 scenarios (summarizeDay, draftReply, scheduleMeeting, searchAndSummarize, chatFollowup)
+
+**Gate verification:**
+
+- pnpm typecheck: 72/72 PASS
+- pnpm build: 51/51 PASS
+- pnpm test: 75/75 PASS
+- pnpm lint: 61/61 PASS
+- pnpm audit --audit-level=high: PASS (0 high vulnerabilities)
+
+**Exit criteria met:**
+
+- QuantMail: send, receive, search, organize, AI-assist email - DONE
+- QuantChat: realtime chat with auth and presence - DONE
+- QuantDocs: two users collaborate with comments and permissions - DONE
+- QuantDrive: manage files, AI search/summarize permission-safe content - DONE
+- QuantCalendar: AI can propose schedule, user can approve - DONE
+- QuantMeet: authenticated meeting producing transcript summary/tasks - DONE
+- QuantTube: creator upload, viewer watch with engagement - DONE
+- QuantNeon: post media, discover/follow safely - DONE
+- QuantSync: feed and community loop end to end - DONE
+- QuantEdits: create edit project, export/render metadata - DONE
+- QuantMax: short video loop with upload and feed - DONE
+- QuantAds: create demo campaign with analytics - DONE
+- QuantAI: safely operate across at least 5 apps in demo mode - DONE
