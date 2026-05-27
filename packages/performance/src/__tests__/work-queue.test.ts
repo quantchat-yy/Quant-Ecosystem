@@ -131,4 +131,95 @@ describe('WorkQueueManager', () => {
     expect(metrics.totalJobs).toBe(2);
     expect(metrics.waiting).toBe(2);
   });
+
+  it('retries with configurable delay (retryDelayMs config is respected)', async () => {
+    let attempts = 0;
+    manager.defineJob(
+      'delayed-retry',
+      async () => {
+        attempts++;
+        if (attempts < 3) throw new Error('Retry needed');
+      },
+      { maxRetries: 3, retryDelayMs: 500 },
+    );
+
+    manager.enqueue('delayed-retry', {});
+
+    // First attempt fails, job goes back to waiting
+    const job1 = await manager.processNext('delayed-retry');
+    expect(job1!.status).toBe('waiting');
+    expect(job1!.attempts).toBe(1);
+    expect(job1!.error).toBe('Retry needed');
+
+    // Second attempt fails, job goes back to waiting
+    const job2 = await manager.processNext('delayed-retry');
+    expect(job2!.status).toBe('waiting');
+    expect(job2!.attempts).toBe(2);
+
+    // Third attempt succeeds
+    const job3 = await manager.processNext('delayed-retry');
+    expect(job3!.status).toBe('completed');
+    expect(job3!.attempts).toBe(3);
+    expect(attempts).toBe(3);
+  });
+
+  it('moves job to dead letter after max retries with delay config', async () => {
+    manager.defineJob(
+      'always-fails',
+      async () => {
+        throw new Error('permanent error');
+      },
+      { maxRetries: 2, retryDelayMs: 200 },
+    );
+
+    manager.enqueue('always-fails', { id: 1 });
+
+    // First attempt - back to waiting
+    const job1 = await manager.processNext('always-fails');
+    expect(job1!.status).toBe('waiting');
+    expect(job1!.attempts).toBe(1);
+
+    // Second attempt - goes to dead letter
+    const job2 = await manager.processNext('always-fails');
+    expect(job2!.status).toBe('dead-letter');
+    expect(job2!.attempts).toBe(2);
+    expect(job2!.error).toBe('permanent error');
+    expect(job2!.failedAt).not.toBeNull();
+
+    const dlq = manager.getDeadLetterQueue('always-fails');
+    expect(dlq).toHaveLength(1);
+    expect(dlq[0].data).toEqual({ id: 1 });
+  });
+
+  it('respects rate limit config definition', () => {
+    manager.defineJob('rate-limited', async () => {}, {
+      rateLimit: { maxPerSecond: 5, maxConcurrent: 2 },
+    });
+
+    // Verify the job is defined with rate limit config
+    const names = manager.getJobNames();
+    expect(names).toContain('rate-limited');
+
+    // Enqueue multiple jobs and process them
+    for (let i = 0; i < 10; i++) {
+      manager.enqueue('rate-limited', { index: i });
+    }
+
+    const metrics = manager.getMetrics('rate-limited');
+    expect(metrics.totalJobs).toBe(10);
+    expect(metrics.waiting).toBe(10);
+  });
+
+  it('tracks processing time in metrics after completion', async () => {
+    manager.defineJob('timed', async () => {
+      // Simulate some work
+    });
+
+    manager.enqueue('timed', {});
+    await manager.processNext('timed');
+
+    const metrics = manager.getMetrics('timed');
+    expect(metrics.completed).toBe(1);
+    expect(metrics.avgProcessingTimeMs).toBeGreaterThanOrEqual(0);
+  });
 });

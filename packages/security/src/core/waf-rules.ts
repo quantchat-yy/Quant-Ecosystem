@@ -101,13 +101,23 @@ const BUILTIN_RULES: WAFRule[] = [
 /**
  * WAFRuleEngine - Web Application Firewall with OWASP Core Rule Set patterns.
  * Evaluates requests against built-in and custom rules for attack detection.
+ * Rules are sorted by action severity: block > challenge > log, ensuring
+ * higher-severity actions always take precedence.
  */
 export class WAFRuleEngine {
   private rules: WAFRule[];
   private blockedRequests: Array<{ timestamp: number; ruleId: string; ip: string }> = [];
 
+  /** Action severity priority: higher number = higher priority */
+  private static readonly ACTION_PRIORITY: Record<string, number> = {
+    block: 3,
+    challenge: 2,
+    log: 1,
+  };
+
   constructor(customRules: WAFRule[] = []) {
     this.rules = [...BUILTIN_RULES, ...customRules];
+    this.sortRulesByPriority();
   }
 
   /** Evaluate a request against WAF rules */
@@ -150,9 +160,10 @@ export class WAFRuleEngine {
     };
   }
 
-  /** Add a custom rule */
+  /** Add a custom rule (re-sorts rules by priority) */
   addCustomRule(rule: WAFRule): void {
     this.rules.push(rule);
+    this.sortRulesByPriority();
   }
 
   /** Remove a rule by ID */
@@ -218,5 +229,14 @@ export class WAFRuleEngine {
       default:
         return null;
     }
+  }
+
+  /** Sort rules so higher-severity actions (block > challenge > log) are evaluated first */
+  private sortRulesByPriority(): void {
+    this.rules.sort((a, b) => {
+      const priorityA = WAFRuleEngine.ACTION_PRIORITY[a.action] ?? 0;
+      const priorityB = WAFRuleEngine.ACTION_PRIORITY[b.action] ?? 0;
+      return priorityB - priorityA;
+    });
   }
 }

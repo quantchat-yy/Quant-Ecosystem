@@ -43,14 +43,19 @@ export interface SearchCriteria {
   unseen?: boolean;
 }
 
+/** Authentication delegate for verifying credentials */
+export type AuthenticationDelegate = (username: string, password: string) => boolean;
+
 export class IMAPAdapter {
   private mailboxes: Map<string, Mailbox> = new Map();
   private messages: Map<string, Message[]> = new Map();
   private selectedMailbox: string | null = null;
   private authenticated = false;
   private tagCounter = 0;
+  private authDelegate: AuthenticationDelegate | null;
 
-  constructor() {
+  constructor(authDelegate?: AuthenticationDelegate) {
+    this.authDelegate = authDelegate ?? null;
     this.initDefaultMailboxes();
   }
 
@@ -70,7 +75,13 @@ export class IMAPAdapter {
     }
   }
 
-  authenticate(_username: string, _password: string): IMAPResponse {
+  authenticate(username: string, password: string): IMAPResponse {
+    if (this.authDelegate) {
+      const valid = this.authDelegate(username, password);
+      if (!valid) {
+        return this.no('LOGIN failed: invalid credentials');
+      }
+    }
     this.authenticated = true;
     return this.ok('LOGIN completed');
   }

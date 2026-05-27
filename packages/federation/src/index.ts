@@ -39,6 +39,7 @@ export type {
   Message,
   IMAPResponse,
   SearchCriteria,
+  AuthenticationDelegate,
 } from './mail-protocols/imap-adapter.js';
 export { POP3Adapter, POP3MessageSchema } from './mail-protocols/pop3-adapter.js';
 export type { POP3Message, POP3Response } from './mail-protocols/pop3-adapter.js';

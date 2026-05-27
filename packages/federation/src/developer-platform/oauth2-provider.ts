@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { randomBytes, createHash } from 'node:crypto';
+import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 
 export const OAuth2ClientSchema = z.object({
   clientId: z.string(),
@@ -239,7 +239,10 @@ export class OAuth2Provider {
       return { error: 'invalid_client', error_description: 'Client not found' };
     }
 
-    if (client.clientSecret !== request.clientSecret) {
+    if (
+      !request.clientSecret ||
+      !this.constantTimeEquals(client.clientSecret, request.clientSecret)
+    ) {
       return { error: 'invalid_client', error_description: 'Invalid client secret' };
     }
 
@@ -305,5 +308,17 @@ export class OAuth2Provider {
       refresh_token: refreshToken,
       scope: scopes.join(' '),
     };
+  }
+
+  /** Constant-time string comparison to prevent timing attacks */
+  private constantTimeEquals(a: string, b: string): boolean {
+    const bufA = Buffer.from(a);
+    const bufB = Buffer.from(b);
+    if (bufA.length !== bufB.length) {
+      // Compare against self to maintain constant time even on length mismatch
+      timingSafeEqual(bufA, bufA);
+      return false;
+    }
+    return timingSafeEqual(bufA, bufB);
   }
 }

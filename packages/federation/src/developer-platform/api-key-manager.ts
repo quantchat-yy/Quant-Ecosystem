@@ -24,7 +24,7 @@ export interface CreateKeyOptions {
 
 export interface ValidateResult {
   valid: boolean;
-  key?: APIKey;
+  key?: Omit<APIKey, 'key'>;
   reason?: string;
 }
 
@@ -66,7 +66,10 @@ export class APIKeyManager {
     }
 
     apiKey.lastUsedAt = new Date().toISOString();
-    return { valid: true, key: apiKey };
+
+    // Return redacted view without the raw key to prevent accidental logging
+    const { key: _secret, ...redacted } = apiKey;
+    return { valid: true, key: redacted };
   }
 
   hasScope(keyValue: string, scope: string): boolean {

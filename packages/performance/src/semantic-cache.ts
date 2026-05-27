@@ -86,17 +86,22 @@ export class SemanticLLMCache {
 
   /**
    * Store an LLM response with its embedding for future similarity lookups.
+   * If a cache entry with the same prompt already exists, it is replaced.
    */
   set(prompt: string, embedding: number[], response: string, ttlMs?: number): void {
     this.evictExpired();
 
-    // Evict LRU if at capacity
-    if (this.entries.size >= this.maxSize) {
-      this.evictLeastUsed();
+    const key = this.generateKey(prompt);
+
+    // If same prompt already cached, replace it (deduplication)
+    if (!this.entries.has(key)) {
+      // Only evict if adding a new entry and at capacity
+      if (this.entries.size >= this.maxSize) {
+        this.evictLeastUsed();
+      }
     }
 
     const now = Date.now();
-    const key = this.generateKey(prompt);
 
     this.entries.set(key, {
       prompt,
@@ -196,15 +201,15 @@ export class SemanticLLMCache {
     }
   }
 
-  /** Generate a key from a prompt */
+  /** Generate a content-addressable key from a prompt (hash-only, no timestamp) */
   private generateKey(prompt: string): string {
-    // Simple hash for key generation
+    // Simple hash for key generation - content-addressable so same prompt always maps to same key
     let hash = 0;
     for (let i = 0; i < prompt.length; i++) {
       const char = prompt.charCodeAt(i);
       hash = (hash << 5) - hash + char;
       hash |= 0;
     }
-    return `sem_${hash}_${Date.now()}`;
+    return `sem_${hash}`;
   }
 }

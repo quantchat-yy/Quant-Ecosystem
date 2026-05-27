@@ -130,4 +130,22 @@ describe('IMAPAdapter', () => {
     expect(names).toContain('Drafts');
     expect(names).toContain('Trash');
   });
+
+  it('rejects authentication when delegate returns false', () => {
+    const adapter = new IMAPAdapter((username, password) => {
+      return username === 'valid@test.com' && password === 'correct';
+    });
+
+    const failResult = adapter.authenticate('user@test.com', 'wrong');
+    expect(failResult.status).toBe('NO');
+
+    const okResult = adapter.authenticate('valid@test.com', 'correct');
+    expect(okResult.status).toBe('OK');
+  });
+
+  it('accepts all credentials when no auth delegate is provided', () => {
+    const adapter = new IMAPAdapter();
+    const result = adapter.authenticate('anyone@test.com', 'anything');
+    expect(result.status).toBe('OK');
+  });
 });

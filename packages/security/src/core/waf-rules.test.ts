@@ -150,4 +150,66 @@ describe('WAFRuleEngine', () => {
       expect(rules[0]!.id).toMatch(/^WAF-/);
     });
   });
+
+  describe('rule priority ordering', () => {
+    it('should prioritize block rules over log rules for the same request', () => {
+      // Add a log rule that matches the same content as a block rule
+      waf.addCustomRule({
+        id: 'CUSTOM-LOG',
+        name: 'Log script tags',
+        pattern: '<script',
+        target: 'body',
+        action: 'log',
+        severity: 'low',
+        enabled: true,
+      });
+
+      const request: WAFRequest = {
+        uri: '/api/test',
+        method: 'POST',
+        headers: {},
+        body: '<script>alert(1)</script>',
+        ip: '10.0.0.1',
+      };
+
+      const decision = waf.evaluateRequest(request);
+      // Block rule should take precedence over log rule
+      expect(decision.action).toBe('block');
+    });
+
+    it('should sort rules by action severity: block > challenge > log', () => {
+      const customWaf = new WAFRuleEngine([
+        {
+          id: 'LOG-1',
+          name: 'Log all posts',
+          pattern: 'test-payload',
+          target: 'body',
+          action: 'log',
+          severity: 'low',
+          enabled: true,
+        },
+        {
+          id: 'BLOCK-1',
+          name: 'Block test payload',
+          pattern: 'test-payload',
+          target: 'body',
+          action: 'block',
+          severity: 'critical',
+          enabled: true,
+        },
+      ]);
+
+      const request: WAFRequest = {
+        uri: '/api/test',
+        method: 'POST',
+        headers: {},
+        body: 'test-payload',
+        ip: '10.0.0.1',
+      };
+
+      const decision = customWaf.evaluateRequest(request);
+      expect(decision.action).toBe('block');
+      expect(decision.ruleId).toBe('BLOCK-1');
+    });
+  });
 });

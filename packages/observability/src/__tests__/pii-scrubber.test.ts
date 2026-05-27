@@ -121,4 +121,25 @@ describe('PIIScrubber', () => {
     expect(names).toContain('ip_address');
     expect(names).toContain('jwt');
   });
+
+  it('handles overlapping PII patterns without interference', () => {
+    const scrubber = new PIIScrubber();
+    // IP address should not be partially consumed by phone pattern
+    const result = scrubber.scrub('Server at 192.168.1.100 received call from 555-123-4567');
+
+    expect(result).toContain('[REDACTED_IP]');
+    expect(result).toContain('[REDACTED_PHONE]');
+    expect(result).not.toContain('192.168.1.100');
+    expect(result).not.toContain('555-123-4567');
+  });
+
+  it('scrubs IP adjacent to other numeric data correctly', () => {
+    const scrubber = new PIIScrubber();
+    const result = scrubber.scrub('From 10.0.0.1 port 8080 user user@test.com');
+
+    expect(result).toContain('[REDACTED_IP]');
+    expect(result).toContain('[REDACTED_EMAIL]');
+    expect(result).not.toContain('10.0.0.1');
+    expect(result).not.toContain('user@test.com');
+  });
 });

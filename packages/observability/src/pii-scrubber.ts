@@ -98,9 +98,9 @@ export class PIIScrubber {
         replacement: '[REDACTED_EMAIL]',
       },
       {
-        name: 'phone',
-        regex: /\b(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
-        replacement: '[REDACTED_PHONE]',
+        name: 'credit_card',
+        regex: /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g,
+        replacement: '[REDACTED_CC]',
       },
       {
         name: 'ssn',
@@ -108,14 +108,14 @@ export class PIIScrubber {
         replacement: '[REDACTED_SSN]',
       },
       {
-        name: 'credit_card',
-        regex: /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g,
-        replacement: '[REDACTED_CC]',
+        name: 'ip_address',
+        regex: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g,
+        replacement: '[REDACTED_IP]',
       },
       {
-        name: 'ip_address',
-        regex: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g,
-        replacement: '[REDACTED_IP]',
+        name: 'phone',
+        regex: /\b(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}\b/g,
+        replacement: '[REDACTED_PHONE]',
       },
       {
         name: 'jwt',

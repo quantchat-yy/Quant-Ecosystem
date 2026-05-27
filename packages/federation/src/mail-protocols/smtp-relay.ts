@@ -62,6 +62,14 @@ export class SMTPRelay {
     return result;
   }
 
+  /**
+   * Generate a DKIM-like signature header for a message.
+   *
+   * NOTE: This is a simulation placeholder. Real DKIM uses RSA or Ed25519 asymmetric
+   * signatures verified against a DNS TXT record. This implementation uses HMAC-SHA256
+   * with the private key as a shared secret, which is NOT standards-compliant (RFC 6376).
+   * Do not use in production mail delivery.
+   */
   signDKIM(message: SMTPMessage): string | null {
     if (!this.dkimConfig) {
       return null;
@@ -83,7 +91,7 @@ export class SMTPRelay {
 
     return [
       `v=1`,
-      `a=rsa-sha256`,
+      `a=hmac-sha256-sim`,
       `d=${this.dkimConfig.domain}`,
       `s=${this.dkimConfig.selector}`,
       `bh=${bodyHash}`,
