@@ -148,3 +148,34 @@ export type { PublishResult } from './marketplace/publisher.js';
 
 export { AgentInstaller } from './marketplace/installer.js';
 export type { InstalledAgent, InstallResult } from './marketplace/installer.js';
+
+// ============================================================================
+// Agentic AI Foundation (Phase 7)
+// ============================================================================
+
+// Types
+export * from './types.js';
+
+// Typed Tool Registry
+export { TypedToolRegistry } from './typed-tool-registry.js';
+
+// Plan Generator
+export { PlanGenerator } from './plan-generator.js';
+
+// Safety Classifier
+export { SafetyClassifier } from './safety-classifier.js';
+export type { SafetyRule } from './safety-classifier.js';
+
+// Cost Tracker
+export { CostTracker } from './cost-tracker.js';
+
+// Execution Engine
+export { ExecutionEngine, tierToPermissionLevel } from './execution-engine.js';
+
+// Workflows
+export { BaseWorkflow } from './workflows/base-workflow.js';
+export { PlanMyDayWorkflow } from './workflows/plan-my-day.js';
+export { EmailReplyWorkflow } from './workflows/email-reply.js';
+export { MeetingToTasksWorkflow } from './workflows/meeting-to-tasks.js';
+export { CrossAppSearchWorkflow } from './workflows/cross-app-search.js';
+export { ContentLaunchWorkflow } from './workflows/content-launch.js';

@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Phase 7: Agentic AI Foundation. Extend @quant/agent-runtime with a typed tool registry, permission-scoped agent execution engine, plan generator with approval workflow, cost tracking, safety classification, and implement 5+ end-to-end agent workflows. Every agent action must have permission, approval, audit, and undo story.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "1. In packages/agent-runtime/src/types.ts (create new file), define comprehensive types: AgentActionTier (Tier0_ReadOnly, Tier1_DraftOnly, Tier2_LowRisk, Tier3_HighRisk, Tier4_Admin), ToolDefinition (name, description, parameters with JSON Schema, requiredTier, handler), AgentPlan (id, steps with tier, status, approvals needed), AgentWorkflowResult (success, actions taken, undoable actions, audit entries, cost), CostEstimate (model, tokens, estimatedCost), SafetyClassification (safe/caution/blocked with reason).",
     "2. In packages/agent-runtime/src/tool-registry.ts (new file), implement TypedToolRegistry class: registerTool(tool: ToolDefinition), getTool(name), getToolsByTier(tier), getAllTools(), validateArgs(toolName, args) using zod. This is distinct from the AI package ToolRegistry - it is the runtime-level registry with permission tiers.",
