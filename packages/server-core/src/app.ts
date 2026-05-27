@@ -5,6 +5,8 @@ import type { AppConfig } from './types';
 import errorHandler from './plugins/error-handler';
 import healthPlugin from './plugins/health';
 import authPlugin from './plugins/auth';
+import metricsPlugin from './plugins/metrics';
+import requestIdPlugin from './plugins/request-id';
 
 export async function createApp(config: AppConfig) {
   // Production security validation
@@ -70,6 +72,12 @@ export async function createApp(config: AppConfig) {
 
   // Register error handler
   await fastify.register(errorHandler);
+
+  // Register request-id propagation
+  await fastify.register(requestIdPlugin);
+
+  // Register metrics collection
+  await fastify.register(metricsPlugin);
 
   // Register auth plugin
   await fastify.register(authPlugin, {
