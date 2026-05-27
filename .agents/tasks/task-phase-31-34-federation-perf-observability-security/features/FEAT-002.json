@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Phase 32: Performance & Cost Engineering - Add SLO baselines per route, semantic LLM cache, BullMQ async work queue integration, AI cost routing, per-user cost dashboard logic, and database optimization utilities to @quant/performance.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "1. Add packages/performance/src/slo-baselines.ts: Define per-route performance budgets (p50, p95, p99 latency targets, error rate budget) for each service. Include a PerformanceBudgetChecker class that validates measured metrics against budgets and returns pass/fail with details.",
     "2. Add packages/performance/src/semantic-cache.ts: Implement a SemanticLLMCache class that caches LLM responses based on embedding similarity. Methods: get(prompt, threshold), set(prompt, embedding, response, ttl), invalidate(pattern). Use cosine similarity for matching. Include TTL-based eviction.",

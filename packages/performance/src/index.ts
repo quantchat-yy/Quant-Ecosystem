@@ -19,6 +19,14 @@ export { ServiceWorkerGenerator } from './core/service-worker-gen';
 export { BackgroundSyncQueue } from './core/background-sync';
 export { MemoryLeakDetector } from './core/memory-leak-detector';
 
+// Phase 32 - Performance & Cost Engineering
+export { PerformanceBudgetChecker } from './slo-baselines';
+export { SemanticLLMCache } from './semantic-cache';
+export { AICostRouter } from './ai-cost-router';
+export { WorkQueueManager } from './work-queue';
+export { DatabaseOptimizer } from './db-optimizer';
+export { CostDashboard } from './cost-dashboard';
+
 export type {
   LRUConfig,
   LRUNode,
