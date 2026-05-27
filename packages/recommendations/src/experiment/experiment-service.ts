@@ -39,19 +39,103 @@ export interface ExperimentResult {
   comparisons: BucketComparison[];
 }
 
+export interface GuardrailMetric {
+  name: string;
+  threshold: number;
+  direction: 'above' | 'below';
+}
+
+export interface GuardrailCheckResult {
+  breached: boolean;
+  metric?: string;
+  value?: number;
+  threshold?: number;
+}
+
+export interface BucketStore {
+  get(userId: string, experimentId: string): string | null;
+  set(userId: string, experimentId: string, bucket: string): void;
+}
+
+export class InMemoryBucketStore implements BucketStore {
+  private store: Map<string, string> = new Map();
+
+  get(userId: string, experimentId: string): string | null {
+    return this.store.get(`${userId}:${experimentId}`) ?? null;
+  }
+
+  set(userId: string, experimentId: string, bucket: string): void {
+    this.store.set(`${userId}:${experimentId}`, bucket);
+  }
+}
+
 export class ExperimentService {
   private experiments: Map<string, ExperimentConfig> = new Map();
   private exposures: ExposureRecord[] = [];
   private conversions: ConversionRecord[] = [];
+  private bucketStore: BucketStore;
+  private guardrails: Map<string, GuardrailMetric[]> = new Map();
+  private disabledExperiments: Set<string> = new Set();
+
+  constructor(bucketStore?: BucketStore) {
+    this.bucketStore = bucketStore ?? new InMemoryBucketStore();
+  }
 
   registerExperiment(config: ExperimentConfig): void {
     this.experiments.set(config.id, config);
+  }
+
+  registerGuardrails(experimentId: string, metrics: GuardrailMetric[]): void {
+    this.guardrails.set(experimentId, metrics);
+  }
+
+  checkGuardrails(
+    experimentId: string,
+    currentMetrics: Record<string, number>,
+  ): GuardrailCheckResult {
+    const guardrailMetrics = this.guardrails.get(experimentId);
+    if (!guardrailMetrics) {
+      return { breached: false };
+    }
+
+    for (const metric of guardrailMetrics) {
+      const value = currentMetrics[metric.name];
+      if (value === undefined) continue;
+
+      if (metric.direction === 'above' && value > metric.threshold) {
+        return { breached: true, metric: metric.name, value, threshold: metric.threshold };
+      }
+      if (metric.direction === 'below' && value < metric.threshold) {
+        return { breached: true, metric: metric.name, value, threshold: metric.threshold };
+      }
+    }
+
+    return { breached: false };
+  }
+
+  rollbackExperiment(experimentId: string): void {
+    this.disabledExperiments.add(experimentId);
+  }
+
+  isExperimentActive(experimentId: string): boolean {
+    return this.experiments.has(experimentId) && !this.disabledExperiments.has(experimentId);
   }
 
   assignBucket(userId: string, experimentId: string): string {
     const experiment = this.experiments.get(experimentId);
     if (!experiment) {
       throw new Error(`Experiment ${experimentId} not found`);
+    }
+
+    // If experiment is disabled, always return control (first bucket)
+    if (this.disabledExperiments.has(experimentId)) {
+      return experiment.buckets[0]!;
+    }
+
+    // Check sticky bucket store first
+    const persisted = this.bucketStore.get(userId, experimentId);
+    if (persisted !== null) {
+      return persisted;
     }
 
     // Deterministic hash-based bucket assignment
@@ -63,12 +147,15 @@ export class ExperimentService {
     for (const bucket of experiment.buckets) {
       cumulative += experiment.trafficAllocation[bucket] ?? 1 / experiment.buckets.length;
       if (normalized < cumulative) {
+        this.bucketStore.set(userId, experimentId, bucket);
         return bucket;
       }
     }
 
     // Fallback to last bucket
-    return experiment.buckets[experiment.buckets.length - 1]!;
+    const fallback = experiment.buckets[experiment.buckets.length - 1]!;
+    this.bucketStore.set(userId, experimentId, fallback);
+    return fallback;
   }
 
   logExposure(userId: string, experimentId: string, bucket: string): void {

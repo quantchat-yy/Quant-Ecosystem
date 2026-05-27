@@ -25,6 +25,7 @@ export enum AlgorithmType {
   AI = 'ai',
   Community = 'community',
   Custom = 'custom',
+  Following = 'following',
 }
 
 export interface UserAlgorithmPreference {

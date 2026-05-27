@@ -99,6 +99,22 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
 
+  triton:
+    image: nvcr.io/nvidia/tritonserver:24.01-py3
+    container_name: quant-triton
+    command: tritonserver --model-repository=/models --strict-model-config=false
+    ports:
+      - '8000:8000'
+      - '8001:8001'
+      - '8002:8002'
+    volumes:
+      - ./models:/models
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/v2/health/ready']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   livekit:
     image: livekit/livekit-server:latest
     container_name: quant-livekit

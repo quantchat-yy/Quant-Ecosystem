@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { OnDeviceRanker, OnnxRuntime, UserPrefs } from '../on-device-ranker';
+import {
+  OnDeviceRanker,
+  OnnxRuntime,
+  UserPrefs,
+  MAX_MODEL_SIZE_BYTES,
+  MAX_INFERENCE_LATENCY_MS,
+} from '../on-device-ranker';
+import { OnDeviceModelSpec } from '../on-device-ranker-model';
 import type { ContentItem } from '../ranking/anti-rage';
 
 describe('OnDeviceRanker', () => {
@@ -116,5 +123,133 @@ describe('OnDeviceRanker', () => {
   it('should report topK configuration', () => {
     const ranker = new OnDeviceRanker(undefined, 30);
     expect(ranker.getTopK()).toBe(30);
+  });
+
+  describe('model size validation', () => {
+    it('should reject models exceeding 5MB', async () => {
+      const ranker = new OnDeviceRanker(mockRuntime);
+      const oversizedBytes = 6 * 1024 * 1024; // 6MB
+      await expect(ranker.loadModel('model.onnx', oversizedBytes)).rejects.toThrow(
+        'Model exceeds 5MB size limit',
+      );
+    });
+
+    it('should accept models within 5MB limit', async () => {
+      const ranker = new OnDeviceRanker(mockRuntime);
+      const validSize = 4 * 1024 * 1024; // 4MB
+      await ranker.loadModel('model.onnx', validSize);
+      expect(ranker.getModelSizeBytes()).toBe(validSize);
+    });
+
+    it('should accept models without size specified', async () => {
+      const ranker = new OnDeviceRanker(mockRuntime);
+      await ranker.loadModel('model.onnx');
+      expect(ranker.getModelSizeBytes()).toBe(0);
+    });
+
+    it('should reject at exact boundary above 5MB', async () => {
+      const ranker = new OnDeviceRanker(mockRuntime);
+      const exactlyOver = MAX_MODEL_SIZE_BYTES + 1;
+      await expect(ranker.loadModel('model.onnx', exactlyOver)).rejects.toThrow(
+        'Model exceeds 5MB size limit',
+      );
+    });
+
+    it('should accept at exactly 5MB', async () => {
+      const ranker = new OnDeviceRanker(mockRuntime);
+      await ranker.loadModel('model.onnx', MAX_MODEL_SIZE_BYTES);
+      expect(ranker.getModelSizeBytes()).toBe(MAX_MODEL_SIZE_BYTES);
+    });
+  });
+
+  describe('benchmarkInference', () => {
+    it('should return latency percentiles', async () => {
+      const ranker = new OnDeviceRanker(mockRuntime);
+      await ranker.loadModel('model.onnx');
+
+      const samples = [makeItem('sample1'), makeItem('sample2')];
+      const result = await ranker.benchmarkInference(samples, userPrefs, 5);
+
+      expect(result.p50Ms).toBeGreaterThanOrEqual(0);
+      expect(result.p95Ms).toBeGreaterThanOrEqual(0);
+      expect(result.p99Ms).toBeGreaterThanOrEqual(0);
+      expect(result.meanMs).toBeGreaterThanOrEqual(0);
+      expect(result.p95Ms).toBeGreaterThanOrEqual(result.p50Ms);
+    });
+
+    it('should throw if model is not loaded', async () => {
+      const ranker = new OnDeviceRanker(mockRuntime);
+      const samples = [makeItem('sample')];
+      await expect(ranker.benchmarkInference(samples, userPrefs)).rejects.toThrow(
+        'Model not loaded',
+      );
+    });
+  });
+
+  describe('validatePerformanceBudget', () => {
+    it('should pass when inference is fast', async () => {
+      const ranker = new OnDeviceRanker(mockRuntime);
+      await ranker.loadModel('model.onnx');
+
+      const samples = [makeItem('sample')];
+      const result = await ranker.validatePerformanceBudget(samples, userPrefs);
+
+      expect(result.passes).toBe(true);
+      expect(result.budget).toBe(MAX_INFERENCE_LATENCY_MS);
+      expect(result.p95Ms).toBeLessThan(MAX_INFERENCE_LATENCY_MS);
+    });
+  });
+
+  describe('runtime detection', () => {
+    it('should return wasm in Node.js environment', () => {
+      const runtime = OnDeviceRanker.detectRuntime();
+      expect(runtime).toBe('wasm');
+    });
+
+    it('should return a valid runtime type', () => {
+      const runtime = OnDeviceRanker.detectRuntime();
+      expect(['webgpu', 'wasm', 'cpu']).toContain(runtime);
+    });
+  });
+
+  describe('OnDeviceModelSpec', () => {
+    it('should return correct model spec', () => {
+      const spec = new OnDeviceModelSpec();
+      const result = spec.getModelSpec();
+
+      expect(result.inputShape).toEqual([null, 16]);
+      expect(result.outputShape).toEqual([null, 1]);
+      expect(result.hiddenLayers).toEqual([32]);
+      expect(result.activation).toBe('relu');
+      expect(result.outputActivation).toBe('sigmoid');
+      expect(result.targetSizeBytes).toBe(MAX_MODEL_SIZE_BYTES);
+      expect(result.targetLatencyMs).toBe(MAX_INFERENCE_LATENCY_MS);
+    });
+
+    it('should validate model sizes correctly', () => {
+      const spec = new OnDeviceModelSpec();
+
+      expect(spec.validateModelSize(1000)).toBe(true);
+      expect(spec.validateModelSize(MAX_MODEL_SIZE_BYTES)).toBe(true);
+      expect(spec.validateModelSize(MAX_MODEL_SIZE_BYTES + 1)).toBe(false);
+    });
+
+    it('should estimate model size well under 5MB', () => {
+      const spec = new OnDeviceModelSpec();
+      const estimated = spec.estimateModelSize();
+
+      expect(estimated).toBeLessThan(MAX_MODEL_SIZE_BYTES);
+      expect(estimated).toBeGreaterThan(0);
+      // 16*32 + 32 + 32*1 + 1 = 577 params * 4 bytes = 2308 bytes
+      expect(estimated).toBe(577 * 4);
+    });
+
+    it('should return ONNX export instructions', () => {
+      const instructions = OnDeviceModelSpec.getOnnxExportInstructions();
+
+      expect(instructions).toContain('PyTorch');
+      expect(instructions).toContain('ONNX');
+      expect(instructions).toContain('torch.onnx.export');
+    });
   });
 });

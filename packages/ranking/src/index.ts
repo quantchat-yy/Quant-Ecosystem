@@ -40,6 +40,23 @@ export {
   type ExperimentResult,
 } from './ab-test-integration.js';
 
+// Screen Time Monitor
+export {
+  ScreenTimeMonitor,
+  type TimeAlertEvent,
+  type EngagementTrapEvent,
+  type EventEmitter as ScreenTimeEventEmitter,
+  type ScreenTimeMonitorConfig,
+} from './screen-time-monitor.js';
+
+// Feed Explainer
+export {
+  FeedExplainer,
+  type FeedExplanation,
+  type RankingSignal,
+  type UserContext,
+} from './feed-explainer.js';
+
 // Routes
 export { default as feedRoutes, type FeedRouteDeps } from './routes/feed.js';
 export { default as pluginRoutes, type PluginRouteDeps } from './routes/plugins.js';

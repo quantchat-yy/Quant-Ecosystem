@@ -49,16 +49,52 @@ export type {
 } from './pipeline';
 
 // On-device ranker
-export { OnDeviceRanker } from './on-device-ranker';
-export type { UserPrefs, RankedCandidate, OnnxRuntime } from './on-device-ranker';
+export { OnDeviceRanker, MAX_MODEL_SIZE_BYTES, MAX_INFERENCE_LATENCY_MS } from './on-device-ranker';
+export type {
+  UserPrefs,
+  RankedCandidate,
+  OnnxRuntime,
+  BenchmarkResult,
+  PerformanceBudgetResult,
+} from './on-device-ranker';
+
+// On-device ranker model spec
+export { OnDeviceModelSpec } from './on-device-ranker-model';
+export type { ModelSpec } from './on-device-ranker-model';
 
 // Experiment
-export { ExperimentService } from './experiment/experiment-service';
+export { ExperimentService, InMemoryBucketStore } from './experiment/experiment-service';
 export type {
   ExperimentConfig,
   ExperimentResult,
   ExposureRecord,
+  GuardrailMetric,
+  GuardrailCheckResult,
+  BucketStore,
 } from './experiment/experiment-service';
+export { GuardrailEvaluator } from './experiment/guardrails';
+export type { GuardrailBreachDetail, GuardrailEvaluation } from './experiment/guardrails';
+
+// Personalization
+export {
+  UserSignalProcessor,
+  InMemorySignalStore,
+  TimeWellSpent,
+  InMemorySessionStore,
+  FollowingMode,
+} from './personalization';
+export type {
+  NegativeSignal,
+  SignalStore,
+  SessionData,
+  DailySummary,
+  RegretPrediction,
+  SessionStore,
+  SocialGraph,
+  ContentStore,
+  ContentPost,
+  FollowingFeedResult,
+} from './personalization';
 
 export type {
   UserProfile,

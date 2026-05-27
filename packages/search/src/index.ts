@@ -27,6 +27,9 @@ export {
   UserPermissionsSchema,
 } from './services/permission-filter';
 export { CohereReranker, RerankDocumentSchema, RerankOptionsSchema } from './services/reranker';
+export { SearchExplainer } from './services/search-explainer';
+export { UGCEmbeddingIndexer } from './services/embedding-indexer';
+export { HybridSearchPipeline } from './services/hybrid-search-pipeline';
 export { SearchFacetAggregator, FacetableResultSchema, FacetScopeSchema } from './services/facets';
 export {
   ProactiveSearch,
@@ -50,6 +53,17 @@ export type {
   UserPermissions,
 } from './services/permission-filter';
 export type { RerankDocument, RerankOptions, RerankResult } from './services/reranker';
+export type { RankingSignal, ExplanationResult, ExplainContext } from './services/search-explainer';
+export type {
+  EmbeddingProvider,
+  IndexableContent,
+  EmbeddingIndexerOptions,
+} from './services/embedding-indexer';
+export type {
+  PipelineSearchResult,
+  PipelineSearchOptions,
+  HybridSearchPipelineOptions,
+} from './services/hybrid-search-pipeline';
 export type { FacetableResult, FacetScope } from './services/facets';
 export type {
   ProactiveContext,
