@@ -588,6 +588,78 @@ export interface AgentSpendApproval {
 }
 
 // ============================================================================
+// Unified Wallet & Quant Pro Types
+// ============================================================================
+
+/** Source for adding money to unified wallet */
+export type AddMoneySource = 'stripe' | 'razorpay' | 'upi';
+
+/** Categories for spending from unified wallet */
+export type SpendCategory = 'tip' | 'boost_ad' | 'ai_usage' | 'course_unlock' | 'premium_content';
+
+/** Quant Pro subscription plan tiers */
+export type QuantProPlan = 'free' | 'pro_monthly' | 'pro_yearly';
+
+/** IAP receipt from mobile platforms */
+export interface IAPReceipt {
+  platform: 'apple' | 'google';
+  receiptData: string;
+  transactionId: string;
+  productId: string;
+}
+
+/** Result of IAP receipt validation */
+export interface IAPValidationResult {
+  valid: boolean;
+  platform: 'apple' | 'google';
+  productId: string;
+  transactionId: string;
+  expiresAt?: number;
+  autoRenewing?: boolean;
+  error?: string;
+}
+
+/** Tax breakdown for a transaction */
+export interface TaxBreakdown {
+  subtotal: number;
+  taxType: TaxType;
+  taxRate: number;
+  taxAmount: number;
+  total: number;
+}
+
+/** Indian tax info for GST compliance */
+export interface IndianTaxInfo {
+  gstin: string;
+  state: string;
+  hsnCode: string;
+}
+
+/** Razorpay payment record */
+export interface RazorpayPayment {
+  id: string;
+  orderId: string;
+  amount: number;
+  currency: CurrencyCode;
+  status: 'created' | 'authorized' | 'captured' | 'refunded' | 'failed';
+  method: string;
+  description?: string;
+  createdAt: number;
+}
+
+/** UPI payment record */
+export interface UPIPayment {
+  id: string;
+  upiId: string;
+  amount: number;
+  currency: CurrencyCode;
+  status: 'pending' | 'completed' | 'failed' | 'expired';
+  paymentLink: string;
+  transactionRef: string;
+  createdAt: number;
+}
+
+// ============================================================================
 // Dispute Types
 // ============================================================================
 

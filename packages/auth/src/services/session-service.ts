@@ -29,6 +29,7 @@ export interface CreateSessionOptions {
 export class SessionService {
   private sessions: Map<string, AuthSession> = new Map();
   private userSessions: Map<string, Set<string>> = new Map();
+  private trustedDevices: Map<string, Set<string>> = new Map();
   private maxSessionsPerUser: number;
   private sessionTimeout: number;
 
@@ -226,6 +227,78 @@ export class SessionService {
         await this.revokeSession(session.id);
       }
     }
+  }
+
+  /**
+   * Get device list for a user with friendly names
+   */
+  async getDeviceList(
+    userId: string,
+  ): Promise<{ deviceId: string; name: string; platform: string; lastSeen: Date }[]> {
+    const sessions = await this.getUserSessions(userId);
+    const deviceMap = new Map<
+      string,
+      { deviceId: string; name: string; platform: string; lastSeen: Date }
+    >();
+
+    for (const session of sessions) {
+      const existing = deviceMap.get(session.deviceInfo.deviceId);
+      if (!existing || session.lastActivityAt > existing.lastSeen) {
+        deviceMap.set(session.deviceInfo.deviceId, {
+          deviceId: session.deviceInfo.deviceId,
+          name: `${session.deviceInfo.platform} - ${session.deviceInfo.userAgent.substring(0, 30)}`,
+          platform: session.deviceInfo.platform,
+          lastSeen: session.lastActivityAt,
+        });
+      }
+    }
+
+    return Array.from(deviceMap.values());
+  }
+
+  /**
+   * Revoke all sessions for a specific device
+   */
+  async revokeByDeviceId(userId: string, deviceId: string): Promise<number> {
+    const sessionIds = this.userSessions.get(userId);
+    if (!sessionIds) return 0;
+
+    let revoked = 0;
+    const toRemove: string[] = [];
+    for (const sessionId of sessionIds) {
+      const session = this.sessions.get(sessionId);
+      if (session && session.deviceInfo.deviceId === deviceId) {
+        session.isActive = false;
+        this.sessions.delete(sessionId);
+        toRemove.push(sessionId);
+        revoked++;
+      }
+    }
+
+    for (const id of toRemove) {
+      sessionIds.delete(id);
+    }
+
+    return revoked;
+  }
+
+  /**
+   * Check if a device is trusted for a user
+   */
+  isDeviceTrusted(userId: string, deviceId: string): boolean {
+    const trusted = this.trustedDevices.get(userId);
+    if (!trusted) return false;
+    return trusted.has(deviceId);
+  }
+
+  /**
+   * Mark a device as trusted for a user
+   */
+  markDeviceTrusted(userId: string, deviceId: string): void {
+    if (!this.trustedDevices.has(userId)) {
+      this.trustedDevices.set(userId, new Set());
+    }
+    this.trustedDevices.get(userId)!.add(deviceId);
   }
 
   /**

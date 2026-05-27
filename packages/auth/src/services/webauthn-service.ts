@@ -33,6 +33,7 @@ export interface WebAuthnAuthenticationOptions {
  */
 export class WebAuthnService {
   private challenges: Map<string, string> = new Map();
+  private credentialStore: Map<string, WebAuthnCredential[]> = new Map();
   private rpName: string;
   private rpID: string;
 
@@ -107,6 +108,11 @@ export class WebAuthnService {
       createdAt: new Date(),
     };
 
+    // Store in credential store
+    const userCredentials = this.credentialStore.get(userId) ?? [];
+    userCredentials.push(webAuthnCredential);
+    this.credentialStore.set(userId, userCredentials);
+
     return { verified: true, credential: webAuthnCredential };
   }
 
@@ -171,5 +177,41 @@ export class WebAuthnService {
       verified: true,
       newCounter: verification.authenticationInfo.newCounter,
     };
+  }
+
+  /**
+   * List all credentials for a user
+   */
+  listCredentials(userId: string): WebAuthnCredential[] {
+    return this.credentialStore.get(userId) ?? [];
+  }
+
+  /**
+   * Remove a credential for a user
+   */
+  removeCredential(userId: string, credentialId: string): boolean {
+    const credentials = this.credentialStore.get(userId);
+    if (!credentials) return false;
+
+    const index = credentials.findIndex((c) => c.credentialId === credentialId);
+    if (index === -1) return false;
+
+    credentials.splice(index, 1);
+    this.credentialStore.set(userId, credentials);
+    return true;
+  }
+
+  /**
+   * Rename a credential for a user
+   */
+  renameCredential(userId: string, credentialId: string, name: string): boolean {
+    const credentials = this.credentialStore.get(userId);
+    if (!credentials) return false;
+
+    const credential = credentials.find((c) => c.credentialId === credentialId);
+    if (!credential) return false;
+
+    credential.name = name;
+    return true;
   }
 }

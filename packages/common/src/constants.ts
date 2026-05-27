@@ -66,6 +66,11 @@ export const QUANT_APPS: Record<QuantApp, { name: string; description: string; c
     description: 'Calendar with AI scheduling, booking links, and smart time management',
     color: '#FF8C00',
   },
+  quantmeet: {
+    name: 'QuantMeet',
+    description: 'Video conferencing and meetings with screen sharing and recording',
+    color: '#6C5CE7',
+  },
 };
 
 /** API Base URLs */

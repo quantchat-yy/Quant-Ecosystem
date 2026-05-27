@@ -229,4 +229,58 @@ export interface WebAuthnCredential {
   counter: number;
   transports: string[];
   createdAt: Date;
+  name?: string;
+}
+
+// ============================================================================
+// Recovery & Two-Factor Types
+// ============================================================================
+
+/** Recovery code entry */
+export interface RecoveryCode {
+  code: string;
+  usedAt?: Date;
+}
+
+/** Two-factor authentication methods */
+export type TwoFactorMethod = 'totp' | 'webauthn' | 'phone' | 'backup_code';
+
+// ============================================================================
+// Federated Identity Types
+// ============================================================================
+
+/** Third-party OAuth2 client registration (Sign in with Quant) */
+export interface FederatedClient {
+  clientId: string;
+  clientSecret: string;
+  name: string;
+  logo?: string;
+  website: string;
+  redirectUris: string[];
+  allowedScopes: string[];
+  createdBy: string;
+  createdAt: Date;
+}
+
+// ============================================================================
+// Travel Mode Types
+// ============================================================================
+
+/** Travel mode configuration */
+export interface TravelModeConfig {
+  enabled: boolean;
+  restrictedRegions: string[];
+  allowedDeviceIds: string[];
+}
+
+// ============================================================================
+// Account Lifecycle Types
+// ============================================================================
+
+/** Account deletion request */
+export interface AccountDeletionRequest {
+  userId: string;
+  requestedAt: Date;
+  scheduledPurgeAt: Date;
+  status: 'pending' | 'cancelled' | 'purged';
 }

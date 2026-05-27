@@ -60,3 +60,27 @@ export {
   OpenDisputeSchema,
   SubmitEvidenceSchema,
 } from './services/dispute.service';
+
+// Phase 24 - Unified Wallet, Quant Pro, Payment Gateways
+export {
+  RazorpayGateway,
+  CreateRazorpayOrderSchema,
+  VerifyRazorpayPaymentSchema,
+} from './services/razorpay-gateway.service';
+export {
+  UPIPaymentService,
+  GenerateUPIPaymentLinkSchema,
+  VerifyUPIPaymentSchema,
+} from './services/upi-payment.service';
+export {
+  UnifiedWalletService,
+  AddMoneySchema,
+  SpendSchema,
+  GetWalletSummarySchema,
+} from './services/unified-wallet.service';
+export {
+  QuantProService,
+  SubscribeSchema as QuantProSubscribeSchema,
+  ValidateIAPReceiptSchema,
+} from './services/quant-pro.service';
+export type { ProFeature } from './services/quant-pro.service';
