@@ -1,7 +1,14 @@
 {
   "task_id": "task-phase-25-universal-search",
   "task_description": "Phase 25: Universal Search - One search box that queries email, chat, docs, drive files, videos, posts, contacts, calendar, code. Builds RAG AI search mode, snippet highlighting, search history, content extraction (PDF/OCR/video), find similar, typeahead/search-as-you-type, and the unified API router on top of the Phase 22 hybrid search foundation.",
-  "status": "in_progress",
+  "status": "completed",
   "feature_order": ["FEAT-001", "FEAT-002"],
-  "blocked_reason": null
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "All gates pass. @quant/search: 306 tests pass, @quant/search-indexer: 79 tests pass. Typecheck, lint, and build all succeed. Code review fixes applied: RAG error boundary, parallel scope search, pagination offset, snippet XSS escaping, router isAdmin pass-through."
+  }
 }
