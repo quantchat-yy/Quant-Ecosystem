@@ -4,6 +4,7 @@
 
 import { Kafka, type Consumer, type EachMessagePayload, type Producer } from 'kafkajs';
 import pino from 'pino';
+import { startHealthServer } from '@quant/health-server';
 import { SearchClient, VectorClient } from '@quant/search';
 import { BatchEmbedder, type EmbeddingProvider } from './embedder';
 import { EmailIndexHandler } from './handlers/email.handler';
@@ -184,6 +185,10 @@ async function main(): Promise<void> {
   await consumer.subscribe({ topic, fromBeginning: false });
 
   logger.info({ topic, groupId }, 'Search indexer started, consuming events');
+
+  const healthPort = Number(process.env['HEALTH_PORT'] ?? '3022');
+  await startHealthServer(healthPort);
+  logger.info({ healthPort }, 'Health server started');
 
   await consumer.run({
     eachMessage: async ({ message }: EachMessagePayload) => {

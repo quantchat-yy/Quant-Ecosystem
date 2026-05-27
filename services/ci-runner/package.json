@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@quant/common": "workspace:*",
+    "@quant/health-server": "workspace:*",
     "@quant/queue": "workspace:*",
     "@quant/storage": "workspace:*",
     "yaml": "^2.4.0",

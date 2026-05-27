@@ -5,6 +5,14 @@ import apiRoutes from './routes/api.js';
 export async function buildGitServer(_options?: { port?: number; host?: string }) {
   const app = Fastify({ logger: process.env['NODE_ENV'] !== 'test' });
 
+  app.get('/healthz', async (_request, reply) => {
+    return reply.status(200).send({ status: 'ok' });
+  });
+
+  app.get('/readyz', async (_request, reply) => {
+    return reply.status(200).send({ status: 'ready' });
+  });
+
   await app.register(gitHttpRoutes, { prefix: '/git' });
   await app.register(apiRoutes, { prefix: '/api' });
 

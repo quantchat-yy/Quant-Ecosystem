@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-4-5-runtime-shell",
+  "task_description": "Execute Phase 4 (Runtime Integration and Local Developer Experience) and Phase 5 (Unified Product Shell and Design System) of the Quant Ecosystem autonomous roadmap. Phase 4 adds dev scripts, env examples, health endpoints, service discovery, demo seed data, and developer tooling. Phase 5 expands the shared-ui with unified app shell, design tokens, guards, onboarding, state components, and cross-app microfeatures.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}

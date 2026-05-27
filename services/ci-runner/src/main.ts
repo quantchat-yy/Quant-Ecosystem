@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { createTypedWorker } from '@quant/queue';
+import { startHealthServer } from '@quant/health-server';
 import { CIConfigParser } from './parser.js';
 import { CIJobExecutor } from './executor.js';
 import { LogStreamer } from './log-streamer.js';
@@ -59,3 +60,7 @@ export const ciWorker = createTypedWorker(
     },
   },
 );
+
+// Start health server for liveness/readiness probes
+const healthPort = Number(process.env['HEALTH_PORT'] ?? '3021');
+void startHealthServer(healthPort);

@@ -38,6 +38,9 @@ importers:
       prettier:
         specifier: ^3
         version: 3.8.3
+      tsx:
+        specifier: ^4
+        version: 4.22.3
       turbo:
         specifier: ^2
         version: 2.9.14
@@ -923,6 +926,22 @@ importers:
         specifier: ^2
         version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
 
+  packages/health-server:
+    dependencies:
+      fastify:
+        specifier: ^5.2.1
+        version: 5.8.5
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
   packages/media:
     dependencies:
       '@aws-sdk/client-cloudfront':
@@ -1297,6 +1316,18 @@ importers:
         specifier: ^2
         version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
 
+  packages/service-discovery:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
   packages/shared-ui:
     devDependencies:
       '@testing-library/jest-dom':
@@ -1415,6 +1446,44 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@25.9.1)(jsdom@25.0.1)
 
+  services/ads-api:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@quant/health-server':
+        specifier: workspace:*
+        version: link:../../packages/health-server
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
+  services/ai-api:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@quant/health-server':
+        specifier: workspace:*
+        version: link:../../packages/health-server
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
   services/cdc-relay:
     dependencies:
       '@prisma/client':
@@ -1423,6 +1492,9 @@ importers:
       '@quant/common':
         specifier: workspace:*
         version: link:../../packages/common
+      '@quant/health-server':
+        specifier: workspace:*
+        version: link:../../packages/health-server
       kafkajs:
         specifier: ^2.2.4
         version: 2.2.4
@@ -1446,11 +1518,33 @@ importers:
         specifier: ^2
         version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
 
+  services/chat-api:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@quant/health-server':
+        specifier: workspace:*
+        version: link:../../packages/health-server
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
   services/ci-runner:
     dependencies:
       '@quant/common':
         specifier: workspace:*
         version: link:../../packages/common
+      '@quant/health-server':
+        specifier: workspace:*
+        version: link:../../packages/health-server
       '@quant/queue':
         specifier: workspace:*
         version: link:../../packages/queue
@@ -1463,6 +1557,25 @@ importers:
       zod:
         specifier: ^3.24.2
         version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
+  services/edits-api:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@quant/health-server':
+        specifier: workspace:*
+        version: link:../../packages/health-server
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -1505,6 +1618,63 @@ importers:
         specifier: ^2
         version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
 
+  services/identity:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@quant/health-server':
+        specifier: workspace:*
+        version: link:../../packages/health-server
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
+  services/mail-api:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@quant/health-server':
+        specifier: workspace:*
+        version: link:../../packages/health-server
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
+  services/max-api:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@quant/health-server':
+        specifier: workspace:*
+        version: link:../../packages/health-server
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
   services/moderation-worker:
     dependencies:
       '@quant/common':
@@ -1513,6 +1683,9 @@ importers:
       '@quant/data-plane':
         specifier: workspace:*
         version: link:../../packages/data-plane
+      '@quant/health-server':
+        specifier: workspace:*
+        version: link:../../packages/health-server
       '@quant/moderation':
         specifier: workspace:*
         version: link:../../packages/moderation
@@ -1548,6 +1721,25 @@ importers:
         specifier: ^2
         version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
 
+  services/neon-api:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@quant/health-server':
+        specifier: workspace:*
+        version: link:../../packages/health-server
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
   services/search-indexer:
     dependencies:
       '@quant/ai':
@@ -1556,6 +1748,9 @@ importers:
       '@quant/common':
         specifier: workspace:*
         version: link:../../packages/common
+      '@quant/health-server':
+        specifier: workspace:*
+        version: link:../../packages/health-server
       '@quant/search':
         specifier: workspace:*
         version: link:../../packages/search
@@ -1615,6 +1810,63 @@ importers:
       '@types/smtp-server':
         specifier: ^3.5.0
         version: 3.5.13
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
+  services/sync-api:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@quant/health-server':
+        specifier: workspace:*
+        version: link:../../packages/health-server
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
+  services/tube-api:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@quant/health-server':
+        specifier: workspace:*
+        version: link:../../packages/health-server
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
+  services/ws-gateway:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@quant/health-server':
+        specifier: workspace:*
+        version: link:../../packages/health-server
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
       typescript:
         specifier: ~5.5.0
         version: 5.5.4

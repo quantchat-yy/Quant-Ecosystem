@@ -17,7 +17,15 @@
     "format:check": "prettier --check .",
     "validate": "pnpm install --frozen-lockfile && pnpm typecheck && pnpm test && pnpm build && pnpm lint",
     "validate:fast": "turbo typecheck test lint --filter=...[HEAD~1]",
-    "prepare": "husky"
+    "prepare": "husky",
+    "dev:infra": "docker compose -f docker-compose.dev.yml up -d",
+    "dev:core": "turbo dev --filter=@quant/quantmail --filter=@quant/quantchat --filter=@quant/quantai",
+    "dev:apps": "turbo dev",
+    "dev:all": "pnpm dev:infra && turbo dev",
+    "doctor": "tsx scripts/doctor.ts",
+    "env:check": "tsx scripts/env-check.ts",
+    "db:reset": "tsx scripts/db-reset.ts",
+    "smoke": "tsx scripts/smoke.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -39,6 +47,7 @@
     "husky": "^9",
     "lint-staged": "^15",
     "prettier": "^3",
+    "tsx": "^4",
     "turbo": "^2",
     "typescript": "~5.5.0",
     "typescript-eslint": "^8",

@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "kafkajs": "^2.2.4",
+    "@quant/health-server": "workspace:*",
     "@quant/search": "workspace:*",
     "@quant/ai": "workspace:*",
     "@quant/common": "workspace:*",
