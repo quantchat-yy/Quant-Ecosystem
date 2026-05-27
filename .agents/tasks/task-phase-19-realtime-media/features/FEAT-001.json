@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Replace the FAKE SFU service in QuantMeet with a real LiveKit gateway. Install livekit-server-sdk, create LiveKitGateway class that handles room creation, participant token generation (JWT signed with LiveKit API key/secret), egress configuration for recording to S3, and a webhook receiver for participant events that publishes to the outbox event bus. Also update recording.service.ts to use LiveKit egress instead of in-memory state. Update the WebSocket route to use LiveKit signaling. Add LiveKit to docker-compose.dev.yml for local development.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Add livekit-server-sdk dependency to apps/quantmeet/package.json",
     "Create apps/quantmeet/backend/services/livekit-gateway.service.ts - a LiveKitGateway class wrapping RoomServiceClient, EgressClient from livekit-server-sdk. Methods: createRoom(name, maxParticipants), deleteRoom(roomName), generateToken(roomName, participantIdentity, participantName, options: {canPublish, canSubscribe, isAdmin}), startRecordingEgress(roomName, s3Config), stopEgress(egressId), listParticipants(roomName). Constructor takes apiKey, apiSecret, wsUrl from config/env.",
@@ -31,5 +31,5 @@
     "cd /projects/sandbox/Quant-Ecosystem && pnpm test --filter=@quant/quantmeet"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "livekit-server-sdk v2.15.3 installed. The SDK uses protobuf Message classes (S3Upload, EncodedFileOutput from @livekit/protocol) for egress configuration - plain objects do not work. Tests require mocking these classes as simple constructors. The old sfu.service.ts was kept since its tests still pass and nothing else imports it. RecordingService.startRecording and stopRecording are now async. BreakoutService.createBreakoutRoom and closeBreakoutRoom are now async. Existing tests were updated accordingly."
 }
