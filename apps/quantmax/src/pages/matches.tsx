@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantMax - Match List
 // Horizontal scrollable new matches row, conversations list with last message,
@@ -34,14 +35,30 @@ interface IcebreakerSuggestion {
 }
 
 const ICEBREAKER_SUGGESTIONS: IcebreakerSuggestion[] = [
-  { id: '1', text: 'If you could have dinner with anyone, living or dead, who would it be?', category: 'question' },
+  {
+    id: '1',
+    text: 'If you could have dinner with anyone, living or dead, who would it be?',
+    category: 'question',
+  },
   { id: '2', text: 'Whats the best trip you have ever taken?', category: 'question' },
   { id: '3', text: 'Two truths and a lie - you go first!', category: 'creative' },
   { id: '4', text: 'What is your go-to karaoke song?', category: 'funny' },
-  { id: '5', text: 'If we matched on here, imagine how great our first date would be', category: 'flirty' },
-  { id: '6', text: 'Your profile made me smile - what is the story behind your first photo?', category: 'creative' },
+  {
+    id: '5',
+    text: 'If we matched on here, imagine how great our first date would be',
+    category: 'flirty',
+  },
+  {
+    id: '6',
+    text: 'Your profile made me smile - what is the story behind your first photo?',
+    category: 'creative',
+  },
   { id: '7', text: 'Coffee or cocktails for a first date?', category: 'question' },
-  { id: '8', text: 'I see you like [interest] - me too! Whats your favorite?', category: 'creative' },
+  {
+    id: '8',
+    text: 'I see you like [interest] - me too! Whats your favorite?',
+    category: 'creative',
+  },
 ];
 
 const MatchesPage: React.FC = () => {
@@ -67,18 +84,38 @@ const MatchesPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       const mockConversations: MatchConversation[] = Array.from({ length: 15 }, (_, i) => ({
         id: `match-${i}`,
         user: {
           id: `user-${i}`,
-          displayName: ['Sophie', 'Emma', 'Liam', 'Olivia', 'Noah', 'Ava', 'Lucas', 'Mia', 'Ethan', 'Charlotte'][i % 10],
+          displayName: [
+            'Sophie',
+            'Emma',
+            'Liam',
+            'Olivia',
+            'Noah',
+            'Ava',
+            'Lucas',
+            'Mia',
+            'Ethan',
+            'Charlotte',
+          ][i % 10],
           avatarUrl: `https://cdn.quantmax.app/dating/avatars/${i}.jpg`,
           age: 22 + Math.floor(Math.random() * 10),
           isVerified: i % 3 === 0,
           isOnline: i % 2 === 0,
         },
-        lastMessage: i < 5 ? null : ['Hey! How are you?', 'That sounds fun!', 'Are you free this weekend?', 'haha thats hilarious', 'Good morning!'][i % 5],
+        lastMessage:
+          i < 5
+            ? null
+            : [
+                'Hey! How are you?',
+                'That sounds fun!',
+                'Are you free this weekend?',
+                'haha thats hilarious',
+                'Good morning!',
+              ][i % 5],
         lastMessageTime: i < 5 ? null : `${Math.floor(Math.random() * 24)}h ago`,
         unreadCount: i % 4 === 0 ? Math.floor(Math.random() * 5) : 0,
         isNew: i < 5,
@@ -95,41 +132,46 @@ const MatchesPage: React.FC = () => {
   }, []);
 
   const newMatches = useMemo(() => {
-    return conversations.filter(c => c.isNew);
+    return conversations.filter((c) => c.isNew);
   }, [conversations]);
 
   const activeConversations = useMemo(() => {
-    let filtered = conversations.filter(c => !c.isNew);
+    let filtered = conversations.filter((c) => !c.isNew);
     if (searchQuery) {
-      filtered = filtered.filter(c =>
-        c.user.displayName.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter((c) =>
+        c.user.displayName.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }
     switch (filter) {
-      case 'unread': return filtered.filter(c => c.unreadCount > 0);
-      case 'new': return filtered.filter(c => !c.lastMessage);
-      default: return filtered;
+      case 'unread':
+        return filtered.filter((c) => c.unreadCount > 0);
+      case 'new':
+        return filtered.filter((c) => !c.lastMessage);
+      default:
+        return filtered;
     }
   }, [conversations, searchQuery, filter]);
 
   const handleOpenChat = useCallback((conversationId: string) => {
     setSelectedConversation(conversationId);
-    setConversations(prev => prev.map(c =>
-      c.id === conversationId ? { ...c, unreadCount: 0 } : c
-    ));
+    setConversations((prev) =>
+      prev.map((c) => (c.id === conversationId ? { ...c, unreadCount: 0 } : c)),
+    );
   }, []);
 
   const handleUnmatch = useCallback((conversationId: string) => {
-    setConversations(prev => prev.filter(c => c.id !== conversationId));
+    setConversations((prev) => prev.filter((c) => c.id !== conversationId));
     setShowUnmatchMenu(null);
   }, []);
 
   const handleSendIcebreaker = useCallback((text: string, conversationId: string) => {
-    setConversations(prev => prev.map(c =>
-      c.id === conversationId
-        ? { ...c, lastMessage: text, lastMessageTime: 'Just now', isNew: false }
-        : c
-    ));
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === conversationId
+          ? { ...c, lastMessage: text, lastMessageTime: 'Just now', isNew: false }
+          : c,
+      ),
+    );
     setShowIcebreakers(false);
   }, []);
 
@@ -157,7 +199,9 @@ const MatchesPage: React.FC = () => {
     return (
       <div className="matches-error">
         <p className="error-message">{error}</p>
-        <button className="retry-btn" onClick={loadMatches}>Retry</button>
+        <button className="retry-btn" onClick={loadMatches}>
+          Retry
+        </button>
       </div>
     );
   }
@@ -178,9 +222,7 @@ const MatchesPage: React.FC = () => {
       {/* Header */}
       <div className="matches-header">
         <h1 className="matches-title">Messages</h1>
-        {totalUnread > 0 && (
-          <span className="total-unread-badge">{totalUnread}</span>
-        )}
+        {totalUnread > 0 && <span className="total-unread-badge">{totalUnread}</span>}
       </div>
 
       {/* Search */}
@@ -195,7 +237,7 @@ const MatchesPage: React.FC = () => {
 
       {/* Filter Tabs */}
       <div className="filter-tabs">
-        {(['all', 'unread', 'new'] as const).map(f => (
+        {(['all', 'unread', 'new'] as const).map((f) => (
           <button
             key={f}
             className={`filter-tab ${filter === f ? 'active' : ''}`}
@@ -211,12 +253,22 @@ const MatchesPage: React.FC = () => {
         <div className="new-matches-section">
           <h3 className="section-title">New Matches</h3>
           <div className="new-matches-scroll" ref={newMatchesRef}>
-            {newMatches.map(match => (
-              <div key={match.id} className="new-match-item" onClick={() => handleOpenChat(match.id)}>
+            {newMatches.map((match) => (
+              <div
+                key={match.id}
+                className="new-match-item"
+                onClick={() => handleOpenChat(match.id)}
+              >
                 <div className={`match-avatar-ring ${match.matchType}`}>
-                  <img className="match-avatar" src={match.user.avatarUrl} alt={match.user.displayName} />
+                  <img
+                    className="match-avatar"
+                    src={match.user.avatarUrl}
+                    alt={match.user.displayName}
+                  />
                   {match.user.isOnline && <span className="online-dot" />}
-                  {match.matchType === 'superlike' && <span className="superlike-badge">&#9733;</span>}
+                  {match.matchType === 'superlike' && (
+                    <span className="superlike-badge">&#9733;</span>
+                  )}
                 </div>
                 <span className="match-name">{match.user.displayName}</span>
                 <span className="match-compatibility">{match.compatibility}%</span>
@@ -235,13 +287,18 @@ const MatchesPage: React.FC = () => {
         </button>
         {showIcebreakers && (
           <div className="icebreaker-panel">
-            {ICEBREAKER_SUGGESTIONS.map(suggestion => (
+            {ICEBREAKER_SUGGESTIONS.map((suggestion) => (
               <div key={suggestion.id} className="icebreaker-item">
-                <span className={`icebreaker-category ${suggestion.category}`}>{suggestion.category}</span>
+                <span className={`icebreaker-category ${suggestion.category}`}>
+                  {suggestion.category}
+                </span>
                 <p className="icebreaker-text">{suggestion.text}</p>
                 <button
                   className="use-icebreaker-btn"
-                  onClick={() => selectedConversation && handleSendIcebreaker(suggestion.text, selectedConversation)}
+                  onClick={() =>
+                    selectedConversation &&
+                    handleSendIcebreaker(suggestion.text, selectedConversation)
+                  }
                 >
                   Use
                 </button>
@@ -257,34 +314,41 @@ const MatchesPage: React.FC = () => {
         {activeConversations.length === 0 && (
           <p className="no-conversations">No conversations found</p>
         )}
-        {activeConversations.map(convo => (
+        {activeConversations.map((convo) => (
           <div
             key={convo.id}
             className={`conversation-item ${convo.unreadCount > 0 ? 'unread' : ''}`}
             onClick={() => handleOpenChat(convo.id)}
           >
             <div className="convo-avatar-wrapper">
-              <img className="convo-avatar" src={convo.user.avatarUrl} alt={convo.user.displayName} />
+              <img
+                className="convo-avatar"
+                src={convo.user.avatarUrl}
+                alt={convo.user.displayName}
+              />
               {convo.user.isOnline && <span className="online-indicator" />}
               {convo.user.isVerified && <span className="verified-mini">&#10003;</span>}
             </div>
             <div className="convo-content">
               <div className="convo-top-row">
-                <span className="convo-name">{convo.user.displayName}, {convo.user.age}</span>
+                <span className="convo-name">
+                  {convo.user.displayName}, {convo.user.age}
+                </span>
                 <span className="convo-time">{convo.lastMessageTime || convo.matchedAt}</span>
               </div>
               <div className="convo-bottom-row">
                 <span className="convo-preview">
                   {convo.lastMessage || 'Start the conversation!'}
                 </span>
-                {convo.unreadCount > 0 && (
-                  <span className="unread-count">{convo.unreadCount}</span>
-                )}
+                {convo.unreadCount > 0 && <span className="unread-count">{convo.unreadCount}</span>}
               </div>
             </div>
             <button
               className="convo-menu-btn"
-              onClick={(e) => { e.stopPropagation(); setShowUnmatchMenu(convo.id); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowUnmatchMenu(convo.id);
+              }}
             >
               &#8942;
             </button>
@@ -295,7 +359,12 @@ const MatchesPage: React.FC = () => {
                 <button className="unmatch-option" onClick={() => handleUnmatch(convo.id)}>
                   Unmatch
                 </button>
-                <button className="unmatch-option report" onClick={() => { handleUnmatch(convo.id); }}>
+                <button
+                  className="unmatch-option report"
+                  onClick={() => {
+                    handleUnmatch(convo.id);
+                  }}
+                >
                   Report & Unmatch
                 </button>
                 <button className="unmatch-option cancel" onClick={() => setShowUnmatchMenu(null)}>
@@ -327,11 +396,19 @@ const MatchesPage: React.FC = () => {
               </div>
             )}
             <h1 className="celebration-title">It's a Match!</h1>
-            <p className="celebration-subtitle">You and {celebrationUser.displayName} liked each other</p>
-            <img className="celebration-avatar" src={celebrationUser.avatarUrl} alt={celebrationUser.displayName} />
+            <p className="celebration-subtitle">
+              You and {celebrationUser.displayName} liked each other
+            </p>
+            <img
+              className="celebration-avatar"
+              src={celebrationUser.avatarUrl}
+              alt={celebrationUser.displayName}
+            />
             <div className="celebration-actions">
               <button className="send-message-btn">Send Message</button>
-              <button className="keep-going-btn" onClick={() => setShowMatchCelebration(false)}>Keep Browsing</button>
+              <button className="keep-going-btn" onClick={() => setShowMatchCelebration(false)}>
+                Keep Browsing
+              </button>
             </div>
           </div>
         </div>

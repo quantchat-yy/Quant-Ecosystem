@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantMax - Challenges Page
 // Active challenges list with banner/description/prize, leaderboard table,
@@ -93,15 +94,33 @@ const ChallengesPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       const mockChallenges: Challenge[] = Array.from({ length: 12 }, (_, i) => ({
         id: `challenge-${i}`,
         hashtag: `#${['DanceOff', 'CookChallenge', 'FitIn30', 'LipSyncBattle', 'DIYCraft', 'PetTricks', 'MorningRoutine', 'DuetThis', 'OutfitCheck', 'BookTok', 'GlowUp', 'SketchDaily'][i]}`,
-        title: ['Ultimate Dance Off', 'Cook It Your Way', '30 Day Fitness', 'Lip Sync Battle', 'DIY Crafting', 'Pet Trick Show', 'Morning Routine', 'Duet Challenge', 'Outfit of the Day', 'Book Recommendations', 'Glow Up Challenge', 'Daily Sketch'][i],
+        title: [
+          'Ultimate Dance Off',
+          'Cook It Your Way',
+          '30 Day Fitness',
+          'Lip Sync Battle',
+          'DIY Crafting',
+          'Pet Trick Show',
+          'Morning Routine',
+          'Duet Challenge',
+          'Outfit of the Day',
+          'Book Recommendations',
+          'Glow Up Challenge',
+          'Daily Sketch',
+        ][i],
         description: `Show off your ${['dance moves', 'cooking skills', 'fitness progress', 'lip sync talent', 'crafting abilities', 'pet tricks', 'morning vibes', 'duet creativity', 'fashion sense', 'reading taste', 'transformation', 'art skills'][i]}!`,
         bannerUrl: `https://cdn.quantmax.app/challenges/${i}/banner.jpg`,
         prizePool: i < 4 ? `$${(i + 1) * 500}` : null,
-        rules: ['Must use the official sound', 'Tag the challenge hashtag', 'Original content only', 'Maximum 60 seconds'],
+        rules: [
+          'Must use the official sound',
+          'Tag the challenge hashtag',
+          'Original content only',
+          'Maximum 60 seconds',
+        ],
         startDate: '2024-01-01',
         endDate: i < 6 ? '2024-02-15' : i < 9 ? '2024-01-20' : '2024-01-10',
         submissionCount: Math.floor(Math.random() * 50000) + 1000,
@@ -156,26 +175,33 @@ const ChallengesPage: React.FC = () => {
   const handleCreateChallenge = useCallback(() => {
     if (!createForm.title.trim() || !createForm.hashtag.trim()) return;
     setShowCreateForm(false);
-    setCreateForm({ title: '', hashtag: '', description: '', rules: [''], prizePool: '', duration: 7 });
+    setCreateForm({
+      title: '',
+      hashtag: '',
+      description: '',
+      rules: [''],
+      prizePool: '',
+      duration: 7,
+    });
   }, [createForm]);
 
   const handleAddRule = useCallback(() => {
-    setCreateForm(prev => ({ ...prev, rules: [...prev.rules, ''] }));
+    setCreateForm((prev) => ({ ...prev, rules: [...prev.rules, ''] }));
   }, []);
 
   const handleUpdateRule = useCallback((index: number, value: string) => {
-    setCreateForm(prev => ({
+    setCreateForm((prev) => ({
       ...prev,
-      rules: prev.rules.map((r, i) => i === index ? value : r),
+      rules: prev.rules.map((r, i) => (i === index ? value : r)),
     }));
   }, []);
 
   const handleRemoveRule = useCallback((index: number) => {
-    setCreateForm(prev => ({ ...prev, rules: prev.rules.filter((_, i) => i !== index) }));
+    setCreateForm((prev) => ({ ...prev, rules: prev.rules.filter((_, i) => i !== index) }));
   }, []);
 
   const filteredChallenges = useMemo(() => {
-    return challenges.filter(c => c.status === filter);
+    return challenges.filter((c) => c.status === filter);
   }, [challenges, filter]);
 
   const formatCount = useCallback((count: number): string => {
@@ -199,7 +225,9 @@ const ChallengesPage: React.FC = () => {
     return (
       <div className="challenges-error">
         <p>{error}</p>
-        <button className="retry-btn" onClick={loadChallenges}>Retry</button>
+        <button className="retry-btn" onClick={loadChallenges}>
+          Retry
+        </button>
       </div>
     );
   }
@@ -208,10 +236,16 @@ const ChallengesPage: React.FC = () => {
   if (selectedChallenge) {
     return (
       <div className="challenge-detail-page">
-        <button className="back-btn" onClick={() => setSelectedChallenge(null)}>&larr; Back</button>
+        <button className="back-btn" onClick={() => setSelectedChallenge(null)}>
+          &larr; Back
+        </button>
 
         <div className="challenge-banner-area">
-          <img className="detail-banner" src={selectedChallenge.bannerUrl} alt={selectedChallenge.title} />
+          <img
+            className="detail-banner"
+            src={selectedChallenge.bannerUrl}
+            alt={selectedChallenge.title}
+          />
           <div className="banner-overlay">
             <h1 className="detail-hashtag">{selectedChallenge.hashtag}</h1>
             <h2 className="detail-title">{selectedChallenge.title}</h2>
@@ -244,21 +278,32 @@ const ChallengesPage: React.FC = () => {
           <h3>Rules</h3>
           <ul className="rules-list">
             {selectedChallenge.rules.map((rule, idx) => (
-              <li key={idx} className="rule-item">{rule}</li>
+              <li key={idx} className="rule-item">
+                {rule}
+              </li>
             ))}
           </ul>
         </div>
 
-        <button className="participate-btn large" onClick={() => handleParticipate(selectedChallenge)}>
+        <button
+          className="participate-btn large"
+          onClick={() => handleParticipate(selectedChallenge)}
+        >
           Participate Now
         </button>
 
         {/* Leaderboard Toggle */}
         <div className="detail-tabs">
-          <button className={`detail-tab ${showLeaderboard ? '' : 'active'}`} onClick={() => setShowLeaderboard(false)}>
+          <button
+            className={`detail-tab ${showLeaderboard ? '' : 'active'}`}
+            onClick={() => setShowLeaderboard(false)}
+          >
             Entries
           </button>
-          <button className={`detail-tab ${showLeaderboard ? 'active' : ''}`} onClick={() => setShowLeaderboard(true)}>
+          <button
+            className={`detail-tab ${showLeaderboard ? 'active' : ''}`}
+            onClick={() => setShowLeaderboard(true)}
+          >
             Leaderboard
           </button>
         </div>
@@ -277,8 +322,11 @@ const ChallengesPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {leaderboard.map(entry => (
-                  <tr key={entry.rank} className={`lb-row ${entry.rank <= 3 ? `top-${entry.rank}` : ''}`}>
+                {leaderboard.map((entry) => (
+                  <tr
+                    key={entry.rank}
+                    className={`lb-row ${entry.rank <= 3 ? `top-${entry.rank}` : ''}`}
+                  >
                     <td className="rank-cell">
                       {entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : `#${entry.rank}`}
                     </td>
@@ -302,12 +350,22 @@ const ChallengesPage: React.FC = () => {
             <div className="entries-header">
               <span className="entries-count">{entries.length} entries</span>
               <div className="view-toggle">
-                <button className={`view-btn ${entriesView === 'grid' ? 'active' : ''}`} onClick={() => setEntriesView('grid')}>Grid</button>
-                <button className={`view-btn ${entriesView === 'list' ? 'active' : ''}`} onClick={() => setEntriesView('list')}>List</button>
+                <button
+                  className={`view-btn ${entriesView === 'grid' ? 'active' : ''}`}
+                  onClick={() => setEntriesView('grid')}
+                >
+                  Grid
+                </button>
+                <button
+                  className={`view-btn ${entriesView === 'list' ? 'active' : ''}`}
+                  onClick={() => setEntriesView('list')}
+                >
+                  List
+                </button>
               </div>
             </div>
             <div className={`entries-${entriesView}`}>
-              {entries.map(entry => (
+              {entries.map((entry) => (
                 <div key={entry.id} className="entry-card">
                   <img className="entry-thumbnail" src={entry.thumbnailUrl} alt="Entry" />
                   <div className="entry-info">
@@ -340,7 +398,7 @@ const ChallengesPage: React.FC = () => {
 
       {/* Filter Tabs */}
       <div className="challenge-filters">
-        {(['active', 'upcoming', 'ended'] as const).map(f => (
+        {(['active', 'upcoming', 'ended'] as const).map((f) => (
           <button
             key={f}
             className={`filter-btn ${filter === f ? 'active' : ''}`}
@@ -358,9 +416,17 @@ const ChallengesPage: React.FC = () => {
             <p>No {filter} challenges right now</p>
           </div>
         )}
-        {filteredChallenges.map(challenge => (
-          <div key={challenge.id} className="challenge-card" onClick={() => setSelectedChallenge(challenge)}>
-            <img className="challenge-card-banner" src={challenge.bannerUrl} alt={challenge.title} />
+        {filteredChallenges.map((challenge) => (
+          <div
+            key={challenge.id}
+            className="challenge-card"
+            onClick={() => setSelectedChallenge(challenge)}
+          >
+            <img
+              className="challenge-card-banner"
+              src={challenge.bannerUrl}
+              alt={challenge.title}
+            />
             <div className="challenge-card-content">
               <div className="challenge-card-header">
                 <h3 className="challenge-card-hashtag">{challenge.hashtag}</h3>
@@ -372,8 +438,16 @@ const ChallengesPage: React.FC = () => {
                 <span>{formatCount(challenge.participantCount)} creators</span>
                 <span>Ends {challenge.endDate}</span>
               </div>
-              {challenge.sponsoredBy && <span className="sponsor-label">by {challenge.sponsoredBy}</span>}
-              <button className="participate-card-btn" onClick={(e) => { e.stopPropagation(); handleParticipate(challenge); }}>
+              {challenge.sponsoredBy && (
+                <span className="sponsor-label">by {challenge.sponsoredBy}</span>
+              )}
+              <button
+                className="participate-card-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleParticipate(challenge);
+                }}
+              >
                 Participate
               </button>
             </div>
@@ -388,37 +462,81 @@ const ChallengesPage: React.FC = () => {
             <h2>Create a Challenge</h2>
             <div className="form-field">
               <label>Challenge Title</label>
-              <input className="field-input" value={createForm.title} onChange={(e) => setCreateForm(prev => ({ ...prev, title: e.target.value }))} placeholder="Give your challenge a name" />
+              <input
+                className="field-input"
+                value={createForm.title}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, title: e.target.value }))}
+                placeholder="Give your challenge a name"
+              />
             </div>
             <div className="form-field">
               <label>Hashtag</label>
-              <input className="field-input" value={createForm.hashtag} onChange={(e) => setCreateForm(prev => ({ ...prev, hashtag: e.target.value }))} placeholder="#YourChallenge" />
+              <input
+                className="field-input"
+                value={createForm.hashtag}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, hashtag: e.target.value }))}
+                placeholder="#YourChallenge"
+              />
             </div>
             <div className="form-field">
               <label>Description</label>
-              <textarea className="field-textarea" value={createForm.description} onChange={(e) => setCreateForm(prev => ({ ...prev, description: e.target.value }))} placeholder="Describe your challenge..." />
+              <textarea
+                className="field-textarea"
+                value={createForm.description}
+                onChange={(e) =>
+                  setCreateForm((prev) => ({ ...prev, description: e.target.value }))
+                }
+                placeholder="Describe your challenge..."
+              />
             </div>
             <div className="form-field">
               <label>Rules</label>
               {createForm.rules.map((rule, idx) => (
                 <div key={idx} className="rule-input-row">
-                  <input className="rule-input" value={rule} onChange={(e) => handleUpdateRule(idx, e.target.value)} placeholder={`Rule ${idx + 1}`} />
-                  <button className="remove-rule" onClick={() => handleRemoveRule(idx)}>x</button>
+                  <input
+                    className="rule-input"
+                    value={rule}
+                    onChange={(e) => handleUpdateRule(idx, e.target.value)}
+                    placeholder={`Rule ${idx + 1}`}
+                  />
+                  <button className="remove-rule" onClick={() => handleRemoveRule(idx)}>
+                    x
+                  </button>
                 </div>
               ))}
-              <button className="add-rule-btn" onClick={handleAddRule}>+ Add Rule</button>
+              <button className="add-rule-btn" onClick={handleAddRule}>
+                + Add Rule
+              </button>
             </div>
             <div className="form-field">
               <label>Prize Pool (optional)</label>
-              <input className="field-input" value={createForm.prizePool} onChange={(e) => setCreateForm(prev => ({ ...prev, prizePool: e.target.value }))} placeholder="$0" />
+              <input
+                className="field-input"
+                value={createForm.prizePool}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, prizePool: e.target.value }))}
+                placeholder="$0"
+              />
             </div>
             <div className="form-field">
               <label>Duration (days)</label>
-              <input type="number" className="field-input" value={createForm.duration} onChange={(e) => setCreateForm(prev => ({ ...prev, duration: Number(e.target.value) }))} min={1} max={30} />
+              <input
+                type="number"
+                className="field-input"
+                value={createForm.duration}
+                onChange={(e) =>
+                  setCreateForm((prev) => ({ ...prev, duration: Number(e.target.value) }))
+                }
+                min={1}
+                max={30}
+              />
             </div>
             <div className="form-actions">
-              <button className="cancel-btn" onClick={() => setShowCreateForm(false)}>Cancel</button>
-              <button className="submit-challenge-btn" onClick={handleCreateChallenge}>Create Challenge</button>
+              <button className="cancel-btn" onClick={() => setShowCreateForm(false)}>
+                Cancel
+              </button>
+              <button className="submit-challenge-btn" onClick={handleCreateChallenge}>
+                Create Challenge
+              </button>
             </div>
           </div>
         </div>

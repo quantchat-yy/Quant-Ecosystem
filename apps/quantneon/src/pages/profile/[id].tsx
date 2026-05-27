@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantNeon - User Profile Page
 // Avatar, stats, highlights, tabs (posts/reels/tagged), follow/message
@@ -115,8 +116,9 @@ const ProfilePage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const id = typeof window !== 'undefined' ? window.location.pathname.split('/').pop() || '1' : '1';
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const id =
+          typeof window !== 'undefined' ? window.location.pathname.split('/').pop() || '1' : '1';
         setProfile(generateProfile(id));
         setHighlights(generateHighlights());
         setPosts(generatePosts('posts'));
@@ -146,7 +148,7 @@ const ProfilePage: React.FC = () => {
   }, []);
 
   const handleFollow = useCallback(() => {
-    setIsFollowing(prev => !prev);
+    setIsFollowing((prev) => !prev);
   }, []);
 
   const handleTabChange = useCallback((tab: ProfileTab) => {
@@ -211,7 +213,10 @@ const ProfilePage: React.FC = () => {
           </h1>
         </div>
         <div className="relative" ref={menuRef}>
-          <button onClick={() => setShowMenu(!showMenu)} className="p-2 hover:bg-gray-800 rounded-full">
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="p-2 hover:bg-gray-800 rounded-full"
+          >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
             </svg>
@@ -219,27 +224,75 @@ const ProfilePage: React.FC = () => {
           {showMenu && (
             <div className="absolute right-0 top-full mt-2 w-56 bg-gray-900 rounded-xl border border-gray-700 shadow-xl overflow-hidden z-50">
               <button className="w-full px-4 py-3 text-left text-sm hover:bg-gray-800 flex items-center gap-3">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
                 Settings
               </button>
               <button className="w-full px-4 py-3 text-left text-sm hover:bg-gray-800 flex items-center gap-3">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
                 Activity
               </button>
               <button className="w-full px-4 py-3 text-left text-sm hover:bg-gray-800 flex items-center gap-3">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" /></svg>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                  />
+                </svg>
                 Saved
               </button>
               <button className="w-full px-4 py-3 text-left text-sm hover:bg-gray-800 flex items-center gap-3 border-t border-gray-800">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+                  />
+                </svg>
                 <span className="text-red-400">Block</span>
               </button>
               <button className="w-full px-4 py-3 text-left text-sm hover:bg-gray-800 flex items-center gap-3">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
                 <span className="text-red-400">Report</span>
               </button>
               <button className="w-full px-4 py-3 text-left text-sm hover:bg-gray-800 flex items-center gap-3">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                  />
+                </svg>
                 Share Profile
               </button>
             </div>
@@ -253,7 +306,11 @@ const ProfilePage: React.FC = () => {
           {/* Avatar */}
           <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500 p-[2px] flex-shrink-0">
             <div className="w-full h-full rounded-full border-2 border-black overflow-hidden">
-              <img src={profile.avatarUrl} alt={profile.username} className="w-full h-full object-cover" />
+              <img
+                src={profile.avatarUrl}
+                alt={profile.username}
+                className="w-full h-full object-cover"
+              />
             </div>
           </div>
 
@@ -285,14 +342,20 @@ const ProfilePage: React.FC = () => {
           {profile.category && <p className="text-xs text-gray-400 mt-0.5">{profile.category}</p>}
           <p className="text-sm mt-1 whitespace-pre-line">{profile.bio}</p>
           {profile.bioLinks.map((link, i) => (
-            <a key={i} href={link.url} className="text-sm text-blue-400 hover:underline block mt-0.5">
+            <a
+              key={i}
+              href={link.url}
+              className="text-sm text-blue-400 hover:underline block mt-0.5"
+            >
               {link.label}
             </a>
           ))}
           {profile.mutualFollowers.length > 0 && (
             <p className="text-xs text-gray-400 mt-2">
-              Followed by <span className="text-white">{profile.mutualFollowers.slice(0, 2).join(', ')}</span>
-              {profile.mutualFollowers.length > 2 && ` + ${profile.mutualFollowers.length - 2} more`}
+              Followed by{' '}
+              <span className="text-white">{profile.mutualFollowers.slice(0, 2).join(', ')}</span>
+              {profile.mutualFollowers.length > 2 &&
+                ` + ${profile.mutualFollowers.length - 2} more`}
             </p>
           )}
         </div>
@@ -323,10 +386,17 @@ const ProfilePage: React.FC = () => {
       {/* Highlights */}
       <div className="border-b border-gray-800 py-3">
         <div className="flex gap-4 overflow-x-auto px-4 scrollbar-hide">
-          {highlights.map(highlight => (
-            <div key={highlight.id} className="flex flex-col items-center gap-1 flex-shrink-0 cursor-pointer">
+          {highlights.map((highlight) => (
+            <div
+              key={highlight.id}
+              className="flex flex-col items-center gap-1 flex-shrink-0 cursor-pointer"
+            >
               <div className="w-16 h-16 rounded-full border border-gray-600 p-[2px]">
-                <img src={highlight.coverUrl} alt={highlight.title} className="w-full h-full rounded-full object-cover" />
+                <img
+                  src={highlight.coverUrl}
+                  alt={highlight.title}
+                  className="w-full h-full rounded-full object-cover"
+                />
               </div>
               <span className="text-xs text-gray-300 max-w-[64px] truncate">{highlight.title}</span>
             </div>
@@ -370,7 +440,12 @@ const ProfilePage: React.FC = () => {
           }`}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            />
           </svg>
         </button>
       </div>
@@ -379,8 +454,18 @@ const ProfilePage: React.FC = () => {
       {posts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20">
           <div className="w-16 h-16 rounded-full border-2 border-gray-600 flex items-center justify-center mb-4">
-            <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <svg
+              className="w-8 h-8 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+              />
             </svg>
           </div>
           <h3 className="text-white font-semibold">No {activeTab} yet</h3>
@@ -388,33 +473,50 @@ const ProfilePage: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-0.5">
-          {posts.map(post => (
+          {posts.map((post) => (
             <div
               key={post.id}
               className="relative aspect-square bg-gray-900 cursor-pointer overflow-hidden"
               onMouseEnter={() => setHoveredPost(post.id)}
               onMouseLeave={() => setHoveredPost(null)}
             >
-              <img src={post.thumbnailUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+              <img
+                src={post.thumbnailUrl}
+                alt=""
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
 
               {/* Type indicators */}
               {post.type === 'reel' && (
                 <div className="absolute top-2 right-2">
-                  <svg className="w-4 h-4 text-white drop-shadow" fill="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    className="w-4 h-4 text-white drop-shadow"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path d="M8 5v14l11-7z" />
                   </svg>
                 </div>
               )}
               {post.type === 'carousel' && (
                 <div className="absolute top-2 right-2">
-                  <svg className="w-4 h-4 text-white drop-shadow" fill="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    className="w-4 h-4 text-white drop-shadow"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
                   </svg>
                 </div>
               )}
               {post.isPinned && (
                 <div className="absolute top-2 left-2">
-                  <svg className="w-3.5 h-3.5 text-white drop-shadow" fill="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    className="w-3.5 h-3.5 text-white drop-shadow"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
                   </svg>
                 </div>

@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantEdits - Project Gallery Home
 // Tabs: Recent/Templates/Shared, create new button, project cards, import media
@@ -45,11 +46,11 @@ interface ProjectGalleryProps {
 type TabType = 'recent' | 'templates' | 'shared';
 type ProjectType = 'video' | 'photo' | 'design';
 
-const ProjectCard: React.FC<{ project: Project; onOpen: (id: string) => void; onDuplicate: (id: string) => void }> = ({
-  project,
-  onOpen,
-  onDuplicate,
-}) => {
+const ProjectCard: React.FC<{
+  project: Project;
+  onOpen: (id: string) => void;
+  onDuplicate: (id: string) => void;
+}> = ({ project, onOpen, onDuplicate }) => {
   const [showMenu, setShowMenu] = useState(false);
 
   const formatDuration = useCallback((seconds: number): string => {
@@ -81,7 +82,9 @@ const ProjectCard: React.FC<{ project: Project; onOpen: (id: string) => void; on
         {project.collaborators.length > 0 && (
           <div className="collaborator-avatars">
             {project.collaborators.slice(0, 3).map((collab, i) => (
-              <div key={i} className="collab-avatar">{collab.charAt(0)}</div>
+              <div key={i} className="collab-avatar">
+                {collab.charAt(0)}
+              </div>
             ))}
             {project.collaborators.length > 3 && (
               <div className="collab-avatar collab-more">+{project.collaborators.length - 3}</div>
@@ -94,7 +97,10 @@ const ProjectCard: React.FC<{ project: Project; onOpen: (id: string) => void; on
           <h3 className="project-title">{project.title}</h3>
           <button
             className="menu-button"
-            onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu(!showMenu);
+            }}
           >
             ...
           </button>
@@ -107,17 +113,46 @@ const ProjectCard: React.FC<{ project: Project; onOpen: (id: string) => void; on
       </div>
       {showMenu && (
         <div className="project-menu">
-          <button onClick={(e) => { e.stopPropagation(); onDuplicate(project.id); }}>Duplicate</button>
-          <button onClick={(e) => { e.stopPropagation(); }}>Rename</button>
-          <button onClick={(e) => { e.stopPropagation(); }}>Share</button>
-          <button onClick={(e) => { e.stopPropagation(); }} className="delete-btn">Delete</button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate(project.id);
+            }}
+          >
+            Duplicate
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            Rename
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            Share
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+            className="delete-btn"
+          >
+            Delete
+          </button>
         </div>
       )}
     </div>
   );
 };
 
-const TemplateCard: React.FC<{ template: Template; onUse: (id: string) => void }> = ({ template, onUse }) => {
+const TemplateCard: React.FC<{ template: Template; onUse: (id: string) => void }> = ({
+  template,
+  onUse,
+}) => {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -148,12 +183,17 @@ const TemplateCard: React.FC<{ template: Template; onUse: (id: string) => void }
   );
 };
 
-const SharedProjectCard: React.FC<{ project: SharedProject; onOpen: (id: string) => void }> = ({ project, onOpen }) => {
+const SharedProjectCard: React.FC<{ project: SharedProject; onOpen: (id: string) => void }> = ({
+  project,
+  onOpen,
+}) => {
   return (
     <div className="shared-project-card" onClick={() => onOpen(project.id)}>
       <div className="shared-thumbnail">
         <img src={project.thumbnail} alt={project.title} className="thumbnail-image" />
-        <span className={`permission-badge permission-${project.permission}`}>{project.permission}</span>
+        <span className={`permission-badge permission-${project.permission}`}>
+          {project.permission}
+        </span>
       </div>
       <div className="shared-info">
         <h4 className="shared-title">{project.title}</h4>
@@ -195,24 +235,28 @@ const ProjectGallery: React.FC<ProjectGalleryProps> = ({ userId }) => {
           fps: 30,
         }));
         setProjects(mockProjects);
-        setTemplates(Array.from({ length: 8 }, (_, i) => ({
-          id: `tmpl-${i}`,
-          title: `Template ${i + 1}`,
-          thumbnail: `/thumbnails/template-${i}.jpg`,
-          category: ['Social Media', 'Marketing', 'Education', 'Entertainment'][i % 4],
-          duration: 30 + i * 15,
-          aspectRatio: ['16:9', '9:16', '1:1', '4:5'][i % 4],
-          uses: Math.floor(Math.random() * 10000),
-        })));
-        setSharedProjects(Array.from({ length: 5 }, (_, i) => ({
-          id: `shared-${i}`,
-          title: `Shared Project ${i + 1}`,
-          thumbnail: `/thumbnails/shared-${i}.jpg`,
-          sharedBy: ['Alice', 'Bob', 'Charlie'][i % 3],
-          sharedAt: new Date(Date.now() - i * 86400000).toISOString(),
-          permission: (['view', 'comment', 'edit'] as const)[i % 3],
-          lastEdited: new Date(Date.now() - i * 7200000).toISOString(),
-        })));
+        setTemplates(
+          Array.from({ length: 8 }, (_, i) => ({
+            id: `tmpl-${i}`,
+            title: `Template ${i + 1}`,
+            thumbnail: `/thumbnails/template-${i}.jpg`,
+            category: ['Social Media', 'Marketing', 'Education', 'Entertainment'][i % 4],
+            duration: 30 + i * 15,
+            aspectRatio: ['16:9', '9:16', '1:1', '4:5'][i % 4],
+            uses: Math.floor(Math.random() * 10000),
+          })),
+        );
+        setSharedProjects(
+          Array.from({ length: 5 }, (_, i) => ({
+            id: `shared-${i}`,
+            title: `Shared Project ${i + 1}`,
+            thumbnail: `/thumbnails/shared-${i}.jpg`,
+            sharedBy: ['Alice', 'Bob', 'Charlie'][i % 3],
+            sharedAt: new Date(Date.now() - i * 86400000).toISOString(),
+            permission: (['view', 'comment', 'edit'] as const)[i % 3],
+            lastEdited: new Date(Date.now() - i * 7200000).toISOString(),
+          })),
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load projects');
       } finally {
@@ -223,10 +267,11 @@ const ProjectGallery: React.FC<ProjectGalleryProps> = ({ userId }) => {
   }, [userId]);
 
   const filteredProjects = useMemo(() => {
-    let filtered = projects.filter(p =>
-      p.title.toLowerCase().includes(searchQuery.toLowerCase())
+    let filtered = projects.filter((p) =>
+      p.title.toLowerCase().includes(searchQuery.toLowerCase()),
     );
-    if (sortBy === 'date') filtered.sort((a, b) => new Date(b.lastEdited).getTime() - new Date(a.lastEdited).getTime());
+    if (sortBy === 'date')
+      filtered.sort((a, b) => new Date(b.lastEdited).getTime() - new Date(a.lastEdited).getTime());
     else if (sortBy === 'name') filtered.sort((a, b) => a.title.localeCompare(b.title));
     else if (sortBy === 'type') filtered.sort((a, b) => a.type.localeCompare(b.type));
     return filtered;
@@ -242,13 +287,20 @@ const ProjectGallery: React.FC<ProjectGalleryProps> = ({ userId }) => {
     console.log(`Opening project ${id}`);
   }, []);
 
-  const handleDuplicateProject = useCallback((id: string) => {
-    const project = projects.find(p => p.id === id);
-    if (project) {
-      const duplicate = { ...project, id: `proj-dup-${Date.now()}`, title: `${project.title} (Copy)` };
-      setProjects(prev => [duplicate, ...prev]);
-    }
-  }, [projects]);
+  const handleDuplicateProject = useCallback(
+    (id: string) => {
+      const project = projects.find((p) => p.id === id);
+      if (project) {
+        const duplicate = {
+          ...project,
+          id: `proj-dup-${Date.now()}`,
+          title: `${project.title} (Copy)`,
+        };
+        setProjects((prev) => [duplicate, ...prev]);
+      }
+    },
+    [projects],
+  );
 
   const handleUseTemplate = useCallback((id: string) => {
     console.log(`Using template ${id}`);
@@ -258,7 +310,10 @@ const ProjectGallery: React.FC<ProjectGalleryProps> = ({ userId }) => {
     e.preventDefault();
     setIsDraggingFile(false);
     const files = Array.from(e.dataTransfer.files);
-    console.log('Importing files:', files.map(f => f.name));
+    console.log(
+      'Importing files:',
+      files.map((f) => f.name),
+    );
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -303,7 +358,10 @@ const ProjectGallery: React.FC<ProjectGalleryProps> = ({ userId }) => {
           <p className="gallery-subtitle">Create, edit, and collaborate on stunning content</p>
         </div>
         <div className="header-actions">
-          <button className="import-btn" onClick={() => document.getElementById('file-import')?.click()}>
+          <button
+            className="import-btn"
+            onClick={() => document.getElementById('file-import')?.click()}
+          >
             Import Media
           </button>
           <input id="file-import" type="file" multiple accept="video/*,image/*,audio/*" hidden />
@@ -343,20 +401,31 @@ const ProjectGallery: React.FC<ProjectGalleryProps> = ({ userId }) => {
                 <span className="type-desc">Custom canvas</span>
               </button>
             </div>
-            <button className="modal-close" onClick={() => setShowCreateModal(false)}>Cancel</button>
+            <button className="modal-close" onClick={() => setShowCreateModal(false)}>
+              Cancel
+            </button>
           </div>
         </div>
       )}
 
       <div className="gallery-toolbar">
         <div className="tab-bar">
-          <button className={`tab ${activeTab === 'recent' ? 'active' : ''}`} onClick={() => setActiveTab('recent')}>
+          <button
+            className={`tab ${activeTab === 'recent' ? 'active' : ''}`}
+            onClick={() => setActiveTab('recent')}
+          >
             Recent ({projects.length})
           </button>
-          <button className={`tab ${activeTab === 'templates' ? 'active' : ''}`} onClick={() => setActiveTab('templates')}>
+          <button
+            className={`tab ${activeTab === 'templates' ? 'active' : ''}`}
+            onClick={() => setActiveTab('templates')}
+          >
             Templates ({templates.length})
           </button>
-          <button className={`tab ${activeTab === 'shared' ? 'active' : ''}`} onClick={() => setActiveTab('shared')}>
+          <button
+            className={`tab ${activeTab === 'shared' ? 'active' : ''}`}
+            onClick={() => setActiveTab('shared')}
+          >
             Shared ({sharedProjects.length})
           </button>
         </div>
@@ -368,7 +437,11 @@ const ProjectGallery: React.FC<ProjectGalleryProps> = ({ userId }) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <select className="sort-select" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+          <select
+            className="sort-select"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+          >
             <option value="date">Sort by Date</option>
             <option value="name">Sort by Name</option>
             <option value="type">Sort by Type</option>
@@ -384,10 +457,12 @@ const ProjectGallery: React.FC<ProjectGalleryProps> = ({ userId }) => {
                 <div className="empty-icon">🎬</div>
                 <h3>No projects yet</h3>
                 <p>Create your first project or import media to get started</p>
-                <button className="create-btn" onClick={() => setShowCreateModal(true)}>Create Project</button>
+                <button className="create-btn" onClick={() => setShowCreateModal(true)}>
+                  Create Project
+                </button>
               </div>
             ) : (
-              filteredProjects.map(project => (
+              filteredProjects.map((project) => (
                 <ProjectCard
                   key={project.id}
                   project={project}
@@ -401,7 +476,7 @@ const ProjectGallery: React.FC<ProjectGalleryProps> = ({ userId }) => {
 
         {activeTab === 'templates' && (
           <div className="templates-grid">
-            {templates.map(template => (
+            {templates.map((template) => (
               <TemplateCard key={template.id} template={template} onUse={handleUseTemplate} />
             ))}
           </div>
@@ -416,7 +491,7 @@ const ProjectGallery: React.FC<ProjectGalleryProps> = ({ userId }) => {
                 <p>Projects shared with you will appear here</p>
               </div>
             ) : (
-              sharedProjects.map(project => (
+              sharedProjects.map((project) => (
                 <SharedProjectCard key={project.id} project={project} onOpen={handleOpenProject} />
               ))
             )}

@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantMax - Video Creation Studio
 // Camera view, effects/filters gallery, speed controls, timer countdown,
@@ -51,7 +52,18 @@ const SPEED_OPTIONS: SpeedOption[] = [0.5, 1, 1.5, 2, 3];
 const TIMER_OPTIONS: TimerOption[] = [0, 3, 10];
 const DURATION_OPTIONS: DurationOption[] = [15, 60, 180];
 const FONT_OPTIONS = ['Sans-Serif', 'Serif', 'Monospace', 'Handwriting', 'Display'];
-const COLOR_OPTIONS = ['#ffffff', '#000000', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ff6600', '#9900ff'];
+const COLOR_OPTIONS = [
+  '#ffffff',
+  '#000000',
+  '#ff0000',
+  '#00ff00',
+  '#0000ff',
+  '#ffff00',
+  '#ff00ff',
+  '#00ffff',
+  '#ff6600',
+  '#9900ff',
+];
 
 const CreateVideoPage: React.FC = () => {
   const [isRecording, setIsRecording] = useState<boolean>(false);
@@ -68,7 +80,9 @@ const CreateVideoPage: React.FC = () => {
   const [effects, setEffects] = useState<VideoEffect[]>([]);
   const [selectedEffect, setSelectedEffect] = useState<string | null>(null);
   const [showEffectsGallery, setShowEffectsGallery] = useState<boolean>(false);
-  const [effectCategory, setEffectCategory] = useState<'filter' | 'effect' | 'beauty' | 'ar'>('filter');
+  const [effectCategory, setEffectCategory] = useState<'filter' | 'effect' | 'beauty' | 'ar'>(
+    'filter',
+  );
 
   const [sounds, setSounds] = useState<SoundItem[]>([]);
   const [selectedSound, setSelectedSound] = useState<SoundItem | null>(null);
@@ -105,7 +119,7 @@ const CreateVideoPage: React.FC = () => {
   useEffect(() => {
     if (isRecording) {
       recordingInterval.current = setInterval(() => {
-        setRecordingDuration(prev => {
+        setRecordingDuration((prev) => {
           const newDuration = prev + 0.1;
           if (newDuration >= maxDuration) {
             stopRecording();
@@ -121,7 +135,12 @@ const CreateVideoPage: React.FC = () => {
   }, [isRecording, maxDuration]);
 
   const loadEffects = useCallback(async () => {
-    const categories: Array<'filter' | 'effect' | 'beauty' | 'ar'> = ['filter', 'effect', 'beauty', 'ar'];
+    const categories: Array<'filter' | 'effect' | 'beauty' | 'ar'> = [
+      'filter',
+      'effect',
+      'beauty',
+      'ar',
+    ];
     const mockEffects: VideoEffect[] = categories.flatMap((cat, ci) =>
       Array.from({ length: 8 }, (_, i) => ({
         id: `${cat}-${i}`,
@@ -129,7 +148,7 @@ const CreateVideoPage: React.FC = () => {
         category: cat,
         thumbnailUrl: `https://cdn.quantmax.app/effects/${cat}/${i}.jpg`,
         intensity: 0.8,
-      }))
+      })),
     );
     setEffects(mockEffects);
   }, []);
@@ -157,7 +176,7 @@ const CreateVideoPage: React.FC = () => {
       setIsTimerActive(true);
       setTimerCountdown(timer);
       timerInterval.current = setInterval(() => {
-        setTimerCountdown(prev => {
+        setTimerCountdown((prev) => {
           if (prev <= 1) {
             if (timerInterval.current) clearInterval(timerInterval.current);
             setIsTimerActive(false);
@@ -179,7 +198,7 @@ const CreateVideoPage: React.FC = () => {
   }, []);
 
   const handleSelectEffect = useCallback((effectId: string) => {
-    setSelectedEffect(prev => prev === effectId ? null : effectId);
+    setSelectedEffect((prev) => (prev === effectId ? null : effectId));
   }, []);
 
   const handleSelectSound = useCallback((sound: SoundItem) => {
@@ -201,33 +220,34 @@ const CreateVideoPage: React.FC = () => {
       endTime: recordingDuration || maxDuration,
       animation: 'none',
     };
-    setTextOverlays(prev => [...prev, newOverlay]);
+    setTextOverlays((prev) => [...prev, newOverlay]);
     setNewTextValue('');
     setShowTextEditor(false);
   }, [newTextValue, selectedFont, selectedFontSize, selectedColor, recordingDuration, maxDuration]);
 
   const handleRemoveTextOverlay = useCallback((id: string) => {
-    setTextOverlays(prev => prev.filter(t => t.id !== id));
+    setTextOverlays((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   const handleFlipCamera = useCallback(() => {
-    setIsFrontCamera(prev => !prev);
+    setIsFrontCamera((prev) => !prev);
   }, []);
 
   const handleTrimChange = useCallback((type: 'start' | 'end', value: number) => {
-    setTrimPoints(prev => ({ ...prev, [type]: value }));
+    setTrimPoints((prev) => ({ ...prev, [type]: value }));
   }, []);
 
   const filteredSounds = useMemo(() => {
     if (!soundSearch.trim()) return sounds;
-    return sounds.filter(s =>
-      s.name.toLowerCase().includes(soundSearch.toLowerCase()) ||
-      s.artistName.toLowerCase().includes(soundSearch.toLowerCase())
+    return sounds.filter(
+      (s) =>
+        s.name.toLowerCase().includes(soundSearch.toLowerCase()) ||
+        s.artistName.toLowerCase().includes(soundSearch.toLowerCase()),
     );
   }, [sounds, soundSearch]);
 
   const filteredEffects = useMemo(() => {
-    return effects.filter(e => e.category === effectCategory);
+    return effects.filter((e) => e.category === effectCategory);
   }, [effects, effectCategory]);
 
   const progressPercent = useMemo(() => {
@@ -253,12 +273,14 @@ const CreateVideoPage: React.FC = () => {
           {/* Effect overlay visualization */}
           {selectedEffect && (
             <div className="effect-active-overlay">
-              <span className="effect-name">{effects.find(e => e.id === selectedEffect)?.name}</span>
+              <span className="effect-name">
+                {effects.find((e) => e.id === selectedEffect)?.name}
+              </span>
             </div>
           )}
 
           {/* Text overlays on preview */}
-          {textOverlays.map(overlay => (
+          {textOverlays.map((overlay) => (
             <div
               key={overlay.id}
               className="text-overlay-preview"
@@ -271,7 +293,12 @@ const CreateVideoPage: React.FC = () => {
               }}
             >
               {overlay.text}
-              <button className="remove-overlay-btn" onClick={() => handleRemoveTextOverlay(overlay.id)}>x</button>
+              <button
+                className="remove-overlay-btn"
+                onClick={() => handleRemoveTextOverlay(overlay.id)}
+              >
+                x
+              </button>
             </div>
           ))}
         </div>
@@ -288,7 +315,9 @@ const CreateVideoPage: React.FC = () => {
           <div className="progress-track">
             <div className="progress-filled" style={{ width: `${progressPercent}%` }} />
           </div>
-          <span className="duration-label">{recordingDuration.toFixed(1)}s / {maxDuration}s</span>
+          <span className="duration-label">
+            {recordingDuration.toFixed(1)}s / {maxDuration}s
+          </span>
         </div>
 
         {/* Recording indicator */}
@@ -310,7 +339,10 @@ const CreateVideoPage: React.FC = () => {
           <span className="control-icon">⚡</span>
           <span className="control-label">{speed}x</span>
         </button>
-        <button className="side-control-btn" onClick={() => setShowEffectsGallery(!showEffectsGallery)}>
+        <button
+          className="side-control-btn"
+          onClick={() => setShowEffectsGallery(!showEffectsGallery)}
+        >
           <span className="control-icon">✨</span>
           <span className="control-label">Effects</span>
         </button>
@@ -318,7 +350,14 @@ const CreateVideoPage: React.FC = () => {
           <span className="control-icon">{flashOn ? '⚡' : '💡'}</span>
           <span className="control-label">Flash</span>
         </button>
-        <button className="side-control-btn" onClick={() => setTimer(prev => TIMER_OPTIONS[(TIMER_OPTIONS.indexOf(prev) + 1) % TIMER_OPTIONS.length])}>
+        <button
+          className="side-control-btn"
+          onClick={() =>
+            setTimer(
+              (prev) => TIMER_OPTIONS[(TIMER_OPTIONS.indexOf(prev) + 1) % TIMER_OPTIONS.length],
+            )
+          }
+        >
           <span className="control-icon">⏱️</span>
           <span className="control-label">{timer > 0 ? `${timer}s` : 'Off'}</span>
         </button>
@@ -336,7 +375,7 @@ const CreateVideoPage: React.FC = () => {
       <div className="bottom-controls">
         {/* Duration Options */}
         <div className="duration-options">
-          {DURATION_OPTIONS.map(d => (
+          {DURATION_OPTIONS.map((d) => (
             <button
               key={d}
               className={`duration-btn ${maxDuration === d ? 'active' : ''}`}
@@ -370,7 +409,9 @@ const CreateVideoPage: React.FC = () => {
         {/* Post-recording actions */}
         {hasRecordedClip && (
           <div className="post-record-actions">
-            <button className="trim-btn" onClick={() => setShowTrimEditor(true)}>Trim</button>
+            <button className="trim-btn" onClick={() => setShowTrimEditor(true)}>
+              Trim
+            </button>
             <button className="next-btn">Next &rarr;</button>
           </div>
         )}
@@ -381,11 +422,14 @@ const CreateVideoPage: React.FC = () => {
         <div className="speed-control-panel">
           <h4 className="speed-title">Recording Speed</h4>
           <div className="speed-options">
-            {SPEED_OPTIONS.map(s => (
+            {SPEED_OPTIONS.map((s) => (
               <button
                 key={s}
                 className={`speed-btn ${speed === s ? 'active' : ''}`}
-                onClick={() => { setSpeed(s); setShowSpeedControl(false); }}
+                onClick={() => {
+                  setSpeed(s);
+                  setShowSpeedControl(false);
+                }}
               >
                 {s}x
               </button>
@@ -400,10 +444,12 @@ const CreateVideoPage: React.FC = () => {
           <div className="effects-gallery">
             <div className="effects-header">
               <h3>Effects</h3>
-              <button className="close-btn" onClick={() => setShowEffectsGallery(false)}>&#10005;</button>
+              <button className="close-btn" onClick={() => setShowEffectsGallery(false)}>
+                &#10005;
+              </button>
             </div>
             <div className="effects-categories">
-              {(['filter', 'effect', 'beauty', 'ar'] as const).map(cat => (
+              {(['filter', 'effect', 'beauty', 'ar'] as const).map((cat) => (
                 <button
                   key={cat}
                   className={`category-tab ${effectCategory === cat ? 'active' : ''}`}
@@ -414,7 +460,7 @@ const CreateVideoPage: React.FC = () => {
               ))}
             </div>
             <div className="effects-grid">
-              {filteredEffects.map(effect => (
+              {filteredEffects.map((effect) => (
                 <button
                   key={effect.id}
                   className={`effect-item ${selectedEffect === effect.id ? 'selected' : ''}`}
@@ -435,7 +481,9 @@ const CreateVideoPage: React.FC = () => {
           <div className="sound-selector">
             <div className="sound-header">
               <h3>Sounds</h3>
-              <button className="close-btn" onClick={() => setShowSoundSelector(false)}>&#10005;</button>
+              <button className="close-btn" onClick={() => setShowSoundSelector(false)}>
+                &#10005;
+              </button>
             </div>
             <div className="sound-search">
               <input
@@ -446,7 +494,7 @@ const CreateVideoPage: React.FC = () => {
               />
             </div>
             <div className="sound-list">
-              {filteredSounds.map(sound => (
+              {filteredSounds.map((sound) => (
                 <div
                   key={sound.id}
                   className={`sound-item ${selectedSound?.id === sound.id ? 'selected' : ''}`}
@@ -472,7 +520,9 @@ const CreateVideoPage: React.FC = () => {
           <div className="text-editor">
             <div className="text-editor-header">
               <h3>Add Text</h3>
-              <button className="close-btn" onClick={() => setShowTextEditor(false)}>&#10005;</button>
+              <button className="close-btn" onClick={() => setShowTextEditor(false)}>
+                &#10005;
+              </button>
             </div>
             <input
               className="text-input"
@@ -484,7 +534,7 @@ const CreateVideoPage: React.FC = () => {
             <div className="font-selector">
               <h4>Font</h4>
               <div className="font-options">
-                {FONT_OPTIONS.map(font => (
+                {FONT_OPTIONS.map((font) => (
                   <button
                     key={font}
                     className={`font-btn ${selectedFont === font ? 'active' : ''}`}
@@ -499,7 +549,7 @@ const CreateVideoPage: React.FC = () => {
             <div className="color-selector">
               <h4>Color</h4>
               <div className="color-options">
-                {COLOR_OPTIONS.map(color => (
+                {COLOR_OPTIONS.map((color) => (
                   <button
                     key={color}
                     className={`color-btn ${selectedColor === color ? 'active' : ''}`}
@@ -520,7 +570,11 @@ const CreateVideoPage: React.FC = () => {
                 className="size-slider"
               />
             </div>
-            <button className="add-text-btn" onClick={handleAddTextOverlay} disabled={!newTextValue.trim()}>
+            <button
+              className="add-text-btn"
+              onClick={handleAddTextOverlay}
+              disabled={!newTextValue.trim()}
+            >
               Add Text
             </button>
           </div>
@@ -533,13 +587,18 @@ const CreateVideoPage: React.FC = () => {
           <div className="trim-editor">
             <div className="trim-header">
               <h3>Trim Video</h3>
-              <button className="close-btn" onClick={() => setShowTrimEditor(false)}>&#10005;</button>
+              <button className="close-btn" onClick={() => setShowTrimEditor(false)}>
+                &#10005;
+              </button>
             </div>
             <div className="trim-timeline">
               <div className="trim-track">
                 <div
                   className="trim-selection"
-                  style={{ left: `${trimPoints.start}%`, width: `${trimPoints.end - trimPoints.start}%` }}
+                  style={{
+                    left: `${trimPoints.start}%`,
+                    width: `${trimPoints.end - trimPoints.start}%`,
+                  }}
                 />
                 <input
                   type="range"
@@ -561,7 +620,9 @@ const CreateVideoPage: React.FC = () => {
             </div>
             <div className="trim-actions">
               <button className="split-btn">Split</button>
-              <button className="apply-trim-btn" onClick={() => setShowTrimEditor(false)}>Apply</button>
+              <button className="apply-trim-btn" onClick={() => setShowTrimEditor(false)}>
+                Apply
+              </button>
             </div>
           </div>
         </div>
@@ -573,7 +634,9 @@ const CreateVideoPage: React.FC = () => {
           <div className="gallery-picker">
             <div className="gallery-header">
               <h3>Gallery</h3>
-              <button className="close-btn" onClick={() => setShowGalleryPicker(false)}>&#10005;</button>
+              <button className="close-btn" onClick={() => setShowGalleryPicker(false)}>
+                &#10005;
+              </button>
             </div>
             <div className="gallery-grid">
               {galleryItems.map((item, idx) => (
@@ -592,11 +655,14 @@ const CreateVideoPage: React.FC = () => {
           <div className="mode-selector" onClick={(e) => e.stopPropagation()}>
             <h3>Recording Mode</h3>
             <div className="mode-options">
-              {(['normal', 'duet', 'stitch', 'greenscreen'] as RecordingMode[]).map(m => (
+              {(['normal', 'duet', 'stitch', 'greenscreen'] as RecordingMode[]).map((m) => (
                 <button
                   key={m}
                   className={`mode-btn ${mode === m ? 'active' : ''}`}
-                  onClick={() => { setMode(m); setShowModeSelector(false); }}
+                  onClick={() => {
+                    setMode(m);
+                    setShowModeSelector(false);
+                  }}
                 >
                   <span className="mode-icon">
                     {m === 'normal' ? '🎬' : m === 'duet' ? '👥' : m === 'stitch' ? '🧵' : '🟢'}

@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantEdits - Project Manager
 // Search, sort, bulk actions, project cards with status, storage usage
@@ -45,7 +46,11 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ userId }) => {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showArchived, setShowArchived] = useState(false);
-  const [storage, setStorage] = useState<StorageInfo>({ used: 0, total: 0, breakdown: { videos: 0, images: 0, audio: 0, other: 0 } });
+  const [storage, setStorage] = useState<StorageInfo>({
+    used: 0,
+    total: 0,
+    breakdown: { videos: 0, images: 0, audio: 0, other: 0 },
+  });
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -73,7 +78,12 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ userId }) => {
         setStorage({
           used: 45.2 * 1024 * 1024 * 1024,
           total: 100 * 1024 * 1024 * 1024,
-          breakdown: { videos: 32 * 1024 * 1024 * 1024, images: 8 * 1024 * 1024 * 1024, audio: 3 * 1024 * 1024 * 1024, other: 2.2 * 1024 * 1024 * 1024 },
+          breakdown: {
+            videos: 32 * 1024 * 1024 * 1024,
+            images: 8 * 1024 * 1024 * 1024,
+            audio: 3 * 1024 * 1024 * 1024,
+            other: 2.2 * 1024 * 1024 * 1024,
+          },
         });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load projects');
@@ -86,13 +96,14 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ userId }) => {
 
   const filteredProjects = useMemo(() => {
     let result = projects
-      .filter(p => showArchived ? p.isArchived : !p.isArchived)
-      .filter(p => filterStatus === 'all' || p.status === filterStatus)
-      .filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()));
+      .filter((p) => (showArchived ? p.isArchived : !p.isArchived))
+      .filter((p) => filterStatus === 'all' || p.status === filterStatus)
+      .filter((p) => p.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
     result.sort((a, b) => {
       let cmp = 0;
-      if (sortField === 'date') cmp = new Date(a.lastEdited).getTime() - new Date(b.lastEdited).getTime();
+      if (sortField === 'date')
+        cmp = new Date(a.lastEdited).getTime() - new Date(b.lastEdited).getTime();
       else if (sortField === 'name') cmp = a.title.localeCompare(b.title);
       else if (sortField === 'size') cmp = a.size - b.size;
       else if (sortField === 'type') cmp = a.type.localeCompare(b.type);
@@ -105,12 +116,12 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ userId }) => {
     if (selectedIds.size === filteredProjects.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredProjects.map(p => p.id)));
+      setSelectedIds(new Set(filteredProjects.map((p) => p.id)));
     }
   }, [filteredProjects, selectedIds]);
 
   const handleToggleSelect = useCallback((id: string) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -124,26 +135,33 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ userId }) => {
   }, [selectedIds]);
 
   const handleBulkDuplicate = useCallback(() => {
-    const dupes = projects.filter(p => selectedIds.has(p.id)).map(p => ({
-      ...p, id: `dup-${p.id}-${Date.now()}`, title: `${p.title} (Copy)`, createdAt: new Date().toISOString(),
-    }));
-    setProjects(prev => [...dupes, ...prev]);
+    const dupes = projects
+      .filter((p) => selectedIds.has(p.id))
+      .map((p) => ({
+        ...p,
+        id: `dup-${p.id}-${Date.now()}`,
+        title: `${p.title} (Copy)`,
+        createdAt: new Date().toISOString(),
+      }));
+    setProjects((prev) => [...dupes, ...prev]);
     setSelectedIds(new Set());
   }, [projects, selectedIds]);
 
   const handleBulkArchive = useCallback(() => {
-    setProjects(prev => prev.map(p => selectedIds.has(p.id) ? { ...p, isArchived: true } : p));
+    setProjects((prev) =>
+      prev.map((p) => (selectedIds.has(p.id) ? { ...p, isArchived: true } : p)),
+    );
     setSelectedIds(new Set());
   }, [selectedIds]);
 
   const handleBulkDelete = useCallback(() => {
-    setProjects(prev => prev.filter(p => !selectedIds.has(p.id)));
+    setProjects((prev) => prev.filter((p) => !selectedIds.has(p.id)));
     setSelectedIds(new Set());
     setConfirmDelete(null);
   }, [selectedIds]);
 
   const handleToggleFavorite = useCallback((id: string) => {
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, isFavorite: !p.isFavorite } : p));
+    setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, isFavorite: !p.isFavorite } : p)));
   }, []);
 
   const formatSize = useCallback((bytes: number): string => {
@@ -179,16 +197,24 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ userId }) => {
         <h1>Project Manager</h1>
         <div className="storage-bar">
           <div className="storage-info">
-            <span>{formatSize(storage.used)} / {formatSize(storage.total)} used</span>
+            <span>
+              {formatSize(storage.used)} / {formatSize(storage.total)} used
+            </span>
             <span className="storage-percent">{storagePercent}%</span>
           </div>
           <div className="storage-progress">
             <div className="storage-fill" style={{ width: `${storagePercent}%` }} />
           </div>
           <div className="storage-breakdown">
-            <span className="breakdown-item videos">Videos: {formatSize(storage.breakdown.videos)}</span>
-            <span className="breakdown-item images">Images: {formatSize(storage.breakdown.images)}</span>
-            <span className="breakdown-item audio">Audio: {formatSize(storage.breakdown.audio)}</span>
+            <span className="breakdown-item videos">
+              Videos: {formatSize(storage.breakdown.videos)}
+            </span>
+            <span className="breakdown-item images">
+              Images: {formatSize(storage.breakdown.images)}
+            </span>
+            <span className="breakdown-item audio">
+              Audio: {formatSize(storage.breakdown.audio)}
+            </span>
           </div>
         </div>
       </header>
@@ -202,32 +228,57 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ userId }) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as FilterStatus)} className="filter-select">
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
+            className="filter-select"
+          >
             <option value="all">All Status</option>
             <option value="draft">Draft</option>
             <option value="processing">Processing</option>
             <option value="complete">Complete</option>
           </select>
           <div className="sort-controls">
-            <select value={sortField} onChange={(e) => setSortField(e.target.value as SortField)} className="sort-select">
+            <select
+              value={sortField}
+              onChange={(e) => setSortField(e.target.value as SortField)}
+              className="sort-select"
+            >
               <option value="date">Date</option>
               <option value="name">Name</option>
               <option value="size">Size</option>
               <option value="type">Type</option>
             </select>
-            <button className="sort-dir-btn" onClick={() => setSortDirection(d => d === 'asc' ? 'desc' : 'asc')}>
+            <button
+              className="sort-dir-btn"
+              onClick={() => setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'))}
+            >
               {sortDirection === 'asc' ? '↑' : '↓'}
             </button>
           </div>
         </div>
         <div className="toolbar-right">
           <label className="archive-toggle">
-            <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+            />
             Show Archived
           </label>
           <div className="view-toggle">
-            <button className={viewMode === 'grid' ? 'active' : ''} onClick={() => setViewMode('grid')}>Grid</button>
-            <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>List</button>
+            <button
+              className={viewMode === 'grid' ? 'active' : ''}
+              onClick={() => setViewMode('grid')}
+            >
+              Grid
+            </button>
+            <button
+              className={viewMode === 'list' ? 'active' : ''}
+              onClick={() => setViewMode('list')}
+            >
+              List
+            </button>
           </div>
         </div>
       </div>
@@ -238,10 +289,18 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ userId }) => {
           <button className="bulk-btn" onClick={handleSelectAll}>
             {selectedIds.size === filteredProjects.length ? 'Deselect All' : 'Select All'}
           </button>
-          <button className="bulk-btn" onClick={handleBulkExport}>Export</button>
-          <button className="bulk-btn" onClick={handleBulkDuplicate}>Duplicate</button>
-          <button className="bulk-btn" onClick={handleBulkArchive}>Archive</button>
-          <button className="bulk-btn delete" onClick={() => setConfirmDelete('bulk')}>Delete</button>
+          <button className="bulk-btn" onClick={handleBulkExport}>
+            Export
+          </button>
+          <button className="bulk-btn" onClick={handleBulkDuplicate}>
+            Duplicate
+          </button>
+          <button className="bulk-btn" onClick={handleBulkArchive}>
+            Archive
+          </button>
+          <button className="bulk-btn delete" onClick={() => setConfirmDelete('bulk')}>
+            Delete
+          </button>
         </div>
       )}
 
@@ -249,10 +308,14 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ userId }) => {
         <div className="confirm-modal-overlay">
           <div className="confirm-modal">
             <h3>Confirm Delete</h3>
-            <p>Are you sure you want to delete {selectedIds.size} project(s)? This cannot be undone.</p>
+            <p>
+              Are you sure you want to delete {selectedIds.size} project(s)? This cannot be undone.
+            </p>
             <div className="confirm-actions">
               <button onClick={() => setConfirmDelete(null)}>Cancel</button>
-              <button className="delete-confirm-btn" onClick={handleBulkDelete}>Delete</button>
+              <button className="delete-confirm-btn" onClick={handleBulkDelete}>
+                Delete
+              </button>
             </div>
           </div>
         </div>
@@ -263,11 +326,18 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ userId }) => {
           <div className="empty-state">
             <div className="empty-icon">📂</div>
             <h3>{showArchived ? 'No archived projects' : 'No projects found'}</h3>
-            <p>{searchQuery ? 'Try a different search term' : 'Create your first project to get started'}</p>
+            <p>
+              {searchQuery
+                ? 'Try a different search term'
+                : 'Create your first project to get started'}
+            </p>
           </div>
         ) : (
-          filteredProjects.map(project => (
-            <div key={project.id} className={`project-item ${selectedIds.has(project.id) ? 'selected' : ''}`}>
+          filteredProjects.map((project) => (
+            <div
+              key={project.id}
+              className={`project-item ${selectedIds.has(project.id) ? 'selected' : ''}`}
+            >
               <div className="select-checkbox">
                 <input
                   type="checkbox"
@@ -290,12 +360,16 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ userId }) => {
                   <span className={`type-badge type-${project.type}`}>{project.type}</span>
                   <span className="project-size">{formatSize(project.size)}</span>
                   <span className="project-resolution">{project.resolution}</span>
-                  <span className="project-date">{new Date(project.lastEdited).toLocaleDateString()}</span>
+                  <span className="project-date">
+                    {new Date(project.lastEdited).toLocaleDateString()}
+                  </span>
                 </div>
                 {project.collaborators.length > 0 && (
                   <div className="collab-list">
                     {project.collaborators.map((c, i) => (
-                      <span key={i} className="collab-chip">{c}</span>
+                      <span key={i} className="collab-chip">
+                        {c}
+                      </span>
                     ))}
                   </div>
                 )}

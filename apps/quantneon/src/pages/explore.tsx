@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantNeon - Explore/Discover Page
 // Search, categories, mixed-size grid, IGTV, shopping, trending
@@ -48,7 +49,16 @@ type ExploreCategory = 'All' | 'Fashion' | 'Food' | 'Travel' | 'Art' | 'Music' |
 // Mock Data
 // ---------------------------------------------------------------------------
 
-const CATEGORIES: ExploreCategory[] = ['All', 'Fashion', 'Food', 'Travel', 'Art', 'Music', 'Sports', 'Tech'];
+const CATEGORIES: ExploreCategory[] = [
+  'All',
+  'Fashion',
+  'Food',
+  'Travel',
+  'Art',
+  'Music',
+  'Sports',
+  'Tech',
+];
 
 const generateExplorePosts = (category: ExploreCategory): ExplorePost[] => {
   return Array.from({ length: 30 }, (_, i) => ({
@@ -58,7 +68,10 @@ const generateExplorePosts = (category: ExploreCategory): ExplorePost[] => {
     likeCount: Math.floor(Math.random() * 50000) + 500,
     commentCount: Math.floor(Math.random() * 2000) + 50,
     isMultiple: i % 5 === 0,
-    duration: i % 4 !== 0 ? `${Math.floor(Math.random() * 3)}:${String(Math.floor(Math.random() * 59)).padStart(2, '0')}` : undefined,
+    duration:
+      i % 4 !== 0
+        ? `${Math.floor(Math.random() * 3)}:${String(Math.floor(Math.random() * 59)).padStart(2, '0')}`
+        : undefined,
     username: `creator_${i}`,
   }));
 };
@@ -66,28 +79,84 @@ const generateExplorePosts = (category: ExploreCategory): ExplorePost[] => {
 const generateSuggestions = (query: string): SearchSuggestion[] => {
   if (!query) return [];
   return [
-    { id: 's1', type: 'account', text: `${query}_official`, subtitle: '1.2M followers', avatarUrl: `https://picsum.photos/seed/${query}1/40/40` },
+    {
+      id: 's1',
+      type: 'account',
+      text: `${query}_official`,
+      subtitle: '1.2M followers',
+      avatarUrl: `https://picsum.photos/seed/${query}1/40/40`,
+    },
     { id: 's2', type: 'hashtag', text: `#${query}`, subtitle: '2.5M posts' },
-    { id: 's3', type: 'account', text: `${query}_art`, subtitle: '340K followers', avatarUrl: `https://picsum.photos/seed/${query}2/40/40` },
+    {
+      id: 's3',
+      type: 'account',
+      text: `${query}_art`,
+      subtitle: '340K followers',
+      avatarUrl: `https://picsum.photos/seed/${query}2/40/40`,
+    },
     { id: 's4', type: 'hashtag', text: `#${query}life`, subtitle: '890K posts' },
     { id: 's5', type: 'location', text: `${query} City`, subtitle: 'Location' },
   ];
 };
 
 const TRENDING_HASHTAGS: TrendingHashtag[] = [
-  { tag: 'SummerVibes', postCount: 4500000, thumbnailUrl: 'https://picsum.photos/seed/trend1/100/100' },
-  { tag: 'Photography', postCount: 12000000, thumbnailUrl: 'https://picsum.photos/seed/trend2/100/100' },
-  { tag: 'FoodPorn', postCount: 8700000, thumbnailUrl: 'https://picsum.photos/seed/trend3/100/100' },
+  {
+    tag: 'SummerVibes',
+    postCount: 4500000,
+    thumbnailUrl: 'https://picsum.photos/seed/trend1/100/100',
+  },
+  {
+    tag: 'Photography',
+    postCount: 12000000,
+    thumbnailUrl: 'https://picsum.photos/seed/trend2/100/100',
+  },
+  {
+    tag: 'FoodPorn',
+    postCount: 8700000,
+    thumbnailUrl: 'https://picsum.photos/seed/trend3/100/100',
+  },
   { tag: 'OOTD', postCount: 5200000, thumbnailUrl: 'https://picsum.photos/seed/trend4/100/100' },
-  { tag: 'Wanderlust', postCount: 6300000, thumbnailUrl: 'https://picsum.photos/seed/trend5/100/100' },
-  { tag: 'FitnessGoals', postCount: 3900000, thumbnailUrl: 'https://picsum.photos/seed/trend6/100/100' },
+  {
+    tag: 'Wanderlust',
+    postCount: 6300000,
+    thumbnailUrl: 'https://picsum.photos/seed/trend5/100/100',
+  },
+  {
+    tag: 'FitnessGoals',
+    postCount: 3900000,
+    thumbnailUrl: 'https://picsum.photos/seed/trend6/100/100',
+  },
 ];
 
 const SHOPPING_PRODUCTS: ShoppingProduct[] = [
-  { id: 'p1', name: 'Designer Sunglasses', price: '$129.99', thumbnailUrl: 'https://picsum.photos/seed/shop1/200/200', brand: 'LuxView' },
-  { id: 'p2', name: 'Running Shoes Pro', price: '$189.00', thumbnailUrl: 'https://picsum.photos/seed/shop2/200/200', brand: 'SpeedRun' },
-  { id: 'p3', name: 'Leather Crossbody Bag', price: '$249.00', thumbnailUrl: 'https://picsum.photos/seed/shop3/200/200', brand: 'CraftCo' },
-  { id: 'p4', name: 'Wireless Earbuds', price: '$79.99', thumbnailUrl: 'https://picsum.photos/seed/shop4/200/200', brand: 'SoundWave' },
+  {
+    id: 'p1',
+    name: 'Designer Sunglasses',
+    price: '$129.99',
+    thumbnailUrl: 'https://picsum.photos/seed/shop1/200/200',
+    brand: 'LuxView',
+  },
+  {
+    id: 'p2',
+    name: 'Running Shoes Pro',
+    price: '$189.00',
+    thumbnailUrl: 'https://picsum.photos/seed/shop2/200/200',
+    brand: 'SpeedRun',
+  },
+  {
+    id: 'p3',
+    name: 'Leather Crossbody Bag',
+    price: '$249.00',
+    thumbnailUrl: 'https://picsum.photos/seed/shop3/200/200',
+    brand: 'CraftCo',
+  },
+  {
+    id: 'p4',
+    name: 'Wireless Earbuds',
+    price: '$79.99',
+    thumbnailUrl: 'https://picsum.photos/seed/shop4/200/200',
+    brand: 'SoundWave',
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -99,7 +168,12 @@ const ExplorePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [activeCategory, setActiveCategory] = useState<ExploreCategory>('All');
-  const [recentSearches, setRecentSearches] = useState<string[]>(['sunset photography', 'travel japan', 'street food', 'minimalist design']);
+  const [recentSearches, setRecentSearches] = useState<string[]>([
+    'sunset photography',
+    'travel japan',
+    'street food',
+    'minimalist design',
+  ]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showSearchPanel, setShowSearchPanel] = useState<boolean>(false);
@@ -114,7 +188,7 @@ const ExplorePage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        await new Promise(resolve => setTimeout(resolve, 600));
+        await new Promise((resolve) => setTimeout(resolve, 600));
         setPosts(generateExplorePosts(activeCategory));
       } catch (err) {
         setError('Failed to load explore content.');
@@ -135,13 +209,13 @@ const ExplorePage: React.FC = () => {
 
   const handleSearch = useCallback((query: string) => {
     if (!query.trim()) return;
-    setRecentSearches(prev => [query, ...prev.filter(s => s !== query)].slice(0, 10));
+    setRecentSearches((prev) => [query, ...prev.filter((s) => s !== query)].slice(0, 10));
     setShowSearchPanel(false);
     setSearchQuery(query);
   }, []);
 
   const handleClearRecent = useCallback((search: string) => {
-    setRecentSearches(prev => prev.filter(s => s !== search));
+    setRecentSearches((prev) => prev.filter((s) => s !== search));
   }, []);
 
   const handleCategoryChange = useCallback((category: ExploreCategory) => {
@@ -176,7 +250,10 @@ const ExplorePage: React.FC = () => {
           </div>
           <p className="text-white text-center">{error}</p>
           <button
-            onClick={() => { setError(null); setPosts(generateExplorePosts(activeCategory)); }}
+            onClick={() => {
+              setError(null);
+              setPosts(generateExplorePosts(activeCategory));
+            }}
             className="px-6 py-2 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition-colors"
           >
             Retry
@@ -192,8 +269,18 @@ const ExplorePage: React.FC = () => {
       <div className="sticky top-0 z-40 bg-black/90 backdrop-blur-sm px-4 py-3 border-b border-gray-800">
         <div className="relative max-w-lg mx-auto">
           <div className="relative flex items-center">
-            <svg className="absolute left-3 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg
+              className="absolute left-3 w-4 h-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
             </svg>
             <input
               ref={searchInputRef}
@@ -207,7 +294,10 @@ const ExplorePage: React.FC = () => {
             />
             {searchQuery && (
               <button
-                onClick={() => { setSearchQuery(''); setSuggestions([]); }}
+                onClick={() => {
+                  setSearchQuery('');
+                  setSuggestions([]);
+                }}
                 className="absolute right-3 text-gray-400 hover:text-white"
               >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -222,17 +312,25 @@ const ExplorePage: React.FC = () => {
             <div className="absolute top-full left-0 right-0 mt-2 bg-gray-900 rounded-xl border border-gray-700 shadow-xl max-h-[60vh] overflow-y-auto z-50">
               {suggestions.length > 0 ? (
                 <div className="py-2">
-                  {suggestions.map(suggestion => (
+                  {suggestions.map((suggestion) => (
                     <button
                       key={suggestion.id}
                       onClick={() => handleSearch(suggestion.text)}
                       className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-gray-800 transition-colors"
                     >
                       {suggestion.avatarUrl ? (
-                        <img src={suggestion.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
+                        <img
+                          src={suggestion.avatarUrl}
+                          alt=""
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
-                          {suggestion.type === 'hashtag' ? '#' : suggestion.type === 'location' ? '📍' : '@'}
+                          {suggestion.type === 'hashtag'
+                            ? '#'
+                            : suggestion.type === 'location'
+                              ? '📍'
+                              : '@'}
                         </div>
                       )}
                       <div className="text-left">
@@ -249,14 +347,33 @@ const ExplorePage: React.FC = () => {
                     <button className="text-sm text-blue-500 hover:text-blue-400">Clear all</button>
                   </div>
                   {recentSearches.map((search, i) => (
-                    <div key={i} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-800">
-                      <button onClick={() => handleSearch(search)} className="flex items-center gap-3">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <div
+                      key={i}
+                      className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-800"
+                    >
+                      <button
+                        onClick={() => handleSearch(search)}
+                        className="flex items-center gap-3"
+                      >
+                        <svg
+                          className="w-4 h-4 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
                         </svg>
                         <span className="text-sm">{search}</span>
                       </button>
-                      <button onClick={() => handleClearRecent(search)} className="text-gray-500 hover:text-white">
+                      <button
+                        onClick={() => handleClearRecent(search)}
+                        className="text-gray-500 hover:text-white"
+                      >
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M18.3 5.71a1 1 0 00-1.42 0L12 10.59 7.12 5.71a1 1 0 00-1.42 1.42L10.59 12l-4.88 4.88a1 1 0 001.42 1.42L12 13.41l4.88 4.88a1 1 0 001.42-1.42L13.41 12l4.88-4.88a1 1 0 000-1.41z" />
                         </svg>
@@ -273,7 +390,7 @@ const ExplorePage: React.FC = () => {
       {/* Category Tabs */}
       <div className="border-b border-gray-800 px-4 py-2">
         <div className="flex gap-2 overflow-x-auto scrollbar-hide max-w-lg mx-auto">
-          {CATEGORIES.map(category => (
+          {CATEGORIES.map((category) => (
             <button
               key={category}
               onClick={() => handleCategoryChange(category)}
@@ -295,12 +412,17 @@ const ExplorePage: React.FC = () => {
         <div className="px-3 py-4">
           <h3 className="text-sm font-semibold text-gray-300 mb-3">Trending</h3>
           <div className="flex gap-3 overflow-x-auto scrollbar-hide">
-            {TRENDING_HASHTAGS.map(hashtag => (
-              <div key={hashtag.tag} className="flex-shrink-0 flex items-center gap-2 bg-gray-800/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-700/50 transition-colors">
+            {TRENDING_HASHTAGS.map((hashtag) => (
+              <div
+                key={hashtag.tag}
+                className="flex-shrink-0 flex items-center gap-2 bg-gray-800/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-700/50 transition-colors"
+              >
                 <img src={hashtag.thumbnailUrl} alt="" className="w-8 h-8 rounded object-cover" />
                 <div>
                   <p className="text-xs font-semibold">#{hashtag.tag}</p>
-                  <p className="text-[10px] text-gray-400">{formatCount(hashtag.postCount)} posts</p>
+                  <p className="text-[10px] text-gray-400">
+                    {formatCount(hashtag.postCount)} posts
+                  </p>
                 </div>
               </div>
             ))}
@@ -311,8 +433,18 @@ const ExplorePage: React.FC = () => {
         {posts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <svg
+                className="w-8 h-8 text-gray-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
               </svg>
             </div>
             <p className="text-gray-400">No posts found for this category</p>
@@ -328,12 +460,21 @@ const ExplorePage: React.FC = () => {
                   onMouseEnter={() => setHoveredPost(post.id)}
                   onMouseLeave={() => setHoveredPost(null)}
                 >
-                  <img src={post.thumbnailUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  <img
+                    src={post.thumbnailUrl}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
 
                   {/* Type indicators */}
                   {post.type === 'reel' && (
                     <div className="absolute top-2 right-2">
-                      <svg className="w-5 h-5 text-white drop-shadow" fill="currentColor" viewBox="0 0 24 24">
+                      <svg
+                        className="w-5 h-5 text-white drop-shadow"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                      >
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
@@ -345,7 +486,11 @@ const ExplorePage: React.FC = () => {
                   )}
                   {post.isMultiple && (
                     <div className="absolute top-2 right-2">
-                      <svg className="w-5 h-5 text-white drop-shadow" fill="currentColor" viewBox="0 0 24 24">
+                      <svg
+                        className="w-5 h-5 text-white drop-shadow"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                      >
                         <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
                       </svg>
                     </div>
@@ -386,9 +531,16 @@ const ExplorePage: React.FC = () => {
             <button className="text-sm text-blue-500 hover:text-blue-400">See all</button>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            {SHOPPING_PRODUCTS.map(product => (
-              <div key={product.id} className="bg-gray-900 rounded-xl overflow-hidden cursor-pointer hover:ring-1 hover:ring-purple-500 transition-all">
-                <img src={product.thumbnailUrl} alt={product.name} className="w-full aspect-square object-cover" />
+            {SHOPPING_PRODUCTS.map((product) => (
+              <div
+                key={product.id}
+                className="bg-gray-900 rounded-xl overflow-hidden cursor-pointer hover:ring-1 hover:ring-purple-500 transition-all"
+              >
+                <img
+                  src={product.thumbnailUrl}
+                  alt={product.name}
+                  className="w-full aspect-square object-cover"
+                />
                 <div className="p-3">
                   <p className="text-sm font-medium truncate">{product.name}</p>
                   <p className="text-xs text-gray-400">{product.brand}</p>
@@ -406,19 +558,22 @@ const ExplorePage: React.FC = () => {
             <button className="text-sm text-blue-500 hover:text-blue-400">See all</button>
           </div>
           <div className="flex gap-3 overflow-x-auto scrollbar-hide">
-            {posts.filter(p => p.type === 'igtv').slice(0, 6).map(post => (
-              <div key={post.id} className="flex-shrink-0 w-32">
-                <div className="relative aspect-[9/16] rounded-lg overflow-hidden bg-gray-800">
-                  <img src={post.thumbnailUrl} alt="" className="w-full h-full object-cover" />
-                  {post.duration && (
-                    <div className="absolute bottom-1 left-1 text-white text-[10px] font-medium bg-black/60 px-1 rounded">
-                      {post.duration}
-                    </div>
-                  )}
+            {posts
+              .filter((p) => p.type === 'igtv')
+              .slice(0, 6)
+              .map((post) => (
+                <div key={post.id} className="flex-shrink-0 w-32">
+                  <div className="relative aspect-[9/16] rounded-lg overflow-hidden bg-gray-800">
+                    <img src={post.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                    {post.duration && (
+                      <div className="absolute bottom-1 left-1 text-white text-[10px] font-medium bg-black/60 px-1 rounded">
+                        {post.duration}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-300 mt-1 truncate">{post.username}</p>
                 </div>
-                <p className="text-xs text-gray-300 mt-1 truncate">{post.username}</p>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       </div>

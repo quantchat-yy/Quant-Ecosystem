@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 'use client';
 
 import { AppShell, Sidebar, SearchInput, Card, Badge } from '@quant/shared-ui';

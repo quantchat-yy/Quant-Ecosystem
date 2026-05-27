@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantMax - For You Video Feed (TikTok-style full-screen vertical video player)
 // Full-screen swipe-up gesture, like/comment/share/save overlay, creator info,
@@ -97,7 +98,7 @@ const ForYouFeedPage: React.FC = () => {
     setError(null);
     try {
       // Simulated API call
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise((resolve) => setTimeout(resolve, 800));
       const mockVideos: FeedVideo[] = Array.from({ length: 20 }, (_, i) => ({
         id: `video-${i}`,
         videoUrl: `https://cdn.quantmax.app/videos/${i}.mp4`,
@@ -138,12 +139,12 @@ const ForYouFeedPage: React.FC = () => {
   const startProgressTracking = useCallback(() => {
     setProgress(0);
     progressInterval.current = setInterval(() => {
-      setProgress(prev => {
+      setProgress((prev) => {
         if (prev >= 100) {
           advanceToNext();
           return 0;
         }
-        return prev + (100 / ((currentVideo?.duration || 15) * 10));
+        return prev + 100 / ((currentVideo?.duration || 15) * 10);
       });
     }, 100);
   }, [currentVideo]);
@@ -156,7 +157,7 @@ const ForYouFeedPage: React.FC = () => {
   }, []);
 
   const advanceToNext = useCallback(() => {
-    setCurrentIndex(prev => {
+    setCurrentIndex((prev) => {
       if (prev < videos.length - 1) return prev + 1;
       return prev;
     });
@@ -164,7 +165,7 @@ const ForYouFeedPage: React.FC = () => {
   }, [videos.length]);
 
   const goToPrevious = useCallback(() => {
-    setCurrentIndex(prev => {
+    setCurrentIndex((prev) => {
       if (prev > 0) return prev - 1;
       return prev;
     });
@@ -175,15 +176,18 @@ const ForYouFeedPage: React.FC = () => {
     touchStartY.current = e.touches[0].clientY;
   }, []);
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    touchEndY.current = e.changedTouches[0].clientY;
-    const diff = touchStartY.current - touchEndY.current;
-    if (diff > 80) {
-      advanceToNext();
-    } else if (diff < -80) {
-      goToPrevious();
-    }
-  }, [advanceToNext, goToPrevious]);
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      touchEndY.current = e.changedTouches[0].clientY;
+      const diff = touchStartY.current - touchEndY.current;
+      if (diff > 80) {
+        advanceToNext();
+      } else if (diff < -80) {
+        goToPrevious();
+      }
+    },
+    [advanceToNext, goToPrevious],
+  );
 
   const handleDoubleTap = useCallback(() => {
     if (!currentVideo) return;
@@ -196,33 +200,39 @@ const ForYouFeedPage: React.FC = () => {
 
   const handleLike = useCallback(() => {
     if (!currentVideo) return;
-    setVideos(prev => prev.map((v, i) =>
-      i === currentIndex
-        ? { ...v, isLiked: !v.isLiked, likes: v.isLiked ? v.likes - 1 : v.likes + 1 }
-        : v
-    ));
+    setVideos((prev) =>
+      prev.map((v, i) =>
+        i === currentIndex
+          ? { ...v, isLiked: !v.isLiked, likes: v.isLiked ? v.likes - 1 : v.likes + 1 }
+          : v,
+      ),
+    );
   }, [currentIndex, currentVideo]);
 
   const handleSave = useCallback(() => {
     if (!currentVideo) return;
-    setVideos(prev => prev.map((v, i) =>
-      i === currentIndex
-        ? { ...v, isSaved: !v.isSaved, saves: v.isSaved ? v.saves - 1 : v.saves + 1 }
-        : v
-    ));
+    setVideos((prev) =>
+      prev.map((v, i) =>
+        i === currentIndex
+          ? { ...v, isSaved: !v.isSaved, saves: v.isSaved ? v.saves - 1 : v.saves + 1 }
+          : v,
+      ),
+    );
   }, [currentIndex, currentVideo]);
 
   const handleFollow = useCallback(() => {
     if (!currentVideo) return;
-    setVideos(prev => prev.map((v, i) =>
-      i === currentIndex
-        ? { ...v, creator: { ...v.creator, isFollowing: !v.creator.isFollowing } }
-        : v
-    ));
+    setVideos((prev) =>
+      prev.map((v, i) =>
+        i === currentIndex
+          ? { ...v, creator: { ...v.creator, isFollowing: !v.creator.isFollowing } }
+          : v,
+      ),
+    );
   }, [currentIndex, currentVideo]);
 
   const handleTogglePlay = useCallback(() => {
-    setIsPlaying(prev => !prev);
+    setIsPlaying((prev) => !prev);
   }, []);
 
   const handleOpenComments = useCallback(() => {
@@ -253,16 +263,18 @@ const ForYouFeedPage: React.FC = () => {
       timestamp: 'Just now',
       isLiked: false,
     };
-    setComments(prev => [newComment, ...prev]);
+    setComments((prev) => [newComment, ...prev]);
     setCommentText('');
   }, [commentText]);
 
   const handleLikeComment = useCallback((commentId: string) => {
-    setComments(prev => prev.map(c =>
-      c.id === commentId
-        ? { ...c, isLiked: !c.isLiked, likes: c.isLiked ? c.likes - 1 : c.likes + 1 }
-        : c
-    ));
+    setComments((prev) =>
+      prev.map((c) =>
+        c.id === commentId
+          ? { ...c, isLiked: !c.isLiked, likes: c.isLiked ? c.likes - 1 : c.likes + 1 }
+          : c,
+      ),
+    );
   }, []);
 
   const formatCount = useCallback((count: number): string => {
@@ -285,7 +297,9 @@ const ForYouFeedPage: React.FC = () => {
       <div className="feed-error">
         <div className="error-icon">!</div>
         <p className="error-message">{error}</p>
-        <button className="retry-btn" onClick={loadFeed}>Try Again</button>
+        <button className="retry-btn" onClick={loadFeed}>
+          Try Again
+        </button>
       </div>
     );
   }
@@ -295,8 +309,12 @@ const ForYouFeedPage: React.FC = () => {
       <div className="feed-empty">
         <div className="empty-icon">🎬</div>
         <h2 className="empty-title">No videos yet</h2>
-        <p className="empty-message">Follow creators or explore trending content to fill your feed</p>
-        <button className="explore-btn" onClick={() => setActiveTab('foryou')}>Explore</button>
+        <p className="empty-message">
+          Follow creators or explore trending content to fill your feed
+        </p>
+        <button className="explore-btn" onClick={() => setActiveTab('foryou')}>
+          Explore
+        </button>
       </div>
     );
   }
@@ -326,7 +344,11 @@ const ForYouFeedPage: React.FC = () => {
 
       {/* Video Player Area */}
       {currentVideo && (
-        <div className="video-player-wrapper" onClick={handleTogglePlay} onDoubleClick={handleDoubleTap}>
+        <div
+          className="video-player-wrapper"
+          onClick={handleTogglePlay}
+          onDoubleClick={handleDoubleTap}
+        >
           <video
             ref={videoRef}
             className="fullscreen-video"
@@ -360,35 +382,73 @@ const ForYouFeedPage: React.FC = () => {
           {/* Right Side Action Buttons */}
           <div className="action-overlay-right">
             <div className="action-item">
-              <div className="creator-avatar-container" onClick={(e) => { e.stopPropagation(); handleFollow(); }}>
-                <img className="creator-avatar" src={currentVideo.creator.avatarUrl} alt={currentVideo.creator.username} />
-                {!currentVideo.creator.isFollowing && (
-                  <span className="follow-badge">+</span>
-                )}
+              <div
+                className="creator-avatar-container"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleFollow();
+                }}
+              >
+                <img
+                  className="creator-avatar"
+                  src={currentVideo.creator.avatarUrl}
+                  alt={currentVideo.creator.username}
+                />
+                {!currentVideo.creator.isFollowing && <span className="follow-badge">+</span>}
               </div>
             </div>
 
-            <button className={`action-item ${currentVideo.isLiked ? 'liked' : ''}`} onClick={(e) => { e.stopPropagation(); handleLike(); }}>
+            <button
+              className={`action-item ${currentVideo.isLiked ? 'liked' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleLike();
+              }}
+            >
               <span className="action-icon">&#10084;</span>
               <span className="action-count">{formatCount(currentVideo.likes)}</span>
             </button>
 
-            <button className="action-item" onClick={(e) => { e.stopPropagation(); handleOpenComments(); }}>
+            <button
+              className="action-item"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenComments();
+              }}
+            >
               <span className="action-icon">&#128172;</span>
               <span className="action-count">{formatCount(currentVideo.comments)}</span>
             </button>
 
-            <button className="action-item" onClick={(e) => { e.stopPropagation(); setShowShareMenu(true); }}>
+            <button
+              className="action-item"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowShareMenu(true);
+              }}
+            >
               <span className="action-icon">&#10148;</span>
               <span className="action-count">{formatCount(currentVideo.shares)}</span>
             </button>
 
-            <button className={`action-item ${currentVideo.isSaved ? 'saved' : ''}`} onClick={(e) => { e.stopPropagation(); handleSave(); }}>
+            <button
+              className={`action-item ${currentVideo.isSaved ? 'saved' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSave();
+              }}
+            >
               <span className="action-icon">&#128278;</span>
               <span className="action-count">{formatCount(currentVideo.saves)}</span>
             </button>
 
-            <button className="action-item mute-btn" onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}>
+            <button
+              className="action-item mute-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMuted(!isMuted);
+              }}
+            >
               <span className="action-icon">{isMuted ? '🔇' : '🔊'}</span>
             </button>
           </div>
@@ -399,21 +459,31 @@ const ForYouFeedPage: React.FC = () => {
               <span className="creator-name">@{currentVideo.creator.username}</span>
               {currentVideo.creator.isVerified && <span className="verified-check">&#10003;</span>}
               {!currentVideo.creator.isFollowing && (
-                <button className="follow-btn" onClick={(e) => { e.stopPropagation(); handleFollow(); }}>
+                <button
+                  className="follow-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleFollow();
+                  }}
+                >
                   Follow
                 </button>
               )}
             </div>
             <p className="video-caption">{currentVideo.caption}</p>
             <div className="hashtags-row">
-              {currentVideo.hashtags.map(tag => (
-                <span key={tag} className="hashtag">#{tag}</span>
+              {currentVideo.hashtags.map((tag) => (
+                <span key={tag} className="hashtag">
+                  #{tag}
+                </span>
               ))}
             </div>
             <div className="sound-ticker">
               <span className="music-note">&#9835;</span>
               <div className="ticker-scroll">
-                <span className="sound-name">{currentVideo.sound.name} - {currentVideo.sound.artistName}</span>
+                <span className="sound-name">
+                  {currentVideo.sound.name} - {currentVideo.sound.artistName}
+                </span>
               </div>
               <img className="sound-disc" src={currentVideo.sound.coverUrl} alt="Sound" />
             </div>
@@ -426,10 +496,12 @@ const ForYouFeedPage: React.FC = () => {
         <div className="comments-panel">
           <div className="comments-header">
             <h3 className="comments-title">{formatCount(currentVideo?.comments || 0)} comments</h3>
-            <button className="close-comments" onClick={() => setShowComments(false)}>&#10005;</button>
+            <button className="close-comments" onClick={() => setShowComments(false)}>
+              &#10005;
+            </button>
           </div>
           <div className="comments-list">
-            {comments.map(comment => (
+            {comments.map((comment) => (
               <div key={comment.id} className="comment-item">
                 <img className="comment-avatar" src={comment.avatarUrl} alt={comment.username} />
                 <div className="comment-body">
@@ -496,7 +568,9 @@ const ForYouFeedPage: React.FC = () => {
                 <span>Repost</span>
               </button>
             </div>
-            <button className="share-cancel" onClick={() => setShowShareMenu(false)}>Cancel</button>
+            <button className="share-cancel" onClick={() => setShowShareMenu(false)}>
+              Cancel
+            </button>
           </div>
         </div>
       )}

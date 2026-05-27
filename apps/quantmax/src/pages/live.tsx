@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantMax - Live Streaming
 // Main video with gradient overlay, gift animations, diamond balance,
@@ -65,7 +66,17 @@ const GIFT_CATALOG: GiftItem[] = [
   { id: 'g8', name: 'Castle', icon: '🏰', diamondCost: 5000, animation: 'spotlight' },
 ];
 
-const CATEGORIES = ['Just Chatting', 'Music', 'Dance', 'Gaming', 'Cooking', 'Art', 'Fitness', 'Q&A', 'Talk Show'];
+const CATEGORIES = [
+  'Just Chatting',
+  'Music',
+  'Dance',
+  'Gaming',
+  'Cooking',
+  'Art',
+  'Fitness',
+  'Q&A',
+  'Talk Show',
+];
 
 const LiveStreamPage: React.FC = () => {
   const [streamState, setStreamState] = useState<StreamState>('idle');
@@ -104,24 +115,29 @@ const LiveStreamPage: React.FC = () => {
   useEffect(() => {
     if (streamState === 'live') {
       durationRef.current = setInterval(() => {
-        setStreamDuration(prev => prev + 1);
+        setStreamDuration((prev) => prev + 1);
       }, 1000);
       viewerRef.current = setInterval(() => {
-        setViewerCount(prev => Math.max(1, prev + Math.floor(Math.random() * 10) - 3));
+        setViewerCount((prev) => Math.max(1, prev + Math.floor(Math.random() * 10) - 3));
       }, 3000);
       // Simulate incoming comments
-      const commentInterval = setInterval(() => {
-        const newComment: LiveComment = {
-          id: `lc-${Date.now()}`,
-          userId: `viewer-${Math.floor(Math.random() * 100)}`,
-          username: `viewer${Math.floor(Math.random() * 9999)}`,
-          text: ['Great stream!', 'Love this!', 'Keep going!', 'Wow!', 'Haha', 'Amazing!'][Math.floor(Math.random() * 6)],
-          timestamp: Date.now(),
-          isHost: false,
-          isPinned: false,
-        };
-        setComments(prev => [...prev.slice(-50), newComment]);
-      }, 2000 + Math.random() * 3000);
+      const commentInterval = setInterval(
+        () => {
+          const newComment: LiveComment = {
+            id: `lc-${Date.now()}`,
+            userId: `viewer-${Math.floor(Math.random() * 100)}`,
+            username: `viewer${Math.floor(Math.random() * 9999)}`,
+            text: ['Great stream!', 'Love this!', 'Keep going!', 'Wow!', 'Haha', 'Amazing!'][
+              Math.floor(Math.random() * 6)
+            ],
+            timestamp: Date.now(),
+            isHost: false,
+            isPinned: false,
+          };
+          setComments((prev) => [...prev.slice(-50), newComment]);
+        },
+        2000 + Math.random() * 3000,
+      );
 
       return () => {
         if (durationRef.current) clearInterval(durationRef.current);
@@ -170,23 +186,26 @@ const LiveStreamPage: React.FC = () => {
     }, 2000);
   }, []);
 
-  const handleSendGift = useCallback((gift: GiftItem) => {
-    if (diamondBalance < gift.diamondCost) return;
-    setDiamondBalance(prev => prev - gift.diamondCost);
-    const event: GiftEvent = {
-      id: `ge-${Date.now()}`,
-      senderId: 'me',
-      senderName: 'You',
-      senderAvatar: '',
-      gift,
-      timestamp: Date.now(),
-      quantity: 1,
-    };
-    setGiftEvents(prev => [...prev, event]);
-    setActiveGiftAnimation(event);
-    setTimeout(() => setActiveGiftAnimation(null), 3000);
-    setTotalEarned(prev => prev + gift.diamondCost);
-  }, [diamondBalance]);
+  const handleSendGift = useCallback(
+    (gift: GiftItem) => {
+      if (diamondBalance < gift.diamondCost) return;
+      setDiamondBalance((prev) => prev - gift.diamondCost);
+      const event: GiftEvent = {
+        id: `ge-${Date.now()}`,
+        senderId: 'me',
+        senderName: 'You',
+        senderAvatar: '',
+        gift,
+        timestamp: Date.now(),
+        quantity: 1,
+      };
+      setGiftEvents((prev) => [...prev, event]);
+      setActiveGiftAnimation(event);
+      setTimeout(() => setActiveGiftAnimation(null), 3000);
+      setTotalEarned((prev) => prev + gift.diamondCost);
+    },
+    [diamondBalance],
+  );
 
   const handleSendComment = useCallback(() => {
     if (!commentInput.trim()) return;
@@ -199,7 +218,7 @@ const LiveStreamPage: React.FC = () => {
       isHost: streamState === 'live',
       isPinned: false,
     };
-    setComments(prev => [...prev, newComment]);
+    setComments((prev) => [...prev, newComment]);
     setCommentInput('');
   }, [commentInput, streamState]);
 
@@ -209,12 +228,12 @@ const LiveStreamPage: React.FC = () => {
 
   const handleAddTag = useCallback(() => {
     if (!newTagInput.trim() || streamSettings.tags.length >= 5) return;
-    setStreamSettings(prev => ({ ...prev, tags: [...prev.tags, newTagInput.trim()] }));
+    setStreamSettings((prev) => ({ ...prev, tags: [...prev.tags, newTagInput.trim()] }));
     setNewTagInput('');
   }, [newTagInput, streamSettings.tags]);
 
   const handleRemoveTag = useCallback((tag: string) => {
-    setStreamSettings(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }));
+    setStreamSettings((prev) => ({ ...prev, tags: prev.tags.filter((t) => t !== tag) }));
   }, []);
 
   const formatDuration = useCallback((seconds: number): string => {
@@ -246,7 +265,16 @@ const LiveStreamPage: React.FC = () => {
           <h3>Live Now</h3>
           <div className="live-streams-grid">
             {Array.from({ length: 8 }, (_, i) => (
-              <div key={i} className="live-stream-card" onClick={() => { setIsWatching(true); setWatchingStreamId(`stream-${i}`); setStreamState('live'); setViewerCount(50 + Math.floor(Math.random() * 500)); }}>
+              <div
+                key={i}
+                className="live-stream-card"
+                onClick={() => {
+                  setIsWatching(true);
+                  setWatchingStreamId(`stream-${i}`);
+                  setStreamState('live');
+                  setViewerCount(50 + Math.floor(Math.random() * 500));
+                }}
+              >
                 <div className="stream-thumbnail">
                   <span className="live-badge-small">LIVE</span>
                   <span className="viewer-badge-small">{50 + Math.floor(Math.random() * 500)}</span>
@@ -268,7 +296,9 @@ const LiveStreamPage: React.FC = () => {
     return (
       <div className="live-page go-live-form">
         <div className="form-header">
-          <button className="back-btn" onClick={() => setShowGoLiveForm(false)}>&larr;</button>
+          <button className="back-btn" onClick={() => setShowGoLiveForm(false)}>
+            &larr;
+          </button>
           <h2>Go Live</h2>
         </div>
 
@@ -279,7 +309,7 @@ const LiveStreamPage: React.FC = () => {
               className="title-input"
               placeholder="Give your stream a title..."
               value={streamSettings.title}
-              onChange={(e) => setStreamSettings(prev => ({ ...prev, title: e.target.value }))}
+              onChange={(e) => setStreamSettings((prev) => ({ ...prev, title: e.target.value }))}
               maxLength={100}
             />
           </div>
@@ -287,11 +317,11 @@ const LiveStreamPage: React.FC = () => {
           <div className="form-field">
             <label>Category</label>
             <div className="category-options">
-              {CATEGORIES.map(cat => (
+              {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
                   className={`category-btn ${streamSettings.category === cat ? 'active' : ''}`}
-                  onClick={() => setStreamSettings(prev => ({ ...prev, category: cat }))}
+                  onClick={() => setStreamSettings((prev) => ({ ...prev, category: cat }))}
                 >
                   {cat}
                 </button>
@@ -309,13 +339,17 @@ const LiveStreamPage: React.FC = () => {
                 onChange={(e) => setNewTagInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
               />
-              <button className="add-tag-btn" onClick={handleAddTag}>+</button>
+              <button className="add-tag-btn" onClick={handleAddTag}>
+                +
+              </button>
             </div>
             <div className="tags-display">
-              {streamSettings.tags.map(tag => (
+              {streamSettings.tags.map((tag) => (
                 <span key={tag} className="tag-chip">
                   {tag}
-                  <button className="remove-tag" onClick={() => handleRemoveTag(tag)}>x</button>
+                  <button className="remove-tag" onClick={() => handleRemoveTag(tag)}>
+                    x
+                  </button>
                 </span>
               ))}
             </div>
@@ -323,20 +357,42 @@ const LiveStreamPage: React.FC = () => {
 
           <div className="form-toggles">
             <label className="toggle-item">
-              <input type="checkbox" checked={streamSettings.allowGifts} onChange={(e) => setStreamSettings(prev => ({ ...prev, allowGifts: e.target.checked }))} />
+              <input
+                type="checkbox"
+                checked={streamSettings.allowGifts}
+                onChange={(e) =>
+                  setStreamSettings((prev) => ({ ...prev, allowGifts: e.target.checked }))
+                }
+              />
               Allow Gifts
             </label>
             <label className="toggle-item">
-              <input type="checkbox" checked={streamSettings.chatEnabled} onChange={(e) => setStreamSettings(prev => ({ ...prev, chatEnabled: e.target.checked }))} />
+              <input
+                type="checkbox"
+                checked={streamSettings.chatEnabled}
+                onChange={(e) =>
+                  setStreamSettings((prev) => ({ ...prev, chatEnabled: e.target.checked }))
+                }
+              />
               Enable Chat
             </label>
             <label className="toggle-item">
-              <input type="checkbox" checked={streamSettings.ageRestricted} onChange={(e) => setStreamSettings(prev => ({ ...prev, ageRestricted: e.target.checked }))} />
+              <input
+                type="checkbox"
+                checked={streamSettings.ageRestricted}
+                onChange={(e) =>
+                  setStreamSettings((prev) => ({ ...prev, ageRestricted: e.target.checked }))
+                }
+              />
               Age Restricted (18+)
             </label>
           </div>
 
-          <button className="start-stream-btn" onClick={handleGoLive} disabled={!streamSettings.title.trim()}>
+          <button
+            className="start-stream-btn"
+            onClick={handleGoLive}
+            disabled={!streamSettings.title.trim()}
+          >
             Start Live Stream
           </button>
         </div>
@@ -372,7 +428,9 @@ const LiveStreamPage: React.FC = () => {
         {activeGiftAnimation && (
           <div className={`gift-animation ${activeGiftAnimation.gift.animation}`}>
             <span className="gift-emoji">{activeGiftAnimation.gift.icon}</span>
-            <span className="gift-sender">{activeGiftAnimation.senderName} sent {activeGiftAnimation.gift.name}</span>
+            <span className="gift-sender">
+              {activeGiftAnimation.senderName} sent {activeGiftAnimation.gift.name}
+            </span>
           </div>
         )}
 
@@ -391,10 +449,12 @@ const LiveStreamPage: React.FC = () => {
         <div className="leaderboard-sidebar">
           <div className="leaderboard-header">
             <h3>Top Gifters</h3>
-            <button className="close-leaderboard" onClick={() => setShowLeaderboard(false)}>&#10005;</button>
+            <button className="close-leaderboard" onClick={() => setShowLeaderboard(false)}>
+              &#10005;
+            </button>
           </div>
           <div className="leaderboard-list">
-            {topGifters.map(gifter => (
+            {topGifters.map((gifter) => (
               <div key={gifter.userId} className={`gifter-item rank-${gifter.rank}`}>
                 <span className="gifter-rank">#{gifter.rank}</span>
                 <img className="gifter-avatar" src={gifter.avatarUrl} alt={gifter.username} />
@@ -409,12 +469,14 @@ const LiveStreamPage: React.FC = () => {
       {/* Live Chat */}
       <div className="live-chat-section">
         <div className="chat-messages-live">
-          {comments.slice(-30).map(comment => (
+          {comments.slice(-30).map((comment) => (
             <div key={comment.id} className={`live-comment ${comment.isHost ? 'host' : ''}`}>
               <span className="comment-user">{comment.username}</span>
               <span className="comment-text">{comment.text}</span>
               {streamState === 'live' && !isWatching && (
-                <button className="pin-btn" onClick={() => handlePinComment(comment)}>📌</button>
+                <button className="pin-btn" onClick={() => handlePinComment(comment)}>
+                  📌
+                </button>
               )}
             </div>
           ))}
@@ -428,8 +490,15 @@ const LiveStreamPage: React.FC = () => {
             onChange={(e) => setCommentInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendComment()}
           />
-          <button className="gift-toggle-btn" onClick={() => setShowGiftPanel(!showGiftPanel)}>🎁</button>
-          <button className="leaderboard-toggle" onClick={() => setShowLeaderboard(!showLeaderboard)}>🏆</button>
+          <button className="gift-toggle-btn" onClick={() => setShowGiftPanel(!showGiftPanel)}>
+            🎁
+          </button>
+          <button
+            className="leaderboard-toggle"
+            onClick={() => setShowLeaderboard(!showLeaderboard)}
+          >
+            🏆
+          </button>
         </div>
       </div>
 
@@ -441,7 +510,7 @@ const LiveStreamPage: React.FC = () => {
             <span className="my-diamonds">💎 {diamondBalance.toLocaleString()}</span>
           </div>
           <div className="gift-grid">
-            {GIFT_CATALOG.map(gift => (
+            {GIFT_CATALOG.map((gift) => (
               <button
                 key={gift.id}
                 className="gift-btn"
@@ -459,7 +528,10 @@ const LiveStreamPage: React.FC = () => {
 
       {/* Stream Controls Bar */}
       <div className="stream-controls-bar">
-        <button className={`stream-control ${isMuted ? 'off' : ''}`} onClick={() => setIsMuted(!isMuted)}>
+        <button
+          className={`stream-control ${isMuted ? 'off' : ''}`}
+          onClick={() => setIsMuted(!isMuted)}
+        >
           <span>{isMuted ? '🔇' : '🎤'}</span>
         </button>
         <button className="stream-control" onClick={() => setIsFrontCamera(!isFrontCamera)}>
@@ -474,7 +546,13 @@ const LiveStreamPage: React.FC = () => {
           </button>
         )}
         {isWatching && (
-          <button className="stream-control leave-stream" onClick={() => { setStreamState('idle'); setIsWatching(false); }}>
+          <button
+            className="stream-control leave-stream"
+            onClick={() => {
+              setStreamState('idle');
+              setIsWatching(false);
+            }}
+          >
             <span>Leave</span>
           </button>
         )}

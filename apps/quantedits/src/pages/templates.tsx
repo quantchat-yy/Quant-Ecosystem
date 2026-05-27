@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantEdits - Template Browser
 // Categories, search, filter by aspect ratio/duration, preview, use template
@@ -73,8 +74,12 @@ const TemplateCard: React.FC<{
               <video src={template.previewUrl} autoPlay muted loop className="preview-video" />
             </div>
             <div className="hover-actions">
-              <button className="use-btn" onClick={() => onUse(template.id)}>Use Template</button>
-              <button className="preview-btn" onClick={() => onPreview(template)}>Preview</button>
+              <button className="use-btn" onClick={() => onUse(template.id)}>
+                Use Template
+              </button>
+              <button className="preview-btn" onClick={() => onPreview(template)}>
+                Preview
+              </button>
             </div>
           </div>
         )}
@@ -88,8 +93,10 @@ const TemplateCard: React.FC<{
           <span className="template-uses">{template.uses.toLocaleString()} uses</span>
         </div>
         <div className="template-tags">
-          {template.tags.slice(0, 3).map(tag => (
-            <span key={tag} className="tag">{tag}</span>
+          {template.tags.slice(0, 3).map((tag) => (
+            <span key={tag} className="tag">
+              {tag}
+            </span>
           ))}
         </div>
         <div className="template-colors">
@@ -136,10 +143,19 @@ const TemplateBrowser: React.FC<TemplateBrowserProps> = ({ userId }) => {
           uses: Math.floor(Math.random() * 50000) + 100,
           rating: 3.5 + Math.random() * 1.5,
           creator: ['QuantTeam', 'ProDesigner', 'CreativeStudio', 'MediaPro'][i % 4],
-          tags: [['trending', 'modern'], ['business', 'clean'], ['educational', 'clear'], ['fun', 'dynamic']][i % 4],
+          tags: [
+            ['trending', 'modern'],
+            ['business', 'clean'],
+            ['educational', 'clear'],
+            ['fun', 'dynamic'],
+          ][i % 4],
           isPremium: i % 5 === 0,
           createdAt: new Date(Date.now() - i * 86400000).toISOString(),
-          colors: [`#${Math.floor(Math.random() * 16777215).toString(16)}`, `#${Math.floor(Math.random() * 16777215).toString(16)}`, `#${Math.floor(Math.random() * 16777215).toString(16)}`],
+          colors: [
+            `#${Math.floor(Math.random() * 16777215).toString(16)}`,
+            `#${Math.floor(Math.random() * 16777215).toString(16)}`,
+            `#${Math.floor(Math.random() * 16777215).toString(16)}`,
+          ],
           scenes: Math.floor(Math.random() * 8) + 2,
         }));
         setTemplates(mockTemplates);
@@ -154,16 +170,21 @@ const TemplateBrowser: React.FC<TemplateBrowserProps> = ({ userId }) => {
 
   const filteredTemplates = useMemo(() => {
     let result = templates
-      .filter(t => selectedCategory === 'all' || t.category === selectedCategory)
-      .filter(t => selectedRatio === 'all' || t.aspectRatio === selectedRatio)
-      .filter(t => {
+      .filter((t) => selectedCategory === 'all' || t.category === selectedCategory)
+      .filter((t) => selectedRatio === 'all' || t.aspectRatio === selectedRatio)
+      .filter((t) => {
         const dur = DURATION_FILTERS[selectedDuration];
         return t.duration >= dur.min && t.duration <= dur.max;
       })
-      .filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.tags.some(tag => tag.includes(searchQuery.toLowerCase())));
+      .filter(
+        (t) =>
+          t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          t.tags.some((tag) => tag.includes(searchQuery.toLowerCase())),
+      );
 
     if (sortBy === 'popular') result.sort((a, b) => b.uses - a.uses);
-    else if (sortBy === 'newest') result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    else if (sortBy === 'newest')
+      result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     else if (sortBy === 'rating') result.sort((a, b) => b.rating - a.rating);
     return result;
   }, [templates, selectedCategory, selectedRatio, selectedDuration, searchQuery, sortBy]);
@@ -185,7 +206,7 @@ const TemplateBrowser: React.FC<TemplateBrowserProps> = ({ userId }) => {
   }, [saveTitle, saveCategory]);
 
   const handleToggleSave = useCallback((id: string) => {
-    setSavedTemplates(prev => {
+    setSavedTemplates((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -217,12 +238,14 @@ const TemplateBrowser: React.FC<TemplateBrowserProps> = ({ userId }) => {
       <header className="browser-header">
         <h1>Templates</h1>
         <div className="header-actions">
-          <button className="save-template-btn" onClick={() => setShowSaveModal(true)}>Save as Template</button>
+          <button className="save-template-btn" onClick={() => setShowSaveModal(true)}>
+            Save as Template
+          </button>
         </div>
       </header>
 
       <div className="category-tabs">
-        {CATEGORIES.map(cat => (
+        {CATEGORIES.map((cat) => (
           <button
             key={cat.id}
             className={`category-tab ${selectedCategory === cat.id ? 'active' : ''}`}
@@ -245,7 +268,7 @@ const TemplateBrowser: React.FC<TemplateBrowserProps> = ({ userId }) => {
         <div className="filter-group">
           <label>Aspect Ratio</label>
           <div className="ratio-filter">
-            {ASPECT_RATIOS.map(ratio => (
+            {ASPECT_RATIOS.map((ratio) => (
               <button
                 key={ratio}
                 className={`ratio-btn ${selectedRatio === ratio ? 'active' : ''}`}
@@ -258,9 +281,14 @@ const TemplateBrowser: React.FC<TemplateBrowserProps> = ({ userId }) => {
         </div>
         <div className="filter-group">
           <label>Duration</label>
-          <select value={selectedDuration} onChange={(e) => setSelectedDuration(parseInt(e.target.value))}>
+          <select
+            value={selectedDuration}
+            onChange={(e) => setSelectedDuration(parseInt(e.target.value))}
+          >
             {DURATION_FILTERS.map((d, i) => (
-              <option key={i} value={i}>{d.label}</option>
+              <option key={i} value={i}>
+                {d.label}
+              </option>
             ))}
           </select>
         </div>
@@ -286,7 +314,7 @@ const TemplateBrowser: React.FC<TemplateBrowserProps> = ({ userId }) => {
             <p>Try adjusting your filters or search terms</p>
           </div>
         ) : (
-          filteredTemplates.map(template => (
+          filteredTemplates.map((template) => (
             <TemplateCard
               key={template.id}
               template={template}
@@ -303,10 +331,18 @@ const TemplateBrowser: React.FC<TemplateBrowserProps> = ({ userId }) => {
           <div className="preview-modal" onClick={(e) => e.stopPropagation()}>
             <div className="preview-header">
               <h2>{previewTemplate.title}</h2>
-              <button className="close-btn" onClick={() => setPreviewTemplate(null)}>X</button>
+              <button className="close-btn" onClick={() => setPreviewTemplate(null)}>
+                X
+              </button>
             </div>
             <div className="preview-content">
-              <video src={previewTemplate.previewUrl} autoPlay loop className="preview-full-video" controls />
+              <video
+                src={previewTemplate.previewUrl}
+                autoPlay
+                loop
+                className="preview-full-video"
+                controls
+              />
             </div>
             <div className="preview-details">
               <p>{previewTemplate.description}</p>
@@ -318,7 +354,15 @@ const TemplateBrowser: React.FC<TemplateBrowserProps> = ({ userId }) => {
               </div>
             </div>
             <div className="preview-actions">
-              <button className="use-btn" onClick={() => { handleUseTemplate(previewTemplate.id); setPreviewTemplate(null); }}>Use This Template</button>
+              <button
+                className="use-btn"
+                onClick={() => {
+                  handleUseTemplate(previewTemplate.id);
+                  setPreviewTemplate(null);
+                }}
+              >
+                Use This Template
+              </button>
               <button className="save-btn" onClick={() => handleToggleSave(previewTemplate.id)}>
                 {savedTemplates.has(previewTemplate.id) ? 'Saved ★' : 'Save ☆'}
               </button>
@@ -334,19 +378,32 @@ const TemplateBrowser: React.FC<TemplateBrowserProps> = ({ userId }) => {
             <div className="save-form">
               <div className="form-field">
                 <label>Template Name</label>
-                <input type="text" value={saveTitle} onChange={(e) => setSaveTitle(e.target.value)} placeholder="My Template" />
+                <input
+                  type="text"
+                  value={saveTitle}
+                  onChange={(e) => setSaveTitle(e.target.value)}
+                  placeholder="My Template"
+                />
               </div>
               <div className="form-field">
                 <label>Category</label>
                 <select value={saveCategory} onChange={(e) => setSaveCategory(e.target.value)}>
-                  {CATEGORIES.filter(c => c.id !== 'all').map(c => (
-                    <option key={c.id} value={c.id}>{c.label}</option>
+                  {CATEGORIES.filter((c) => c.id !== 'all').map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
                   ))}
                 </select>
               </div>
               <div className="form-actions">
                 <button onClick={() => setShowSaveModal(false)}>Cancel</button>
-                <button className="save-confirm-btn" onClick={handleSaveAsTemplate} disabled={!saveTitle.trim()}>Save Template</button>
+                <button
+                  className="save-confirm-btn"
+                  onClick={handleSaveAsTemplate}
+                  disabled={!saveTitle.trim()}
+                >
+                  Save Template
+                </button>
               </div>
             </div>
           </div>

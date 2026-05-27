@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 'use client';
 
 import { use } from 'react';

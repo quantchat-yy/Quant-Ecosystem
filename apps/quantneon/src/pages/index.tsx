@@ -1,3 +1,4 @@
+// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantNeon - Instagram-Style Feed Page
 // Stories bar, posts feed, infinite scroll, pull-to-refresh
@@ -60,7 +61,20 @@ interface FeedPost {
 // ---------------------------------------------------------------------------
 
 const generateStories = (): StoryUser[] => {
-  const names = ['alex_photo', 'travel_jane', 'foodie_mark', 'fitness_sam', 'art_studio', 'music_vibes', 'tech_guru', 'nature_lover', 'fashion_daily', 'pet_world', 'design_lab', 'yoga_flow'];
+  const names = [
+    'alex_photo',
+    'travel_jane',
+    'foodie_mark',
+    'fitness_sam',
+    'art_studio',
+    'music_vibes',
+    'tech_guru',
+    'nature_lover',
+    'fashion_daily',
+    'pet_world',
+    'design_lab',
+    'yoga_flow',
+  ];
   return names.map((name, i) => ({
     id: `story-${i}`,
     username: name,
@@ -73,7 +87,16 @@ const generateStories = (): StoryUser[] => {
 const generatePosts = (page: number): FeedPost[] => {
   return Array.from({ length: 5 }, (_, i) => {
     const idx = page * 5 + i;
-    const usernames = ['creative_mind', 'urban_explorer', 'chef_marco', 'wanderlust_co', 'pixel_perfect', 'daily_vibes', 'sunset_chaser', 'coffee_addict'];
+    const usernames = [
+      'creative_mind',
+      'urban_explorer',
+      'chef_marco',
+      'wanderlust_co',
+      'pixel_perfect',
+      'daily_vibes',
+      'sunset_chaser',
+      'coffee_addict',
+    ];
     const username = usernames[idx % usernames.length];
     const mediaCount = Math.random() > 0.6 ? Math.floor(Math.random() * 4) + 2 : 1;
     return {
@@ -82,7 +105,10 @@ const generatePosts = (page: number): FeedPost[] => {
       username,
       userAvatar: `https://picsum.photos/seed/u${idx}/64/64`,
       isVerified: idx % 3 === 0,
-      location: idx % 2 === 0 ? ['New York, NY', 'Tokyo, Japan', 'Paris, France', 'Bali, Indonesia'][idx % 4] : null,
+      location:
+        idx % 2 === 0
+          ? ['New York, NY', 'Tokyo, Japan', 'Paris, France', 'Bali, Indonesia'][idx % 4]
+          : null,
       media: Array.from({ length: mediaCount }, (_, mi) => ({
         id: `media-${idx}-${mi}`,
         url: `https://picsum.photos/seed/p${idx}m${mi}/600/600`,
@@ -102,8 +128,20 @@ const generatePosts = (page: number): FeedPost[] => {
       isSaved: false,
       isSponsored: idx % 7 === 0,
       topComments: [
-        { id: `c-${idx}-1`, username: 'commenter_a', text: 'Love this! So beautiful', timestamp: '2h', likes: 12 },
-        { id: `c-${idx}-2`, username: 'commenter_b', text: 'Where is this place?', timestamp: '1h', likes: 5 },
+        {
+          id: `c-${idx}-1`,
+          username: 'commenter_a',
+          text: 'Love this! So beautiful',
+          timestamp: '2h',
+          likes: 12,
+        },
+        {
+          id: `c-${idx}-2`,
+          username: 'commenter_b',
+          text: 'Where is this place?',
+          timestamp: '1h',
+          likes: 5,
+        },
       ],
     };
   });
@@ -137,7 +175,7 @@ const FeedPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise((resolve) => setTimeout(resolve, 800));
         setStories(generateStories());
         setPosts(generatePosts(0));
         setCurrentPage(1);
@@ -162,10 +200,10 @@ const FeedPage: React.FC = () => {
   const loadMorePosts = useCallback(async () => {
     if (loadingMore) return;
     setLoadingMore(true);
-    await new Promise(resolve => setTimeout(resolve, 600));
+    await new Promise((resolve) => setTimeout(resolve, 600));
     const newPosts = generatePosts(currentPage);
-    setPosts(prev => [...prev, ...newPosts]);
-    setCurrentPage(prev => prev + 1);
+    setPosts((prev) => [...prev, ...newPosts]);
+    setCurrentPage((prev) => prev + 1);
     setLoadingMore(false);
   }, [currentPage, loadingMore]);
 
@@ -179,14 +217,16 @@ const FeedPage: React.FC = () => {
     };
     const el = feedRef.current;
     if (el) el.addEventListener('scroll', handleScroll);
-    return () => { if (el) el.removeEventListener('scroll', handleScroll); };
+    return () => {
+      if (el) el.removeEventListener('scroll', handleScroll);
+    };
   }, [loadMorePosts]);
 
   // Pull-to-refresh simulation
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     setNewPostsAvailable(false);
-    await new Promise(resolve => setTimeout(resolve, 1200));
+    await new Promise((resolve) => setTimeout(resolve, 1200));
     setStories(generateStories());
     setPosts(generatePosts(0));
     setCurrentPage(1);
@@ -197,7 +237,7 @@ const FeedPage: React.FC = () => {
 
   // Post interactions
   const handleLike = useCallback((postId: string) => {
-    setLikedPosts(prev => {
+    setLikedPosts((prev) => {
       const next = new Set(prev);
       if (next.has(postId)) next.delete(postId);
       else next.add(postId);
@@ -206,7 +246,7 @@ const FeedPage: React.FC = () => {
   }, []);
 
   const handleSave = useCallback((postId: string) => {
-    setSavedPosts(prev => {
+    setSavedPosts((prev) => {
       const next = new Set(prev);
       if (next.has(postId)) next.delete(postId);
       else next.add(postId);
@@ -215,30 +255,37 @@ const FeedPage: React.FC = () => {
   }, []);
 
   const handleDoubleTapLike = useCallback((postId: string) => {
-    setLikedPosts(prev => {
+    setLikedPosts((prev) => {
       const next = new Set(prev);
       next.add(postId);
       return next;
     });
   }, []);
 
-  const handleCarouselNav = useCallback((postId: string, direction: 'prev' | 'next', maxIndex: number) => {
-    setActiveCarouselIndex(prev => {
-      const current = prev[postId] || 0;
-      const next = direction === 'next' ? Math.min(current + 1, maxIndex) : Math.max(current - 1, 0);
-      return { ...prev, [postId]: next };
-    });
-  }, []);
+  const handleCarouselNav = useCallback(
+    (postId: string, direction: 'prev' | 'next', maxIndex: number) => {
+      setActiveCarouselIndex((prev) => {
+        const current = prev[postId] || 0;
+        const next =
+          direction === 'next' ? Math.min(current + 1, maxIndex) : Math.max(current - 1, 0);
+        return { ...prev, [postId]: next };
+      });
+    },
+    [],
+  );
 
   const handleCommentInput = useCallback((postId: string, value: string) => {
-    setCommentInputs(prev => ({ ...prev, [postId]: value }));
+    setCommentInputs((prev) => ({ ...prev, [postId]: value }));
   }, []);
 
-  const handlePostComment = useCallback((postId: string) => {
-    const text = commentInputs[postId];
-    if (!text?.trim()) return;
-    setCommentInputs(prev => ({ ...prev, [postId]: '' }));
-  }, [commentInputs]);
+  const handlePostComment = useCallback(
+    (postId: string) => {
+      const text = commentInputs[postId];
+      if (!text?.trim()) return;
+      setCommentInputs((prev) => ({ ...prev, [postId]: '' }));
+    },
+    [commentInputs],
+  );
 
   // Render helpers
   const formatCount = (count: number): string => {
@@ -251,10 +298,18 @@ const FeedPage: React.FC = () => {
     const parts = caption.split(/(@\w+|#\w+)/g);
     return parts.map((part, i) => {
       if (part.startsWith('@')) {
-        return <span key={i} className="text-blue-500 font-medium cursor-pointer hover:underline">{part}</span>;
+        return (
+          <span key={i} className="text-blue-500 font-medium cursor-pointer hover:underline">
+            {part}
+          </span>
+        );
       }
       if (part.startsWith('#')) {
-        return <span key={i} className="text-blue-500 cursor-pointer hover:underline">{part}</span>;
+        return (
+          <span key={i} className="text-blue-500 cursor-pointer hover:underline">
+            {part}
+          </span>
+        );
       }
       return <span key={i}>{part}</span>;
     });
@@ -281,7 +336,10 @@ const FeedPage: React.FC = () => {
             <span className="text-red-500 text-2xl">!</span>
           </div>
           <p className="text-white text-center">{error}</p>
-          <button onClick={handleRefresh} className="px-6 py-2 bg-pink-500 text-white rounded-lg font-medium hover:bg-pink-600 transition-colors">
+          <button
+            onClick={handleRefresh}
+            className="px-6 py-2 bg-pink-500 text-white rounded-lg font-medium hover:bg-pink-600 transition-colors"
+          >
             Retry
           </button>
         </div>
@@ -298,7 +356,9 @@ const FeedPage: React.FC = () => {
             <span className="text-4xl">📷</span>
           </div>
           <h2 className="text-white text-xl font-semibold">No Posts Yet</h2>
-          <p className="text-gray-400 text-center">Follow people to see their photos and videos here.</p>
+          <p className="text-gray-400 text-center">
+            Follow people to see their photos and videos here.
+          </p>
           <button className="px-6 py-2 bg-blue-500 text-white rounded-lg font-medium">
             Find People to Follow
           </button>
@@ -334,14 +394,30 @@ const FeedPage: React.FC = () => {
           QuantNeon
         </h1>
         <div className="flex items-center gap-4">
-          <button className="p-2 hover:bg-gray-800 rounded-full transition-colors" aria-label="Notifications">
+          <button
+            className="p-2 hover:bg-gray-800 rounded-full transition-colors"
+            aria-label="Notifications"
+          >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              />
             </svg>
           </button>
-          <button className="p-2 hover:bg-gray-800 rounded-full transition-colors" aria-label="Messages">
+          <button
+            className="p-2 hover:bg-gray-800 rounded-full transition-colors"
+            aria-label="Messages"
+          >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+              />
             </svg>
           </button>
         </div>
@@ -363,16 +439,25 @@ const FeedPage: React.FC = () => {
 
           {/* Other stories */}
           {stories.map((story) => (
-            <div key={story.id} className="flex flex-col items-center gap-1 flex-shrink-0 cursor-pointer">
-              <div className={`relative w-16 h-16 rounded-full p-[2px] ${
-                story.isLive
-                  ? 'bg-gradient-to-tr from-red-500 to-pink-500'
-                  : story.hasUnviewed
-                    ? 'bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500'
-                    : 'bg-gray-600'
-              }`}>
+            <div
+              key={story.id}
+              className="flex flex-col items-center gap-1 flex-shrink-0 cursor-pointer"
+            >
+              <div
+                className={`relative w-16 h-16 rounded-full p-[2px] ${
+                  story.isLive
+                    ? 'bg-gradient-to-tr from-red-500 to-pink-500'
+                    : story.hasUnviewed
+                      ? 'bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500'
+                      : 'bg-gray-600'
+                }`}
+              >
                 <div className="w-full h-full rounded-full border-2 border-black overflow-hidden">
-                  <img src={story.avatarUrl} alt={story.username} className="w-full h-full object-cover" />
+                  <img
+                    src={story.avatarUrl}
+                    alt={story.username}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 {story.isLive && (
                   <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[9px] font-bold px-1.5 rounded-sm">
@@ -399,19 +484,31 @@ const FeedPage: React.FC = () => {
               <div className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full overflow-hidden">
-                    <img src={post.userAvatar} alt={post.username} className="w-full h-full object-cover" />
+                    <img
+                      src={post.userAvatar}
+                      alt={post.username}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <div className="flex flex-col">
                     <div className="flex items-center gap-1">
                       <span className="text-sm font-semibold">{post.username}</span>
                       {post.isVerified && (
-                        <svg className="w-3.5 h-3.5 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+                        <svg
+                          className="w-3.5 h-3.5 text-blue-500"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
                           <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
                         </svg>
                       )}
-                      {post.isSponsored && <span className="text-xs text-gray-500 ml-1">Sponsored</span>}
+                      {post.isSponsored && (
+                        <span className="text-xs text-gray-500 ml-1">Sponsored</span>
+                      )}
                     </div>
-                    {post.location && <span className="text-xs text-gray-400">{post.location}</span>}
+                    {post.location && (
+                      <span className="text-xs text-gray-400">{post.location}</span>
+                    )}
                   </div>
                 </div>
                 <button className="p-2 hover:bg-gray-800 rounded-full" aria-label="More options">
@@ -454,7 +551,10 @@ const FeedPage: React.FC = () => {
                     {/* Dots indicator */}
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1">
                       {post.media.map((_, idx) => (
-                        <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-all ${idx === carouselIdx ? 'bg-blue-500 scale-125' : 'bg-white/50'}`} />
+                        <div
+                          key={idx}
+                          className={`w-1.5 h-1.5 rounded-full transition-all ${idx === carouselIdx ? 'bg-blue-500 scale-125' : 'bg-white/50'}`}
+                        />
                       ))}
                     </div>
                   </>
@@ -469,25 +569,63 @@ const FeedPage: React.FC = () => {
               {/* Actions row */}
               <div className="flex items-center justify-between px-4 pt-3">
                 <div className="flex items-center gap-4">
-                  <button onClick={() => handleLike(post.id)} className="hover:opacity-70 transition-opacity" aria-label="Like">
-                    <svg className={`w-6 h-6 ${isLiked ? 'text-red-500 fill-current' : ''}`} fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  <button
+                    onClick={() => handleLike(post.id)}
+                    className="hover:opacity-70 transition-opacity"
+                    aria-label="Like"
+                  >
+                    <svg
+                      className={`w-6 h-6 ${isLiked ? 'text-red-500 fill-current' : ''}`}
+                      fill={isLiked ? 'currentColor' : 'none'}
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                      />
                     </svg>
                   </button>
                   <button className="hover:opacity-70 transition-opacity" aria-label="Comment">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                      />
                     </svg>
                   </button>
                   <button className="hover:opacity-70 transition-opacity" aria-label="Share">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                      />
                     </svg>
                   </button>
                 </div>
-                <button onClick={() => handleSave(post.id)} className="hover:opacity-70 transition-opacity" aria-label="Save">
-                  <svg className={`w-6 h-6 ${isSaved ? 'fill-current text-white' : ''}`} fill={isSaved ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                <button
+                  onClick={() => handleSave(post.id)}
+                  className="hover:opacity-70 transition-opacity"
+                  aria-label="Save"
+                >
+                  <svg
+                    className={`w-6 h-6 ${isSaved ? 'fill-current text-white' : ''}`}
+                    fill={isSaved ? 'currentColor' : 'none'}
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                    />
                   </svg>
                 </button>
               </div>
@@ -516,7 +654,7 @@ const FeedPage: React.FC = () => {
 
               {/* Top comments */}
               <div className="px-4 mt-1 space-y-1">
-                {post.topComments.map(comment => (
+                {post.topComments.map((comment) => (
                   <p key={comment.id} className="text-sm">
                     <span className="font-semibold mr-1">{comment.username}</span>
                     <span className="text-gray-300">{comment.text}</span>
