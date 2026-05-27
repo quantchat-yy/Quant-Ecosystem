@@ -5,6 +5,9 @@ const MAX_SCORE = 100;
 const MIN_SCORE = 0;
 const INITIAL_SCORE = 20;
 
+export const AUTO_PAUSE_THRESHOLD = 15;
+export const REVIEW_ZONE_THRESHOLD = 25;
+
 export function scoreToPermissionLevel(score: number): PermissionLevel {
   if (score <= 20) return PermissionLevel.OBSERVE;
   if (score <= 40) return PermissionLevel.SUGGEST;
@@ -28,15 +31,28 @@ export function permissionLevelToScore(level: PermissionLevel): number {
   }
 }
 
+export interface TrustScoreOptions {
+  agentId?: string;
+  onAutoPause?: (agentId: string) => void;
+}
+
 export class TrustScore {
   private score: number;
   private readonly createdAt: number;
   private successCount: number = 0;
   private failureCount: number = 0;
+  private readonly agentId: string;
+  private readonly onAutoPause?: (agentId: string) => void;
 
-  constructor(initialScore: number = INITIAL_SCORE, createdAt?: number) {
+  constructor(
+    initialScore: number = INITIAL_SCORE,
+    createdAt?: number,
+    options?: TrustScoreOptions,
+  ) {
     this.score = Math.max(MIN_SCORE, Math.min(MAX_SCORE, initialScore));
     this.createdAt = createdAt ?? Date.now();
+    this.agentId = options?.agentId ?? 'unknown';
+    this.onAutoPause = options?.onAutoPause;
   }
 
   getScore(): number {
@@ -61,6 +77,24 @@ export class TrustScore {
   recordFailure(): void {
     this.failureCount++;
     this.score = Math.max(MIN_SCORE, this.score - 10);
+    if (this.score <= AUTO_PAUSE_THRESHOLD) {
+      this.onAutoPause?.(this.agentId);
+    }
+  }
+
+  isPaused(): boolean {
+    return this.score <= AUTO_PAUSE_THRESHOLD;
+  }
+
+  requiresReview(): boolean {
+    return this.score > AUTO_PAUSE_THRESHOLD && this.score <= REVIEW_ZONE_THRESHOLD;
+  }
+
+  getPauseReason(): string | null {
+    if (this.score <= AUTO_PAUSE_THRESHOLD) {
+      return `Agent ${this.agentId} auto-paused: trust score ${this.score} is at or below threshold ${AUTO_PAUSE_THRESHOLD}`;
+    }
+    return null;
   }
 
   getSuccessCount(): number {

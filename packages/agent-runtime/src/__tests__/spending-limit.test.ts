@@ -1,11 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { SpendingLimit } from '../spending-limit.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { SpendingLimit, SpendingCapBreachedError } from '../spending-limit.js';
 
 describe('SpendingLimit', () => {
   const defaultConfig = {
     dailyCap: 100,
     weeklyCap: 500,
     monthlyCap: 1500,
+    perTaskCap: 50,
+    tokensPerHourCap: 10000,
   };
 
   it('allows spending within limits', () => {
@@ -22,22 +24,34 @@ describe('SpendingLimit', () => {
   });
 
   it('blocks spending over weekly cap', () => {
-    const limit = new SpendingLimit({ dailyCap: 500, weeklyCap: 300, monthlyCap: 1500 });
+    const limit = new SpendingLimit({
+      dailyCap: 500,
+      weeklyCap: 300,
+      monthlyCap: 1500,
+      perTaskCap: 500,
+      tokensPerHourCap: 10000,
+    });
     limit.recordSpend(150);
     limit.recordSpend(100);
     expect(limit.canSpend(60)).toBe(false);
   });
 
   it('blocks spending over monthly cap', () => {
-    const limit = new SpendingLimit({ dailyCap: 2000, weeklyCap: 5000, monthlyCap: 100 });
+    const limit = new SpendingLimit({
+      dailyCap: 2000,
+      weeklyCap: 5000,
+      monthlyCap: 100,
+      perTaskCap: 100,
+      tokensPerHourCap: 10000,
+    });
     limit.recordSpend(80);
     expect(limit.canSpend(30)).toBe(false);
   });
 
-  it('throws when attempting to spend over cap', () => {
+  it('throws SpendingCapBreachedError when attempting to spend over cap', () => {
     const limit = new SpendingLimit(defaultConfig);
     limit.recordSpend(95);
-    expect(() => limit.recordSpend(10)).toThrow(/cap exceeded/);
+    expect(() => limit.recordSpend(10)).toThrow(SpendingCapBreachedError);
   });
 
   it('throws on negative spend amounts', () => {
@@ -63,12 +77,165 @@ describe('SpendingLimit', () => {
   });
 
   it('validates config with Zod', () => {
-    expect(() => new SpendingLimit({ dailyCap: -1, weeklyCap: 500, monthlyCap: 1500 })).toThrow();
+    expect(
+      () =>
+        new SpendingLimit({
+          dailyCap: -1,
+          weeklyCap: 500,
+          monthlyCap: 1500,
+          perTaskCap: 50,
+          tokensPerHourCap: 10000,
+        }),
+    ).toThrow();
   });
 
   it('returns a copy of config', () => {
     const limit = new SpendingLimit(defaultConfig);
     const config = limit.getConfig();
     expect(config.dailyCap).toBe(100);
+  });
+
+  describe('perTaskCap', () => {
+    it('allows task spend within per-task cap', () => {
+      const limit = new SpendingLimit(defaultConfig);
+      expect(limit.canSpendOnTask(30)).toBe(true);
+      limit.recordTaskSpend(30);
+      expect(limit.canSpendOnTask(20)).toBe(true);
+    });
+
+    it('blocks task spend over per-task cap', () => {
+      const limit = new SpendingLimit(defaultConfig);
+      expect(limit.canSpendOnTask(60)).toBe(false);
+    });
+
+    it('throws SpendingCapBreachedError when per-task cap is exceeded', () => {
+      const limit = new SpendingLimit(defaultConfig);
+      limit.recordTaskSpend(40);
+      try {
+        limit.recordTaskSpend(20);
+        expect.fail('Should have thrown');
+      } catch (e) {
+        expect(e).toBeInstanceOf(SpendingCapBreachedError);
+        expect((e as SpendingCapBreachedError).capType).toBe('perTask');
+        expect((e as SpendingCapBreachedError).current).toBe(60);
+        expect((e as SpendingCapBreachedError).limit).toBe(50);
+      }
+    });
+
+    it('resets task spend for new task', () => {
+      const limit = new SpendingLimit(defaultConfig);
+      limit.recordTaskSpend(40);
+      limit.resetTaskSpend();
+      expect(limit.canSpendOnTask(40)).toBe(true);
+    });
+
+    it('recordTaskSpend also records to daily/weekly/monthly', () => {
+      const limit = new SpendingLimit(defaultConfig);
+      limit.recordTaskSpend(30);
+      expect(limit.getRemainingBudget('daily')).toBe(70);
+    });
+  });
+
+  describe('tokensPerHourCap', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('allows token usage within limit', () => {
+      const limit = new SpendingLimit(defaultConfig);
+      expect(limit.canSpendTokens(5000)).toBe(true);
+      limit.recordTokenUsage(5000);
+      expect(limit.canSpendTokens(5000)).toBe(true);
+    });
+
+    it('blocks token usage over hourly limit', () => {
+      const limit = new SpendingLimit(defaultConfig);
+      limit.recordTokenUsage(8000);
+      expect(limit.canSpendTokens(3000)).toBe(false);
+    });
+
+    it('throws SpendingCapBreachedError when tokens-per-hour cap is exceeded', () => {
+      const limit = new SpendingLimit(defaultConfig);
+      limit.recordTokenUsage(8000);
+      try {
+        limit.recordTokenUsage(3000);
+        expect.fail('Should have thrown');
+      } catch (e) {
+        expect(e).toBeInstanceOf(SpendingCapBreachedError);
+        expect((e as SpendingCapBreachedError).capType).toBe('tokensPerHour');
+        expect((e as SpendingCapBreachedError).limit).toBe(10000);
+      }
+    });
+
+    it('resets token usage after one hour', () => {
+      const limit = new SpendingLimit(defaultConfig);
+      limit.recordTokenUsage(9000);
+      expect(limit.canSpendTokens(2000)).toBe(false);
+
+      // Advance past one hour
+      vi.advanceTimersByTime(60 * 60 * 1000 + 1);
+      expect(limit.canSpendTokens(9000)).toBe(true);
+    });
+  });
+
+  describe('hard kill callback', () => {
+    it('calls onBreach callback when daily cap is breached', () => {
+      const onBreach = vi.fn();
+      const limit = new SpendingLimit(defaultConfig, { onBreach });
+      limit.recordSpend(95);
+      try {
+        limit.recordSpend(10);
+      } catch {
+        // expected
+      }
+      expect(onBreach).toHaveBeenCalledOnce();
+      expect(onBreach.mock.calls[0]![0]).toBeInstanceOf(SpendingCapBreachedError);
+      expect(onBreach.mock.calls[0]![0].capType).toBe('daily');
+    });
+
+    it('calls onBreach callback when per-task cap is breached', () => {
+      const onBreach = vi.fn();
+      const limit = new SpendingLimit(defaultConfig, { onBreach });
+      try {
+        limit.recordTaskSpend(60);
+      } catch {
+        // expected
+      }
+      expect(onBreach).toHaveBeenCalledOnce();
+      expect(onBreach.mock.calls[0]![0].capType).toBe('perTask');
+    });
+
+    it('calls onBreach callback when tokens-per-hour cap is breached', () => {
+      const onBreach = vi.fn();
+      const limit = new SpendingLimit(defaultConfig, { onBreach });
+      limit.recordTokenUsage(8000);
+      try {
+        limit.recordTokenUsage(3000);
+      } catch {
+        // expected
+      }
+      expect(onBreach).toHaveBeenCalledOnce();
+      expect(onBreach.mock.calls[0]![0].capType).toBe('tokensPerHour');
+    });
+  });
+
+  describe('SpendingCapBreachedError', () => {
+    it('has correct properties', () => {
+      const error = new SpendingCapBreachedError('daily', 110, 100);
+      expect(error.name).toBe('SpendingCapBreachedError');
+      expect(error.capType).toBe('daily');
+      expect(error.current).toBe(110);
+      expect(error.limit).toBe(100);
+      expect(error.message).toContain('daily');
+    });
+
+    it('is an instance of Error', () => {
+      const error = new SpendingCapBreachedError('weekly', 600, 500);
+      expect(error).toBeInstanceOf(Error);
+    });
   });
 });

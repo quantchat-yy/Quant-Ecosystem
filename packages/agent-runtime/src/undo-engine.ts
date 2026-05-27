@@ -2,9 +2,13 @@ export interface UndoAction {
   id: string;
   undoFn: () => Promise<void>;
   registeredAt: number;
+  agentId: string;
+  app: string;
+  description: string;
+  affectedResources: string[];
 }
 
-const DEFAULT_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export class UndoEngine {
   private actions: Map<string, UndoAction> = new Map();
@@ -16,7 +20,35 @@ export class UndoEngine {
 
   registerAction(id: string, undoFn: () => Promise<void>): void {
     this.prune();
-    this.actions.set(id, { id, undoFn, registeredAt: Date.now() });
+    this.actions.set(id, {
+      id,
+      undoFn,
+      registeredAt: Date.now(),
+      agentId: '',
+      app: '',
+      description: '',
+      affectedResources: [],
+    });
+  }
+
+  registerMutation(
+    id: string,
+    agentId: string,
+    app: string,
+    description: string,
+    affectedResources: string[],
+    undoFn: () => Promise<void>,
+  ): void {
+    this.prune();
+    this.actions.set(id, {
+      id,
+      undoFn,
+      registeredAt: Date.now(),
+      agentId,
+      app,
+      description,
+      affectedResources,
+    });
   }
 
   canUndo(actionId: string): boolean {
@@ -43,6 +75,31 @@ export class UndoEngine {
   getUndoableActions(): string[] {
     this.prune();
     return Array.from(this.actions.keys());
+  }
+
+  getUndoableByAgent(agentId: string): UndoAction[] {
+    this.prune();
+    return Array.from(this.actions.values()).filter(
+      (action) => action.agentId === agentId && !this.isExpired(action),
+    );
+  }
+
+  getUndoableByApp(app: string): UndoAction[] {
+    this.prune();
+    return Array.from(this.actions.values()).filter(
+      (action) => action.app === app && !this.isExpired(action),
+    );
+  }
+
+  async undoAll(agentId: string): Promise<void> {
+    this.prune();
+    const agentActions = Array.from(this.actions.values()).filter(
+      (action) => action.agentId === agentId && !this.isExpired(action),
+    );
+    for (const action of agentActions) {
+      await action.undoFn();
+      this.actions.delete(action.id);
+    }
   }
 
   prune(): void {

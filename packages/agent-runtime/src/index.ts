@@ -25,11 +25,27 @@ export { UndoEngine } from './undo-engine.js';
 export type { UndoAction } from './undo-engine.js';
 
 // Trust Score
-export { TrustScore, scoreToPermissionLevel, permissionLevelToScore } from './trust-score.js';
+export {
+  TrustScore,
+  scoreToPermissionLevel,
+  permissionLevelToScore,
+  AUTO_PAUSE_THRESHOLD,
+  REVIEW_ZONE_THRESHOLD,
+} from './trust-score.js';
+export type { TrustScoreOptions } from './trust-score.js';
 
 // Spending Limit
-export { SpendingLimit, SpendingLimitConfigSchema } from './spending-limit.js';
-export type { SpendingLimitConfig, SpendingPeriod } from './spending-limit.js';
+export {
+  SpendingLimit,
+  SpendingLimitConfigSchema,
+  SpendingCapBreachedError,
+} from './spending-limit.js';
+export type {
+  SpendingLimitConfig,
+  SpendingPeriod,
+  CapType,
+  SpendingLimitOptions,
+} from './spending-limit.js';
 
 // Kill Switch
 export { KillSwitch } from './kill-switch.js';
@@ -147,7 +163,12 @@ export { AgentPublisher } from './marketplace/publisher.js';
 export type { PublishResult } from './marketplace/publisher.js';
 
 export { AgentInstaller } from './marketplace/installer.js';
-export type { InstalledAgent, InstallResult } from './marketplace/installer.js';
+export type {
+  InstalledAgent,
+  InstallResult,
+  SecurityAudit,
+  IsolationLevel,
+} from './marketplace/installer.js';
 
 // ============================================================================
 // Agentic AI Foundation (Phase 7)
@@ -180,3 +201,19 @@ export { EmailReplyWorkflow } from './workflows/email-reply.js';
 export { MeetingToTasksWorkflow } from './workflows/meeting-to-tasks.js';
 export { CrossAppSearchWorkflow } from './workflows/cross-app-search.js';
 export { ContentLaunchWorkflow } from './workflows/content-launch.js';
+
+// ============================================================================
+// Intelligent Agent (Phase 21)
+// ============================================================================
+
+// AI Engine Port (DI boundary)
+export type {
+  AIEnginePort,
+  AIInferenceOptions,
+  AIInferenceResult,
+  AIClassificationResult,
+} from './ai-engine.interface.js';
+
+// IntelligentAgent base class
+export { IntelligentAgent } from './intelligent-agent.js';
+export type { TraceEvent, IntelligentAgentConfig } from './intelligent-agent.js';

@@ -1,6 +1,12 @@
-import { WorkerAgent, AgentTask } from '../worker-agent.js';
+import { IntelligentAgent } from '../intelligent-agent.js';
+import type { IntelligentAgentConfig } from '../intelligent-agent.js';
+import type { AIEnginePort } from '../ai-engine.interface.js';
+import type { TypedToolRegistry } from '../typed-tool-registry.js';
+import type { SpendingLimit } from '../spending-limit.js';
+import type { AgentTask } from '../worker-agent.js';
 import { PermissionLevel } from '../permissions.js';
-import { AgentState } from '../state-machine.js';
+import { AgentActionTier } from '../types.js';
+import type { ToolDefinition, ToolExecutionResult } from '../types.js';
 
 export interface TripPlan {
   destination: string;
@@ -25,60 +31,111 @@ export interface TravelResult {
   suggestions: string[];
 }
 
-export class TravelPilot extends WorkerAgent {
+export class TravelPilot extends IntelligentAgent {
   private lastResult: TravelResult | null = null;
 
-  constructor() {
-    super({
+  constructor(deps: {
+    aiEngine: AIEnginePort;
+    toolRegistry: TypedToolRegistry;
+    spendingLimit: SpendingLimit;
+  }) {
+    const config: IntelligentAgentConfig = {
       id: 'travel-pilot',
       name: 'Travel Pilot',
       icon: 'map-pin',
       defaultPermission: PermissionLevel.ACT_HIGH,
-    });
+      aiEngine: deps.aiEngine,
+      toolRegistry: deps.toolRegistry,
+      spendingLimit: deps.spendingLimit,
+    };
+    super(config);
+    this.registerTravelTools();
   }
 
-  async execute(task: AgentTask): Promise<void> {
-    this.stateMachine.transition(AgentState.EXECUTING);
+  protected getAgentTools(): ToolDefinition[] {
+    return this.toolRegistry.getToolsByCategory('travel');
+  }
 
-    try {
-      const destination = (task.params?.['destination'] as string) ?? '';
-      const budget = (task.params?.['budget'] as number) ?? 1000;
-      const startDate = (task.params?.['startDate'] as number) ?? Date.now();
-      const endDate = (task.params?.['endDate'] as number) ?? startDate + 7 * 24 * 60 * 60 * 1000;
+  protected getSystemPrompt(): string {
+    return (
+      'You are an intelligent travel planning assistant. Create detailed itineraries, find ' +
+      'flights and hotels, estimate costs, and provide budget-aware recommendations. Use ' +
+      'available tools: travel.plan_trip to create itineraries, travel.find_flights to search ' +
+      'flights, travel.book_hotel to reserve accommodation.'
+    );
+  }
 
-      const activities = this.planActivities(destination, startDate, endDate);
-      const totalEstimatedCost = activities.reduce((sum, a) => sum + a.estimatedCost, 0);
+  override async execute(task: AgentTask): Promise<void> {
+    const destination = (task.params?.['destination'] as string) ?? '';
+    const budget = (task.params?.['budget'] as number) ?? 1000;
+    const startDate = (task.params?.['startDate'] as number) ?? Date.now();
+    const endDate = (task.params?.['endDate'] as number) ?? startDate + 7 * 24 * 60 * 60 * 1000;
 
-      const plan: TripPlan = {
-        destination,
-        startDate,
-        endDate,
-        budget,
-        activities,
-      };
+    this.lastResult = await this.planTripWithAI(destination, budget, startDate, endDate);
 
-      this.lastResult = {
-        plan,
-        totalEstimatedCost,
-        withinBudget: totalEstimatedCost <= budget,
-        suggestions: this.generateSuggestions(destination, totalEstimatedCost, budget),
-      };
-
-      this.logAction(`travel-plan:${destination}`, 'success');
-      this.trustScore.recordSuccess();
-      this.stateMachine.transition(AgentState.DONE);
-    } catch (error) {
-      this.trustScore.recordFailure();
-      this.stateMachine.transition(AgentState.FAILED);
-    }
+    await super.execute(task);
   }
 
   getTravelResult(): TravelResult | null {
     return this.lastResult;
   }
 
-  private planActivities(destination: string, startDate: number, endDate: number): TripActivity[] {
+  private async planTripWithAI(
+    destination: string,
+    budget: number,
+    startDate: number,
+    endDate: number,
+  ): Promise<TravelResult> {
     const days = Math.ceil((endDate - startDate) / (24 * 60 * 60 * 1000));
+
+    const prompt =
+      `Plan a trip to ${destination} for ${days} days with a budget of $${budget}.\n` +
+      `Start: ${new Date(startDate).toISOString()}, End: ${new Date(endDate).toISOString()}\n\n` +
+      `Respond with JSON: { "activities": [{"name","date","estimatedCost","category","booked"}], "suggestions": ["..."] }`;
+
+    const result = await this.aiEngine.infer(prompt, this.getSystemPrompt());
+
+    let activities: TripActivity[];
+    let suggestions: string[];
+
+    try {
+      const parsed = JSON.parse(result.content) as {
+        activities?: TripActivity[];
+        suggestions?: string[];
+      };
+      activities = parsed.activities ?? this.defaultActivities(destination, startDate, days);
+      suggestions = parsed.suggestions ?? [];
+    } catch {
+      activities = this.defaultActivities(destination, startDate, days);
+      suggestions = [];
+    }
+
+    const totalEstimatedCost = activities.reduce((sum, a) => sum + a.estimatedCost, 0);
+    const withinBudget = totalEstimatedCost <= budget;
+
+    if (suggestions.length === 0) {
+      if (!withinBudget) {
+        suggestions.push(`Consider shorter stay to fit within $${budget} budget`);
+        suggestions.push('Look for budget accommodation options');
+      } else {
+        suggestions.push(
+          `You have $${budget - totalEstimatedCost} remaining for extras in ${destination}`,
+        );
+      }
+    }
+
+    const plan: TripPlan = {
+      destination,
+      startDate,
+      endDate,
+      budget,
+      activities,
+    };
+
+    return { plan, totalEstimatedCost, withinBudget, suggestions };
+  }
+
+  private defaultActivities(destination: string, startDate: number, days: number): TripActivity[] {
     const activities: TripActivity[] = [
       {
         name: `Flight to ${destination}`,
@@ -109,14 +166,58 @@ export class TravelPilot extends WorkerAgent {
     return activities;
   }
 
-  private generateSuggestions(destination: string, totalCost: number, budget: number): string[] {
-    const suggestions: string[] = [];
-    if (totalCost > budget) {
-      suggestions.push(`Consider shorter stay to fit within $${budget} budget`);
-      suggestions.push('Look for budget accommodation options');
-    } else {
-      suggestions.push(`You have $${budget - totalCost} remaining for extras in ${destination}`);
-    }
-    return suggestions;
+  private registerTravelTools(): void {
+    const planTripTool: ToolDefinition = {
+      name: 'travel.plan_trip',
+      description: 'Create a trip itinerary with AI recommendations',
+      parameters: [
+        { name: 'destination', type: 'string', description: 'Travel destination', required: true },
+        { name: 'days', type: 'number', description: 'Number of days', required: true },
+        { name: 'budget', type: 'number', description: 'Trip budget', required: true },
+      ],
+      requiredTier: AgentActionTier.Tier0_ReadOnly,
+      category: 'travel',
+      handler: async (args: Record<string, unknown>): Promise<ToolExecutionResult> => {
+        return { success: true, data: { planned: args }, undoable: false };
+      },
+    };
+
+    const findFlightsTool: ToolDefinition = {
+      name: 'travel.find_flights',
+      description: 'Search for available flights',
+      parameters: [
+        { name: 'origin', type: 'string', description: 'Origin city', required: true },
+        { name: 'destination', type: 'string', description: 'Destination city', required: true },
+        { name: 'date', type: 'number', description: 'Travel date', required: true },
+      ],
+      requiredTier: AgentActionTier.Tier0_ReadOnly,
+      category: 'travel',
+      handler: async (args: Record<string, unknown>): Promise<ToolExecutionResult> => {
+        return { success: true, data: { flights: [], route: args }, undoable: false };
+      },
+    };
+
+    const bookHotelTool: ToolDefinition = {
+      name: 'travel.book_hotel',
+      description: 'Book a hotel reservation',
+      parameters: [
+        { name: 'destination', type: 'string', description: 'City', required: true },
+        { name: 'checkIn', type: 'number', description: 'Check-in date', required: true },
+        { name: 'checkOut', type: 'number', description: 'Check-out date', required: true },
+      ],
+      requiredTier: AgentActionTier.Tier3_HighRisk,
+      category: 'travel',
+      handler: async (args: Record<string, unknown>): Promise<ToolExecutionResult> => {
+        return {
+          success: true,
+          data: { booked: args['destination'], checkIn: args['checkIn'] },
+          undoable: true,
+        };
+      },
+    };
+
+    this.toolRegistry.registerTool(planTripTool);
+    this.toolRegistry.registerTool(findFlightsTool);
+    this.toolRegistry.registerTool(bookHotelTool);
   }
 }

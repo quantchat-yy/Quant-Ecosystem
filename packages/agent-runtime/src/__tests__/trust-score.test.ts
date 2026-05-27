@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { TrustScore, scoreToPermissionLevel } from '../trust-score.js';
+import {
+  TrustScore,
+  scoreToPermissionLevel,
+  AUTO_PAUSE_THRESHOLD,
+  REVIEW_ZONE_THRESHOLD,
+} from '../trust-score.js';
 import { PermissionLevel } from '../permissions.js';
 
 describe('scoreToPermissionLevel', () => {
@@ -108,5 +113,106 @@ describe('TrustScore', () => {
     trust.recordFailure();
     expect(trust.getSuccessCount()).toBe(2);
     expect(trust.getFailureCount()).toBe(1);
+  });
+
+  describe('auto-pause threshold', () => {
+    it('exports AUTO_PAUSE_THRESHOLD as 15', () => {
+      expect(AUTO_PAUSE_THRESHOLD).toBe(15);
+    });
+
+    it('exports REVIEW_ZONE_THRESHOLD as 25', () => {
+      expect(REVIEW_ZONE_THRESHOLD).toBe(25);
+    });
+
+    it('isPaused returns true when score is at or below threshold', () => {
+      const trust = new TrustScore(AUTO_PAUSE_THRESHOLD);
+      expect(trust.isPaused()).toBe(true);
+    });
+
+    it('isPaused returns true when score is 0', () => {
+      const trust = new TrustScore(0);
+      expect(trust.isPaused()).toBe(true);
+    });
+
+    it('isPaused returns false when score is above threshold', () => {
+      const trust = new TrustScore(AUTO_PAUSE_THRESHOLD + 1);
+      expect(trust.isPaused()).toBe(false);
+    });
+
+    it('isPaused becomes true after enough failures', () => {
+      const trust = new TrustScore(20);
+      expect(trust.isPaused()).toBe(false);
+      trust.recordFailure(); // 10
+      expect(trust.isPaused()).toBe(true);
+    });
+  });
+
+  describe('review zone', () => {
+    it('requiresReview returns true when score is between thresholds', () => {
+      const trust = new TrustScore(20);
+      expect(trust.requiresReview()).toBe(true);
+    });
+
+    it('requiresReview returns false when score is at or below pause threshold', () => {
+      const trust = new TrustScore(AUTO_PAUSE_THRESHOLD);
+      expect(trust.requiresReview()).toBe(false);
+    });
+
+    it('requiresReview returns false when score is above review threshold', () => {
+      const trust = new TrustScore(REVIEW_ZONE_THRESHOLD + 1);
+      expect(trust.requiresReview()).toBe(false);
+    });
+
+    it('requiresReview returns true at exactly REVIEW_ZONE_THRESHOLD', () => {
+      const trust = new TrustScore(REVIEW_ZONE_THRESHOLD);
+      expect(trust.requiresReview()).toBe(true);
+    });
+  });
+
+  describe('getPauseReason', () => {
+    it('returns reason string when paused', () => {
+      const trust = new TrustScore(10, undefined, { agentId: 'agent-1' });
+      const reason = trust.getPauseReason();
+      expect(reason).not.toBeNull();
+      expect(reason).toContain('agent-1');
+      expect(reason).toContain('auto-paused');
+    });
+
+    it('returns null when not paused', () => {
+      const trust = new TrustScore(50);
+      expect(trust.getPauseReason()).toBeNull();
+    });
+  });
+
+  describe('onAutoPause callback', () => {
+    it('calls onAutoPause when score drops to threshold', () => {
+      const onAutoPause = vi.fn();
+      // Start at 25, one failure drops to 15 which is at threshold
+      const trust = new TrustScore(25, undefined, { agentId: 'my-agent', onAutoPause });
+      trust.recordFailure();
+      expect(trust.getScore()).toBe(15);
+      expect(onAutoPause).toHaveBeenCalledWith('my-agent');
+    });
+
+    it('calls onAutoPause when score drops below threshold', () => {
+      const onAutoPause = vi.fn();
+      const trust = new TrustScore(20, undefined, { agentId: 'agent-x', onAutoPause });
+      trust.recordFailure(); // drops to 10
+      expect(onAutoPause).toHaveBeenCalledWith('agent-x');
+    });
+
+    it('does not call onAutoPause when score stays above threshold', () => {
+      const onAutoPause = vi.fn();
+      const trust = new TrustScore(50, undefined, { agentId: 'agent-y', onAutoPause });
+      trust.recordFailure(); // drops to 40
+      expect(onAutoPause).not.toHaveBeenCalled();
+    });
+
+    it('works without onAutoPause option', () => {
+      const trust = new TrustScore(20);
+      // Should not throw
+      trust.recordFailure();
+      expect(trust.getScore()).toBe(10);
+    });
   });
 });
