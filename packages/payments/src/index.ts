@@ -84,3 +84,22 @@ export {
   ValidateIAPReceiptSchema,
 } from './services/quant-pro.service';
 export type { ProFeature } from './services/quant-pro.service';
+
+// Phase 29 - Creator Economy Extensions
+export {
+  PayPerViewService,
+  CreatePaywallSchema,
+  PurchaseAccessSchema,
+} from './services/pay-per-view.service';
+export {
+  StorefrontService,
+  CreateProductSchema,
+  PurchaseProductSchema,
+} from './services/storefront.service';
+export {
+  ComputeCreditsService,
+  PurchaseCreditsSchema,
+  DeductCreditsSchema,
+  AI_ACTION_COSTS,
+} from './services/compute-credits.service';
+export { TaxDocumentService, GenerateTaxDocSchema } from './services/tax-document.service';

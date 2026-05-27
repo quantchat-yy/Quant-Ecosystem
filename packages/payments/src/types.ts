@@ -699,3 +699,106 @@ export interface Dispute {
   updatedAt: number;
   resolvedAt?: number;
 }
+
+// ============================================================================
+// Phase 29 - Creator Economy Extensions
+// ============================================================================
+
+/** Pay-per-view paywall */
+export interface PayPerViewPaywall {
+  id: string;
+  creatorId: string;
+  contentId: string;
+  price: number;
+  currency: CurrencyCode;
+  title: string;
+  accessCount: number;
+  revenue: number;
+  createdAt: number;
+}
+
+/** Pay-per-view access record */
+export interface PayPerViewAccess {
+  id: string;
+  userId: string;
+  paywallId: string;
+  contentId: string;
+  paidAmount: number;
+  purchasedAt: number;
+}
+
+/** Storefront product types */
+export type ProductType = 'digital_good' | 'course' | 'template' | 'preset' | 'ebook';
+
+/** Storefront product */
+export interface StorefrontProduct {
+  id: string;
+  creatorId: string;
+  name: string;
+  description: string;
+  type: ProductType;
+  price: number;
+  currency: CurrencyCode;
+  downloadUrl?: string;
+  thumbnailUrl?: string;
+  salesCount: number;
+  revenue: number;
+  active: boolean;
+  createdAt: number;
+}
+
+/** Product purchase record */
+export interface ProductPurchase {
+  id: string;
+  userId: string;
+  productId: string;
+  creatorId: string;
+  amount: number;
+  creatorShare: number;
+  platformShare: number;
+  purchasedAt: number;
+}
+
+/** Compute credit balance */
+export interface ComputeCredits {
+  userId: string;
+  balance: number;
+  totalPurchased: number;
+  totalUsed: number;
+  lastPurchaseAt?: number;
+  lastUsageAt?: number;
+}
+
+/** AI action cost mapping */
+export type AIActionType =
+  | 'gpt4'
+  | 'gpt35'
+  | 'claude3'
+  | 'llama3'
+  | 'stable_diffusion'
+  | 'whisper'
+  | 'custom';
+
+/** Credit usage record */
+export interface CreditUsage {
+  id: string;
+  userId: string;
+  actionType: AIActionType;
+  creditsUsed: number;
+  description: string;
+  timestamp: number;
+}
+
+/** Tax document types */
+export type TaxDocumentType = '1099-NEC' | '1099-MISC' | 'W-9';
+
+/** Tax document record */
+export interface TaxDocument {
+  id: string;
+  creatorId: string;
+  year: number;
+  type: TaxDocumentType;
+  totalEarnings: number;
+  generatedAt: number;
+  downloadUrl?: string;
+}
