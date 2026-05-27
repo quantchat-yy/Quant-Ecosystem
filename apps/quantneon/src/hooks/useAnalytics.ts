@@ -1,5 +1,5 @@
 // ============================================================================
-// QuantAds - useAnalytics Hook
+// QuantNeon - useAnalytics Hook
 // Analytics data fetching with aggregation, date range management
 // ============================================================================
 

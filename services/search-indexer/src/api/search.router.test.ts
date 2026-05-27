@@ -138,6 +138,7 @@ describe('SearchRouter', () => {
     const response = await router.search({
       query: 'emails from John last month',
       userId: 'user-1',
+      isAdmin: false,
       limit: 10,
       page: 1,
     });
@@ -182,6 +183,9 @@ describe('SearchRouter', () => {
     const response = await router.search({
       query: 'emails from John last month',
       userId: 'user-1',
+      isAdmin: false,
+      limit: 10,
+      page: 1,
     });
 
     expect(response.query.parsed.type).toBe('email');
@@ -204,17 +208,20 @@ describe('SearchRouter', () => {
     await router.search({
       query: 'project updates',
       userId: 'user-1',
+      isAdmin: false,
+      limit: 10,
+      page: 1,
       scopes: ['emails', 'messages'],
     });
 
     // Should only call hybrid search for requested scopes (2 calls)
     expect(deps.hybridSearch.hybridSearch).toHaveBeenCalledTimes(2);
 
-    const firstCall = (deps.hybridSearch.hybridSearch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const firstCall = (deps.hybridSearch.hybridSearch as ReturnType<typeof vi.fn>).mock.calls[0]!;
     expect(firstCall[2].index).toBe('emails');
     expect(firstCall[2].collection).toBe('emails-vectors');
 
-    const secondCall = (deps.hybridSearch.hybridSearch as ReturnType<typeof vi.fn>).mock.calls[1];
+    const secondCall = (deps.hybridSearch.hybridSearch as ReturnType<typeof vi.fn>).mock.calls[1]!;
     expect(secondCall[2].index).toBe('messages');
     expect(secondCall[2].collection).toBe('messages-vectors');
   });
@@ -233,6 +240,9 @@ describe('SearchRouter', () => {
     const response = await router.search({
       query: 'emails from John',
       userId: 'user-1',
+      isAdmin: false,
+      limit: 10,
+      page: 1,
     });
 
     // user-1 should see doc-1 (own public) and doc-3 (shared with user-1)
@@ -256,13 +266,16 @@ describe('SearchRouter', () => {
     const response = await router.search({
       query: 'test query',
       userId: 'user-1',
+      isAdmin: false,
+      limit: 10,
+      page: 1,
     });
 
     expect(response.facets.length).toBeGreaterThan(0);
-    expect(response.facets[0].name).toBe('type');
-    expect(response.facets[0].buckets.length).toBeGreaterThan(0);
-    expect(response.facets[0].buckets[0].key).toBeDefined();
-    expect(response.facets[0].buckets[0].count).toBeDefined();
+    expect(response.facets[0]!.name).toBe('type');
+    expect(response.facets[0]!.buckets.length).toBeGreaterThan(0);
+    expect(response.facets[0]!.buckets[0]!.key).toBeDefined();
+    expect(response.facets[0]!.buckets[0]!.count).toBeDefined();
   });
 
   it('includes timing (took field) in response', async () => {
@@ -279,6 +292,9 @@ describe('SearchRouter', () => {
     const response = await router.search({
       query: 'test query',
       userId: 'user-1',
+      isAdmin: false,
+      limit: 10,
+      page: 1,
     });
 
     expect(typeof response.took).toBe('number');
@@ -316,6 +332,9 @@ describe('SearchRouter', () => {
     const response = await router.search({
       query: 'test',
       userId: 'user-1',
+      isAdmin: false,
+      limit: 10,
+      page: 1,
     });
 
     // Should not throw and produce valid response

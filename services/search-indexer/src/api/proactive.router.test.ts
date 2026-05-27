@@ -65,6 +65,7 @@ describe('ProactiveRouter', () => {
       contextId: 'email-123',
       contentSnippet: 'Hey team, project X update for this week',
       userId: 'user-1',
+      isAdmin: false,
       limit: 5,
     });
 
@@ -88,6 +89,8 @@ describe('ProactiveRouter', () => {
       contextId: 'file-456',
       contentSnippet: 'Quarterly report with project details',
       userId: 'user-1',
+      isAdmin: false,
+      limit: 5,
     });
 
     expect(response.contextType).toBe('file');
@@ -111,6 +114,8 @@ describe('ProactiveRouter', () => {
       contextId: 'event-789',
       contentSnippet: 'Weekly standup meeting with engineering team',
       userId: 'user-1',
+      isAdmin: false,
+      limit: 5,
     });
 
     expect(response.contextType).toBe('calendar_event');
@@ -134,6 +139,8 @@ describe('ProactiveRouter', () => {
       contextId: 'email-123',
       contentSnippet: 'Project X discussion',
       userId: 'user-1',
+      isAdmin: false,
+      limit: 5,
     });
 
     // Permission filter should have been called
@@ -163,6 +170,8 @@ describe('ProactiveRouter', () => {
       contextId: 'email-empty',
       contentSnippet: '',
       userId: 'user-1',
+      isAdmin: false,
+      limit: 5,
     });
 
     expect(response.relatedItems).toEqual([]);
@@ -179,6 +188,8 @@ describe('ProactiveRouter', () => {
       contextId: 'email-123',
       contentSnippet: 'Some content',
       userId: 'user-1',
+      isAdmin: false,
+      limit: 5,
     });
 
     expect(typeof response.took).toBe('number');
