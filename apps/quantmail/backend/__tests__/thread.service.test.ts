@@ -126,26 +126,19 @@ describe('ThreadService', () => {
   });
 
   describe('muteThread', () => {
-    it('mutes a thread owned by the user', async () => {
+    it('mutes a thread owned by the user using in-memory store', async () => {
       prisma.emailThread.findUnique.mockResolvedValue({
         id: 'thread-1',
         userId: 'user-1',
       });
-      prisma.emailThread.update.mockResolvedValue({
-        id: 'thread-1',
-        userId: 'user-1',
-        metadata: { isMuted: true },
-      });
 
       const result = await service.muteThread('thread-1', 'user-1');
 
-      expect((result as unknown as { metadata: Record<string, unknown> }).metadata.isMuted).toBe(
-        true,
-      );
-      expect(prisma.emailThread.update).toHaveBeenCalledWith({
-        where: { id: 'thread-1' },
-        data: { metadata: { isMuted: true } },
-      });
+      expect(result.preferences.isMuted).toBe(true);
+      // Verify it does NOT call prisma.emailThread.update (in-memory only)
+      expect(prisma.emailThread.update).not.toHaveBeenCalled();
+      // Verify preferences are stored and retrievable
+      expect(service.getThreadPreferences('thread-1')).toEqual({ isMuted: true });
     });
 
     it('throws THREAD_NOT_FOUND when thread does not exist', async () => {
@@ -165,26 +158,21 @@ describe('ThreadService', () => {
   });
 
   describe('snoozeThread', () => {
-    it('snoozes a thread until the specified date', async () => {
+    it('snoozes a thread until the specified date using in-memory store', async () => {
       const snoozeDate = new Date('2025-01-25T09:00:00Z');
       prisma.emailThread.findUnique.mockResolvedValue({
         id: 'thread-1',
         userId: 'user-1',
       });
-      prisma.emailThread.update.mockResolvedValue({
-        id: 'thread-1',
-        userId: 'user-1',
-        metadata: { snoozedUntil: snoozeDate.toISOString() },
-      });
 
       const result = await service.snoozeThread('thread-1', 'user-1', snoozeDate);
 
-      expect(
-        (result as unknown as { metadata: Record<string, unknown> }).metadata.snoozedUntil,
-      ).toEqual(snoozeDate.toISOString());
-      expect(prisma.emailThread.update).toHaveBeenCalledWith({
-        where: { id: 'thread-1' },
-        data: { metadata: { snoozedUntil: snoozeDate.toISOString() } },
+      expect(result.preferences.snoozedUntil).toEqual(snoozeDate.toISOString());
+      // Verify it does NOT call prisma.emailThread.update (in-memory only)
+      expect(prisma.emailThread.update).not.toHaveBeenCalled();
+      // Verify preferences are stored and retrievable
+      expect(service.getThreadPreferences('thread-1')).toEqual({
+        snoozedUntil: snoozeDate.toISOString(),
       });
     });
 

@@ -37,60 +37,65 @@ async function adminAuthHook(request: FastifyRequest, reply: FastifyReply): Prom
 
 /**
  * Register reindex routes on a Fastify instance.
+ * Uses Fastify plugin encapsulation so the admin auth hook only applies
+ * to reindex routes, not to health probes (/healthz, /readyz) on the same instance.
  */
 export function registerReindexRoutes(app: FastifyInstance, jobManager: ReindexJobManager): void {
-  // Apply admin auth to all reindex routes
-  app.addHook('onRequest', adminAuthHook);
-  // POST /api/v1/reindex/:indexName - Start a new reindex job
-  app.post(
-    '/api/v1/reindex/:indexName',
-    async (request: FastifyRequest<{ Params: { indexName: string } }>, reply: FastifyReply) => {
-      const parsed = StartReindexParamsSchema.safeParse(request.params);
-      if (!parsed.success) {
-        return reply.status(400).send({ error: 'Invalid index name' });
-      }
-      const job = jobManager.startReindex(parsed.data.indexName);
-      return reply.status(201).send(serializeJob(job));
-    },
-  );
+  app.register(async function reindexPlugin(scope) {
+    // Apply admin auth only within this scoped plugin
+    scope.addHook('onRequest', adminAuthHook);
 
-  // GET /api/v1/reindex/jobs - List all reindex jobs
-  app.get('/api/v1/reindex/jobs', async (_request: FastifyRequest, reply: FastifyReply) => {
-    const jobs = jobManager.listJobs();
-    return reply.status(200).send({ jobs: jobs.map(serializeJob) });
+    // POST /api/v1/reindex/:indexName - Start a new reindex job
+    scope.post(
+      '/api/v1/reindex/:indexName',
+      async (request: FastifyRequest<{ Params: { indexName: string } }>, reply: FastifyReply) => {
+        const parsed = StartReindexParamsSchema.safeParse(request.params);
+        if (!parsed.success) {
+          return reply.status(400).send({ error: 'Invalid index name' });
+        }
+        const job = jobManager.startReindex(parsed.data.indexName);
+        return reply.status(201).send(serializeJob(job));
+      },
+    );
+
+    // GET /api/v1/reindex/jobs - List all reindex jobs
+    scope.get('/api/v1/reindex/jobs', async (_request: FastifyRequest, reply: FastifyReply) => {
+      const jobs = jobManager.listJobs();
+      return reply.status(200).send({ jobs: jobs.map(serializeJob) });
+    });
+
+    // GET /api/v1/reindex/jobs/:jobId - Get job status
+    scope.get(
+      '/api/v1/reindex/jobs/:jobId',
+      async (request: FastifyRequest<{ Params: { jobId: string } }>, reply: FastifyReply) => {
+        const parsed = JobIdParamsSchema.safeParse(request.params);
+        if (!parsed.success) {
+          return reply.status(400).send({ error: 'Invalid job ID' });
+        }
+        const job = jobManager.getJobStatus(parsed.data.jobId);
+        if (!job) {
+          return reply.status(404).send({ error: 'Job not found' });
+        }
+        return reply.status(200).send(serializeJob(job));
+      },
+    );
+
+    // DELETE /api/v1/reindex/jobs/:jobId - Cancel a job
+    scope.delete(
+      '/api/v1/reindex/jobs/:jobId',
+      async (request: FastifyRequest<{ Params: { jobId: string } }>, reply: FastifyReply) => {
+        const parsed = JobIdParamsSchema.safeParse(request.params);
+        if (!parsed.success) {
+          return reply.status(400).send({ error: 'Invalid job ID' });
+        }
+        const job = jobManager.cancelJob(parsed.data.jobId);
+        if (!job) {
+          return reply.status(404).send({ error: 'Job not found' });
+        }
+        return reply.status(200).send(serializeJob(job));
+      },
+    );
   });
-
-  // GET /api/v1/reindex/jobs/:jobId - Get job status
-  app.get(
-    '/api/v1/reindex/jobs/:jobId',
-    async (request: FastifyRequest<{ Params: { jobId: string } }>, reply: FastifyReply) => {
-      const parsed = JobIdParamsSchema.safeParse(request.params);
-      if (!parsed.success) {
-        return reply.status(400).send({ error: 'Invalid job ID' });
-      }
-      const job = jobManager.getJobStatus(parsed.data.jobId);
-      if (!job) {
-        return reply.status(404).send({ error: 'Job not found' });
-      }
-      return reply.status(200).send(serializeJob(job));
-    },
-  );
-
-  // DELETE /api/v1/reindex/jobs/:jobId - Cancel a job
-  app.delete(
-    '/api/v1/reindex/jobs/:jobId',
-    async (request: FastifyRequest<{ Params: { jobId: string } }>, reply: FastifyReply) => {
-      const parsed = JobIdParamsSchema.safeParse(request.params);
-      if (!parsed.success) {
-        return reply.status(400).send({ error: 'Invalid job ID' });
-      }
-      const job = jobManager.cancelJob(parsed.data.jobId);
-      if (!job) {
-        return reply.status(404).send({ error: 'Job not found' });
-      }
-      return reply.status(200).send(serializeJob(job));
-    },
-  );
 }
 
 function serializeJob(job: ReturnType<ReindexJobManager['startReindex']>) {

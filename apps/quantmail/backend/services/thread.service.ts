@@ -21,7 +21,24 @@ export interface ThreadWithEmails extends EmailThread {
   unreadCount: number;
 }
 
+/**
+ * In-memory thread preferences store.
+ * Workaround: The Prisma EmailThread model does not have isMuted/snoozedUntil columns.
+ * Thread mute/snooze state is stored in memory until a schema migration adds a
+ * `metadata Json` field or dedicated columns to the EmailThread model.
+ */
+export interface ThreadPreferences {
+  isMuted?: boolean;
+  snoozedUntil?: string;
+}
+
 export class ThreadService {
+  /**
+   * In-memory store for thread preferences (mute/snooze state).
+   * Key: threadId, Value: ThreadPreferences
+   */
+  private readonly threadPreferences = new Map<string, ThreadPreferences>();
+
   constructor(private readonly prisma: PrismaClient) {}
 
   async getThread(threadId: string, userId: string): Promise<ThreadWithEmails> {
@@ -120,11 +137,14 @@ export class ThreadService {
   /**
    * Mute a thread for the user.
    *
-   * Workaround: The Prisma schema does not yet have isMuted/snoozedUntil columns.
-   * We store mute state in the thread's metadata JSON field until a schema migration
-   * adds dedicated columns.
+   * Workaround: The Prisma schema does not yet have isMuted/snoozedUntil columns
+   * or a metadata JSON field on EmailThread. Mute state is stored in an in-memory
+   * Map until a schema migration adds the appropriate fields.
    */
-  async muteThread(threadId: string, userId: string): Promise<EmailThread> {
+  async muteThread(
+    threadId: string,
+    userId: string,
+  ): Promise<EmailThread & { preferences: ThreadPreferences }> {
     const thread = await this.prisma.emailThread.findUnique({
       where: { id: threadId },
     });
@@ -137,22 +157,25 @@ export class ThreadService {
       throw createAppError('Not authorized', 403, 'FORBIDDEN');
     }
 
-    const currentMetadata =
-      (thread as unknown as { metadata?: Record<string, unknown> }).metadata ?? {};
-    return this.prisma.emailThread.update({
-      where: { id: threadId },
-      data: { metadata: { ...currentMetadata, isMuted: true } } as never,
-    });
+    const existing = this.threadPreferences.get(threadId) ?? {};
+    const preferences: ThreadPreferences = { ...existing, isMuted: true };
+    this.threadPreferences.set(threadId, preferences);
+
+    return { ...thread, preferences };
   }
 
   /**
    * Snooze a thread until a specified date.
    *
-   * Workaround: The Prisma schema does not yet have isMuted/snoozedUntil columns.
-   * We store snooze state in the thread's metadata JSON field until a schema migration
-   * adds dedicated columns.
+   * Workaround: The Prisma schema does not yet have isMuted/snoozedUntil columns
+   * or a metadata JSON field on EmailThread. Snooze state is stored in an in-memory
+   * Map until a schema migration adds the appropriate fields.
    */
-  async snoozeThread(threadId: string, userId: string, until: Date): Promise<EmailThread> {
+  async snoozeThread(
+    threadId: string,
+    userId: string,
+    until: Date,
+  ): Promise<EmailThread & { preferences: ThreadPreferences }> {
     const thread = await this.prisma.emailThread.findUnique({
       where: { id: threadId },
     });
@@ -165,11 +188,17 @@ export class ThreadService {
       throw createAppError('Not authorized', 403, 'FORBIDDEN');
     }
 
-    const currentMetadata =
-      (thread as unknown as { metadata?: Record<string, unknown> }).metadata ?? {};
-    return this.prisma.emailThread.update({
-      where: { id: threadId },
-      data: { metadata: { ...currentMetadata, snoozedUntil: until.toISOString() } } as never,
-    });
+    const existing = this.threadPreferences.get(threadId) ?? {};
+    const preferences: ThreadPreferences = { ...existing, snoozedUntil: until.toISOString() };
+    this.threadPreferences.set(threadId, preferences);
+
+    return { ...thread, preferences };
+  }
+
+  /**
+   * Get thread preferences (mute/snooze state) from the in-memory store.
+   */
+  getThreadPreferences(threadId: string): ThreadPreferences | undefined {
+    return this.threadPreferences.get(threadId);
   }
 }

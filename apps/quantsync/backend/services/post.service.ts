@@ -1,5 +1,6 @@
 import type { PrismaClient } from '../types';
 import { createAppError } from '@quant/server-core';
+import { FeedService } from './feed.service';
 
 export interface Post {
   id: string;
@@ -23,7 +24,6 @@ export interface Post {
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
-  metadata?: Record<string, unknown>;
 }
 
 export interface PaginationOptions {
@@ -267,16 +267,12 @@ export class PostService {
       throw createAppError('Post not found', 404, 'POST_NOT_FOUND');
     }
 
-    const metadata = (post.metadata ?? {}) as Record<string, unknown>;
-    const bookmarkedBy = (metadata['bookmarkedBy'] as string[]) ?? [];
+    // Store bookmark in the in-memory bookmark store.
+    // Workaround: The Post model does not have a metadata JSON field.
+    // Bookmarks are stored in memory until a schema migration adds a dedicated
+    // Bookmark join table or metadata field to the Post model.
+    FeedService.addBookmark(userId, postId);
 
-    if (!bookmarkedBy.includes(userId)) {
-      bookmarkedBy.push(userId);
-    }
-
-    return this.prisma.post.update({
-      where: { id: postId },
-      data: { metadata: { ...metadata, bookmarkedBy } },
-    });
+    return post;
   }
 }
