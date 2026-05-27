@@ -12,10 +12,12 @@ vi.mock('livekit-server-sdk', () => {
   });
 
   const mockDeleteRoom = vi.fn().mockResolvedValue(undefined);
+  const mockRemoveParticipant = vi.fn().mockResolvedValue(undefined);
 
   const RoomServiceClient = vi.fn().mockImplementation(() => ({
     createRoom: mockCreateRoom,
     deleteRoom: mockDeleteRoom,
+    removeParticipant: mockRemoveParticipant,
   }));
 
   const mockToJwt = vi
@@ -137,6 +139,38 @@ describe('CallService', () => {
       mockInstance.deleteRoom.mockRejectedValueOnce(new Error('network error'));
 
       await expect(service.endCall(call.callId)).rejects.toThrow('Failed to end call');
+    });
+  });
+
+  describe('leaveCall', () => {
+    it('removes the participant from the call without ending it', async () => {
+      const call = await service.initiateGroupCall('user-a', ['user-b', 'user-c']);
+      const result = await service.leaveCall(call.callId, 'user-b');
+
+      expect(result.ended).toBe(false);
+      const updatedCall = service.getCall(call.callId);
+      expect(updatedCall).toBeDefined();
+      expect(updatedCall!.participantIds).not.toContain('user-b');
+    });
+
+    it('ends the call when the last participant leaves', async () => {
+      const call = await service.initiate1v1Call('user-a', 'user-b');
+      await service.leaveCall(call.callId, 'user-a');
+      const result = await service.leaveCall(call.callId, 'user-b');
+
+      expect(result.ended).toBe(true);
+      expect(service.getCall(call.callId)).toBeUndefined();
+    });
+
+    it('throws CALL_NOT_FOUND for unknown call ID', async () => {
+      await expect(service.leaveCall('nonexistent', 'user-a')).rejects.toThrow('Call not found');
+    });
+
+    it('throws CALL_NOT_PARTICIPANT for non-participant', async () => {
+      const call = await service.initiate1v1Call('user-a', 'user-b');
+      await expect(service.leaveCall(call.callId, 'user-c')).rejects.toThrow(
+        'User is not a participant of this call',
+      );
     });
   });
 

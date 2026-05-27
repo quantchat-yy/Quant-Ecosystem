@@ -152,6 +152,13 @@ export class MatchmakingService {
     };
   }
 
+  /**
+   * Generate a LiveKit access token for a matched random-chat participant.
+   *
+   * Token TTL: 30 minutes. Random chat sessions are ephemeral by design.
+   * A short TTL limits exposure if a token is leaked and encourages users
+   * to re-queue for new interactions rather than lingering in old rooms.
+   */
   private async generateToken(roomName: string, userId: string): Promise<string> {
     const grant: VideoGrant = {
       room: roomName,

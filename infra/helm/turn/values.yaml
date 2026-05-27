@@ -3,7 +3,7 @@ replicaCount: 2
 
 image:
   repository: coturn/coturn
-  tag: latest
+  tag: '4.6.2'
   pullPolicy: IfNotPresent
 
 coturn:
@@ -34,4 +34,4 @@ credentialRotation:
   schedule: '0 0 * * *'
   image:
     repository: bitnami/kubectl
-    tag: latest
+    tag: '1.28'

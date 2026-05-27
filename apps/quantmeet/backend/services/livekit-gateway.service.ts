@@ -105,6 +105,13 @@ export class LiveKitGateway {
     }
   }
 
+  /**
+   * Generate a LiveKit access token for a meeting participant.
+   *
+   * Token TTL: 6 hours. Meetings can be long-running sessions (lectures,
+   * all-hands, workshops) so the token validity window must accommodate
+   * multi-hour usage without requiring a mid-session refresh.
+   */
   async generateToken(
     roomName: string,
     participantIdentity: string,

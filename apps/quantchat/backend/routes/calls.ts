@@ -65,15 +65,18 @@ export default async function callsRoutes(fastify: FastifyInstance) {
     return reply.send({ success: true, data: { token } });
   });
 
-  // POST /calls/:id/leave - Leave/end a call
+  // POST /calls/:id/leave - Leave a call (only removes the requesting participant)
   fastify.post<{ Params: { id: string } }>('/:id/leave', async (request, reply) => {
     const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
     if (!userId) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    await callService.endCall(request.params.id);
-    return reply.send({ success: true, data: { message: 'Call ended' } });
+    const result = await callService.leaveCall(request.params.id, userId);
+    return reply.send({
+      success: true,
+      data: { message: result.ended ? 'Call ended' : 'Left call' },
+    });
   });
 
   // GET /calls/:id/token - Get participant token

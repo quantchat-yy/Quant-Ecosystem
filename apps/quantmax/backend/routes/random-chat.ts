@@ -21,7 +21,11 @@ interface QueueEntry {
 }
 
 const queue = new Map<string, QueueEntry>();
+// Stores partner tokens so the matched partner can retrieve their own token
+// without leaking it to the initiator. Key: `${pairId}:${userId}` -> token
+const pendingTokens = new Map<string, string>();
 const QUEUE_TIMEOUT_MS = 30_000;
+const PENDING_TOKEN_TTL_MS = 5 * 60_000; // tokens expire from pending map after 5 min
 
 function getLiveKitConfig() {
   return {
@@ -38,6 +42,13 @@ function isCompatible(a: { language?: string }, b: { language?: string }): boole
   return true;
 }
 
+/**
+ * Generate a LiveKit access token for a random-chat participant.
+ *
+ * Token TTL: 30 minutes. Random chat sessions are ephemeral by design.
+ * A short TTL limits exposure if a token is leaked and encourages users
+ * to re-queue for new interactions rather than lingering in old rooms.
+ */
 async function generateToken(
   roomName: string,
   userId: string,
@@ -111,6 +122,13 @@ export default async function randomChatRoutes(fastify: FastifyInstance) {
       const tokenA = await generateToken(roomName, userId, config.apiKey, config.apiSecret);
       const tokenB = await generateToken(roomName, matchUserId, config.apiKey, config.apiSecret);
 
+      // Store the partner's token for retrieval via GET /random-chat/:pairId/token
+      const partnerKey = `${pairId}:${matchUserId}`;
+      pendingTokens.set(partnerKey, tokenB);
+      setTimeout(() => {
+        pendingTokens.delete(partnerKey);
+      }, PENDING_TOKEN_TTL_MS);
+
       return reply.send({
         success: true,
         data: {
@@ -118,7 +136,6 @@ export default async function randomChatRoutes(fastify: FastifyInstance) {
           pairId,
           roomName,
           token: tokenA,
-          partnerToken: tokenB,
         },
       });
     }
@@ -158,6 +175,25 @@ export default async function randomChatRoutes(fastify: FastifyInstance) {
     }
 
     return reply.send({ success: true, data: { removed: !!entry } });
+  });
+
+  // GET /random-chat/:pairId/token - Retrieve token for a matched partner
+  fastify.get<{ Params: { pairId: string } }>('/:pairId/token', async (request, reply) => {
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const key = `${request.params.pairId}:${userId}`;
+    const token = pendingTokens.get(key);
+    if (!token) {
+      throw createAppError('Token not found or expired', 404, 'TOKEN_NOT_FOUND');
+    }
+
+    // Remove token after retrieval (one-time use)
+    pendingTokens.delete(key);
+
+    return reply.send({ success: true, data: { token } });
   });
 
   // GET /random-chat/status - Get queue status

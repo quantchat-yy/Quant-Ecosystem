@@ -110,6 +110,39 @@ export class CallService {
     return callInfo;
   }
 
+  async leaveCall(callId: string, userId: string): Promise<{ ended: boolean }> {
+    const call = this.calls.get(callId);
+    if (!call) {
+      throw createAppError('Call not found', 404, 'CALL_NOT_FOUND');
+    }
+
+    if (!call.participantIds.includes(userId)) {
+      throw createAppError('User is not a participant of this call', 403, 'CALL_NOT_PARTICIPANT');
+    }
+
+    // Remove the participant from the call
+    call.participantIds = call.participantIds.filter((id) => id !== userId);
+
+    try {
+      await this.roomClient.removeParticipant(call.roomName, userId);
+    } catch {
+      // Participant may have already disconnected - safe to ignore
+    }
+
+    // If no participants remain, destroy the room
+    if (call.participantIds.length === 0) {
+      try {
+        await this.roomClient.deleteRoom(call.roomName);
+      } catch {
+        // Room may already be gone due to emptyTimeout
+      }
+      this.calls.delete(callId);
+      return { ended: true };
+    }
+
+    return { ended: false };
+  }
+
   async endCall(callId: string): Promise<void> {
     const call = this.calls.get(callId);
     if (!call) {
@@ -125,6 +158,13 @@ export class CallService {
     this.calls.delete(callId);
   }
 
+  /**
+   * Generate a LiveKit access token for a call participant.
+   *
+   * Token TTL: 1 hour. Calls are typically shorter than meetings. A 1-hour
+   * window covers the vast majority of voice/video calls while limiting the
+   * blast radius of a leaked token.
+   */
   async generateCallToken(callId: string, userId: string): Promise<string> {
     const call = this.calls.get(callId);
     if (!call) {
