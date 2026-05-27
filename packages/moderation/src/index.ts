@@ -50,3 +50,12 @@ export {
   MockWhisperProvider,
 } from './services/audio-transcriber';
 export { LiveModerator } from './services/live-moderator';
+export {
+  PhoneVerificationService,
+  TwilioSMSProvider,
+  MSG91SMSProvider,
+} from './services/phone-verification';
+export { EmailVerificationService } from './services/email-verification';
+export { DeviceFingerprintService } from './services/device-fingerprint';
+export { BehavioralSignalAnalyzer } from './services/behavioral-signals';
+export { AgeGateService } from './services/age-gate';

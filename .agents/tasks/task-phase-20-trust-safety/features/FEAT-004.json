@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "feat",
   "description": "Account integrity and verification layer: Phone verification with Twilio/MSG91 geographic routing, email verification with disposable-email blocklist + DNS MX validation, device fingerprinting for sybil detection, behavioral signals (account age, typing cadence, mouse entropy). Also: age gating with DoB + step-up verification for under-18 features.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "1. Create packages/moderation/src/services/phone-verification.ts: PhoneVerificationService with geographic SMS provider routing. Interface: SMSProvider (Twilio, MSG91). Route by country code: US/CA -> Twilio, IN -> MSG91, others -> Twilio fallback. Methods: sendCode(phone, locale), verifyCode(phone, code), getDeliveryStatus(messageId). Rate limiting built in (5 codes/hour/number, 60s cooldown).",
     "2. Create packages/moderation/src/services/email-verification.ts: EmailVerificationService with: (a) disposable-email domain blocklist (load from static list of ~3000 known disposable domains), (b) DNS MX record validation (dns.resolveMx), (c) syntax validation, (d) send verification link with signed token. Methods: validate(email) -> {valid, reason, disposable, mxValid}, sendVerification(email, userId), confirmVerification(token).",

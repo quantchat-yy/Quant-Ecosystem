@@ -669,3 +669,118 @@ export interface WhisperProvider {
 export interface FrameExtractorBackend {
   extractFrames(input: string | Buffer, timestamps: number[]): Promise<KeyframeResult[]>;
 }
+
+// ============================================================================
+// Account Integrity & Verification Types (Phase 20)
+// ============================================================================
+
+/** SMS provider interface for phone verification */
+export interface SMSProvider {
+  /** Send an SMS message to a phone number */
+  send(phoneNumber: string, message: string): Promise<SMSSendResult>;
+  /** Get provider name for logging */
+  getProviderName(): string;
+}
+
+/** Result of sending an SMS */
+export interface SMSSendResult {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+}
+
+/** Result of phone verification */
+export interface PhoneVerificationResult {
+  success: boolean;
+  error?: string;
+  messageId?: string;
+  retryAfter?: number;
+}
+
+/** Result of email validation */
+export interface EmailValidationResult {
+  valid: boolean;
+  reason?: string;
+  disposable: boolean;
+  mxValid: boolean;
+}
+
+/** Raw browser signals for device fingerprinting */
+export interface DeviceSignals {
+  userAgent: string;
+  screenResolution: string;
+  timezone: string;
+  language: string;
+  canvasHash?: string;
+  webglHash?: string;
+  installedFontsHash?: string;
+}
+
+/** Computed device fingerprint */
+export interface DeviceFingerprint {
+  deviceId: string;
+  signals: DeviceSignals;
+  createdAt: number;
+}
+
+/** Result of a sybil check */
+export interface SybilCheckResult {
+  isSybil: boolean;
+  confidence: number;
+  linkedAccounts: string[];
+}
+
+/** Behavioral signals for risk analysis */
+export interface BehavioralSignals {
+  accountAgeDays: number;
+  typingSpeedWpm?: number;
+  mouseEntropy?: number;
+  sessionCount: number;
+  avgSessionDurationMs?: number;
+}
+
+/** Behavioral risk score result */
+export interface BehavioralRiskScore {
+  score: number;
+  factors: BehavioralRiskFactor[];
+  classification: 'low' | 'medium' | 'high' | 'critical';
+}
+
+/** Individual behavioral risk factor */
+export interface BehavioralRiskFactor {
+  name: string;
+  score: number;
+  description: string;
+}
+
+/** Human-likeness assessment */
+export interface HumanLikenessResult {
+  confidence: number;
+  factors: { name: string; passed: boolean; detail: string }[];
+}
+
+/** Age groups for age gating */
+export type AgeGroup = 'under13' | 'under16' | 'under18' | 'adult';
+
+/** Age verification result */
+export interface AgeVerificationResult {
+  ageGroup: AgeGroup;
+  restrictions: string[];
+}
+
+/** Step-up verification methods */
+export type StepUpMethod = 'id_upload' | 'parental_consent' | 'phone';
+
+/** Step-up verification requirement */
+export interface StepUpVerification {
+  required: boolean;
+  method: StepUpMethod;
+}
+
+/** Age restriction record */
+export interface AgeRestriction {
+  feature: string;
+  minAgeGroup: AgeGroup;
+  requiresStepUp: boolean;
+  stepUpMethod?: StepUpMethod;
+}
