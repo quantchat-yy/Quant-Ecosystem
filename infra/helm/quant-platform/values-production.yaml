@@ -1,6 +1,6 @@
 global:
   environment: production
-  domain: quant.io
+  domain: quant.app
   databaseCIDRs:
     - 10.0.20.0/24
     - 10.0.21.0/24
@@ -9,180 +9,211 @@ global:
     - 10.0.10.0/24
     - 10.0.11.0/24
     - 10.0.12.0/24
+  multiRegion:
+    enabled: true
+    primary: us-east-1
+    secondary: eu-west-1
 
 configmap:
   NODE_ENV: production
   LOG_LEVEL: warn
-  CORS_ORIGINS: 'https://quant.io'
-  JWT_ISSUER: 'https://quant.io'
+  CORS_ORIGINS: 'https://quant.app'
+  JWT_ISSUER: 'https://quant.app'
   JWT_AUDIENCE: 'quant-platform'
 
 ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/force-ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/hsts: 'true'
+    nginx.ingress.kubernetes.io/hsts-max-age: '31536000'
+    external-dns.alpha.kubernetes.io/hostname: quant.app
+    multi-region/failover: 'enabled'
+  hosts:
+    - host: quant.app
+      paths:
+        - path: /
+          pathType: Prefix
   tls:
+    enabled: true
     secretName: quant-platform-production-tls
+    hosts:
+      - quant.app
+      - '*.quant.app'
+
+canary:
+  enabled: true
+  prometheus:
+    address: http://prometheus-server.monitoring:9090
+  rollback:
+    maxErrorRate: 0.01
+    maxP99Latency: 2000
 
 services:
   identity:
-    replicaCount: 3
+    replicaCount: 5
     resources:
       requests:
-        cpu: 500m
-        memory: 512Mi
+        cpu: 1000m
+        memory: 1Gi
       limits:
-        cpu: 2000m
-        memory: 2Gi
+        cpu: 4000m
+        memory: 4Gi
     autoscaling:
-      minReplicas: 3
-      maxReplicas: 20
+      minReplicas: 5
+      maxReplicas: 30
     pdb:
-      minAvailable: 2
+      minAvailable: 3
 
   chat-api:
-    replicaCount: 5
+    replicaCount: 8
     resources:
       requests:
-        cpu: 500m
-        memory: 512Mi
+        cpu: 1000m
+        memory: 1Gi
       limits:
-        cpu: 2000m
-        memory: 2Gi
+        cpu: 4000m
+        memory: 4Gi
     autoscaling:
-      minReplicas: 5
-      maxReplicas: 50
+      minReplicas: 8
+      maxReplicas: 80
     pdb:
-      minAvailable: 3
+      minAvailable: 5
 
   mail-api:
-    replicaCount: 3
-    resources:
-      requests:
-        cpu: 500m
-        memory: 512Mi
-      limits:
-        cpu: 2000m
-        memory: 2Gi
-    autoscaling:
-      minReplicas: 3
-      maxReplicas: 20
-    pdb:
-      minAvailable: 2
-
-  ai-api:
-    replicaCount: 3
-    resources:
-      requests:
-        cpu: 500m
-        memory: 512Mi
-      limits:
-        cpu: 2000m
-        memory: 2Gi
-    autoscaling:
-      minReplicas: 3
-      maxReplicas: 30
-    pdb:
-      minAvailable: 2
-
-  sync-api:
-    replicaCount: 3
-    resources:
-      requests:
-        cpu: 500m
-        memory: 512Mi
-      limits:
-        cpu: 2000m
-        memory: 2Gi
-    autoscaling:
-      minReplicas: 3
-      maxReplicas: 20
-    pdb:
-      minAvailable: 2
-
-  ads-api:
-    replicaCount: 3
-    resources:
-      requests:
-        cpu: 500m
-        memory: 512Mi
-      limits:
-        cpu: 2000m
-        memory: 2Gi
-    autoscaling:
-      minReplicas: 3
-      maxReplicas: 20
-    pdb:
-      minAvailable: 2
-
-  tube-api:
-    replicaCount: 4
-    resources:
-      requests:
-        cpu: 500m
-        memory: 512Mi
-      limits:
-        cpu: 2000m
-        memory: 2Gi
-    autoscaling:
-      minReplicas: 4
-      maxReplicas: 30
-    pdb:
-      minAvailable: 2
-
-  neon-api:
-    replicaCount: 3
-    resources:
-      requests:
-        cpu: 500m
-        memory: 512Mi
-      limits:
-        cpu: 2000m
-        memory: 2Gi
-    autoscaling:
-      minReplicas: 3
-      maxReplicas: 20
-    pdb:
-      minAvailable: 2
-
-  edits-api:
-    replicaCount: 3
-    resources:
-      requests:
-        cpu: 500m
-        memory: 512Mi
-      limits:
-        cpu: 2000m
-        memory: 2Gi
-    autoscaling:
-      minReplicas: 3
-      maxReplicas: 20
-    pdb:
-      minAvailable: 2
-
-  max-api:
-    replicaCount: 3
-    resources:
-      requests:
-        cpu: 500m
-        memory: 512Mi
-      limits:
-        cpu: 2000m
-        memory: 2Gi
-    autoscaling:
-      minReplicas: 3
-      maxReplicas: 20
-    pdb:
-      minAvailable: 2
-
-  ws-gateway:
     replicaCount: 5
     resources:
       requests:
-        cpu: 500m
-        memory: 512Mi
+        cpu: 1000m
+        memory: 1Gi
       limits:
-        cpu: 2000m
-        memory: 2Gi
+        cpu: 4000m
+        memory: 4Gi
+    autoscaling:
+      minReplicas: 5
+      maxReplicas: 30
+    pdb:
+      minAvailable: 3
+
+  ai-api:
+    replicaCount: 5
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 1Gi
+      limits:
+        cpu: 4000m
+        memory: 4Gi
     autoscaling:
       minReplicas: 5
       maxReplicas: 50
     pdb:
       minAvailable: 3
+
+  sync-api:
+    replicaCount: 5
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 1Gi
+      limits:
+        cpu: 4000m
+        memory: 4Gi
+    autoscaling:
+      minReplicas: 5
+      maxReplicas: 30
+    pdb:
+      minAvailable: 3
+
+  ads-api:
+    replicaCount: 5
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 1Gi
+      limits:
+        cpu: 4000m
+        memory: 4Gi
+    autoscaling:
+      minReplicas: 5
+      maxReplicas: 30
+    pdb:
+      minAvailable: 3
+
+  tube-api:
+    replicaCount: 6
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 1Gi
+      limits:
+        cpu: 4000m
+        memory: 4Gi
+    autoscaling:
+      minReplicas: 6
+      maxReplicas: 50
+    pdb:
+      minAvailable: 4
+
+  neon-api:
+    replicaCount: 5
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 1Gi
+      limits:
+        cpu: 4000m
+        memory: 4Gi
+    autoscaling:
+      minReplicas: 5
+      maxReplicas: 30
+    pdb:
+      minAvailable: 3
+
+  edits-api:
+    replicaCount: 5
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 1Gi
+      limits:
+        cpu: 4000m
+        memory: 4Gi
+    autoscaling:
+      minReplicas: 5
+      maxReplicas: 30
+    pdb:
+      minAvailable: 3
+
+  max-api:
+    replicaCount: 5
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 1Gi
+      limits:
+        cpu: 4000m
+        memory: 4Gi
+    autoscaling:
+      minReplicas: 5
+      maxReplicas: 30
+    pdb:
+      minAvailable: 3
+
+  ws-gateway:
+    replicaCount: 8
+    resources:
+      requests:
+        cpu: 1000m
+        memory: 1Gi
+      limits:
+        cpu: 4000m
+        memory: 4Gi
+    autoscaling:
+      minReplicas: 8
+      maxReplicas: 80
+    pdb:
+      minAvailable: 5

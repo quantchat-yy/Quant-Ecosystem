@@ -205,3 +205,44 @@ module "monitoring" {
   elasticache_replication_group_id = module.elasticache.replication_group_id
   alert_email                      = var.alert_email
 }
+
+# ------------------------------------------------------------------------------
+# Backup Verification
+# ------------------------------------------------------------------------------
+
+module "backup_verification" {
+  source = "../../modules/backup-verification"
+
+  project     = var.project
+  environment = var.environment
+  rds_arns    = [module.rds.db_instance_arn]
+  alert_email = var.alert_email
+}
+
+# ------------------------------------------------------------------------------
+# Synthetic Monitoring
+# ------------------------------------------------------------------------------
+
+module "synthetic_monitoring" {
+  source = "../../modules/synthetic-monitoring"
+
+  project     = var.project
+  environment = var.environment
+  aws_region  = var.aws_region
+
+  service_endpoints = [
+    { name = "identity",  url = "https://staging.quant.dev/api/identity/health",  expected_status = 200 },
+    { name = "chat-api",  url = "https://staging.quant.dev/api/chat/health",      expected_status = 200 },
+    { name = "mail-api",  url = "https://staging.quant.dev/api/mail/health",      expected_status = 200 },
+    { name = "ai-api",    url = "https://staging.quant.dev/api/ai/health",        expected_status = 200 },
+    { name = "sync-api",  url = "https://staging.quant.dev/api/sync/health",      expected_status = 200 },
+    { name = "ads-api",   url = "https://staging.quant.dev/api/ads/health",       expected_status = 200 },
+    { name = "tube-api",  url = "https://staging.quant.dev/api/tube/health",      expected_status = 200 },
+    { name = "neon-api",  url = "https://staging.quant.dev/api/neon/health",      expected_status = 200 },
+    { name = "edits-api", url = "https://staging.quant.dev/api/edits/health",     expected_status = 200 },
+    { name = "max-api",   url = "https://staging.quant.dev/api/max/health",       expected_status = 200 },
+    { name = "ws-gw",     url = "https://staging.quant.dev/api/ws/health",        expected_status = 200 },
+  ]
+
+  sns_topic_arn = module.monitoring.sns_topic_arn
+}
