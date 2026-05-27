@@ -109,6 +109,41 @@ export type {
   CrossAppSearchResponse,
 } from './cross-app-search';
 
+export { SnippetHighlighter } from './services/snippet-highlighter';
+export type { SnippetHighlightOptions, HighlightedSnippet } from './services/snippet-highlighter';
+
+export { RagAnswerSynthesizer } from './services/rag-answer-synthesizer';
+export type {
+  RagContext,
+  Citation,
+  RagAnswer,
+  RagAnswerSynthesizerOptions,
+} from './services/rag-answer-synthesizer';
+
+export { SearchHistoryService } from './services/search-history';
+export type { SearchHistoryEntry, SearchHistoryOptions } from './services/search-history';
+
+export { UniversalSearchService } from './services/universal-search';
+export type {
+  UniversalSearchRequest,
+  UniversalSearchOptions,
+  UniversalSearchResultItem,
+  UniversalSearchResponse,
+  UniversalSearchDependencies,
+} from './services/universal-search';
+
+export { ContentExtractor } from './services/content-extractor';
+
+export { FindSimilarService } from './services/find-similar';
+export type { FindSimilarOptions, FindSimilarResult } from './services/find-similar';
+
+export { TypeaheadService } from './services/typeahead';
+export type {
+  TypeaheadOptions,
+  TypeaheadSuggestion,
+  TypeaheadResponse,
+} from './services/typeahead';
+
 export type {
   SearchQuery,
   SearchResult,
