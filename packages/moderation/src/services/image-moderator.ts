@@ -11,6 +11,7 @@ import type {
 } from '../types';
 import { ImageClassifier } from './image-classifier';
 import { PerceptualHasher } from './perceptual-hash';
+import { CSAMMatchService } from './csam-matcher';
 
 /**
  * ImageModerator - Image content moderation
@@ -22,12 +23,18 @@ export class ImageModerator {
   private classifier: ImageClassifier;
   private hasher: PerceptualHasher;
   private csamMatcher: CSAMMatcherInterface | undefined;
+  private csamMatchService: CSAMMatchService | undefined;
   private knownBadHashes: Map<string, string>;
 
-  constructor(params: { client: ImageModerationAPIClient; csamMatcher?: CSAMMatcherInterface }) {
+  constructor(params: {
+    client: ImageModerationAPIClient;
+    csamMatcher?: CSAMMatcherInterface;
+    csamMatchService?: CSAMMatchService;
+  }) {
     this.classifier = new ImageClassifier(params.client);
     this.hasher = new PerceptualHasher();
     this.csamMatcher = params.csamMatcher;
+    this.csamMatchService = params.csamMatchService;
     this.knownBadHashes = new Map();
   }
 
@@ -44,8 +51,26 @@ export class ImageModerator {
   ): Promise<ModerationResult> {
     const hash = this.hasher.computeImageHash(buffer);
 
-    // Check CSAM matcher first
-    if (this.csamMatcher) {
+    // Check CSAMMatchService first (new provider-based approach, Phase 20)
+    if (this.csamMatchService) {
+      const csamResult = await this.csamMatchService.checkHash(hash);
+      if (csamResult.matched) {
+        return {
+          id: `imgmod_csam_${Date.now()}`,
+          contentId: contentId ?? `image_${Date.now()}`,
+          contentType: 'image',
+          categories: [{ category: 'illegal', score: 1, confidence: 0.99, detected: true }],
+          overallScore: 1,
+          action: 'remove',
+          confidence: 0.99,
+          automated: true,
+          flags: ['illegal', 'csam_match'],
+          metadata: { reportId: csamResult.reportId },
+          createdAt: Date.now(),
+        };
+      }
+    } else if (this.csamMatcher) {
+      // Legacy CSAMGuard path (backward compatibility)
       const csamResult = await this.csamMatcher.checkHash(hash);
       if (csamResult.matched) {
         return {

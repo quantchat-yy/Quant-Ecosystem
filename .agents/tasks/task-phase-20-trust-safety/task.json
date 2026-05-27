@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-20-trust-safety",
+  "task_description": "Phase 20: Real Trust & Safety (legal liability layer). Eliminate criminal-negligence risk of NoOp CSAM matcher. Build the safety stack that lets you ship UGC at all. Includes CSAM hash matching, perceptual hashing, text/image/video classification, live moderation, account integrity, appeals workflow, age gating, safety microfeatures, and DPIA documentation.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004", "FEAT-005"],
+  "blocked_reason": null
+}

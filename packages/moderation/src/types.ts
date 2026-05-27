@@ -392,6 +392,45 @@ export interface CSAMMatcherInterface {
 }
 
 // ============================================================================
+// CSAM Hash Provider Types (Phase 20)
+// ============================================================================
+
+/** Interface for CSAM hash-matching providers (PhotoDNA, Thorn Safer, etc.) */
+export interface CSAMHashProvider {
+  /** Check whether a given SHA-256 hash matches the provider's known CSAM database */
+  checkHash(hash: string): Promise<CSAMHashCheckResult>;
+  /** Report a confirmed match to the provider for audit/legal purposes */
+  reportMatch(params: { hash: string; source: string; timestamp: number }): Promise<void>;
+  /** Get the name of this provider for logging/reporting */
+  getProviderName(): string;
+}
+
+/** Result of a hash check against a CSAM provider */
+export interface CSAMHashCheckResult {
+  matched: boolean;
+  confidence?: number;
+  providerResponse?: Record<string, unknown>;
+}
+
+/** Report generated when a CSAM match is detected */
+export interface CSAMReport {
+  hash: string;
+  source: string;
+  timestamp: number;
+  reportId: string;
+  providerName: string;
+  providerResponse?: Record<string, unknown>;
+}
+
+/** Configuration for the CSAM matching service */
+export interface CSAMConfig {
+  provider: CSAMHashProvider;
+  legalContactEmail: string;
+  pagingWebhookUrl: string;
+  enabledApps: string[];
+}
+
+// ============================================================================
 // Phase 13 - Abuse Graph, Spam, AI Safety, Ad Policy, Bot Detection, Labels, Audit
 // ============================================================================
 

@@ -9,6 +9,7 @@ import type {
   PolicyEngine,
   ModerationResult,
 } from '@quant/moderation';
+import { CSAMMatchService } from '@quant/moderation';
 import type { ModerationJob } from '@quant/queue';
 import type { ActionExecutor } from '../action-executor';
 
@@ -24,6 +25,7 @@ export interface ImageHandlerDeps {
   actionExecutor: ActionExecutor;
   knownBadHashes?: Set<string>;
   contentFetcher?: ContentFetcher;
+  csamMatchService?: CSAMMatchService;
 }
 
 export class ImageModerationHandler {
@@ -33,6 +35,7 @@ export class ImageModerationHandler {
   private readonly actionExecutor: ActionExecutor;
   private readonly knownBadHashes: Set<string>;
   private readonly contentFetcher: ContentFetcher | null;
+  private readonly csamMatchService: CSAMMatchService | undefined;
 
   constructor(deps: ImageHandlerDeps) {
     this.classifier = deps.classifier;
@@ -41,6 +44,7 @@ export class ImageModerationHandler {
     this.actionExecutor = deps.actionExecutor;
     this.knownBadHashes = deps.knownBadHashes ?? new Set();
     this.contentFetcher = deps.contentFetcher ?? null;
+    this.csamMatchService = deps.csamMatchService;
   }
 
   async handle(job: ModerationJob): Promise<ModerationResult> {
@@ -60,6 +64,37 @@ export class ImageModerationHandler {
     }
 
     const imageHash = this.hasher.computeImageHash(imageBytes);
+
+    // CSAM hash check BEFORE any storage or classification (Phase 20)
+    if (this.csamMatchService) {
+      const csamResult = await this.csamMatchService.checkHash(imageHash);
+      if (csamResult.matched) {
+        const csamBlockResult: ModerationResult = {
+          id: `imgmod_csam_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
+          contentId: job.contentId,
+          contentType: 'image',
+          categories: [{ category: 'illegal', score: 1.0, confidence: 0.99, detected: true }],
+          overallScore: 1.0,
+          action: 'remove',
+          confidence: 0.99,
+          automated: true,
+          flags: ['illegal', 'csam_match'],
+          metadata: { hash: imageHash, reportId: csamResult.reportId, matchType: 'csam_provider' },
+          createdAt: Date.now(),
+        };
+
+        await this.actionExecutor.execute({
+          action: 'remove',
+          contentId: job.contentId,
+          userId: job.userId,
+          severity: 'critical',
+          reason: 'CSAM hash match detected by provider',
+          classificationResult: csamBlockResult,
+        });
+
+        return csamBlockResult;
+      }
+    }
 
     // Check against known-bad hashes
     if (this.knownBadHashes.has(imageHash)) {

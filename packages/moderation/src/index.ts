@@ -11,7 +11,13 @@ export {
   type ClassifierThresholds,
 } from './services/classifier-thresholds';
 export { PerceptualHasher } from './services/perceptual-hash';
-export { CSAMGuard } from './services/csam-matcher';
+export { CSAMGuard, CSAMGuardLegacy, CSAMMatchService } from './services/csam-matcher';
+export {
+  PhotoDNAProvider,
+  TestHashProvider,
+  NullProvider,
+  NCMEC_TEST_HASHES,
+} from './services/csam-hash-provider';
 export { PolicyEngine, PolicySchema, PolicyRuleSchema } from './services/policy-engine';
 export { AppealWorkflow } from './services/appeal-workflow';
 export { TransparencyReportGenerator } from './services/transparency-report';
