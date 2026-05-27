@@ -189,3 +189,71 @@
 ### Next action
 
 - Phase 6: Identity, Permissions, Workspaces, and Context Graph
+
+---
+
+## Phase 6: Identity, Permissions, Workspaces, And Context Graph
+
+**Status:** COMPLETE  
+**Completed:** 2026-05-27
+
+**Summary:**
+
+- Created `@quant/identity-permissions` package with 6 core modules
+- Extended `@quant/common` types with Workspace, Organization, Team, Role, Permission, AppGrant, AgentGrant, Resource, ContextItem, MemoryItem
+- Implemented RBACEngine with workspace-scoped role-based access control
+- Implemented ResourceRegistry with cross-app resource tracking and AI access toggles
+- Implemented ContextGraph supporting 11 resource types with relationship traversal
+- Implemented MemoryManager with per-app controls, pause/resume functionality
+- Implemented ConsentManager with "Why am I seeing this?" and "What data did AI use?" features
+- Implemented WorkspaceAuditLog with filtering and export (JSON/CSV)
+- Added 8 new PermissionScope entries for workspace/agent/memory/context operations
+
+**Gate verification:**
+
+- `pnpm typecheck`: 72/72 PASS
+- `pnpm test`: 75/75 PASS
+- `pnpm build`: 51/51 PASS
+- `pnpm lint`: 61/61 PASS
+
+**Exit criteria met:**
+
+- Every cross-app feature respects permissions (RBAC enforces workspace isolation)
+- AI cannot silently access private data outside grants (ConsentManager + AI access toggles)
+
+---
+
+## Phase 7: Agentic AI Foundation
+
+**Status:** COMPLETE  
+**Completed:** 2026-05-27
+
+**Summary:**
+
+- Added AgentActionTier enum (Tier 0-4) with typed tool definitions
+- Implemented TypedToolRegistry with tier-based filtering and zod argument validation
+- Implemented PlanGenerator with multi-step plans, cost estimation, and step editing
+- Implemented SafetyClassifier with 5 default rules (PII, financial, admin, moderation, bulk)
+- Implemented CostTracker with per-agent budgets and period-based spend tracking
+- Implemented ExecutionEngine with full pipeline: permission -> safety -> approval -> execute -> audit -> undo -> cost
+- Implemented BaseWorkflow abstract class for standardized workflow creation
+- Built 5 end-to-end agent workflows:
+  1. PlanMyDayWorkflow (Tier 0 - read calendar, emails, tasks, summarize)
+  2. EmailReplyWorkflow (Tier 1 - draft replies in user style)
+  3. MeetingToTasksWorkflow (Tier 2 - create tasks/docs with confirmation)
+  4. CrossAppSearchWorkflow (Tier 0 - search across emails, docs, files, messages)
+  5. ContentLaunchWorkflow (Tier 3 - create post, caption, email, campaign with approval)
+- Added 71+ new tests covering all new modules
+
+**Gate verification:**
+
+- `pnpm typecheck`: 72/72 PASS
+- `pnpm test`: 75/75 PASS (312 tests in agent-runtime alone)
+- `pnpm build`: 51/51 PASS
+- `pnpm lint`: 61/61 PASS
+
+**Exit criteria met:**
+
+- 5 high-quality end-to-end agent workflows work (verified by tests)
+- Every agent action has permission, approval, audit, and undo story (ExecutionEngine enforces all)
+- All quality gates continue to pass
