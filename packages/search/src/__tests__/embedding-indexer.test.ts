@@ -87,7 +87,7 @@ describe('UGCEmbeddingIndexer', () => {
         { id: 'doc-b', text: 'Second item', language: 'en', metadata: { tag: 'b' } },
       ]);
 
-      expect(embeddingProvider.embed).toHaveBeenCalledWith(['First item', 'Second item'], 'en');
+      expect(embeddingProvider.embed).toHaveBeenCalledWith(['First item', 'Second item']);
       expect(vectorClient.upsertPoints).toHaveBeenCalledWith('test-collection', [
         {
           id: 'doc-a',

@@ -45,6 +45,9 @@ export class ScreenTimeMonitor {
   }
 
   startSession(userId: string): void {
+    if (this.sessions.has(userId)) {
+      return;
+    }
     this.sessions.set(userId, {
       sessionStart: Date.now(),
       lastItemTime: 0,

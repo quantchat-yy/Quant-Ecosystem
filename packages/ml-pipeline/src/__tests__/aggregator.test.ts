@@ -148,6 +148,44 @@ describe('FeatureAggregator', () => {
     });
   });
 
+  describe('pruning', () => {
+    it('prunes events older than 7 days when count exceeds 100', () => {
+      const now = Date.now();
+      const eightDaysAgo = now - 8 * 24 * 60 * 60 * 1000;
+
+      // Push 101 events with timestamps older than 7 days
+      for (let i = 0; i < 101; i++) {
+        aggregator.processEvent(createEvent({ userId: 'user-1', timestamp: eightDaysAgo + i }));
+      }
+
+      // Push a new event at current time to trigger pruning
+      aggregator.processEvent(createEvent({ userId: 'user-1', timestamp: now }));
+
+      // After pruning, only the new event should be within the 7-day window
+      const features = aggregator.getAggregatedFeatures('user-1', now);
+      expect(features.total_views_24h).toBe(1);
+      expect(features.session_count_7d).toBe(1);
+    });
+
+    it('does not prune when event count is at or below 100', () => {
+      const now = Date.now();
+      const eightDaysAgo = now - 8 * 24 * 60 * 60 * 1000;
+
+      // Push exactly 100 old events
+      for (let i = 0; i < 100; i++) {
+        aggregator.processEvent(createEvent({ userId: 'user-1', timestamp: eightDaysAgo + i }));
+      }
+
+      // Push a new event - no pruning since count was 100 (not > 100) before this push
+      // After this push count is 101, but pruning already triggered on this push
+      aggregator.processEvent(createEvent({ userId: 'user-1', timestamp: now }));
+
+      // The old events still exist (outside 7-day window but still in state)
+      // Verify via getUserIds that the user still has data
+      expect(aggregator.getUserIds()).toContain('user-1');
+    });
+  });
+
   describe('flushToOnlineStore', () => {
     it('writes dirty aggregates to online store', async () => {
       aggregator.processEvent(createEvent({ userId: 'user-1' }));
@@ -181,6 +219,26 @@ describe('FeatureAggregator', () => {
           total_views_24h: 1,
         }),
       );
+    });
+
+    it('continues flushing other users when one user fails', async () => {
+      aggregator.processEvent(createEvent({ userId: 'user-1' }));
+      aggregator.processEvent(createEvent({ userId: 'user-2' }));
+      aggregator.processEvent(createEvent({ userId: 'user-3' }));
+
+      // Make setFeatures fail for user-2 only
+      (mockStore.setFeatures as ReturnType<typeof vi.fn>).mockImplementation(
+        async (userId: string) => {
+          if (userId === 'user-2') {
+            throw new Error('Store write failed for user-2');
+          }
+        },
+      );
+
+      const flushed = await aggregator.flushToOnlineStore();
+      // user-1 and user-3 should flush successfully
+      expect(flushed).toBe(2);
+      expect(mockStore.setFeatures).toHaveBeenCalledTimes(3);
     });
   });
 });

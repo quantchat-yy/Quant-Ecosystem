@@ -68,9 +68,9 @@ export class UGCEmbeddingIndexer {
     for (let i = 0; i < items.length; i += this.batchSize) {
       const batch = items.slice(i, i + this.batchSize);
       const texts = batch.map((item) => item.text);
-      const language = batch[0]?.language;
 
-      const embeddings = await this.embeddingProvider.embed(texts, language);
+      // Do not pass explicit language - let embed() detect per-text to handle mixed-language batches
+      const embeddings = await this.embeddingProvider.embed(texts);
 
       const points = batch.map((item, idx) => ({
         id: item.id,

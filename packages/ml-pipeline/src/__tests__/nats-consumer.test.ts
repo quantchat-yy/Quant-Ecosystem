@@ -159,6 +159,20 @@ describe('NatsFeatureConsumer', () => {
       expect(processEventSpy).not.toHaveBeenCalled();
     });
 
+    it('invokes onError callback when a malformed message arrives', async () => {
+      const onError = vi.fn();
+      const consumerWithCallback = new NatsFeatureConsumer(mockNats, aggregator, { onError });
+      await consumerWithCallback.start();
+
+      // Simulate raw invalid bytes that will cause JSON.parse to throw
+      const handler = mockNats._handlers.get('user.events.*')!;
+      const rawData = new TextEncoder().encode('not json');
+      handler(rawData);
+
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledWith(expect.any(SyntaxError), rawData);
+    });
+
     it('handles all valid event types', async () => {
       const processEventSpy = vi.spyOn(aggregator, 'processEvent');
       await consumer.start();
