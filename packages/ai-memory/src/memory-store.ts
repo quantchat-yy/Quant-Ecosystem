@@ -4,9 +4,22 @@
 
 import type { MemoryEntry, MemoryCategory, MemoryAccess } from './types';
 
+export interface AIMemoryStoreOptions {
+  maxEntries?: number;
+  maxAccessLogEntries?: number;
+}
+
 export class AIMemoryStore {
   private memories: Map<string, MemoryEntry> = new Map();
   private counter = 0;
+  private readonly maxEntries: number;
+  private readonly maxAccessLogEntries: number;
+  private insertionOrder: string[] = [];
+
+  constructor(options?: AIMemoryStoreOptions) {
+    this.maxEntries = options?.maxEntries ?? 10000;
+    this.maxAccessLogEntries = options?.maxAccessLogEntries ?? 100;
+  }
 
   create(entry: Omit<MemoryEntry, 'id' | 'createdAt' | 'updatedAt' | 'accessLog'>): MemoryEntry {
     const id = `mem_${Date.now()}_${++this.counter}`;
@@ -19,7 +32,18 @@ export class AIMemoryStore {
       accessLog: [],
     };
     this.memories.set(id, full);
+    this.insertionOrder.push(id);
+    this.evictIfNeeded();
     return full;
+  }
+
+  private evictIfNeeded(): void {
+    while (this.memories.size > this.maxEntries && this.insertionOrder.length > 0) {
+      const oldest = this.insertionOrder.shift();
+      if (oldest != null) {
+        this.memories.delete(oldest);
+      }
+    }
   }
 
   get(id: string): MemoryEntry | undefined {
@@ -43,7 +67,14 @@ export class AIMemoryStore {
   }
 
   delete(id: string): boolean {
-    return this.memories.delete(id);
+    const deleted = this.memories.delete(id);
+    if (deleted) {
+      const idx = this.insertionOrder.indexOf(id);
+      if (idx >= 0) {
+        this.insertionOrder.splice(idx, 1);
+      }
+    }
+    return deleted;
   }
 
   searchByCategory(userId: string, category: MemoryCategory): MemoryEntry[] {
@@ -64,6 +95,10 @@ export class AIMemoryStore {
     if (!entry) return false;
 
     entry.accessLog.push(access);
+    // Cap access log to prevent unbounded growth
+    if (entry.accessLog.length > this.maxAccessLogEntries) {
+      entry.accessLog = entry.accessLog.slice(-this.maxAccessLogEntries);
+    }
     this.memories.set(id, entry);
     return true;
   }
@@ -80,6 +115,10 @@ export class AIMemoryStore {
     for (const [id, entry] of this.memories) {
       if (entry.userId === userId) {
         this.memories.delete(id);
+        const idx = this.insertionOrder.indexOf(id);
+        if (idx >= 0) {
+          this.insertionOrder.splice(idx, 1);
+        }
         count++;
       }
     }

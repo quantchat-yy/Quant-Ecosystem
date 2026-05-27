@@ -19,7 +19,7 @@ export class MemoryExporter {
       version: '1.0.0',
       exportedAt: Date.now(),
       userId,
-      entries,
+      entries: this.sanitizeForExport(entries),
     };
 
     switch (format) {
@@ -28,7 +28,7 @@ export class MemoryExporter {
       case 'markdown':
         return this.toMarkdown(exportData);
       case 'csv':
-        return this.toCsv(entries);
+        return this.toCsv(exportData.entries);
     }
   }
 
@@ -53,6 +53,13 @@ export class MemoryExporter {
     return imported;
   }
 
+  private sanitizeForExport(entries: MemoryEntry[]): MemoryEntry[] {
+    return entries.map((entry) => ({
+      ...entry,
+      accessLog: [],
+    }));
+  }
+
   private toMarkdown(data: MemoryExportData): string {
     const lines: string[] = [];
     lines.push(`# AI Memory Export`);
@@ -67,10 +74,24 @@ export class MemoryExporter {
       lines.push(`- **Created:** ${new Date(entry.createdAt).toISOString()}`);
       lines.push(`- **Explanation:** ${entry.explanation}`);
       lines.push(`- **Content:** ${entry.content}`);
+      lines.push(`- **Access Count:** ${entry.accessLog.length}`);
       lines.push('');
     }
 
     return lines.join('\n');
+  }
+
+  private sanitizeCsvCell(value: string): string {
+    let sanitized = value;
+    // Prefix cells that start with formula-triggering characters
+    if (/^[=+\-@]/.test(sanitized)) {
+      sanitized = `\t${sanitized}`;
+    }
+    // Escape double quotes and wrap in quotes
+    sanitized = sanitized.replace(/"/g, '""');
+    // Escape newlines within quoted fields
+    sanitized = sanitized.replace(/\r\n/g, '\\n').replace(/\n/g, '\\n').replace(/\r/g, '\\n');
+    return `"${sanitized}"`;
   }
 
   private toCsv(entries: MemoryEntry[]): string {
@@ -83,19 +104,21 @@ export class MemoryExporter {
       'sourceApp',
       'createdAt',
       'explanation',
+      'accessCount',
     ];
     const lines: string[] = [headers.join(',')];
 
     for (const entry of entries) {
       const row = [
-        entry.id,
-        entry.userId,
-        entry.category,
-        `"${entry.content.replace(/"/g, '""')}"`,
-        entry.source,
-        entry.sourceApp,
-        String(entry.createdAt),
-        `"${entry.explanation.replace(/"/g, '""')}"`,
+        this.sanitizeCsvCell(entry.id),
+        this.sanitizeCsvCell(entry.userId),
+        this.sanitizeCsvCell(entry.category),
+        this.sanitizeCsvCell(entry.content),
+        this.sanitizeCsvCell(entry.source),
+        this.sanitizeCsvCell(entry.sourceApp),
+        this.sanitizeCsvCell(String(entry.createdAt)),
+        this.sanitizeCsvCell(entry.explanation),
+        this.sanitizeCsvCell(String(entry.accessLog.length)),
       ];
       lines.push(row.join(','));
     }

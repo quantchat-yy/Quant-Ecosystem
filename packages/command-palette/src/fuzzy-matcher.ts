@@ -37,6 +37,19 @@ export class FuzzyMatcher {
     return scored;
   }
 
+  private matchesCharSequence(input: string, target: string): boolean {
+    let targetIdx = 0;
+    for (let i = 0; i < input.length; i++) {
+      const ch = input[i]!;
+      // Skip spaces in input for multi-word abbreviations
+      if (ch === ' ') continue;
+      const found = target.indexOf(ch, targetIdx);
+      if (found === -1) return false;
+      targetIdx = found + 1;
+    }
+    return true;
+  }
+
   private computeScore(input: string, command: Command): number {
     let score = 0;
 
@@ -74,6 +87,25 @@ export class FuzzyMatcher {
     // Description substring
     if (command.description.toLowerCase().includes(input)) {
       score += 1;
+    }
+
+    // Character-sequence matching: check if each character of input appears in order
+    if (score === 0) {
+      const nameMatch = this.matchesCharSequence(input, command.name.toLowerCase());
+      if (nameMatch) {
+        score += 3;
+      }
+
+      for (const keyword of command.keywords) {
+        if (this.matchesCharSequence(input, keyword.toLowerCase())) {
+          score += 2;
+          break;
+        }
+      }
+
+      if (this.matchesCharSequence(input, command.description.toLowerCase())) {
+        score += 1;
+      }
     }
 
     return score;

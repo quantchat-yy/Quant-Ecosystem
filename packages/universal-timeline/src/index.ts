@@ -10,4 +10,5 @@ export type {
   TimelineSubscriber,
 } from './types';
 export { UniversalTimelineService } from './timeline-service';
+export type { TimelineServiceOptions } from './timeline-service';
 export { TimelineAggregator } from './timeline-aggregator';

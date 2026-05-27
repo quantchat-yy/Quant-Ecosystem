@@ -11,5 +11,6 @@ export type {
   ExecutionLog,
 } from './types';
 export { CommandRegistry } from './command-registry';
+export type { CommandRegistryOptions } from './command-registry';
 export { CommandExecutor } from './command-executor';
 export { FuzzyMatcher } from './fuzzy-matcher';

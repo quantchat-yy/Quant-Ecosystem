@@ -5,15 +5,22 @@
 import type { TimelineEvent, TimelineFilter, TimelineSource, TimelineSubscriber } from './types';
 import { TimelineAggregator } from './timeline-aggregator';
 
+export interface TimelineServiceOptions {
+  maxEntries?: number;
+}
+
 export class UniversalTimelineService {
   private events: Map<string, TimelineEvent> = new Map();
   private sources: Map<string, TimelineSource> = new Map();
   private subscribers: Map<string, TimelineSubscriber[]> = new Map();
   private aggregator: TimelineAggregator;
   private counter = 0;
+  private readonly maxEntries: number;
+  private insertionOrder: string[] = [];
 
-  constructor() {
+  constructor(options?: TimelineServiceOptions) {
     this.aggregator = new TimelineAggregator();
+    this.maxEntries = options?.maxEntries ?? 10000;
   }
 
   registerSource(source: TimelineSource): void {
@@ -32,14 +39,29 @@ export class UniversalTimelineService {
       timestamp: Date.now(),
     };
     this.events.set(id, full);
+    this.insertionOrder.push(id);
+    this.evictIfNeeded();
 
     // Notify subscribers for this user
     const callbacks = this.subscribers.get(full.userId) ?? [];
     for (const cb of callbacks) {
-      cb(full);
+      try {
+        cb(full);
+      } catch {
+        // Isolate subscriber errors so one failing subscriber does not block others
+      }
     }
 
     return full;
+  }
+
+  private evictIfNeeded(): void {
+    while (this.events.size > this.maxEntries && this.insertionOrder.length > 0) {
+      const oldest = this.insertionOrder.shift();
+      if (oldest != null) {
+        this.events.delete(oldest);
+      }
+    }
   }
 
   query(filter: TimelineFilter): TimelineEvent[] {
@@ -49,12 +71,11 @@ export class UniversalTimelineService {
 
   async queryWithSources(filter: TimelineFilter): Promise<TimelineEvent[]> {
     const localEvents = Array.from(this.events.values());
-    const sourceEvents: TimelineEvent[][] = [];
 
-    for (const [, source] of this.sources) {
-      const events = await source.fetchEvents(filter);
-      sourceEvents.push(events);
-    }
+    const sourcePromises = Array.from(this.sources.values()).map((source) =>
+      source.fetchEvents(filter),
+    );
+    const sourceEvents = await Promise.all(sourcePromises);
 
     const allEvents = [localEvents, ...sourceEvents].flat();
     return this.aggregator.aggregate(allEvents, filter);
@@ -81,7 +102,14 @@ export class UniversalTimelineService {
   }
 
   deleteEvent(id: string): boolean {
-    return this.events.delete(id);
+    const deleted = this.events.delete(id);
+    if (deleted) {
+      const idx = this.insertionOrder.indexOf(id);
+      if (idx >= 0) {
+        this.insertionOrder.splice(idx, 1);
+      }
+    }
+    return deleted;
   }
 
   getSourceCount(): number {
