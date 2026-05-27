@@ -24,12 +24,47 @@ export class MemoryExporter {
 
     switch (format) {
       case 'json':
-        return JSON.stringify(exportData, null, 2);
+        return JSON.stringify(exportData, Object.keys(exportData).sort(), 2);
       case 'markdown':
         return this.toMarkdown(exportData);
       case 'csv':
         return this.toCsv(exportData.entries);
     }
+  }
+
+  async exportEncrypted(userId: string, key: CryptoKey): Promise<ArrayBuffer> {
+    const entries = this.store.getUserMemories(userId);
+    const exportData: MemoryExportData = {
+      version: '1.0.0',
+      exportedAt: Date.now(),
+      userId,
+      entries: this.sanitizeForExport(entries),
+    };
+
+    const json = this.deterministicStringify(exportData);
+    const encoder = new TextEncoder();
+    const data = encoder.encode(json);
+
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
+
+    // Prepend IV to ciphertext
+    const result = new Uint8Array(iv.length + encrypted.byteLength);
+    result.set(iv, 0);
+    result.set(new Uint8Array(encrypted), iv.length);
+    return result.buffer;
+  }
+
+  async importEncrypted(data: ArrayBuffer, key: CryptoKey): Promise<MemoryEntry[]> {
+    const bytes = new Uint8Array(data);
+    const iv = bytes.slice(0, 12);
+    const ciphertext = bytes.slice(12);
+
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+    const decoder = new TextDecoder();
+    const json = decoder.decode(decrypted);
+
+    return this.importFromJson(json);
   }
 
   importFromJson(json: string): MemoryEntry[] {
@@ -46,11 +81,28 @@ export class MemoryExporter {
         sourceApp: entry.sourceApp,
         explanation: entry.explanation,
         expiresAt: entry.expiresAt,
+        accessScopes: entry.accessScopes,
+        writeSignal: 'explicit',
+        status: entry.status,
+        tags: entry.tags,
       });
       imported.push(created);
     }
 
     return imported;
+  }
+
+  private deterministicStringify(obj: unknown): string {
+    return JSON.stringify(obj, (_key, value) => {
+      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        const sorted: Record<string, unknown> = {};
+        for (const k of Object.keys(value as Record<string, unknown>).sort()) {
+          sorted[k] = (value as Record<string, unknown>)[k];
+        }
+        return sorted;
+      }
+      return value;
+    });
   }
 
   private sanitizeForExport(entries: MemoryEntry[]): MemoryEntry[] {

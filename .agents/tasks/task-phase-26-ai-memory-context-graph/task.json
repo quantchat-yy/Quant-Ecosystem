@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-26-ai-memory-context-graph",
+  "task_description": "Phase 26: Universal AI Memory & Context Graph - expand memory schema to 8 categories, add access scopes and TTL, enforce anti-creep guarantees (explicit signal required), enhance context graph with typed edges, build memory inspector UI in QuantAI with full CRUD/export/import/disclosure, and validate all hard gates.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}

@@ -5,12 +5,14 @@
 import { z } from 'zod';
 
 export type MemoryCategory =
-  | 'preference'
-  | 'fact'
-  | 'context'
-  | 'interaction'
-  | 'decision'
-  | 'goal';
+  | 'people'
+  | 'places'
+  | 'projects'
+  | 'preferences'
+  | 'skills'
+  | 'goals'
+  | 'schedules'
+  | 'routines';
 
 export type ExportFormat = 'json' | 'markdown' | 'csv';
 
@@ -32,12 +34,25 @@ export interface MemoryEntry {
   expiresAt?: number;
   accessLog: MemoryAccess[];
   explanation: string;
+  accessScopes: string[];
+  writeSignal: 'explicit' | 'digest-approved';
+  status: 'active' | 'pending';
+  tags: string[];
 }
 
 export const MemoryEntrySchema = z.object({
   id: z.string(),
   userId: z.string(),
-  category: z.enum(['preference', 'fact', 'context', 'interaction', 'decision', 'goal']),
+  category: z.enum([
+    'people',
+    'places',
+    'projects',
+    'preferences',
+    'skills',
+    'goals',
+    'schedules',
+    'routines',
+  ]),
   content: z.string(),
   source: z.string(),
   sourceApp: z.string(),
@@ -52,6 +67,10 @@ export const MemoryEntrySchema = z.object({
     }),
   ),
   explanation: z.string(),
+  accessScopes: z.array(z.string()),
+  writeSignal: z.enum(['explicit', 'digest-approved']),
+  status: z.enum(['active', 'pending']),
+  tags: z.array(z.string()),
 });
 
 export const MemoryExportSchema = z.object({

@@ -2,7 +2,7 @@
 // Context Graph - Knowledge graph of resources and relationships
 // ============================================================================
 
-import type { ContextNode, ResourceType } from '../types.js';
+import type { ContextNode, ContextEdgeType, ResourceType } from '../types.js';
 
 export class ContextGraph {
   private nodes: Map<string, ContextNode> = new Map();
@@ -11,7 +11,7 @@ export class ContextGraph {
     this.nodes.set(node.id, node);
   }
 
-  addEdge(fromId: string, toId: string, relationship: string): boolean {
+  addEdge(fromId: string, toId: string, relationship: ContextEdgeType): boolean {
     const fromNode = this.nodes.get(fromId);
     const toNode = this.nodes.get(toId);
     if (!fromNode || !toNode) return false;
@@ -23,6 +23,70 @@ export class ContextGraph {
 
   getNode(id: string): ContextNode | undefined {
     return this.nodes.get(id);
+  }
+
+  getEdgesByType(nodeId: string, edgeType: ContextEdgeType): ContextNode[] {
+    const node = this.nodes.get(nodeId);
+    if (!node) return [];
+
+    const results: ContextNode[] = [];
+    for (const edge of node.relationships) {
+      if (edge.relationship === edgeType) {
+        const target = this.nodes.get(edge.targetId);
+        if (target) {
+          results.push(target);
+        }
+      }
+    }
+    return results;
+  }
+
+  findPath(fromId: string, toId: string, maxDepth: number): ContextNode[] | null {
+    if (fromId === toId) {
+      const node = this.nodes.get(fromId);
+      return node ? [node] : null;
+    }
+
+    const visited = new Set<string>();
+    const queue: { id: string; path: string[] }[] = [{ id: fromId, path: [fromId] }];
+    visited.add(fromId);
+
+    while (queue.length > 0) {
+      const item = queue.shift();
+      if (!item) break;
+
+      if (item.path.length - 1 >= maxDepth) continue;
+
+      const node = this.nodes.get(item.id);
+      if (!node) continue;
+
+      for (const edge of node.relationships) {
+        if (visited.has(edge.targetId)) continue;
+        visited.add(edge.targetId);
+
+        const newPath = [...item.path, edge.targetId];
+        if (edge.targetId === toId) {
+          return newPath
+            .map((id) => this.nodes.get(id))
+            .filter((n): n is ContextNode => n !== undefined);
+        }
+
+        queue.push({ id: edge.targetId, path: newPath });
+      }
+    }
+
+    return null;
+  }
+
+  getNodesByMetadata(key: string, value: unknown, workspaceId: string): ContextNode[] {
+    const results: ContextNode[] = [];
+    for (const node of this.nodes.values()) {
+      if (node.workspaceId !== workspaceId) continue;
+      if (node.metadata[key] === value) {
+        results.push(node);
+      }
+    }
+    return results;
   }
 
   getRelated(nodeId: string, depth: number = 1): ContextNode[] {

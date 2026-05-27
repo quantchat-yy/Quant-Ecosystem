@@ -139,6 +139,9 @@ export interface AgentAccessGrant {
   createdAt: number;
 }
 
+/** Typed edge relationships for the context graph */
+export type ContextEdgeType = 'mentioned-in' | 'attended' | 'edited' | 'shared-with' | 'related-to';
+
 /** Node in the context graph */
 export interface ContextNode {
   id: string;
@@ -152,7 +155,7 @@ export interface ContextNode {
 /** Edge connecting two context nodes */
 export interface ContextEdge {
   targetId: string;
-  relationship: string;
+  relationship: ContextEdgeType;
 }
 
 /** Memory entry for a user */
