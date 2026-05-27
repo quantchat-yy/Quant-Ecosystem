@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "feat",
   "description": "Cross-App SSO Integration + Sign-in-with-Quant SDK - Wire the unified identity into all 13 apps by creating a shared SSO middleware, updating common types with QuantMeet app, and providing the Sign-in-with-Quant SDK package for external developers.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "1. Update packages/common/src/types.ts: Add 'quantmeet' to the QuantApp union type (currently missing). Add PermissionScope entries for payments: 'wallet:read', 'wallet:write', 'subscription:manage'. Add UserPreferences type with travelMode, vacationResponder, consentPreferences fields.",
     "2. Create packages/auth/src/middleware/sso-middleware.ts: Implement SSOMiddleware class with: validateCrossAppToken(token, targetApp), refreshCrossAppSession(sessionId, targetApp), propagateLogout(userId) -> notifies all apps. This ensures one sign-in works across all 13 apps without re-auth.",

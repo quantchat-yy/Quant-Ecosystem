@@ -320,7 +320,10 @@ export type PermissionScope =
   | 'memory:read'
   | 'memory:write'
   | 'context:read'
-  | 'context:write';
+  | 'context:write'
+  | 'wallet:read'
+  | 'wallet:write'
+  | 'subscription:manage';
 
 /** Rate limit configuration */
 export interface RateLimitConfig {
@@ -419,4 +422,38 @@ export interface MemoryItem extends BaseEntity {
   appSource: QuantApp;
   content: string;
   paused: boolean;
+}
+
+// ============================================================================
+// Phase 24: User Preferences
+// ============================================================================
+
+/** Vacation responder configuration */
+export interface VacationResponderConfig {
+  enabled: boolean;
+  message: string;
+  startDate?: Date;
+  endDate?: Date;
+}
+
+/** Consent preferences for data sharing */
+export interface ConsentPreferences {
+  analytics: boolean;
+  marketing: boolean;
+  thirdPartySharing: boolean;
+  personalizedAds: boolean;
+}
+
+/** Travel mode configuration */
+export interface TravelModePreferences {
+  enabled: boolean;
+  restrictedRegions: string[];
+  allowedDeviceIds: string[];
+}
+
+/** User preferences across the ecosystem */
+export interface UserPreferences {
+  travelMode: TravelModePreferences;
+  vacationResponder: VacationResponderConfig;
+  consentPreferences: ConsentPreferences;
 }
