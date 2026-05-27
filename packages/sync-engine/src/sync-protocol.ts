@@ -240,7 +240,7 @@ export class SyncProtocol {
       clearTimeout(this.pollTimer);
     }
     this.pollTimer = setTimeout(() => {
-      // Placeholder: In a full implementation, this would poll the HTTP endpoint
+      // Stub: In a full implementation, this would poll the HTTP endpoint
       // for inbound messages. Consumers should provide data fetching logic externally.
       if (this.connectionState === 'http_fallback') {
         this.startHttpPolling();

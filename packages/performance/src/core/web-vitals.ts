@@ -216,7 +216,7 @@ export class WebVitalsCollector {
 
     for (const [source, data] of bySource) {
       const contribution = totalPoorEntries > 0 ? data.count / totalPoorEntries : 0;
-      const suggestion = this.generateSuggestion(metric, source, data.total / data.count);
+      const suggestion = this.generateSuggestion(metric, source);
 
       attributions.push({
         metric,
@@ -395,7 +395,7 @@ export class WebVitalsCollector {
   }
 
   /** Generate optimization suggestion based on metric and source */
-  private generateSuggestion(metric: string, source: string, _avgValue: number): string {
+  private generateSuggestion(metric: string, source: string): string {
     const suggestions: Record<string, Record<string, string>> = {
       lcp: {
         image:

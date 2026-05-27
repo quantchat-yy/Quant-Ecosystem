@@ -17,6 +17,11 @@ import type { CSAMMatcherInterface } from '../types';
 export class CSAMGuard implements CSAMMatcherInterface {
   private readonly enabled: boolean;
 
+  // IMPORTANT: UGC_MEDIA_ENABLED=true should ONLY be set after a real CSAM
+  // detection provider (PhotoDNA, Thorn Safer, etc.) is integrated in the
+  // ImageModerator pipeline. This guard is a kill-switch, not a detector.
+  // When enabled it returns {matched: false} because real detection is deferred
+  // to Phase 20 where a provider adapter will replace this stub logic.
   constructor(enabled?: boolean) {
     this.enabled = enabled ?? process.env['UGC_MEDIA_ENABLED'] === 'true';
   }
