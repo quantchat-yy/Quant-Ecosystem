@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Phase 5 - Unified Product Shell and Design System: Expand shared-ui with unified app shell components (global nav, app switcher, notification center, workspace switcher, user menu, AI dock), standardize design tokens (add density, elevation, responsive breakpoints, a11y states), add shared route/auth guards, onboarding flow skeleton, consistent empty/loading/error/success states, and cross-app microfeatures (app launcher, recent items, starred items, universal notifications, universal sharing modal, unified profile card, global AI side panel, global command menu integration)",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "1. Expand packages/shared-ui/src/themes/tokens.ts - add density tokens (compact/normal/comfortable), elevation scale (0-5), responsive breakpoints (sm/md/lg/xl/2xl), focus/hover/active/disabled accessibility states, motion (reduced-motion support).",
     "2. Create packages/shared-ui/src/components/Shell/ directory with: GlobalNav.tsx (top navigation bar with app switcher trigger, search, notifications, user menu), AppSwitcher.tsx (grid of app icons with current indicator), NotificationCenter.tsx (bell icon + dropdown with notification list), WorkspaceSwitcher.tsx (dropdown to switch workspaces), UserMenu.tsx (avatar + dropdown with profile, settings, logout), AIDock.tsx (floating AI assistant entry point at bottom-right).",

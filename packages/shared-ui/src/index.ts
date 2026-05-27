@@ -126,8 +126,25 @@ export { darkTheme } from './themes/dark';
 export { neonTheme } from './themes/neon';
 
 // Design tokens
-export { lightTokens, darkTokens, neonTokens, tokensToCssVariables } from './themes/tokens';
-export type { DesignTokens } from './themes/tokens';
+export {
+  lightTokens,
+  darkTokens,
+  neonTokens,
+  tokensToCssVariables,
+  density,
+  elevation,
+  breakpoints,
+  accessibility,
+  motion,
+} from './themes/tokens';
+export type {
+  DesignTokens,
+  DensityTokens,
+  ElevationTokens,
+  BreakpointTokens,
+  AccessibilityTokens,
+  MotionTokens,
+} from './themes/tokens';
 
 // Agent Dock components
 export {
@@ -153,3 +170,76 @@ export type {
 
 // Advanced Frontend Systems
 export * from './advanced';
+
+// Shell components
+export {
+  GlobalNav,
+  AppSwitcher,
+  NotificationCenter,
+  WorkspaceSwitcher,
+  UserMenu,
+  AIDock,
+  CommandMenu,
+  AppLauncher,
+  RecentItems,
+  StarredItems,
+  SharingModal,
+  ProfileCard,
+  AISidePanel,
+} from './components/Shell';
+export type {
+  GlobalNavProps,
+  GlobalNavUser,
+  AppSwitcherProps,
+  AppSwitcherApp,
+  NotificationCenterProps,
+  Notification,
+  WorkspaceSwitcherProps,
+  Workspace,
+  UserMenuProps,
+  UserMenuUser,
+  AIDockProps,
+  CommandMenuProps,
+  Command,
+  AppLauncherProps,
+  RecentItemsProps,
+  RecentItem,
+  StarredItemsProps,
+  SharingModalProps,
+  ProfileCardProps,
+  ProfileCardUser,
+  AISidePanelProps,
+  AISidePanelMessage,
+} from './components/Shell';
+
+// State components
+export { EmptyState, LoadingState, ErrorState, SuccessState } from './components/States';
+export type {
+  EmptyStateProps,
+  LoadingStateProps,
+  ErrorStateProps,
+  SuccessStateProps,
+} from './components/States';
+
+// Guards
+export { AuthGuard, RouteGuard, OnboardingGuard } from './guards';
+export type { AuthGuardProps, RouteGuardProps, OnboardingGuardProps } from './guards';
+
+// Onboarding components
+export {
+  OnboardingFlow,
+  OnboardingStep,
+  WelcomeStep,
+  WorkspaceSetupStep,
+  ConnectAppsStep,
+  AIPreferencesStep,
+} from './components/Onboarding';
+export type {
+  OnboardingFlowProps,
+  OnboardingStepProps,
+  WelcomeStepProps,
+  WorkspaceSetupStepProps,
+  ConnectAppsStepProps,
+  AppToggleItem,
+  AIPreferencesStepProps,
+} from './components/Onboarding';
