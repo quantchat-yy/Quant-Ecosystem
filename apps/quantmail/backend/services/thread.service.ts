@@ -42,7 +42,7 @@ export class ThreadService {
       orderBy: { receivedAt: 'asc' },
     });
 
-    const unreadCount = emails.filter((e) => !e.isRead).length;
+    const unreadCount = emails.filter((e: Email) => !e.isRead).length;
 
     return {
       ...thread,
@@ -112,6 +112,8 @@ export class ThreadService {
       distinct: ['threadId'],
     });
 
-    return emails.map((e) => e.threadId).filter((id): id is string => id !== null);
+    return emails
+      .map((e: { threadId: string | null }) => e.threadId)
+      .filter((id: string | null): id is string => id !== null);
   }
 }

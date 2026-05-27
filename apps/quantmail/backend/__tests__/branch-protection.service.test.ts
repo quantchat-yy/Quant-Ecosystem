@@ -71,6 +71,8 @@ describe('BranchProtectionService', () => {
       await service.createRule({
         repoId: 'repo-1',
         branchPattern: 'release/*',
+        requiredApprovals: 1,
+        requireStatusChecks: false,
       });
 
       expect(prisma.branchProtection.create).toHaveBeenCalledWith({

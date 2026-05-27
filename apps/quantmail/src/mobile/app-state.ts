@@ -40,7 +40,12 @@ export interface StateMigration {
   description: string;
 }
 
-export type LifecycleEvent = 'foreground' | 'background' | 'inactive' | 'terminated' | 'memory_warning';
+export type LifecycleEvent =
+  | 'foreground'
+  | 'background'
+  | 'inactive'
+  | 'terminated'
+  | 'memory_warning';
 
 export interface LifecycleHandler {
   id: string;
@@ -70,15 +75,31 @@ export class AppStateService {
       lastActiveAt: Date.now(),
       mailboxState: {},
       draftsState: {},
-      preferences: { theme: 'system', language: 'en', notifications: true, biometricEnabled: false, offlineMode: false },
+      preferences: {
+        theme: 'system',
+        language: 'en',
+        notifications: true,
+        biometricEnabled: false,
+        offlineMode: false,
+      },
       cache: { emailCache: {}, lastCleared: Date.now(), sizeBytes: 0, maxSizeBytes: 104857600 },
     };
   }
 
   private registerDefaultMigrations(): void {
     this.migrations.push(
-      { fromVersion: 1, toVersion: 2, migrate: (state) => ({ ...state, version: 2 }), description: 'Add version 2 fields' },
-      { fromVersion: 2, toVersion: 3, migrate: (state) => ({ ...state, version: 3 }), description: 'Add version 3 fields' },
+      {
+        fromVersion: 1,
+        toVersion: 2,
+        migrate: (state) => ({ ...state, version: 2 }),
+        description: 'Add version 2 fields',
+      },
+      {
+        fromVersion: 2,
+        toVersion: 3,
+        migrate: (state) => ({ ...state, version: 3 }),
+        description: 'Add version 3 fields',
+      },
     );
   }
 
@@ -99,8 +120,8 @@ export class AppStateService {
   public async restoreState(): Promise<AppState | null> {
     if (this.snapshots.length === 0) return null;
     const latest = this.snapshots[this.snapshots.length - 1];
-    const migrated = this.migrateState(latest.state);
-    this.currentState = migrated as AppState;
+    const migrated = this.migrateState(latest.state as unknown as Record<string, unknown>);
+    this.currentState = migrated as unknown as AppState;
     this.notifyListeners();
     return this.currentState;
   }
@@ -133,7 +154,7 @@ export class AppStateService {
     let current = { ...state };
     const currentVersion = (current.version as number) || 1;
     const applicableMigrations = this.migrations
-      .filter(m => m.fromVersion >= currentVersion)
+      .filter((m) => m.fromVersion >= currentVersion)
       .sort((a, b) => a.fromVersion - b.fromVersion);
     for (const migration of applicableMigrations) {
       current = migration.migrate(current);
@@ -150,8 +171,17 @@ export class AppStateService {
     };
   }
 
-  public registerLifecycleHandler(event: LifecycleEvent, handler: () => void | Promise<void>, priority: number = 0): () => void {
-    const entry: LifecycleHandler = { id: `handler_${Date.now()}_${Math.random()}`, event, priority, handler };
+  public registerLifecycleHandler(
+    event: LifecycleEvent,
+    handler: () => void | Promise<void>,
+    priority: number = 0,
+  ): () => void {
+    const entry: LifecycleHandler = {
+      id: `handler_${Date.now()}_${Math.random()}`,
+      event,
+      priority,
+      handler,
+    };
     if (!this.lifecycleHandlers.has(event)) {
       this.lifecycleHandlers.set(event, []);
     }
@@ -160,7 +190,7 @@ export class AppStateService {
     return () => {
       const handlers = this.lifecycleHandlers.get(event);
       if (handlers) {
-        const idx = handlers.findIndex(h => h.id === entry.id);
+        const idx = handlers.findIndex((h) => h.id === entry.id);
         if (idx > -1) handlers.splice(idx, 1);
       }
     };
@@ -191,7 +221,7 @@ export class AppStateService {
   }
 
   private notifyListeners(): void {
-    this.stateListeners.forEach(l => l(this.currentState));
+    this.stateListeners.forEach((l) => l(this.currentState));
   }
 
   public getCurrentLifecycle(): LifecycleEvent {

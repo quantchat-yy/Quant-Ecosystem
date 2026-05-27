@@ -136,7 +136,7 @@ describe('MessageService - E2E Encryption', () => {
           type: 'pkcs8',
           padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
           oaepHash: 'sha256',
-        },
+        } as crypto.RsaPrivateKey,
         encryptedSessionKey,
       );
 
@@ -203,7 +203,7 @@ describe('MessageService - E2E Encryption', () => {
             type: 'pkcs8',
             padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
             oaepHash: 'sha256',
-          },
+          } as crypto.RsaPrivateKey,
           encryptedSessionKey,
         );
 

@@ -82,7 +82,9 @@ export class BranchProtectionService {
       where: { repoId },
     });
 
-    const matchingRule = rules.find((rule) => this.branchMatches(branch, rule.branchPattern));
+    const matchingRule = rules.find((rule: BranchProtection) =>
+      this.branchMatches(branch, rule.branchPattern),
+    );
 
     if (!matchingRule) {
       return { allowed: true };

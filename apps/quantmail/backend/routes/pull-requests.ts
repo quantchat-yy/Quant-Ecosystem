@@ -48,7 +48,7 @@ export default async function pullRequestRoutes(fastify: FastifyInstance) {
       }
 
       const body = CreatePRInputSchema.parse({
-        ...request.body,
+        ...(request.body as Record<string, unknown>),
         repoId: repo.id,
         authorId: userId,
       });

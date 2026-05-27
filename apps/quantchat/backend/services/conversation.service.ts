@@ -48,32 +48,34 @@ export class ConversationService {
     const allParticipants = [creatorId, ...participantIds.filter((id) => id !== creatorId)];
 
     // Use a transaction to create conversation and members atomically
-    const conversation = await this.prisma.$transaction(async (tx) => {
-      const conv = await tx.conversation.create({
-        data: {
-          type,
-          name: name ?? null,
-          description: description ?? null,
-          createdBy: creatorId,
-          lastMessageAt: new Date(),
-          metadata: {},
-        },
-      });
+    const conversation = await this.prisma.$transaction(
+      async (tx: import('@prisma/client').TransactionClient) => {
+        const conv = await tx.conversation.create({
+          data: {
+            type,
+            name: name ?? null,
+            description: description ?? null,
+            createdBy: creatorId,
+            lastMessageAt: new Date(),
+            metadata: {},
+          },
+        });
 
-      const memberData = allParticipants.map((userId, index) => ({
-        conversationId: conv.id,
-        userId,
-        role: userId === creatorId ? 'OWNER' : 'MEMBER',
-        joinedAt: new Date(),
-        nickname: null,
-        isMuted: false,
-        lastReadAt: index === 0 ? new Date() : null,
-      }));
+        const memberData = allParticipants.map((userId, index) => ({
+          conversationId: conv.id,
+          userId,
+          role: userId === creatorId ? 'OWNER' : 'MEMBER',
+          joinedAt: new Date(),
+          nickname: null,
+          isMuted: false,
+          lastReadAt: index === 0 ? new Date() : null,
+        }));
 
-      await tx.conversationMember.createMany({ data: memberData });
+        await tx.conversationMember.createMany({ data: memberData });
 
-      return conv;
-    });
+        return conv;
+      },
+    );
 
     return conversation;
   }
@@ -103,7 +105,7 @@ export class ConversationService {
       this.prisma.conversationMember.count({ where: { userId, leftAt: null } }),
     ]);
 
-    const data = members.map((m) => m.conversation);
+    const data = members.map((m) => (m as unknown as { conversation: Conversation }).conversation);
     const totalPages = Math.ceil(total / pageSize);
 
     return {

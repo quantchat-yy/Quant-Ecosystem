@@ -115,7 +115,7 @@ export default async function ciRoutes(fastify: FastifyInstance) {
     }
 
     const logs = job.logs
-      ? job.logs.split('\n').map((line, index) => ({
+      ? job.logs.split('\n').map((line: string, index: number) => ({
           line: index + 1,
           content: line,
         }))

@@ -92,7 +92,7 @@ export class DisappearingService {
 
     await this.prisma.message.updateMany({
       where: {
-        id: { in: expired.map((m) => m.id) },
+        id: { in: expired.map((m: Message) => m.id) },
       },
       data: { isDeleted: true, content: '[Message expired]' },
     });
