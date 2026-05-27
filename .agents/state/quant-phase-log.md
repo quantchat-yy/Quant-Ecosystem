@@ -334,3 +334,96 @@
 - QuantMax: short video loop with upload and feed - DONE
 - QuantAds: create demo campaign with analytics - DONE
 - QuantAI: safely operate across at least 5 apps in demo mode - DONE
+
+---
+
+## Phase 10: Realtime, Notifications, And Event Backbone
+
+**Started:** 2026-05-27T07:30:46Z
+**Status:** Complete
+
+### What Was Added
+
+1. **Event Schema Registry** (`packages/realtime/src/event-schema-registry.ts`)
+   - Central registry mapping event type strings to Zod schemas
+   - Validates all 13 EventMap types + 5 new cross-app events (document:updated, file:shared, calendar:reminder, payment:received, search:invalidate)
+   - Methods: validate(), register(), getSchema(), listTypes()
+
+2. **Notification Fanout** (`packages/notifications/src/services/notification-fanout.ts`)
+   - Routes events to recipients through push/in-app/email based on user preferences
+   - Mention detection: escalates priority when user is in mentionedUserIds
+   - Integrates with existing PreferenceService
+
+3. **Idempotency Key Store** (`packages/data-plane/src/idempotency.ts`)
+   - In-memory store with TTL expiration and periodic sweep
+   - withIdempotency() helper for wrapping async operations
+   - Default TTL: 24 hours
+
+4. **WebSocket Gateway** (`services/ws-gateway/src/main.ts`)
+   - Real WS gateway using @quant/realtime (WebSocketServer, ConnectionAuth)
+   - JWT auth for upgrade requests, presence tracking
+   - Falls back to health-only mode when JWT_SECRET not configured
+
+5. **Dead Letter Queue** (`packages/queue/src/dead-letter.ts`)
+   - BullMQ-oriented in-memory DLQ for failed job tracking
+   - enqueue/replay/getAll/getStats/purge methods
+
+### Gate Results
+
+- install: PASS
+- typecheck: PASS (72/72)
+- build: PASS (51/51)
+- test: PASS (75/75)
+- lint: PASS (61/61)
+- audit: PASS (0 high)
+
+### Exit Criteria Met
+
+- A change in one app can safely notify and update related apps via the event schema registry + notification fanout + WS gateway pipeline
+
+---
+
+## Phase 11: Data Plane, Sync, Offline, And Reliability
+
+**Started:** 2026-05-27T07:30:46Z
+**Status:** Complete
+
+### What Was Added
+
+1. **Optimistic Update Manager** (`packages/sync-engine/src/optimistic-updates.ts`)
+   - Manages pending mutations with apply/confirm/rollback lifecycle
+   - Subscriber pattern for UI binding
+
+2. **Offline Operation Queue** (`packages/sync-engine/src/offline-queue.ts`)
+   - Priority-ordered queue with deduplication by operation key
+   - Max age expiration, batch replay with configurable concurrency
+
+3. **Retry with Backoff** (`packages/sync-engine/src/retry-backoff.ts`)
+   - Exponential backoff with optional jitter
+   - Configurable retryable error patterns (ECONNRESET, ETIMEDOUT, 503, 429, etc.)
+
+4. **Conflict Store** (`packages/sync-engine/src/conflict-store.ts`)
+   - Records and resolves conflicts with queryable history per document
+   - Supports auto and user resolution tracking
+
+5. **Data Retention Policy** (`packages/data-plane/src/data-retention.ts`)
+   - Configurable retention rules per entity type
+   - Archive batch creation for cold storage migration
+   - Supports archive/hard-delete/soft-delete strategies
+
+6. **Sync Status Indicator** (`packages/sync-engine/src/sync-status-indicator.ts`)
+   - Rich UI-friendly status data: lastSyncedAt, pendingChangesCount, isOnline, conflictsCount, currentOperation
+   - Subscriber pattern for real-time UI updates
+
+### Gate Results
+
+- install: PASS
+- typecheck: PASS (72/72)
+- build: PASS (51/51)
+- test: PASS (75/75)
+- lint: PASS (61/61)
+- audit: PASS (0 high)
+
+### Exit Criteria Met
+
+- Core apps tolerate network interruptions gracefully via optimistic updates, offline queue, retry/backoff, and conflict resolution
