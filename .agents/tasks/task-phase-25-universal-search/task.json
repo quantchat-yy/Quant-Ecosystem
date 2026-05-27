@@ -9,6 +9,6 @@
     "tests": "pass",
     "test_quality": "pass",
     "docker_build": "skipped",
-    "summary": "All gates pass. @quant/search: 306 tests pass, @quant/search-indexer: 79 tests pass. Typecheck, lint, and build all succeed. Code review fixes applied: RAG error boundary, parallel scope search, pagination offset, snippet XSS escaping, router isAdmin pass-through."
+    "summary": "All gates pass. @quant/search: 310 tests pass, @quant/search-indexer: 81 tests pass. Typecheck, lint, and build all succeed. v2 review fixes applied: PermissionResolver replaces client-supplied isAdmin, PDF fallback uses 8-char min + entropy/structural filters."
   }
 }
