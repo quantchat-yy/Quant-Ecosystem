@@ -132,6 +132,18 @@ export type {
   UniversalSearchDependencies,
 } from './services/universal-search';
 
+export { ContentExtractor } from './services/content-extractor';
+
+export { FindSimilarService } from './services/find-similar';
+export type { FindSimilarOptions, FindSimilarResult } from './services/find-similar';
+
+export { TypeaheadService } from './services/typeahead';
+export type {
+  TypeaheadOptions,
+  TypeaheadSuggestion,
+  TypeaheadResponse,
+} from './services/typeahead';
+
 export type {
   SearchQuery,
   SearchResult,

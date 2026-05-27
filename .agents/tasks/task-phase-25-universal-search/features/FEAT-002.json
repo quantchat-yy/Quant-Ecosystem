@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Universal Search API Router + Content Extraction (OCR/PDF/Video) + Find Similar + Search-as-you-type. Builds the HTTP-facing search API in the search-indexer service, content extraction services for PDFs/images/videos, a 'find similar' endpoint, and search-as-you-type with streaming results.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "1. Create `packages/search/src/services/content-extractor.ts` - a service with methods: `extractPdfText(buffer: Buffer): Promise<string>` (text extraction from PDF buffers using basic heuristic - split on markers, strip binary), `extractImageText(buffer: Buffer): Promise<string>` (OCR placeholder that returns extracted text - in v1 returns empty string with TODO for Tesseract WASM integration), `extractVideoTranscript(transcriptText: string): Promise<string>` (normalizes transcript text for indexing - strips timestamps, joins segments). All methods handle errors gracefully returning empty strings.",
     "2. Create `packages/search/src/services/content-extractor.test.ts` - tests for each extraction method: PDF with mock buffer, image returns empty for v1, video transcript normalization, error handling returns empty strings.",
