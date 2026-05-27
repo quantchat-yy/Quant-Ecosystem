@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Phase 27: Complete the Universal Notification Center with DND enforcement, smart batching, deduplication, snooze, and cross-device single-delivery. Enhance the existing UniversalNotificationCenter class in packages/notifications/src/universal-notification-center.ts and add supporting modules for the fanout service with full delivery pipeline.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "1. Enhance packages/notifications/src/types.ts: Add new types for DND config with active-hours detection, notification urgency levels per category (message/mention/security/billing/social/system/marketing), snooze options (15min/1hr/tomorrow/next-active), notification preview privacy (hidden/subject/full), per-thread mute config, inline reply payload, cross-app deep link schema, and 'important only' mode filter.",
     "2. Rewrite packages/notifications/src/universal-notification-center.ts with these capabilities: (a) DND enforcement - store per-user DND schedule, reject all non-critical notifications during DND, queue them for delivery when DND ends. (b) Smart batching - group similar notifications within a 5-minute window into a single summary notification using a BatchAccumulator class. (c) Cross-device deduplication - track delivered notification IDs per user so the same notification appears only once across all devices. (d) Smart timing - store user active hours (derived from last activity timestamps), defer low-priority notifications to active windows. (e) Per-thread mute - allow muting at any granularity (app/thread/sender). (f) Notification preview privacy levels (hidden/subject/full) applied at delivery time. (g) Snooze support - snooze(notificationId, duration) moves notification to a snooze queue, re-delivers after duration. (h) 'Remind me about this' - alias for snooze with custom duration. (i) Inline reply from notification - accept reply payload and route to source app via event. (j) 'Important only' mode - filter to only critical/high priority. (k) Cross-app deep links with app/screen/params structure.",
@@ -35,5 +35,5 @@
     "pnpm turbo test --filter=@quant/notifications"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 94 tests pass (8 test files). Typecheck passes. noUnusedParameters is strict in tsconfig - required _ prefix for intentionally unused params. Commit linting enforces lowercase subject after type prefix. Prettier runs via lint-staged pre-commit hook."
 }
