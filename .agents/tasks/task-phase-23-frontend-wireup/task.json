@@ -9,6 +9,6 @@
     "tests": "pass",
     "test_quality": "pass",
     "docker_build": "skipped",
-    "summary": "All gates pass: typecheck 82/82, test 84/84 (all pass). Review issues resolved: rewrote quantmax useFeed/useMatching/useLive/useCreator to use React Query + apiClient, fixed matching.tsx API mismatch, removed dead useForYouFeed, created useShows for quantube shows.tsx, removed as-any casts in quantchat/quantmail/quantneon."
+    "summary": "All gates pass: typecheck 82/82, test 84/84 (all pass). v2 review issues resolved: useFeed pagination now passes offset, fetchNextPage wrapped in useEffect, useLive exposes fetched stream data, useReels as-any cast removed."
   }
 }
