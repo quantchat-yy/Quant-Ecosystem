@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Phase 28: Enhanced Yjs Realtime Collaboration Server with Postgres persistence, S3 snapshots, awareness protocol, per-paragraph permissions, version history, branching, whiteboard support, and code editing. Enhance apps/quantdocs/backend/services/yjs-server.ts and add new collaboration modules.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "1. Enhance apps/quantdocs/backend/services/yjs-server.ts with: (a) Postgres persistence - on flush (configurable interval or on last client disconnect), serialize Y.Doc state and write to a yjs_documents table via a PersistenceAdapter interface. (b) S3 snapshot support - daily snapshot method that encodes full doc state and uploads to S3 via a StorageAdapter interface. (c) Awareness protocol - track per-user cursor positions, selections, and user metadata (name, color) using a Map<docId, Map<clientId, AwarenessState>>. Broadcast awareness updates to all connected clients. (d) Per-paragraph permissions - store permission rules per Y.XmlFragment/paragraph ID (owner, editors, viewers) and validate updates against permissions before applying. (e) Version history with named checkpoints - store snapshots with user-supplied names, allow listing history and restoring to any checkpoint. (f) Doc branching (experimental) - fork a Y.Doc into a new branch by cloning state, track branches per document, allow merging branch back by computing diff.",
     "2. Create apps/quantdocs/backend/services/collab-persistence.ts: PersistenceAdapter class with methods: saveDoc(docId, state: Uint8Array), loadDoc(docId): Uint8Array | null, listVersions(docId), createCheckpoint(docId, name, state). Uses an injectable database client interface.",
