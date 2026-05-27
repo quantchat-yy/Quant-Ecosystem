@@ -27,7 +27,47 @@ export type { ToastProps } from './components/Toast';
 export { Loader } from './components/Loader';
 export type { LoaderProps } from './components/Loader';
 
-// Media components
+// Media (WebRTC/LiveKit) components
+export {
+  MeetingRoom,
+  DevicePicker,
+  ParticipantTile,
+  LayoutManager,
+  Controls,
+  NetworkQuality,
+  ChatSidecar,
+  KnockFlow,
+  Polls,
+  BreakoutRoomPanel,
+  BackgroundBlur,
+  useBackgroundBlur,
+} from './components/Media';
+export type {
+  MeetingRoomProps,
+  ParticipantInfo,
+  DevicePickerProps,
+  DeviceInfo,
+  ParticipantTileProps,
+  LayoutManagerProps,
+  LayoutMode,
+  ControlsProps,
+  NetworkQualityProps,
+  ChatSidecarProps,
+  ChatMessage,
+  KnockFlowProps,
+  KnockRequest,
+  PollsProps,
+  Poll,
+  PollOption,
+  BreakoutRoomPanelProps,
+  BreakoutRoom,
+  BackgroundBlurProps,
+  BackgroundBlurOptions,
+  UseBackgroundBlurReturn,
+  BackgroundMode,
+} from './components/Media';
+
+// Media player components
 export { VideoPlayer, AudioPlayer, ImageViewer } from './components/MediaPlayer';
 export type {
   VideoPlayerProps,

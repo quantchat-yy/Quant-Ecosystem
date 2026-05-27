@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Add MeetingRoom React component suite in packages/shared-ui for WebRTC frontend integration using livekit-client. Includes camera/mic permission flow, device picker, network quality indicator, simulcast, screen share, raise-hand, reactions, chat sidecar, speaker/grid/spotlight views, per-participant volume slider, push-to-talk, background blur, knock flow for locked rooms, auto-mute on silence, polls, and breakout room UI.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Add livekit-client as a dependency to packages/shared-ui/package.json",
     "Create packages/shared-ui/src/components/Media/ directory",
