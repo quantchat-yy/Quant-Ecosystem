@@ -1,9 +1,12 @@
 // ============================================================================
 // QuantNeon - useReels Hook
 // Reel playback state, creation workflow, sound selection
+// Powered by React Query + apiClient
 // ============================================================================
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '../services/api-client';
 
 interface Reel {
   id: string;
@@ -78,174 +81,218 @@ interface ReelsActions {
 }
 
 export function useReels(): [ReelsState, ReelsActions] {
-  const [state, setState] = useState<ReelsState>({
-    reels: [],
-    currentIndex: 0,
-    isPlaying: true,
-    isMuted: false,
-    progress: 0,
-    loading: true,
-    error: null,
-    creationMode: false,
-    creationData: { videoUrl: null, soundId: null, caption: '', effects: [], speed: 1, duration: 30, coverFrame: 0 },
-    sounds: [],
-    liked: new Set(),
-    saved: new Set(),
+  const queryClient = useQueryClient();
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [creationMode, setCreationMode] = useState(false);
+  const [creationData, setCreationData] = useState<ReelCreationData>({
+    videoUrl: null,
+    soundId: null,
+    caption: '',
+    effects: [],
+    speed: 1,
+    duration: 30,
+    coverFrame: 0,
   });
+  const [liked, setLiked] = useState<Set<string>>(new Set());
+  const [saved, setSaved] = useState<Set<string>>(new Set());
 
   const progressRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    loadInitialReels();
-  }, []);
+  const reelsQuery = useQuery({
+    queryKey: ['neon-reels'],
+    queryFn: async () => {
+      const response = await apiClient.getReelsFeed();
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to load reels');
+      }
+      return (response.data as any)?.reels ?? [];
+    },
+  });
+
+  const likeMutation = useMutation({
+    mutationFn: async (reelId: string) => {
+      const response = await apiClient.likeReel(reelId);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to like reel');
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['neon-reels'] });
+    },
+  });
+
+  const createReelMutation = useMutation({
+    mutationFn: async (data: ReelCreationData) => {
+      const response = await apiClient.createReel(data);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to create reel');
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['neon-reels'] });
+    },
+  });
+
+  const reels: Reel[] = (reelsQuery.data ?? []) as Reel[];
 
   useEffect(() => {
-    if (state.isPlaying && state.reels.length > 0) {
+    if (isPlaying && reels.length > 0) {
       progressRef.current = setInterval(() => {
-        setState(prev => {
-          const newProgress = prev.progress + 1;
-          if (newProgress >= 100) return { ...prev, progress: 0 };
-          return { ...prev, progress: newProgress };
+        setProgress((prev) => {
+          if (prev >= 100) return 0;
+          return prev + 1;
         });
       }, 300);
-      return () => { if (progressRef.current) clearInterval(progressRef.current); };
+      return () => {
+        if (progressRef.current) clearInterval(progressRef.current);
+      };
     }
-  }, [state.isPlaying, state.currentIndex]);
-
-  const loadInitialReels = async () => {
-    setState(prev => ({ ...prev, loading: true }));
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setState(prev => ({
-      ...prev,
-      reels: generateMockReels(10),
-      sounds: generateMockSounds(),
-      loading: false,
-    }));
-  };
+  }, [isPlaying, currentIndex, reels.length]);
 
   const next = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      currentIndex: Math.min(prev.currentIndex + 1, prev.reels.length - 1),
-      progress: 0,
-    }));
-  }, []);
+    setCurrentIndex((prev) => Math.min(prev + 1, reels.length - 1));
+    setProgress(0);
+  }, [reels.length]);
 
   const previous = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      currentIndex: Math.max(prev.currentIndex - 1, 0),
-      progress: 0,
-    }));
+    setCurrentIndex((prev) => Math.max(prev - 1, 0));
+    setProgress(0);
   }, []);
 
   const goToIndex = useCallback((index: number) => {
-    setState(prev => ({ ...prev, currentIndex: index, progress: 0 }));
+    setCurrentIndex(index);
+    setProgress(0);
   }, []);
 
   const togglePlay = useCallback(() => {
-    setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
+    setIsPlaying((prev) => !prev);
   }, []);
 
   const toggleMute = useCallback(() => {
-    setState(prev => ({ ...prev, isMuted: !prev.isMuted }));
+    setIsMuted((prev) => !prev);
   }, []);
 
-  const like = useCallback((reelId: string) => {
-    setState(prev => {
-      const newLiked = new Set(prev.liked);
-      newLiked.add(reelId);
-      return { ...prev, liked: newLiked, reels: prev.reels.map(r => r.id === reelId ? { ...r, isLiked: true, likeCount: r.likeCount + 1 } : r) };
-    });
-  }, []);
+  const like = useCallback(
+    (reelId: string) => {
+      setLiked((prev) => new Set([...prev, reelId]));
+      likeMutation.mutate(reelId);
+    },
+    [likeMutation],
+  );
 
   const unlike = useCallback((reelId: string) => {
-    setState(prev => {
-      const newLiked = new Set(prev.liked);
-      newLiked.delete(reelId);
-      return { ...prev, liked: newLiked, reels: prev.reels.map(r => r.id === reelId ? { ...r, isLiked: false, likeCount: Math.max(0, r.likeCount - 1) } : r) };
+    setLiked((prev) => {
+      const next = new Set(prev);
+      next.delete(reelId);
+      return next;
     });
   }, []);
 
   const save = useCallback((reelId: string) => {
-    setState(prev => { const s = new Set(prev.saved); s.add(reelId); return { ...prev, saved: s }; });
+    setSaved((prev) => new Set([...prev, reelId]));
   }, []);
 
   const unsave = useCallback((reelId: string) => {
-    setState(prev => { const s = new Set(prev.saved); s.delete(reelId); return { ...prev, saved: s }; });
+    setSaved((prev) => {
+      const next = new Set(prev);
+      next.delete(reelId);
+      return next;
+    });
   }, []);
 
-  const share = useCallback((reelId: string) => {
-    setState(prev => ({ ...prev, reels: prev.reels.map(r => r.id === reelId ? { ...r, shareCount: r.shareCount + 1 } : r) }));
+  const share = useCallback((_reelId: string) => {
+    // Share action
   }, []);
 
   const startCreation = useCallback(() => {
-    setState(prev => ({ ...prev, creationMode: true, creationData: { videoUrl: null, soundId: null, caption: '', effects: [], speed: 1, duration: 30, coverFrame: 0 } }));
+    setCreationMode(true);
+    setCreationData({
+      videoUrl: null,
+      soundId: null,
+      caption: '',
+      effects: [],
+      speed: 1,
+      duration: 30,
+      coverFrame: 0,
+    });
   }, []);
 
   const cancelCreation = useCallback(() => {
-    setState(prev => ({ ...prev, creationMode: false }));
+    setCreationMode(false);
   }, []);
 
   const selectSound = useCallback((soundId: string) => {
-    setState(prev => ({ ...prev, creationData: { ...prev.creationData, soundId } }));
+    setCreationData((prev) => ({ ...prev, soundId }));
   }, []);
 
   const setCaption = useCallback((caption: string) => {
-    setState(prev => ({ ...prev, creationData: { ...prev.creationData, caption } }));
+    setCreationData((prev) => ({ ...prev, caption }));
   }, []);
 
   const setSpeed = useCallback((speed: number) => {
-    setState(prev => ({ ...prev, creationData: { ...prev.creationData, speed } }));
+    setCreationData((prev) => ({ ...prev, speed }));
   }, []);
 
   const addEffect = useCallback((effect: string) => {
-    setState(prev => ({ ...prev, creationData: { ...prev.creationData, effects: [...prev.creationData.effects, effect] } }));
+    setCreationData((prev) => ({ ...prev, effects: [...prev.effects, effect] }));
   }, []);
 
   const removeEffect = useCallback((effect: string) => {
-    setState(prev => ({ ...prev, creationData: { ...prev.creationData, effects: prev.creationData.effects.filter(e => e !== effect) } }));
+    setCreationData((prev) => ({ ...prev, effects: prev.effects.filter((e) => e !== effect) }));
   }, []);
 
   const publish = useCallback(async () => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setState(prev => ({ ...prev, creationMode: false }));
-  }, []);
+    await createReelMutation.mutateAsync(creationData);
+    setCreationMode(false);
+  }, [createReelMutation, creationData]);
 
   const loadMore = useCallback(async () => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    setState(prev => ({ ...prev, reels: [...prev.reels, ...generateMockReels(5)] }));
-  }, []);
+    await reelsQuery.refetch();
+  }, [reelsQuery]);
 
-  const actions: ReelsActions = { next, previous, goToIndex, togglePlay, toggleMute, like, unlike, save, unsave, share, startCreation, cancelCreation, selectSound, setCaption, setSpeed, addEffect, removeEffect, publish, loadMore };
+  const state: ReelsState = {
+    reels,
+    currentIndex,
+    isPlaying,
+    isMuted,
+    progress,
+    loading: reelsQuery.isLoading,
+    error: reelsQuery.error?.message ?? null,
+    creationMode,
+    creationData,
+    sounds: [],
+    liked,
+    saved,
+  };
+
+  const actions: ReelsActions = {
+    next,
+    previous,
+    goToIndex,
+    togglePlay,
+    toggleMute,
+    like,
+    unlike,
+    save,
+    unsave,
+    share,
+    startCreation,
+    cancelCreation,
+    selectSound,
+    setCaption,
+    setSpeed,
+    addEffect,
+    removeEffect,
+    publish,
+    loadMore,
+  };
   return [state, actions];
-}
-
-function generateMockReels(count: number): Reel[] {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `reel_${Date.now()}_${i}`,
-    videoUrl: `/videos/reel${i}.mp4`,
-    thumbnailUrl: `/thumbs/reel${i}.jpg`,
-    creator: ['style_queen', 'art_collective', 'fitness_pro', 'travel_emma', 'music_vibes'][i % 5],
-    creatorAvatar: `/avatars/${['sq', 'ac', 'fp', 'emma', 'mv'][i % 5]}.jpg`,
-    caption: `Reel caption ${i + 1} #trending #viral`,
-    soundName: ['Original Sound', 'Trending Beat', 'Popular Song'][i % 3],
-    soundId: `sound_${i % 3}`,
-    likeCount: Math.floor(Math.random() * 100000),
-    commentCount: Math.floor(Math.random() * 5000),
-    shareCount: Math.floor(Math.random() * 10000),
-    isLiked: false,
-    isSaved: false,
-  }));
-}
-
-function generateMockSounds(): ReelSound[] {
-  return [
-    { id: 's1', name: 'Trending Beat 2024', artist: 'Producer X', duration: 30, usageCount: 45000, isOriginal: false },
-    { id: 's2', name: 'Viral Dance Track', artist: 'DJ Nova', duration: 15, usageCount: 120000, isOriginal: false },
-    { id: 's3', name: 'Chill Vibes', artist: 'LoFi Studio', duration: 60, usageCount: 23000, isOriginal: false },
-    { id: 's4', name: 'Epic Moment', artist: 'Cinematic Sounds', duration: 20, usageCount: 67000, isOriginal: false },
-  ];
 }
 
 export default useReels;

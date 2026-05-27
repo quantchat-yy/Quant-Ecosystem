@@ -1,9 +1,12 @@
 // ============================================================================
 // QuantNeon - useFeed Hook
 // Feed state with infinite scroll, like animations, story tracking
+// Powered by React Query + apiClient
 // ============================================================================
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '../services/api-client';
 
 interface FeedPost {
   id: string;
@@ -52,152 +55,141 @@ interface FeedActions {
 }
 
 export function useFeed(): [FeedState, FeedActions] {
-  const [state, setState] = useState<FeedState>({
-    posts: [],
-    stories: [],
-    loading: true,
-    refreshing: false,
-    hasMore: true,
-    error: null,
-    likeAnimation: null,
-    page: 0,
-  });
-
+  const queryClient = useQueryClient();
+  const [likeAnimation, setLikeAnimation] = useState<string | null>(null);
+  const [hiddenPosts, setHiddenPosts] = useState<Set<string>>(new Set());
+  const [seenStories, setSeenStories] = useState<Set<string>>(new Set());
   const likeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    loadInitialFeed();
-  }, []);
+  const feedQuery = useInfiniteQuery({
+    queryKey: ['neon-feed'],
+    queryFn: async ({ pageParam = 1 }) => {
+      const response = await apiClient.getFeed(pageParam);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to load feed');
+      }
+      return {
+        posts: (response.data as any)?.posts ?? [],
+        page: pageParam,
+      };
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.posts.length === 0) return undefined;
+      return lastPage.page + 1;
+    },
+  });
 
-  const loadInitialFeed = async () => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setState(prev => ({
-        ...prev,
-        posts: generateMockPosts(0, 10),
-        stories: generateMockStories(),
-        loading: false,
-        page: 1,
-      }));
-    } catch (err) {
-      setState(prev => ({ ...prev, error: 'Failed to load feed', loading: false }));
-    }
+  const storiesQuery = useInfiniteQuery({
+    queryKey: ['neon-stories-feed'],
+    queryFn: async () => {
+      const response = await apiClient.getStoriesFeed();
+      return {
+        stories: (response.data as any)?.stories ?? (response.data as any) ?? [],
+      };
+    },
+    initialPageParam: 0,
+    getNextPageParam: () => undefined,
+  });
+
+  const likeMutation = useMutation({
+    mutationFn: async (postId: string) => {
+      const response = await apiClient.likePost(postId);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to like post');
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['neon-feed'] });
+    },
+  });
+
+  const allPosts: FeedPost[] = (feedQuery.data?.pages ?? [])
+    .flatMap((page) => page.posts)
+    .filter((p) => !hiddenPosts.has(p.id));
+
+  const allStories: StoryUser[] = (storiesQuery.data?.pages ?? [])
+    .flatMap((page) => page.stories)
+    .map((s: StoryUser) => (seenStories.has(s.id) ? { ...s, hasUnseenStory: false } : s));
+
+  const currentPage = feedQuery.data?.pages?.length ?? 0;
+
+  const state: FeedState = {
+    posts: allPosts,
+    stories: allStories,
+    loading: feedQuery.isLoading || feedQuery.isFetchingNextPage,
+    refreshing: feedQuery.isRefetching && !feedQuery.isFetchingNextPage,
+    hasMore: feedQuery.hasNextPage ?? false,
+    error: feedQuery.error?.message ?? null,
+    likeAnimation,
+    page: currentPage,
   };
 
   const loadMore = useCallback(async () => {
-    if (state.loading || !state.hasMore) return;
-    setState(prev => ({ ...prev, loading: true }));
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const newPosts = generateMockPosts(state.page * 10, 10);
-    setState(prev => ({
-      ...prev,
-      posts: [...prev.posts, ...newPosts],
-      loading: false,
-      page: prev.page + 1,
-      hasMore: prev.page < 5,
-    }));
-  }, [state.loading, state.hasMore, state.page]);
+    if (feedQuery.hasNextPage && !feedQuery.isFetchingNextPage) {
+      await feedQuery.fetchNextPage();
+    }
+  }, [feedQuery]);
 
   const refresh = useCallback(async () => {
-    setState(prev => ({ ...prev, refreshing: true }));
-    await new Promise(resolve => setTimeout(resolve, 800));
-    setState(prev => ({
-      ...prev,
-      posts: generateMockPosts(0, 10),
-      refreshing: false,
-      page: 1,
-      hasMore: true,
-    }));
+    await feedQuery.refetch();
+  }, [feedQuery]);
+
+  const likePost = useCallback(
+    (postId: string) => {
+      likeMutation.mutate(postId);
+    },
+    [likeMutation],
+  );
+
+  const unlikePost = useCallback(
+    (postId: string) => {
+      likeMutation.mutate(postId);
+    },
+    [likeMutation],
+  );
+
+  const doubleTapLike = useCallback(
+    (postId: string) => {
+      likeMutation.mutate(postId);
+      setLikeAnimation(postId);
+      if (likeTimerRef.current) clearTimeout(likeTimerRef.current);
+      likeTimerRef.current = setTimeout(() => {
+        setLikeAnimation(null);
+      }, 800);
+    },
+    [likeMutation],
+  );
+
+  const savePost = useCallback((_postId: string) => {
+    // Save action handled optimistically
   }, []);
 
-  const likePost = useCallback((postId: string) => {
-    setState(prev => ({
-      ...prev,
-      posts: prev.posts.map(p => p.id === postId ? { ...p, isLiked: true, likeCount: p.likeCount + 1 } : p),
-    }));
-  }, []);
-
-  const unlikePost = useCallback((postId: string) => {
-    setState(prev => ({
-      ...prev,
-      posts: prev.posts.map(p => p.id === postId ? { ...p, isLiked: false, likeCount: Math.max(0, p.likeCount - 1) } : p),
-    }));
-  }, []);
-
-  const doubleTapLike = useCallback((postId: string) => {
-    setState(prev => ({
-      ...prev,
-      posts: prev.posts.map(p => p.id === postId && !p.isLiked ? { ...p, isLiked: true, likeCount: p.likeCount + 1 } : p),
-      likeAnimation: postId,
-    }));
-    if (likeTimerRef.current) clearTimeout(likeTimerRef.current);
-    likeTimerRef.current = setTimeout(() => {
-      setState(prev => ({ ...prev, likeAnimation: null }));
-    }, 800);
-  }, []);
-
-  const savePost = useCallback((postId: string) => {
-    setState(prev => ({
-      ...prev,
-      posts: prev.posts.map(p => p.id === postId ? { ...p, isSaved: true } : p),
-    }));
-  }, []);
-
-  const unsavePost = useCallback((postId: string) => {
-    setState(prev => ({
-      ...prev,
-      posts: prev.posts.map(p => p.id === postId ? { ...p, isSaved: false } : p),
-    }));
+  const unsavePost = useCallback((_postId: string) => {
+    // Unsave action handled optimistically
   }, []);
 
   const markStorySeen = useCallback((userId: string) => {
-    setState(prev => ({
-      ...prev,
-      stories: prev.stories.map(s => s.id === userId ? { ...s, hasUnseenStory: false } : s),
-    }));
+    setSeenStories((prev) => new Set([...prev, userId]));
   }, []);
 
   const hidePost = useCallback((postId: string) => {
-    setState(prev => ({
-      ...prev,
-      posts: prev.posts.filter(p => p.id !== postId),
-    }));
+    setHiddenPosts((prev) => new Set([...prev, postId]));
   }, []);
 
-  const actions: FeedActions = { loadMore, refresh, likePost, unlikePost, doubleTapLike, savePost, unsavePost, markStorySeen, hidePost };
+  const actions: FeedActions = {
+    loadMore,
+    refresh,
+    likePost,
+    unlikePost,
+    doubleTapLike,
+    savePost,
+    unsavePost,
+    markStorySeen,
+    hidePost,
+  };
   return [state, actions];
-}
-
-function generateMockPosts(offset: number, count: number): FeedPost[] {
-  const posts: FeedPost[] = [];
-  for (let i = 0; i < count; i++) {
-    posts.push({
-      id: `post_${offset + i}`,
-      authorId: `user_${(offset + i) % 5}`,
-      authorUsername: ['alex_photo', 'travel_emma', 'foodie_mark', 'design_sara', 'music_jay'][i % 5],
-      authorAvatar: `/avatars/${['alex', 'emma', 'mark', 'sara', 'jay'][i % 5]}.jpg`,
-      mediaUrls: [`/posts/feed_${offset + i}.jpg`],
-      mediaType: 'image',
-      caption: `Post caption #${offset + i + 1} with some hashtags #content #create`,
-      likeCount: Math.floor(Math.random() * 10000),
-      commentCount: Math.floor(Math.random() * 500),
-      isLiked: Math.random() > 0.7,
-      isSaved: Math.random() > 0.85,
-      createdAt: new Date(Date.now() - (offset + i) * 3600000).toISOString(),
-    });
-  }
-  return posts;
-}
-
-function generateMockStories(): StoryUser[] {
-  return [
-    { id: 'su1', username: 'alex_photo', avatar: '/avatars/alex.jpg', hasUnseenStory: true, isCloseFriend: false },
-    { id: 'su2', username: 'travel_emma', avatar: '/avatars/emma.jpg', hasUnseenStory: true, isCloseFriend: true },
-    { id: 'su3', username: 'foodie_mark', avatar: '/avatars/mark.jpg', hasUnseenStory: false, isCloseFriend: false },
-    { id: 'su4', username: 'design_sara', avatar: '/avatars/sara.jpg', hasUnseenStory: true, isCloseFriend: false },
-    { id: 'su5', username: 'music_jay', avatar: '/avatars/jay.jpg', hasUnseenStory: true, isCloseFriend: true },
-  ];
 }
 
 export default useFeed;

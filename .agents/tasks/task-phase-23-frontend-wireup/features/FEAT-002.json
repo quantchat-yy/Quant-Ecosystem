@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Create typed React Query hooks in each app that wrap the existing api-client methods. These hooks will be consumed by pages instead of inline mock data. Each app gets a hooks/useApi.ts (or similar) file exporting typed query/mutation hooks.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "In apps/quantai/src/hooks/, create useConversations.ts that calls apiClient.listConversations() and useChat.ts that wraps apiClient.chat() as a mutation with optimistic update. Use useQuery/useMutation from @tanstack/react-query directly (not the factory from @quant/api-client since the app api-clients have different response shapes).",
     "In apps/quantchat/src/hooks/, update useChat.ts to use apiClient.getConversations() for the list and apiClient.getMessages(conversationId) for chat messages instead of mock data. Add useSendMessage mutation wrapping apiClient.sendMessage().",
