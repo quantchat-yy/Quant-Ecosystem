@@ -1,20 +1,21 @@
 {
-  "name": "@quant/ads-api",
+  "name": "@quant/quant-mobile",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "main": "src/main.ts",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "scripts": {
-    "dev": "node --loader ts-node/esm --watch src/main.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "lint": "eslint .",
-    "build": "tsc"
+    "test": "vitest run",
+    "build": "tsc --noEmit",
+    "lint": "eslint ."
   },
   "dependencies": {
-    "@quant/health-server": "workspace:*",
     "@quant/common": "workspace:*",
-    "@quant/privacy-ads": "workspace:*"
+    "@quant/sync-engine": "workspace:*",
+    "@quant/auth": "workspace:*",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

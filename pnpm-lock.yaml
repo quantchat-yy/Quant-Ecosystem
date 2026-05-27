@@ -54,6 +54,31 @@ importers:
         specifier: ^2
         version: 2.1.9(@types/node@25.9.1)(jsdom@25.0.1)
 
+  apps/quant-mobile:
+    dependencies:
+      '@quant/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../../packages/common
+      '@quant/sync-engine':
+        specifier: workspace:*
+        version: link:../../packages/sync-engine
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
   apps/quantads:
     dependencies:
       '@quant/ai':
@@ -68,6 +93,9 @@ importers:
       '@quant/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@quant/privacy-ads':
+        specifier: workspace:*
+        version: link:../../packages/privacy-ads
       '@quant/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime
@@ -1254,6 +1282,25 @@ importers:
 
   packages/performance: {}
 
+  packages/privacy-ads:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../common
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
   packages/queue:
     dependencies:
       '@quant/common':
@@ -1651,6 +1698,9 @@ importers:
       '@quant/health-server':
         specifier: workspace:*
         version: link:../../packages/health-server
+      '@quant/privacy-ads':
+        specifier: workspace:*
+        version: link:../../packages/privacy-ads
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
