@@ -4,6 +4,7 @@ import messagesRoutes from './routes/messages';
 import conversationsRoutes from './routes/conversations';
 import encryptionRoutes from './routes/encryption';
 import mediaRoutes from './routes/media';
+import callsRoutes from './routes/calls';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -35,6 +36,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(conversationsRoutes, { prefix: '/conversations' });
   await app.register(encryptionRoutes, { prefix: '/encryption' });
   await app.register(mediaRoutes, { prefix: '/media' });
+  await app.register(callsRoutes, { prefix: '/calls' });
 
   return app;
 }

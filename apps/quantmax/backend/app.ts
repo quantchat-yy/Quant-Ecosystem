@@ -3,6 +3,7 @@ import type { AppConfig } from '@quant/server-core';
 import profilesRoutes from './routes/profiles';
 import matchingRoutes from './routes/matching';
 import swipesRoutes from './routes/swipes';
+import randomChatRoutes from './routes/random-chat';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -33,6 +34,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(profilesRoutes, { prefix: '/profiles' });
   await app.register(matchingRoutes, { prefix: '/matching' });
   await app.register(swipesRoutes, { prefix: '/swipes' });
+  await app.register(randomChatRoutes, { prefix: '/random-chat' });
 
   return app;
 }

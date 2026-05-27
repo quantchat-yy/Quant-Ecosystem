@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Add 1:1 and group call (up to 8 participants) support to QuantChat by reusing the LiveKit gateway with a 'chat-call' room type. Also implement QuantMax random video chat with a new matchmaking service that pairs users into ephemeral LiveKit rooms auto-destroyed on disconnect. Add TURN server Helm chart and E2E encrypted media option.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Add livekit-server-sdk dependency to apps/quantchat/package.json",
     "Create apps/quantchat/backend/services/call.service.ts - CallService class that uses LiveKitGateway (imported pattern from quantmeet or instantiated locally) to: initiate1v1Call(callerId, calleeId), initiateGroupCall(initiatorId, participantIds[]), endCall(callId), generateCallToken(callId, userId). Room naming: chat-call:{callId}. Max 8 participants for group calls.",

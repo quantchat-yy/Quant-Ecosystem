@@ -39,3 +39,10 @@ export type {
   UseBackgroundBlurReturn,
   BackgroundMode,
 } from './BackgroundBlur';
+
+export { E2EEncryptionToggle, useE2EEncryption } from './E2EEncryption';
+export type {
+  E2EEncryptionToggleProps,
+  UseE2EEncryptionOptions,
+  UseE2EEncryptionReturn,
+} from './E2EEncryption';
