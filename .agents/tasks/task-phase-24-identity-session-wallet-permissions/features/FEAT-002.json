@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Complete Auth Enhancement - WebAuthn passkey enrollment/login E2E, TOTP 2FA with recovery codes + printable backup codes, phone auth hardening, federated identity (Sign in with Quant SDK for third-party developers with OAuth2 client registration), travel mode toggle, and all 13 apps registered in QuantMail OAuth provider.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "1. Update packages/auth/src/types.ts: Add types - RecoveryCode (code, usedAt?), TwoFactorMethod ('totp' | 'webauthn' | 'phone' | 'backup_code'), FederatedClient (for third-party OAuth2 registration - clientId, clientSecret, name, logo, website, redirectUris, allowedScopes, createdBy, createdAt), TravelModeConfig (enabled, restrictedRegions[], allowedDeviceIds[]), AccountDeletionRequest (userId, requestedAt, scheduledPurgeAt, status).",
     "2. Update packages/auth/src/crypto/totp.ts: Add method generatePrintableBackupCodes() that returns 10 formatted codes (XXX-XXX format), and verifyBackupCode(code, storedCodes) that marks used codes.",
@@ -32,5 +32,5 @@
   ],
   "verification": ["pnpm typecheck --filter=@quant/auth", "pnpm test --filter=@quant/auth"],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 175 tests pass (22 test files). Typecheck passes. Had to add quantmeet to QuantApp type in @quant/common and QUANT_APPS constant in constants.ts. Build of @quant/common is required before auth typecheck due to turbo ^build dependency. Pre-commit hooks run prettier formatting. noUncheckedIndexedAccess is enabled so array access needs ! assertions in tests."
 }
