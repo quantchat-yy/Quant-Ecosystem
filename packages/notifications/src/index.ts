@@ -17,6 +17,15 @@ export { PreferenceService } from './services/preference-service';
 export { NotificationFanout } from './services/notification-fanout';
 export type { FanoutEvent, RecipientRouting, FanoutResult } from './services/notification-fanout';
 
+// Phase 27 - New services
+export { DndService } from './services/dnd-service';
+export { BatchService } from './services/batch-service';
+export type { BatchConfig } from './services/batch-service';
+export { DedupService } from './services/dedup-service';
+export { SnoozeService } from './services/snooze-service';
+export { WebPushService } from './services/web-push-service';
+export type { VapidConfig, WebPushPayload } from './services/web-push-service';
+
 export { UniversalNotificationCenter } from './universal-notification-center';
 export type {
   NotificationApp,
@@ -52,4 +61,25 @@ export type {
   TypePreference,
   QuietHoursConfig,
   NotificationServiceConfig,
+  // Phase 27 types
+  NotificationUrgency,
+  NotificationCategory,
+  DndConfig,
+  DndSchedule,
+  SnoozeDuration,
+  SnoozeOptions,
+  SnoozedNotification,
+  PreviewPrivacy,
+  ThreadMuteConfig,
+  InlineReplyPayload,
+  CrossAppDeepLink,
+  ImportantOnlyConfig,
+  WebPushSubscription,
+  WebPushSendOptions,
+  WebPushResult,
+  BatchEntry,
+  BatchedNotification,
+  DedupRecord,
 } from './types';
+
+export { CATEGORY_URGENCY } from './types';

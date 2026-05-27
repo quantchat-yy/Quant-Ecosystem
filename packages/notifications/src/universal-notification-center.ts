@@ -2,6 +2,17 @@
 // Universal Notification Center - Cross-App Notification Aggregation
 // ============================================================================
 
+import type {
+  DndConfig,
+  PreviewPrivacy,
+  ThreadMuteConfig,
+  InlineReplyPayload,
+  CrossAppDeepLink,
+  ImportantOnlyConfig,
+  SnoozeDuration,
+  SnoozedNotification,
+} from './types';
+
 export type NotificationApp =
   | 'quantchat'
   | 'quantmail'
@@ -36,6 +47,9 @@ export interface UniversalNotification {
   read: boolean;
   actionUrl?: string;
   metadata?: Record<string, string>;
+  threadId?: string;
+  senderId?: string;
+  deepLink?: CrossAppDeepLink;
 }
 
 export interface UniversalNotificationPreferences {
@@ -44,6 +58,8 @@ export interface UniversalNotificationPreferences {
   quietHours?: { start: number; end: number };
   digestMode: boolean;
   digestFrequency: 'hourly' | 'daily' | 'weekly';
+  previewPrivacy?: PreviewPrivacy;
+  importantOnly?: ImportantOnlyConfig;
 }
 
 export interface NotificationFilters {
@@ -53,12 +69,62 @@ export interface NotificationFilters {
 }
 
 type NotificationCallback = (notification: UniversalNotification) => void;
+type ReplyCallback = (reply: InlineReplyPayload) => void;
+
+const ALL_APPS: NotificationApp[] = [
+  'quantchat',
+  'quantmail',
+  'quantsync',
+  'quantube',
+  'quantneon',
+  'quantedits',
+  'quantmax',
+  'quantai',
+  'quantads',
+  'quantmeet',
+  'quantdocs',
+  'quantdrive',
+  'quantcalendar',
+  'quantpay',
+  'quantcloud',
+  'quantmaps',
+  'quanthealth',
+  'quantlearn',
+  'quantwork',
+];
 
 export class UniversalNotificationCenter {
   private notifications: Map<string, UniversalNotification> = new Map();
   private subscribers: Map<string, NotificationCallback[]> = new Map();
   private preferences: Map<string, UniversalNotificationPreferences> = new Map();
   private counter = 0;
+
+  // DND
+  private dndConfigs: Map<string, DndConfig> = new Map();
+  private dndQueues: Map<string, UniversalNotification[]> = new Map();
+
+  // Thread mutes
+  private threadMutes: Map<string, ThreadMuteConfig> = new Map();
+
+  // Snooze
+  private snoozedNotifications: Map<string, SnoozedNotification> = new Map();
+  private snoozedPayloads: Map<string, UniversalNotification> = new Map();
+
+  // Dedup
+  private deliveredIds: Map<string, Set<string>> = new Map(); // userId -> set of notifIds
+
+  // Important-only
+  private importantOnlyMode: Map<string, ImportantOnlyConfig> = new Map();
+
+  // Inline reply
+  private replyCallbacks: ReplyCallback[] = [];
+
+  // Smart batching
+  private batchWindows: Map<
+    string,
+    { notifications: UniversalNotification[]; windowStart: number }
+  > = new Map();
+  private batchWindowMs = 5 * 60 * 1000; // 5 minutes
 
   send(
     notification: Omit<UniversalNotification, 'id' | 'timestamp' | 'read'>,
@@ -81,6 +147,310 @@ export class UniversalNotificationCenter {
 
     return full;
   }
+
+  /**
+   * Send a notification with full pipeline (DND, dedup, batching, mute, important-only).
+   * Returns the notification if delivered immediately, null if suppressed/queued.
+   */
+  sendWithPipeline(
+    userId: string,
+    notification: Omit<UniversalNotification, 'id' | 'timestamp' | 'read'>,
+  ): UniversalNotification | null {
+    const id = `notif_${Date.now()}_${++this.counter}`;
+    const full: UniversalNotification = {
+      ...notification,
+      id,
+      timestamp: Date.now(),
+      read: false,
+    };
+
+    // Store the notification regardless
+    this.notifications.set(id, full);
+
+    // Check important-only mode
+    const importantConfig = this.importantOnlyMode.get(userId);
+    if (importantConfig?.enabled) {
+      if (!this.meetsUrgencyThreshold(full.priority, importantConfig.minUrgency)) {
+        return null;
+      }
+    }
+
+    // Check thread mute
+    if (full.threadId) {
+      const muteKey = `${userId}:${full.threadId}`;
+      const mute = this.threadMutes.get(muteKey);
+      if (mute) {
+        if (!mute.muteUntil || mute.muteUntil > Date.now()) {
+          return null;
+        }
+        // Mute expired, remove it
+        this.threadMutes.delete(muteKey);
+      }
+    }
+
+    // Check DND
+    if (this.isDndActive(userId)) {
+      if (full.priority !== 'critical' || !this.dndConfigs.get(userId)?.allowCritical) {
+        // Queue for later
+        const queue = this.dndQueues.get(userId) ?? [];
+        queue.push(full);
+        this.dndQueues.set(userId, queue);
+        return null;
+      }
+    }
+
+    // Cross-device dedup
+    const userDelivered = this.deliveredIds.get(userId) ?? new Set();
+    if (userDelivered.has(full.id)) {
+      return null;
+    }
+    userDelivered.add(full.id);
+    this.deliveredIds.set(userId, userDelivered);
+
+    // Notify subscribers
+    for (const [, callbacks] of this.subscribers) {
+      for (const cb of callbacks) {
+        cb(full);
+      }
+    }
+
+    return full;
+  }
+
+  /**
+   * Add a notification to the batch window. Returns batched notifications if the window expired.
+   */
+  addToBatch(
+    userId: string,
+    notification: Omit<UniversalNotification, 'id' | 'timestamp' | 'read'>,
+  ): UniversalNotification[] | null {
+    const id = `notif_${Date.now()}_${++this.counter}`;
+    const full: UniversalNotification = {
+      ...notification,
+      id,
+      timestamp: Date.now(),
+      read: false,
+    };
+    this.notifications.set(id, full);
+
+    const batchKey = `${userId}:${notification.type}:${notification.threadId ?? notification.app}`;
+    const now = Date.now();
+    const existing = this.batchWindows.get(batchKey);
+
+    if (existing) {
+      if (now - existing.windowStart >= this.batchWindowMs) {
+        // Window expired, flush and start new
+        const flushed = existing.notifications;
+        this.batchWindows.set(batchKey, { notifications: [full], windowStart: now });
+        return flushed;
+      }
+      existing.notifications.push(full);
+      return null;
+    }
+
+    this.batchWindows.set(batchKey, { notifications: [full], windowStart: now });
+    return null;
+  }
+
+  /**
+   * Flush all batch windows
+   */
+  flushBatches(): UniversalNotification[] {
+    const all: UniversalNotification[] = [];
+    for (const [key, window] of this.batchWindows) {
+      all.push(...window.notifications);
+      this.batchWindows.delete(key);
+    }
+    return all;
+  }
+
+  // --- DND Management ---
+
+  setDndConfig(userId: string, config: DndConfig): void {
+    this.dndConfigs.set(userId, config);
+  }
+
+  getDndConfig(userId: string): DndConfig | undefined {
+    return this.dndConfigs.get(userId);
+  }
+
+  isDndActive(userId: string): boolean {
+    const config = this.dndConfigs.get(userId);
+    if (!config || !config.enabled) return false;
+
+    const now = new Date();
+    const currentDay = now.getDay();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    for (const schedule of config.schedule) {
+      if (!schedule.daysOfWeek.includes(currentDay)) continue;
+
+      const [startH, startM] = schedule.startTime.split(':').map(Number);
+      const [endH, endM] = schedule.endTime.split(':').map(Number);
+      const startMinutes = (startH ?? 0) * 60 + (startM ?? 0);
+      const endMinutes = (endH ?? 0) * 60 + (endM ?? 0);
+
+      if (startMinutes > endMinutes) {
+        if (currentMinutes >= startMinutes || currentMinutes < endMinutes) return true;
+      } else {
+        if (currentMinutes >= startMinutes && currentMinutes < endMinutes) return true;
+      }
+    }
+
+    return false;
+  }
+
+  flushDndQueue(userId: string): UniversalNotification[] {
+    const queue = this.dndQueues.get(userId) ?? [];
+    this.dndQueues.set(userId, []);
+    return queue;
+  }
+
+  getDndQueueSize(userId: string): number {
+    return this.dndQueues.get(userId)?.length ?? 0;
+  }
+
+  // --- Thread Mute ---
+
+  muteThread(userId: string, threadId: string, muteUntil?: number): void {
+    const key = `${userId}:${threadId}`;
+    this.threadMutes.set(key, {
+      threadId,
+      userId,
+      mutedAt: Date.now(),
+      muteUntil,
+    });
+  }
+
+  unmuteThread(userId: string, threadId: string): void {
+    const key = `${userId}:${threadId}`;
+    this.threadMutes.delete(key);
+  }
+
+  isThreadMuted(userId: string, threadId: string): boolean {
+    const key = `${userId}:${threadId}`;
+    const mute = this.threadMutes.get(key);
+    if (!mute) return false;
+    if (mute.muteUntil && mute.muteUntil <= Date.now()) {
+      this.threadMutes.delete(key);
+      return false;
+    }
+    return true;
+  }
+
+  // --- Preview Privacy ---
+
+  applyPreviewPrivacy(
+    notification: UniversalNotification,
+    privacy: PreviewPrivacy,
+  ): { title: string; body: string } {
+    switch (privacy) {
+      case 'hidden':
+        return { title: 'New notification', body: '' };
+      case 'subject':
+        return { title: notification.title, body: '' };
+      case 'full':
+      default:
+        return { title: notification.title, body: notification.body };
+    }
+  }
+
+  // --- Snooze ---
+
+  snooze(notificationId: string, userId: string, duration: SnoozeDuration): SnoozedNotification {
+    const now = Date.now();
+    const resumeAt = this.calculateSnoozeResume(duration, now);
+    const record: SnoozedNotification = {
+      notificationId,
+      userId,
+      snoozedAt: now,
+      resumeAt,
+      duration,
+    };
+
+    const key = `${userId}:${notificationId}`;
+    this.snoozedNotifications.set(key, record);
+
+    const notification = this.notifications.get(notificationId);
+    if (notification) {
+      this.snoozedPayloads.set(key, notification);
+    }
+
+    return record;
+  }
+
+  remindMe(notificationId: string, userId: string, delayMs: number): SnoozedNotification {
+    const now = Date.now();
+    const record: SnoozedNotification = {
+      notificationId,
+      userId,
+      snoozedAt: now,
+      resumeAt: now + delayMs,
+      duration: '15min',
+    };
+
+    const key = `${userId}:${notificationId}`;
+    this.snoozedNotifications.set(key, record);
+
+    const notification = this.notifications.get(notificationId);
+    if (notification) {
+      this.snoozedPayloads.set(key, notification);
+    }
+
+    return record;
+  }
+
+  getExpiredSnoozes(now?: number): UniversalNotification[] {
+    const currentTime = now ?? Date.now();
+    const expired: UniversalNotification[] = [];
+
+    for (const [key, record] of this.snoozedNotifications) {
+      if (record.resumeAt <= currentTime) {
+        const notif = this.snoozedPayloads.get(key);
+        if (notif) {
+          expired.push(notif);
+        }
+        this.snoozedNotifications.delete(key);
+        this.snoozedPayloads.delete(key);
+      }
+    }
+
+    return expired;
+  }
+
+  // --- Important Only Mode ---
+
+  setImportantOnly(userId: string, config: ImportantOnlyConfig): void {
+    this.importantOnlyMode.set(userId, config);
+  }
+
+  getImportantOnly(userId: string): ImportantOnlyConfig | undefined {
+    return this.importantOnlyMode.get(userId);
+  }
+
+  // --- Inline Reply ---
+
+  onReply(callback: ReplyCallback): () => void {
+    this.replyCallbacks.push(callback);
+    return () => {
+      const idx = this.replyCallbacks.indexOf(callback);
+      if (idx >= 0) this.replyCallbacks.splice(idx, 1);
+    };
+  }
+
+  sendReply(reply: InlineReplyPayload): void {
+    for (const cb of this.replyCallbacks) {
+      cb(reply);
+    }
+  }
+
+  // --- Deep Links ---
+
+  createDeepLink(app: string, screen: string, params: Record<string, unknown>): CrossAppDeepLink {
+    return { app, screen, params };
+  }
+
+  // --- Original API (unchanged behavior) ---
 
   getAll(userId: string, filters?: NotificationFilters): UniversalNotification[] {
     const prefs = this.preferences.get(userId);
@@ -133,29 +503,8 @@ export class UniversalNotificationCenter {
 
   getUnreadCounts(): Record<NotificationApp, number> {
     const counts = {} as Record<NotificationApp, number>;
-    const apps: NotificationApp[] = [
-      'quantchat',
-      'quantmail',
-      'quantsync',
-      'quantube',
-      'quantneon',
-      'quantedits',
-      'quantmax',
-      'quantai',
-      'quantads',
-      'quantmeet',
-      'quantdocs',
-      'quantdrive',
-      'quantcalendar',
-      'quantpay',
-      'quantcloud',
-      'quantmaps',
-      'quanthealth',
-      'quantlearn',
-      'quantwork',
-    ];
 
-    for (const app of apps) {
+    for (const app of ALL_APPS) {
       counts[app] = 0;
     }
 
@@ -190,27 +539,7 @@ export class UniversalNotificationCenter {
   ): UniversalNotificationPreferences {
     const existing = this.preferences.get(userId) ?? {
       userId,
-      enabledApps: [
-        'quantchat',
-        'quantmail',
-        'quantsync',
-        'quantube',
-        'quantneon',
-        'quantedits',
-        'quantmax',
-        'quantai',
-        'quantads',
-        'quantmeet',
-        'quantdocs',
-        'quantdrive',
-        'quantcalendar',
-        'quantpay',
-        'quantcloud',
-        'quantmaps',
-        'quanthealth',
-        'quantlearn',
-        'quantwork',
-      ],
+      enabledApps: [...ALL_APPS],
       digestMode: false,
       digestFrequency: 'daily' as const,
     };
@@ -224,27 +553,7 @@ export class UniversalNotificationCenter {
     return (
       this.preferences.get(userId) ?? {
         userId,
-        enabledApps: [
-          'quantchat',
-          'quantmail',
-          'quantsync',
-          'quantube',
-          'quantneon',
-          'quantedits',
-          'quantmax',
-          'quantai',
-          'quantads',
-          'quantmeet',
-          'quantdocs',
-          'quantdrive',
-          'quantcalendar',
-          'quantpay',
-          'quantcloud',
-          'quantmaps',
-          'quanthealth',
-          'quantlearn',
-          'quantwork',
-        ],
+        enabledApps: [...ALL_APPS],
         digestMode: false,
         digestFrequency: 'daily',
       }
@@ -286,5 +595,43 @@ export class UniversalNotificationCenter {
       }
     }
     return count;
+  }
+
+  // ---- Private Helpers ----
+
+  private meetsUrgencyThreshold(
+    priority: UniversalNotificationPriority,
+    minUrgency: string,
+  ): boolean {
+    const levels: Record<string, number> = {
+      critical: 4,
+      high: 3,
+      medium: 2,
+      normal: 2,
+      low: 1,
+      background: 0,
+    };
+    return (levels[priority] ?? 0) >= (levels[minUrgency] ?? 0);
+  }
+
+  private calculateSnoozeResume(duration: SnoozeDuration, now: number): number {
+    switch (duration) {
+      case '15min':
+        return now + 15 * 60 * 1000;
+      case '1hr':
+        return now + 60 * 60 * 1000;
+      case 'tomorrow': {
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(9, 0, 0, 0);
+        return tomorrow.getTime();
+      }
+      case 'next_active':
+        // Default to next day 9am if no active hours configured
+        const nextDay = new Date(now);
+        nextDay.setDate(nextDay.getDate() + 1);
+        nextDay.setHours(9, 0, 0, 0);
+        return nextDay.getTime();
+    }
   }
 }

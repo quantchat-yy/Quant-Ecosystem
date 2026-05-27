@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-27-28-notifications-collab",
+  "task_description": "Implement Phase 27 (One Notification Center) and Phase 28 (One Realtime Collaboration) for the Quant Ecosystem. Phase 27 completes the universal notification center with DND, smart batching, dedup, snooze, web push VAPID, and cross-device single delivery. Phase 28 enhances the Yjs collaboration server with persistence, S3 snapshots, awareness protocol, per-paragraph permissions, version history, branching, whiteboard, and code editing.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}
