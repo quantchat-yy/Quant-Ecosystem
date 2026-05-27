@@ -38,7 +38,7 @@ export class ChaosEngine {
     type: FaultType,
     config: FaultConfig,
     blastRadius: number = 10,
-    duration: number = 60000
+    duration: number = 60000,
   ): ChaosExperiment {
     // Safety limits
     blastRadius = Math.min(blastRadius, this.maxFaultPercentage);
@@ -89,7 +89,8 @@ export class ChaosEngine {
 
     // Validate hypothesis if defined
     const hypotheses = this.hypotheses.get(experimentId) || [];
-    const hypothesisValid = hypotheses.length === 0 || hypotheses.every(h => this.validateHypothesis(h));
+    const hypothesisValid =
+      hypotheses.length === 0 || hypotheses.every((h) => this.validateHypothesis(h));
 
     const result: ExperimentResult = {
       experimentId,
@@ -110,10 +111,7 @@ export class ChaosEngine {
   }
 
   // Apply fault injection to a function call
-  async injectFault<T>(
-    experimentId: string,
-    fn: () => Promise<T>
-  ): Promise<T> {
+  async injectFault<T>(experimentId: string, fn: () => Promise<T>): Promise<T> {
     const experiment = this.experiments.get(experimentId);
     if (!experiment || !experiment.active || this.globalKillSwitch) {
       return fn();
@@ -185,12 +183,12 @@ export class ChaosEngine {
   }
 
   // Inject kill (simulate process crash)
-  private async injectKill<T>(config: FaultConfig): Promise<T> {
+  private async injectKill<T>(_config: FaultConfig): Promise<T> {
     throw new Error('Chaos: Process killed (simulated crash)');
   }
 
   // Inject network partition
-  private async injectPartition<T>(config: FaultConfig, fn: () => Promise<T>): Promise<T> {
+  private async injectPartition<T>(config: FaultConfig, _fn: () => Promise<T>): Promise<T> {
     const targetServices = config.targetServices || [];
     if (targetServices.length > 0) {
       throw new Error(`Chaos: Network partition - cannot reach ${targetServices.join(', ')}`);
@@ -237,9 +235,8 @@ export class ChaosEngine {
   // Generate observations from experiment
   private generateObservations(experiment: ChaosExperiment): string[] {
     const observations: string[] = [];
-    const duration = experiment.endTime && experiment.startTime
-      ? experiment.endTime - experiment.startTime
-      : 0;
+    const duration =
+      experiment.endTime && experiment.startTime ? experiment.endTime - experiment.startTime : 0;
 
     observations.push(`Experiment '${experiment.name}' ran for ${duration}ms`);
     observations.push(`Fault type: ${experiment.type}`);
@@ -256,7 +253,12 @@ export class ChaosEngine {
   }
 
   // Schedule an experiment
-  scheduleExperiment(experimentId: string, startTime: number, recurring: boolean = false, intervalMs: number = 0): void {
+  scheduleExperiment(
+    experimentId: string,
+    startTime: number,
+    recurring: boolean = false,
+    intervalMs: number = 0,
+  ): void {
     const schedule: ExperimentSchedule = {
       experimentId,
       startTime,
@@ -312,7 +314,7 @@ export class ChaosEngine {
 
   // Get active experiments
   getActiveExperiments(): ChaosExperiment[] {
-    return Array.from(this.experiments.values()).filter(e => e.active);
+    return Array.from(this.experiments.values()).filter((e) => e.active);
   }
 
   // Get experiment history
@@ -321,7 +323,13 @@ export class ChaosEngine {
   }
 
   // Get stats
-  getStats(): { total: number; active: number; completed: number; intercepted: number; faulted: number } {
+  getStats(): {
+    total: number;
+    active: number;
+    completed: number;
+    intercepted: number;
+    faulted: number;
+  } {
     return {
       total: this.experiments.size,
       active: this.getActiveExperiments().length,
@@ -345,7 +353,7 @@ export class ChaosEngine {
 
   // Sleep utility
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   // Reset

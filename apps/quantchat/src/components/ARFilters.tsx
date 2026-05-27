@@ -42,7 +42,6 @@ export const ARFilters: React.FC<ARFiltersProps> = ({ onSelect, selectedFilter }
     } else {
       const response = await apiClient.getFilters({
         category: activeCategory || undefined,
-        trending: activeTab === 'trending' ? 'true' : undefined,
       } as any);
       if (response.success && response.data) {
         setFilters(response.data);
@@ -64,10 +63,16 @@ export const ARFilters: React.FC<ARFiltersProps> = ({ onSelect, selectedFilter }
     <div className="ar-filters-panel">
       {/* Tabs */}
       <div className="filter-tabs">
-        <button className={activeTab === 'trending' ? 'active' : ''} onClick={() => setActiveTab('trending')}>
+        <button
+          className={activeTab === 'trending' ? 'active' : ''}
+          onClick={() => setActiveTab('trending')}
+        >
           🔥 Trending
         </button>
-        <button className={activeTab === 'favorites' ? 'active' : ''} onClick={() => setActiveTab('favorites')}>
+        <button
+          className={activeTab === 'favorites' ? 'active' : ''}
+          onClick={() => setActiveTab('favorites')}
+        >
           ⭐ Favorites
         </button>
         <button className={activeTab === 'all' ? 'active' : ''} onClick={() => setActiveTab('all')}>
@@ -77,13 +82,10 @@ export const ARFilters: React.FC<ARFiltersProps> = ({ onSelect, selectedFilter }
 
       {/* Categories */}
       <div className="filter-categories">
-        <button
-          className={!activeCategory ? 'active' : ''}
-          onClick={() => setActiveCategory(null)}
-        >
+        <button className={!activeCategory ? 'active' : ''} onClick={() => setActiveCategory(null)}>
           All
         </button>
-        {categories.map(cat => (
+        {categories.map((cat) => (
           <button
             key={cat.key}
             className={activeCategory === cat.key ? 'active' : ''}
@@ -110,7 +112,7 @@ export const ARFilters: React.FC<ARFiltersProps> = ({ onSelect, selectedFilter }
         {loading ? (
           <div className="filters-loading">Loading filters...</div>
         ) : (
-          filters.map(filter => (
+          filters.map((filter) => (
             <div
               key={filter.id}
               className={`filter-item ${selectedFilter?.id === filter.id ? 'selected' : ''}`}

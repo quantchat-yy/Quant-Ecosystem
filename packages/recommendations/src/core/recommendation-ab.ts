@@ -82,7 +82,7 @@ export class RecommendationABTest {
     const bucket = hash % 100;
 
     let cumulativeTraffic = 0;
-    let assignedVariant = experiment.variants[0].id;
+    let assignedVariant = experiment.variants[0]!.id;
 
     for (const variant of experiment.variants) {
       cumulativeTraffic += variant.trafficPercentage;
@@ -107,7 +107,7 @@ export class RecommendationABTest {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
     return Math.abs(hash);
@@ -182,14 +182,24 @@ export class RecommendationABTest {
     const absZ = Math.abs(zScore);
     const t = 1 / (1 + 0.2316419 * absZ);
     const d = 0.3989422804014327;
-    const p = d * Math.exp(-absZ * absZ / 2) *
-      (0.3193815 * t + (-0.3565638) * t * t + 1.781478 * t * t * t +
-       (-1.821256) * t * t * t * t + 1.330274 * t * t * t * t * t);
+    const p =
+      d *
+      Math.exp((-absZ * absZ) / 2) *
+      (0.3193815 * t +
+        -0.3565638 * t * t +
+        1.781478 * t * t * t +
+        -1.821256 * t * t * t * t +
+        1.330274 * t * t * t * t * t);
     return 2 * p; // Two-tailed
   }
 
   /** Check if result is statistically significant */
-  isSignificant(experimentId: string, variantA: string, variantB: string, alpha: number = 0.05): boolean {
+  isSignificant(
+    experimentId: string,
+    variantA: string,
+    variantB: string,
+    alpha: number = 0.05,
+  ): boolean {
     const zScore = this.computeZScore(experimentId, variantA, variantB);
     const pValue = this.computePValue(zScore);
     return pValue < alpha;
@@ -199,7 +209,7 @@ export class RecommendationABTest {
   computeConfidenceInterval(
     experimentId: string,
     variantId: string,
-    confidenceLevel: number = 0.95
+    confidenceLevel: number = 0.95,
   ): { lower: number; upper: number; point: number } {
     const metrics = this.variantMetrics.get(experimentId)?.get(variantId);
     if (!metrics || metrics.impressions === 0) {
@@ -212,7 +222,7 @@ export class RecommendationABTest {
     const zValues: Record<number, number> = { 0.9: 1.645, 0.95: 1.96, 0.99: 2.576 };
     const z = zValues[confidenceLevel] || 1.96;
 
-    const se = Math.sqrt(p * (1 - p) / n);
+    const se = Math.sqrt((p * (1 - p)) / n);
     return {
       lower: Math.max(0, p - z * se),
       upper: Math.min(1, p + z * se),
@@ -221,7 +231,7 @@ export class RecommendationABTest {
   }
 
   /** Calculate minimum sample size for desired power */
-  calculateMinSampleSize(alpha: number, power: number, mde: number): number {
+  calculateMinSampleSize(_alpha: number, power: number, mde: number): number {
     // Using formula: n = (Z_alpha/2 + Z_beta)^2 * 2 * p * (1-p) / MDE^2
     const zAlpha = 1.96; // For alpha = 0.05
     const zBeta = power === 0.8 ? 0.842 : 1.282; // 80% or 90% power
@@ -253,8 +263,8 @@ export class RecommendationABTest {
     // Find best performing variant with significance
     const variants = Array.from(metricsMap.entries());
     variants.sort((a, b) => b[1].ctr - a[1].ctr);
-    const best = variants[0];
-    const control = variants[variants.length - 1];
+    const best = variants[0]!;
+    const control = variants[variants.length - 1]!;
 
     if (this.isSignificant(experimentId, control[0], best[0])) {
       experiment.winner = best[0];
@@ -295,6 +305,6 @@ export class RecommendationABTest {
 
   /** Get all active experiments */
   getActiveExperiments(): Experiment[] {
-    return Array.from(this.experiments.values()).filter(e => e.endedAt === null);
+    return Array.from(this.experiments.values()).filter((e) => e.endedAt === null);
   }
 }

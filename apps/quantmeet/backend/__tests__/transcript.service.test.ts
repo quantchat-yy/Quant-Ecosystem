@@ -164,4 +164,66 @@ describe('TranscriptService', () => {
       expect(() => service.clearTranscript('non-existent-room')).not.toThrow();
     });
   });
+
+  describe('startTranscription', () => {
+    it('initializes an empty transcript for a room', () => {
+      service.startTranscription('room-new');
+
+      expect(service.getTranscript('room-new')).toEqual([]);
+    });
+
+    it('does not overwrite existing transcript', async () => {
+      mockTranscriber.transcribe.mockResolvedValue({
+        text: 'Existing',
+        duration: 1,
+        confidence: 0.9,
+      });
+
+      await service.processAudioChunk('room-1', 'p-1', Buffer.from('data'));
+      service.startTranscription('room-1');
+
+      expect(service.getTranscript('room-1')).toHaveLength(1);
+    });
+  });
+
+  describe('addSegment', () => {
+    it('adds a segment with a generated id', () => {
+      const segment = service.addSegment('room-1', {
+        roomId: 'room-1',
+        participantId: 'p-1',
+        text: 'Manual segment',
+        timestamp: new Date(),
+        duration: 2.0,
+        confidence: 0.9,
+      });
+
+      expect(segment.id).toBeDefined();
+      expect(segment.text).toBe('Manual segment');
+
+      const transcript = service.getTranscript('room-1');
+      expect(transcript).toHaveLength(1);
+      expect(transcript[0]!.text).toBe('Manual segment');
+    });
+  });
+
+  describe('getFullTranscript', () => {
+    it('returns formatted transcript as text', async () => {
+      mockTranscriber.transcribe
+        .mockResolvedValueOnce({ text: 'Hello everyone', duration: 1, confidence: 0.9 })
+        .mockResolvedValueOnce({ text: 'Hi there', duration: 1, confidence: 0.85 });
+
+      await service.processAudioChunk('room-1', 'alice', Buffer.from('a'));
+      await service.processAudioChunk('room-1', 'bob', Buffer.from('b'));
+
+      const fullText = service.getFullTranscript('room-1');
+
+      expect(fullText).toContain('[alice]: Hello everyone');
+      expect(fullText).toContain('[bob]: Hi there');
+    });
+
+    it('returns empty string for room with no transcript', () => {
+      const fullText = service.getFullTranscript('empty-room');
+      expect(fullText).toBe('');
+    });
+  });
 });

@@ -6,6 +6,7 @@ function createMockPrisma() {
     bookingLink: {
       create: vi.fn(),
       findUnique: vi.fn(),
+      findMany: vi.fn(),
     },
     event: {
       findMany: vi.fn(),
@@ -188,6 +189,51 @@ describe('BookingLinkService', () => {
       ).rejects.toThrow('Slot is no longer available');
 
       expect(prisma.event.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('listBookings', () => {
+    it('returns all booking links for a user', async () => {
+      const links = [
+        {
+          id: 'link-1',
+          userId: 'user-1',
+          slug: 'john-30min',
+          title: '30 Min',
+          description: '',
+          duration: 30,
+          availableDays: JSON.stringify([1, 2, 3, 4, 5]),
+          startHour: 9,
+          endHour: 17,
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: 'link-2',
+          userId: 'user-1',
+          slug: 'john-60min',
+          title: '60 Min',
+          description: '',
+          duration: 60,
+          availableDays: JSON.stringify([1, 2, 3, 4, 5]),
+          startHour: 9,
+          endHour: 17,
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      prisma.bookingLink.findMany.mockResolvedValue(links);
+
+      const result = await service.listBookings('user-1');
+
+      expect(result).toHaveLength(2);
+      expect(result[0]!.slug).toBe('john-30min');
+      expect(result[1]!.slug).toBe('john-60min');
+      expect(prisma.bookingLink.findMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1' },
+      });
     });
   });
 });

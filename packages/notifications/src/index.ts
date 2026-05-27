@@ -14,6 +14,8 @@ export { InAppNotificationService } from './services/in-app-service';
 export { EmailDigestService } from './services/email-digest-service';
 export { SchedulerService } from './services/scheduler-service';
 export { PreferenceService } from './services/preference-service';
+export { NotificationFanout } from './services/notification-fanout';
+export type { FanoutEvent, RecipientRouting, FanoutResult } from './services/notification-fanout';
 
 export { UniversalNotificationCenter } from './universal-notification-center';
 export type {

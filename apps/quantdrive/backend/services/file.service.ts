@@ -131,6 +131,78 @@ export class FileService {
     };
   }
 
+  async getFile(fileId: string, userId: string): Promise<FileRecord> {
+    return this.getFileMetadata(fileId, userId);
+  }
+
+  async listFiles(
+    userId: string,
+    folderId?: string,
+    opts?: { limit?: number; offset?: number },
+  ): Promise<FileRecord[]> {
+    const where: Record<string, unknown> = { userId, isDeleted: false };
+    if (folderId !== undefined) {
+      where['folderId'] = folderId;
+    }
+    const files = await this.prisma.file.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: opts?.limit ?? 100,
+      skip: opts?.offset ?? 0,
+    });
+    return files as unknown as FileRecord[];
+  }
+
+  async moveFile(fileId: string, userId: string, targetFolderId: string): Promise<FileRecord> {
+    await this.getFileMetadata(fileId, userId);
+    const updated = await this.prisma.file.update({
+      where: { id: fileId },
+      data: { folderId: targetFolderId, updatedAt: new Date() },
+    });
+    return updated as unknown as FileRecord;
+  }
+
+  async copyFile(fileId: string, userId: string, targetFolderId: string): Promise<FileRecord> {
+    const original = await this.getFileMetadata(fileId, userId);
+
+    // Decrypt the original content
+    const key = Buffer.from(original.encryptionKey, 'hex');
+    const iv = Buffer.from(original.encryptionIV, 'hex');
+    const authTag = Buffer.from(original.encryptionAuthTag, 'hex');
+    const encryptedContent = Buffer.from(original.encryptedContent, 'base64');
+
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(authTag);
+    const decrypted = Buffer.concat([decipher.update(encryptedContent), decipher.final()]);
+
+    // Re-encrypt with a fresh key, IV, and auth tag for the copy
+    const newKey = crypto.randomBytes(32);
+    const newIv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', newKey, newIv);
+    const newEncrypted = Buffer.concat([cipher.update(decrypted), cipher.final()]);
+    const newAuthTag = cipher.getAuthTag();
+
+    const copy = await this.prisma.file.create({
+      data: {
+        name: `${original.name} (copy)`,
+        mimeType: original.mimeType,
+        size: original.size,
+        encryptedContent: newEncrypted.toString('base64'),
+        encryptionIV: newIv.toString('hex'),
+        encryptionAuthTag: newAuthTag.toString('hex'),
+        encryptionKey: newKey.toString('hex'),
+        contentHash: original.contentHash,
+        userId,
+        folderId: targetFolderId,
+        isDeleted: false,
+        deletedAt: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    return copy as unknown as FileRecord;
+  }
+
   async getFileMetadata(fileId: string, userId: string): Promise<FileRecord> {
     const file = await this.prisma.file.findUnique({ where: { id: fileId } });
 

@@ -13,8 +13,6 @@ export class MatrixFactorizer {
   private itemBiases: Map<string, number>;
   private globalMean: number;
   private ratings: Rating[];
-  private userIndex: Map<string, number>;
-  private itemIndex: Map<string, number>;
   private converged: boolean;
   private iterationErrors: number[];
 
@@ -26,8 +24,6 @@ export class MatrixFactorizer {
     this.itemBiases = new Map();
     this.globalMean = 0;
     this.ratings = [];
-    this.userIndex = new Map();
-    this.itemIndex = new Map();
     this.converged = false;
     this.iterationErrors = [];
   }
@@ -60,7 +56,7 @@ export class MatrixFactorizer {
   private dotProduct(vecA: number[], vecB: number[]): number {
     let sum = 0;
     for (let i = 0; i < vecA.length; i++) {
-      sum += vecA[i] * vecB[i];
+      sum += vecA[i]! * vecB[i]!;
     }
     return sum;
   }
@@ -124,21 +120,22 @@ export class MatrixFactorizer {
 
         const itemBias = this.itemBiases.get(itemId) || 0;
         const residual = value - this.globalMean - itemBias;
-        biasSum += residual - this.dotProduct(this.userFactors.get(userId) || new Array(k).fill(0), itemVec);
+        biasSum +=
+          residual - this.dotProduct(this.userFactors.get(userId) || new Array(k).fill(0), itemVec);
 
         // A^T * A
         for (let i = 0; i < k; i++) {
           for (let j = 0; j < k; j++) {
-            ata[i][j] += itemVec[i] * itemVec[j];
+            ata[i]![j]! += itemVec[i]! * itemVec[j]!;
           }
           // A^T * b
-          atb[i] += itemVec[i] * (value - this.globalMean - itemBias);
+          atb[i]! += itemVec[i]! * (value - this.globalMean - itemBias);
         }
       }
 
       // Add regularization (lambda * I)
       for (let i = 0; i < k; i++) {
-        ata[i][i] += lambda * userRatings.length;
+        ata[i]![i]! += lambda * userRatings.length;
       }
 
       // Solve using Gaussian elimination
@@ -184,21 +181,22 @@ export class MatrixFactorizer {
 
         const userBias = this.userBiases.get(userId) || 0;
         const residual = value - this.globalMean - userBias;
-        biasSum += residual - this.dotProduct(userVec, this.itemFactors.get(itemId) || new Array(k).fill(0));
+        biasSum +=
+          residual - this.dotProduct(userVec, this.itemFactors.get(itemId) || new Array(k).fill(0));
 
         // A^T * A
         for (let i = 0; i < k; i++) {
           for (let j = 0; j < k; j++) {
-            ata[i][j] += userVec[i] * userVec[j];
+            ata[i]![j]! += userVec[i]! * userVec[j]!;
           }
           // A^T * b
-          atb[i] += userVec[i] * (value - this.globalMean - userBias);
+          atb[i]! += userVec[i]! * (value - this.globalMean - userBias);
         }
       }
 
       // Add regularization
       for (let i = 0; i < k; i++) {
-        ata[i][i] += lambda * itemRatings.length;
+        ata[i]![i]! += lambda * itemRatings.length;
       }
 
       // Solve using Gaussian elimination
@@ -216,38 +214,38 @@ export class MatrixFactorizer {
     // Create augmented matrix
     const augmented: number[][] = [];
     for (let i = 0; i < n; i++) {
-      augmented.push([...A[i], b[i]]);
+      augmented.push([...A[i]!, b[i]!]);
     }
 
     // Forward elimination with partial pivoting
     for (let col = 0; col < n; col++) {
       // Find pivot
-      let maxVal = Math.abs(augmented[col][col]);
+      let maxVal = Math.abs(augmented[col]![col]!);
       let maxRow = col;
       for (let row = col + 1; row < n; row++) {
-        if (Math.abs(augmented[row][col]) > maxVal) {
-          maxVal = Math.abs(augmented[row][col]);
+        if (Math.abs(augmented[row]![col]!) > maxVal) {
+          maxVal = Math.abs(augmented[row]![col]!);
           maxRow = row;
         }
       }
 
       // Swap rows
       if (maxRow !== col) {
-        const temp = augmented[col];
-        augmented[col] = augmented[maxRow];
+        const temp = augmented[col]!;
+        augmented[col] = augmented[maxRow]!;
         augmented[maxRow] = temp;
       }
 
       // Check for singularity
-      if (Math.abs(augmented[col][col]) < 1e-10) {
+      if (Math.abs(augmented[col]![col]!) < 1e-10) {
         continue;
       }
 
       // Eliminate below
       for (let row = col + 1; row < n; row++) {
-        const factor = augmented[row][col] / augmented[col][col];
+        const factor = augmented[row]![col]! / augmented[col]![col]!;
         for (let j = col; j <= n; j++) {
-          augmented[row][j] -= factor * augmented[col][j];
+          augmented[row]![j]! -= factor * augmented[col]![j]!;
         }
       }
     }
@@ -255,15 +253,15 @@ export class MatrixFactorizer {
     // Back substitution
     const x = new Array(n).fill(0);
     for (let i = n - 1; i >= 0; i--) {
-      if (Math.abs(augmented[i][i]) < 1e-10) {
+      if (Math.abs(augmented[i]![i]!) < 1e-10) {
         x[i] = 0;
         continue;
       }
-      let sum = augmented[i][n];
+      let sum: number = augmented[i]![n]!;
       for (let j = i + 1; j < n; j++) {
-        sum -= augmented[i][j] * x[j];
+        sum -= augmented[i]![j]! * x[j]!;
       }
-      x[i] = sum / augmented[i][i];
+      x[i] = sum / augmented[i]![i]!;
     }
 
     return x;
@@ -317,7 +315,11 @@ export class MatrixFactorizer {
   }
 
   /** Get recommendations for a user */
-  recommend(userId: string, excludeItems: Set<string>, topN: number = 10): Array<{ itemId: string; score: number }> {
+  recommend(
+    userId: string,
+    excludeItems: Set<string>,
+    topN: number = 10,
+  ): Array<{ itemId: string; score: number }> {
     const predictions: Array<{ itemId: string; score: number }> = [];
 
     for (const itemId of this.itemFactors.keys()) {
@@ -345,7 +347,10 @@ export class MatrixFactorizer {
   }
 
   /** Find similar items using latent factor similarity */
-  findSimilarItems(itemId: string, topN: number = 10): Array<{ itemId: string; similarity: number }> {
+  findSimilarItems(
+    itemId: string,
+    topN: number = 10,
+  ): Array<{ itemId: string; similarity: number }> {
     const targetVec = this.itemFactors.get(itemId);
     if (!targetVec) return [];
 
@@ -367,16 +372,21 @@ export class MatrixFactorizer {
     let magA = 0;
     let magB = 0;
     for (let i = 0; i < vecA.length; i++) {
-      dot += vecA[i] * vecB[i];
-      magA += vecA[i] * vecA[i];
-      magB += vecB[i] * vecB[i];
+      dot += vecA[i]! * vecB[i]!;
+      magA += vecA[i]! * vecA[i]!;
+      magB += vecB[i]! * vecB[i]!;
     }
     const denom = Math.sqrt(magA) * Math.sqrt(magB);
     return denom === 0 ? 0 : dot / denom;
   }
 
   /** Get training statistics */
-  getTrainingStats(): { converged: boolean; iterations: number; finalRMSE: number; errors: number[] } {
+  getTrainingStats(): {
+    converged: boolean;
+    iterations: number;
+    finalRMSE: number;
+    errors: number[];
+  } {
     return {
       converged: this.converged,
       iterations: this.iterationErrors.length,

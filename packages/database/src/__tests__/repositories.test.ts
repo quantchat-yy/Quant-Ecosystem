@@ -80,7 +80,7 @@ function createMockPrisma() {
       count: vi.fn(),
     },
     $transaction: vi.fn(),
-  } as unknown as ReturnType<typeof import('@prisma/client').PrismaClient>;
+  } as unknown as InstanceType<typeof import('@prisma/client').PrismaClient>;
 }
 
 describe('UserRepository', () => {
@@ -411,10 +411,10 @@ describe('PaginatedResult structure', () => {
 describe('Transaction helper', () => {
   it('should call $transaction on the client', async () => {
     const mockClient = {
-      $transaction: vi.fn().mockImplementation((fn, opts) => fn({})),
+      $transaction: vi.fn().mockImplementation((fn, _opts) => fn({})),
     };
 
-    await withTx(mockClient as any, async (tx) => {
+    await withTx(mockClient as any, async (_tx) => {
       return 'result';
     });
 
@@ -423,20 +423,20 @@ describe('Transaction helper', () => {
 
   it('should pass options to $transaction', async () => {
     const mockClient = {
-      $transaction: vi.fn().mockImplementation((fn, opts) => fn({})),
+      $transaction: vi.fn().mockImplementation((fn, _opts) => fn({})),
     };
 
-    await withTx(mockClient as any, async (tx) => 'result', { timeout: 5000 });
+    await withTx(mockClient as any, async (_tx) => 'result', { timeout: 5000 });
 
     expect(mockClient.$transaction).toHaveBeenCalledWith(expect.any(Function), { timeout: 5000 });
   });
 
   it('should propagate the return value from the transaction callback', async () => {
     const mockClient = {
-      $transaction: vi.fn().mockImplementation((fn, opts) => fn({})),
+      $transaction: vi.fn().mockImplementation((fn, _opts) => fn({})),
     };
 
-    const result = await withTx(mockClient as any, async (tx) => {
+    const result = await withTx(mockClient as any, async (_tx) => {
       return { id: 'created-id', name: 'test' };
     });
 

@@ -2,13 +2,7 @@
 // Canary Analyzer - Statistical Analysis for Canary Deployments
 // ============================================================================
 
-import {
-  CanaryMetrics,
-  CanaryVerdict,
-  CanaryConfig,
-  CanaryReport,
-  CanaryWindow,
-} from '../types';
+import { CanaryMetrics, CanaryVerdict, CanaryConfig, CanaryReport, CanaryWindow } from '../types';
 
 export class CanaryAnalyzer {
   private config: CanaryConfig;
@@ -68,8 +62,8 @@ export class CanaryAnalyzer {
 
     // Combine and rank all observations
     const combined: { value: number; group: number }[] = [
-      ...sample1.map(v => ({ value: v, group: 1 })),
-      ...sample2.map(v => ({ value: v, group: 2 })),
+      ...sample1.map((v) => ({ value: v, group: 1 })),
+      ...sample2.map((v) => ({ value: v, group: 2 })),
     ];
     combined.sort((a, b) => a.value - b.value);
 
@@ -78,7 +72,7 @@ export class CanaryAnalyzer {
     let i = 0;
     while (i < combined.length) {
       let j = i;
-      while (j < combined.length && combined[j].value === combined[i].value) {
+      while (j < combined.length && combined[j]!.value === combined[i]!.value) {
         j++;
       }
       const averageRank = (i + j + 1) / 2; // 1-indexed average
@@ -91,7 +85,7 @@ export class CanaryAnalyzer {
     // Sum ranks for group 1
     let r1 = 0;
     for (let k = 0; k < combined.length; k++) {
-      if (combined[k].group === 1) {
+      if (combined[k]!.group === 1) {
         r1 += ranks[k];
       }
     }
@@ -114,7 +108,10 @@ export class CanaryAnalyzer {
   }
 
   // Chi-squared test for categorical data (e.g., error codes)
-  chiSquaredTest(observed1: number[], observed2: number[]): { chiSquared: number; pValue: number; degreesOfFreedom: number } {
+  chiSquaredTest(
+    observed1: number[],
+    observed2: number[],
+  ): { chiSquared: number; pValue: number; degreesOfFreedom: number } {
     const k = Math.min(observed1.length, observed2.length);
     if (k === 0) return { chiSquared: 0, pValue: 1, degreesOfFreedom: 0 };
 
@@ -126,15 +123,15 @@ export class CanaryAnalyzer {
 
     let chiSquared = 0;
     for (let i = 0; i < k; i++) {
-      const rowTotal = observed1[i] + observed2[i];
+      const rowTotal = observed1[i]! + observed2[i]!;
       const expected1 = (rowTotal * total1) / grandTotal;
       const expected2 = (rowTotal * total2) / grandTotal;
 
       if (expected1 > 0) {
-        chiSquared += Math.pow(observed1[i] - expected1, 2) / expected1;
+        chiSquared += Math.pow(observed1[i]! - expected1, 2) / expected1;
       }
       if (expected2 > 0) {
-        chiSquared += Math.pow(observed2[i] - expected2, 2) / expected2;
+        chiSquared += Math.pow(observed2[i]! - expected2, 2) / expected2;
       }
     }
 
@@ -149,7 +146,10 @@ export class CanaryAnalyzer {
     const baseline = this.baselineData.get(metricName) || [];
     const canary = this.canaryData.get(metricName) || [];
 
-    if (baseline.length < this.config.minimumSampleSize || canary.length < this.config.minimumSampleSize) {
+    if (
+      baseline.length < this.config.minimumSampleSize ||
+      canary.length < this.config.minimumSampleSize
+    ) {
       return {
         metricName,
         baseline,
@@ -160,7 +160,7 @@ export class CanaryAnalyzer {
     }
 
     const { pValue } = this.mannWhitneyUTest(baseline, canary);
-    const significant = pValue < (1 - this.config.confidenceLevel);
+    const significant = pValue < 1 - this.config.confidenceLevel;
 
     return {
       metricName,
@@ -184,7 +184,9 @@ export class CanaryAnalyzer {
     // Determine verdict
     const verdict = this.determineVerdict(metricResults);
     const totalSamples = Math.min(
-      ...this.config.metrics.map(m => (this.baselineData.get(m)?.length || 0) + (this.canaryData.get(m)?.length || 0))
+      ...this.config.metrics.map(
+        (m) => (this.baselineData.get(m)?.length || 0) + (this.canaryData.get(m)?.length || 0),
+      ),
     );
 
     const report: CanaryReport = {
@@ -203,13 +205,15 @@ export class CanaryAnalyzer {
   // Determine overall verdict from metric results
   private determineVerdict(metrics: CanaryMetrics[]): CanaryVerdict {
     const hasInsufficientData = metrics.some(
-      m => m.baseline.length < this.config.minimumSampleSize || m.canary.length < this.config.minimumSampleSize
+      (m) =>
+        m.baseline.length < this.config.minimumSampleSize ||
+        m.canary.length < this.config.minimumSampleSize,
     );
 
     if (hasInsufficientData) return 'inconclusive';
 
     // Check if canary is significantly worse than baseline
-    const significantDegradations = metrics.filter(m => {
+    const significantDegradations = metrics.filter((m) => {
       if (!m.significant) return false;
       // Check if canary is worse (higher latency, higher error rate)
       const baselineMedian = this.median(m.baseline);
@@ -220,7 +224,7 @@ export class CanaryAnalyzer {
     if (significantDegradations.length > 0) return 'fail';
 
     // All metrics pass (no significant degradation)
-    const allAnalyzed = metrics.every(m => m.baseline.length >= this.config.minimumSampleSize);
+    const allAnalyzed = metrics.every((m) => m.baseline.length >= this.config.minimumSampleSize);
     if (allAnalyzed) return 'pass';
 
     return 'inconclusive';
@@ -232,7 +236,7 @@ export class CanaryAnalyzer {
       case 'pass':
         return 'Canary shows no significant degradation. Safe to proceed with rollout.';
       case 'fail':
-        const failedMetrics = metrics.filter(m => m.significant).map(m => m.metricName);
+        const failedMetrics = metrics.filter((m) => m.significant).map((m) => m.metricName);
         return `Canary shows degradation in: ${failedMetrics.join(', ')}. Recommend rollback.`;
       case 'inconclusive':
         return 'Insufficient data for conclusive analysis. Continue collecting samples.';
@@ -250,8 +254,9 @@ export class CanaryAnalyzer {
 
     // Pooled standard deviation
     const pooledStd = Math.sqrt(
-      ((baseline.length - 1) * stdBaseline * stdBaseline + (canary.length - 1) * stdCanary * stdCanary) /
-      (baseline.length + canary.length - 2)
+      ((baseline.length - 1) * stdBaseline * stdBaseline +
+        (canary.length - 1) * stdCanary * stdCanary) /
+        (baseline.length + canary.length - 2),
     );
 
     if (pooledStd === 0) return 0;
@@ -271,7 +276,7 @@ export class CanaryAnalyzer {
     x = Math.abs(x) / Math.sqrt(2);
 
     const t = 1.0 / (1.0 + p * x);
-    const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+    const y = 1.0 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
 
     return 0.5 * (1.0 + sign * y);
   }
@@ -296,13 +301,13 @@ export class CanaryAnalyzer {
     if (values.length === 0) return 0;
     const sorted = [...values].sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    return sorted.length % 2 !== 0 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
   }
 
   private standardDeviation(values: number[]): number {
     if (values.length < 2) return 0;
     const avg = this.mean(values);
-    const squaredDiffs = values.map(v => Math.pow(v - avg, 2));
+    const squaredDiffs = values.map((v) => Math.pow(v - avg, 2));
     return Math.sqrt(squaredDiffs.reduce((a, b) => a + b, 0) / (values.length - 1));
   }
 
@@ -320,7 +325,7 @@ export class CanaryAnalyzer {
   // Should trigger rollback
   shouldRollback(): boolean {
     if (this.reports.length === 0) return false;
-    const latestReport = this.reports[this.reports.length - 1];
+    const latestReport = this.reports[this.reports.length - 1]!;
     return latestReport.verdict === 'fail';
   }
 
@@ -331,11 +336,17 @@ export class CanaryAnalyzer {
 
   // Get latest report
   getLatestReport(): CanaryReport | null {
-    return this.reports.length > 0 ? this.reports[this.reports.length - 1] : null;
+    return this.reports.length > 0 ? this.reports[this.reports.length - 1]! : null;
   }
 
   // Get metric summary
-  getMetricSummary(metricName: string): { baselineCount: number; canaryCount: number; baselineMean: number; canaryMean: number; effectSize: number } {
+  getMetricSummary(metricName: string): {
+    baselineCount: number;
+    canaryCount: number;
+    baselineMean: number;
+    canaryMean: number;
+    effectSize: number;
+  } {
     const baseline = this.baselineData.get(metricName) || [];
     const canary = this.canaryData.get(metricName) || [];
     return {
@@ -362,7 +373,10 @@ export class CanaryAnalyzer {
     for (const metric of this.config.metrics) {
       const baseline = this.baselineData.get(metric) || [];
       const canary = this.canaryData.get(metric) || [];
-      if (baseline.length < this.config.minimumSampleSize || canary.length < this.config.minimumSampleSize) {
+      if (
+        baseline.length < this.config.minimumSampleSize ||
+        canary.length < this.config.minimumSampleSize
+      ) {
         return false;
       }
     }

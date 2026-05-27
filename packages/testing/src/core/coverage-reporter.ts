@@ -3,7 +3,16 @@
 // Line/branch/function coverage, thresholds, report generation
 // ============================================================================
 
-import type { CoverageData, FileCoverage, LinesCoverage, BranchCoverage, BranchInfo, FunctionCoverage, CoverageSummary, CoverageThresholds } from '../types';
+import type {
+  CoverageData,
+  FileCoverage,
+  LinesCoverage,
+  BranchCoverage,
+  BranchInfo,
+  FunctionCoverage,
+  CoverageSummary,
+  CoverageThresholds,
+} from '../types';
 
 interface InstrumentedFile {
   path: string;
@@ -34,7 +43,6 @@ interface FunctionInstrumentation {
 export class CoverageReporter {
   private files: Map<string, InstrumentedFile> = new Map();
   private thresholds: CoverageThresholds;
-  private startTime: number = 0;
 
   constructor(thresholds: Partial<CoverageThresholds> = {}) {
     this.thresholds = {
@@ -48,19 +56,22 @@ export class CoverageReporter {
   /**
    * Instruments a file for coverage tracking
    */
-  instrumentFile(path: string, config: {
-    totalLines: number;
-    executableLines: number[];
-    branches: { line: number; type: 'if' | 'else' | 'ternary' | 'switch-case' }[];
-    functions: { name: string; startLine: number; endLine: number }[];
-  }): void {
+  instrumentFile(
+    path: string,
+    config: {
+      totalLines: number;
+      executableLines: number[];
+      branches: { line: number; type: 'if' | 'else' | 'ternary' | 'switch-case' }[];
+      functions: { name: string; startLine: number; endLine: number }[];
+    },
+  ): void {
     this.files.set(path, {
       path,
       totalLines: config.totalLines,
       executableLines: config.executableLines,
       executedLines: new Set(),
-      branches: config.branches.map(b => ({ ...b, taken: false })),
-      functions: config.functions.map(f => ({ ...f, called: false, callCount: 0 })),
+      branches: config.branches.map((b) => ({ ...b, taken: false })),
+      functions: config.functions.map((f) => ({ ...f, called: false, callCount: 0 })),
     });
   }
 
@@ -92,7 +103,7 @@ export class CoverageReporter {
   recordBranch(path: string, line: number, type: string): void {
     const file = this.files.get(path);
     if (file) {
-      const branch = file.branches.find(b => b.line === line && b.type === type);
+      const branch = file.branches.find((b) => b.line === line && b.type === type);
       if (branch) {
         branch.taken = true;
       }
@@ -105,7 +116,7 @@ export class CoverageReporter {
   recordFunction(path: string, name: string): void {
     const file = this.files.get(path);
     if (file) {
-      const fn = file.functions.find(f => f.name === name);
+      const fn = file.functions.find((f) => f.name === name);
       if (fn) {
         fn.called = true;
         fn.callCount++;
@@ -117,7 +128,6 @@ export class CoverageReporter {
    * Starts coverage collection
    */
   start(): void {
-    this.startTime = Date.now();
     for (const file of this.files.values()) {
       file.executedLines.clear();
       for (const branch of file.branches) branch.taken = false;
@@ -166,8 +176,8 @@ export class CoverageReporter {
    */
   private calculateLinesCoverage(file: InstrumentedFile): LinesCoverage {
     const total = file.executableLines.length;
-    const covered = file.executableLines.filter(l => file.executedLines.has(l)).length;
-    const uncovered = file.executableLines.filter(l => !file.executedLines.has(l));
+    const covered = file.executableLines.filter((l) => file.executedLines.has(l)).length;
+    const uncovered = file.executableLines.filter((l) => !file.executedLines.has(l));
 
     return {
       total,
@@ -182,10 +192,10 @@ export class CoverageReporter {
    */
   private calculateBranchCoverage(file: InstrumentedFile): BranchCoverage {
     const total = file.branches.length;
-    const covered = file.branches.filter(b => b.taken).length;
+    const covered = file.branches.filter((b) => b.taken).length;
     const uncoveredBranches: BranchInfo[] = file.branches
-      .filter(b => !b.taken)
-      .map(b => ({ line: b.line, type: b.type, taken: false }));
+      .filter((b) => !b.taken)
+      .map((b) => ({ line: b.line, type: b.type, taken: false }));
 
     return {
       total,
@@ -200,10 +210,8 @@ export class CoverageReporter {
    */
   private calculateFunctionCoverage(file: InstrumentedFile): FunctionCoverage {
     const total = file.functions.length;
-    const covered = file.functions.filter(f => f.called).length;
-    const uncoveredFunctions = file.functions
-      .filter(f => !f.called)
-      .map(f => f.name);
+    const covered = file.functions.filter((f) => f.called).length;
+    const uncoveredFunctions = file.functions.filter((f) => !f.called).map((f) => f.name);
 
     return {
       total,
@@ -217,9 +225,12 @@ export class CoverageReporter {
    * Calculates project-level summary
    */
   private calculateSummary(files: Map<string, FileCoverage>): CoverageSummary {
-    let totalLines = 0, coveredLines = 0;
-    let totalBranches = 0, coveredBranches = 0;
-    let totalFunctions = 0, coveredFunctions = 0;
+    let totalLines = 0,
+      coveredLines = 0;
+    let totalBranches = 0,
+      coveredBranches = 0;
+    let totalFunctions = 0,
+      coveredFunctions = 0;
 
     for (const file of files.values()) {
       totalLines += file.lines.total;
@@ -249,13 +260,19 @@ export class CoverageReporter {
       failures.push(`Lines: ${coverage.summary.lines.toFixed(1)}% < ${this.thresholds.lines}%`);
     }
     if (coverage.summary.branches < this.thresholds.branches) {
-      failures.push(`Branches: ${coverage.summary.branches.toFixed(1)}% < ${this.thresholds.branches}%`);
+      failures.push(
+        `Branches: ${coverage.summary.branches.toFixed(1)}% < ${this.thresholds.branches}%`,
+      );
     }
     if (coverage.summary.functions < this.thresholds.functions) {
-      failures.push(`Functions: ${coverage.summary.functions.toFixed(1)}% < ${this.thresholds.functions}%`);
+      failures.push(
+        `Functions: ${coverage.summary.functions.toFixed(1)}% < ${this.thresholds.functions}%`,
+      );
     }
     if (coverage.summary.statements < this.thresholds.statements) {
-      failures.push(`Statements: ${coverage.summary.statements.toFixed(1)}% < ${this.thresholds.statements}%`);
+      failures.push(
+        `Statements: ${coverage.summary.statements.toFixed(1)}% < ${this.thresholds.statements}%`,
+      );
     }
 
     return { pass: failures.length === 0, failures };
@@ -278,12 +295,16 @@ export class CoverageReporter {
     lines.push(`  Statements: ${coverage.summary.statements.toFixed(1)}%`);
     lines.push('');
     lines.push('-'.repeat(70));
-    lines.push(`  ${'File'.padEnd(40)} ${'Lines'.padEnd(10)} ${'Branch'.padEnd(10)} ${'Funcs'.padEnd(10)}`);
+    lines.push(
+      `  ${'File'.padEnd(40)} ${'Lines'.padEnd(10)} ${'Branch'.padEnd(10)} ${'Funcs'.padEnd(10)}`,
+    );
     lines.push('-'.repeat(70));
 
     for (const [path, file] of coverage.files) {
       const shortPath = path.length > 38 ? '...' + path.slice(-35) : path;
-      lines.push(`  ${shortPath.padEnd(40)} ${file.lines.percentage.toFixed(0).padEnd(10)}% ${file.branches.percentage.toFixed(0).padEnd(10)}% ${file.functions.percentage.toFixed(0).padEnd(10)}%`);
+      lines.push(
+        `  ${shortPath.padEnd(40)} ${file.lines.percentage.toFixed(0).padEnd(10)}% ${file.branches.percentage.toFixed(0).padEnd(10)}% ${file.functions.percentage.toFixed(0).padEnd(10)}%`,
+      );
     }
 
     lines.push('-'.repeat(70));
@@ -309,7 +330,7 @@ export class CoverageReporter {
           lines.push(`    Uncovered lines: ${this.formatLineRanges(file.lines.uncovered)}`);
         }
         if (file.branches.uncoveredBranches.length > 0) {
-          const branchLines = file.branches.uncoveredBranches.map(b => `L${b.line}(${b.type})`);
+          const branchLines = file.branches.uncoveredBranches.map((b) => `L${b.line}(${b.type})`);
           lines.push(`    Uncovered branches: ${branchLines.join(', ')}`);
         }
         if (file.functions.uncoveredFunctions.length > 0) {
@@ -330,16 +351,16 @@ export class CoverageReporter {
 
     const sorted = [...lines].sort((a, b) => a - b);
     const ranges: string[] = [];
-    let start = sorted[0];
-    let end = sorted[0];
+    let start = sorted[0]!;
+    let end = sorted[0]!;
 
     for (let i = 1; i < sorted.length; i++) {
       if (sorted[i] === end + 1) {
-        end = sorted[i];
+        end = sorted[i]!;
       } else {
         ranges.push(start === end ? `${start}` : `${start}-${end}`);
-        start = sorted[i];
-        end = sorted[i];
+        start = sorted[i]!;
+        end = sorted[i]!;
       }
     }
     ranges.push(start === end ? `${start}` : `${start}-${end}`);
@@ -352,7 +373,6 @@ export class CoverageReporter {
    */
   reset(): void {
     this.files.clear();
-    this.startTime = 0;
   }
 
   /**

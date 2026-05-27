@@ -54,7 +54,7 @@ describe('TrendingRetrieval', () => {
 
     const topItems = trending.getTrending(2, 86400000, now);
     expect(topItems).toHaveLength(2);
-    expect(topItems[0].score).toBeGreaterThanOrEqual(topItems[1].score);
+    expect(topItems[0]!.score).toBeGreaterThanOrEqual(topItems[1]!.score);
   });
 
   it('should exclude items outside time window', () => {

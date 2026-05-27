@@ -168,7 +168,7 @@ export class OfflineFeatureStore {
     }
   }
 
-  private buildQueryPrefix(entityType: string, startDate?: number, endDate?: number): string {
+  private buildQueryPrefix(entityType: string, startDate?: number, _endDate?: number): string {
     switch (this.config.partitionBy) {
       case 'entity_type':
       case 'both':

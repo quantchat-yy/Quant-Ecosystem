@@ -5,6 +5,7 @@ import chatRoutes from './routes/chat';
 import toolsRoutes from './routes/tools';
 import agentsRoutes from './routes/agents';
 import usageRoutes from './routes/usage';
+import orchestrationRoutes from './routes/orchestration';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -37,6 +38,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(toolsRoutes, { prefix: '/tools' });
   await app.register(agentsRoutes, { prefix: '/agents' });
   await app.register(usageRoutes, { prefix: '/usage' });
+  await app.register(orchestrationRoutes, { prefix: '/api/v1/orchestrate' });
 
   return app;
 }

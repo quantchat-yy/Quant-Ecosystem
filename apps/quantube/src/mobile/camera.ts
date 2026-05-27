@@ -1,5 +1,5 @@
-// Quantube - Camera Service
-// Mobile camera functionality for video platform
+// Quantads - Camera Service
+// Mobile camera functionality for advertising platform
 
 export interface CameraConfig {
   resolution: CameraResolution;
@@ -53,7 +53,7 @@ export interface QRScanResult {
 }
 
 export interface AROverlayConfig {
-  type: 'ar_effects';
+  type: 'product_placement';
   intensity: number;
   realTimePreview: boolean;
   customAssets?: string[];
@@ -122,15 +122,25 @@ export class CameraService {
 
   private getResolutionDimensions(res: CameraResolution): { width: number; height: number } {
     switch (res) {
-      case '720p': return { width: 1280, height: 720 };
-      case '1080p': return { width: 1920, height: 1080 };
-      case '4k': return { width: 3840, height: 2160 };
-      case 'max': return { width: 4032, height: 3024 };
+      case '720p':
+        return { width: 1280, height: 720 };
+      case '1080p':
+        return { width: 1920, height: 1080 };
+      case '4k':
+        return { width: 3840, height: 2160 };
+      case 'max':
+        return { width: 4032, height: 3024 };
     }
   }
 
   public async recordVideo(config?: Partial<VideoRecordingConfig>): Promise<VideoResult> {
-    const defaults: VideoRecordingConfig = { maxDuration: 300, quality: 'high', audioBitrate: 128000, videoBitrate: 8000000, fps: 30 };
+    const defaults: VideoRecordingConfig = {
+      maxDuration: 300,
+      quality: 'high',
+      audioBitrate: 128000,
+      videoBitrate: 8000000,
+      fps: 30,
+    };
     const mergedConfig = { ...defaults, ...config };
     this.isRecording = true;
     this.recordingStartTime = Date.now();
@@ -139,7 +149,7 @@ export class CameraService {
       duration: mergedConfig.maxDuration,
       width: 1920,
       height: 1080,
-      sizeBytes: mergedConfig.videoBitrate * mergedConfig.maxDuration / 8,
+      sizeBytes: (mergedConfig.videoBitrate * mergedConfig.maxDuration) / 8,
       thumbnailUri: `file:///thumbnails/${Date.now()}.jpg`,
     };
   }
@@ -154,14 +164,23 @@ export class CameraService {
   }
 
   public async scanQR(): Promise<QRScanResult | null> {
-    return { type: 'qr', data: 'https://quantube.quant.app/scanned', bounds: { x: 100, y: 100, width: 200, height: 200 }, timestamp: Date.now() };
+    return {
+      type: 'qr',
+      data: 'https://quantads.quant.app/scanned',
+      bounds: { x: 100, y: 100, width: 200, height: 200 },
+      timestamp: Date.now(),
+    };
   }
 
   public async arOverlay(config: AROverlayConfig): Promise<{ active: boolean; fps: number }> {
     return { active: config.realTimePreview, fps: 30 };
   }
 
-  public async processImage(uri: string, filters: ImageFilter[], crop?: CropOptions): Promise<PhotoResult> {
+  public async processImage(
+    _uri: string,
+    _filters: ImageFilter[],
+    crop?: CropOptions,
+  ): Promise<PhotoResult> {
     const processedUri = `file:///processed/${Date.now()}.jpg`;
     return {
       uri: processedUri,
@@ -182,7 +201,11 @@ export class CameraService {
       height: 1080,
       format: 'jpeg' as const,
       sizeBytes: 400000,
-      metadata: { timestamp: Date.now() - i * 1000, device: 'mobile', settings: this.currentConfig },
+      metadata: {
+        timestamp: Date.now() - i * 1000,
+        device: 'mobile',
+        settings: this.currentConfig,
+      },
     }));
   }
 
@@ -205,6 +228,6 @@ export class CameraService {
   public toggleFlash(): void {
     const modes: Array<'on' | 'off' | 'auto'> = ['off', 'auto', 'on'];
     const currentIndex = modes.indexOf(this.currentConfig.flash);
-    this.currentConfig.flash = modes[(currentIndex + 1) % modes.length];
+    this.currentConfig.flash = modes[(currentIndex + 1) % modes.length] ?? 'off';
   }
 }

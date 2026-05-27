@@ -132,4 +132,25 @@ describe('StorageQuotaService', () => {
       expect(STORAGE_TIERS.PREMIUM.limit).toBe(2 * 1024 * 1024 * 1024 * 1024);
     });
   });
+
+  describe('getQuotaLimit', () => {
+    it('returns FREE tier limit when no subscription', async () => {
+      prisma.userSubscription.findUnique.mockResolvedValue(null);
+
+      const result = await service.getQuotaLimit('user-1');
+
+      expect(result).toBe(STORAGE_TIERS.FREE.limit);
+    });
+
+    it('returns PREMIUM tier limit when subscribed', async () => {
+      prisma.userSubscription.findUnique.mockResolvedValue({
+        userId: 'user-1',
+        tier: 'PREMIUM',
+      });
+
+      const result = await service.getQuotaLimit('user-1');
+
+      expect(result).toBe(STORAGE_TIERS.PREMIUM.limit);
+    });
+  });
 });

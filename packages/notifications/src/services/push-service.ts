@@ -1,10 +1,11 @@
 // ============================================================================
 // Notifications - Push Service
-// Real Firebase Admin SDK (FCM) and @parse/node-apn (APNs) integration
+// Real Firebase Admin SDK (FCM) and APNs HTTP/2 integration
 // ============================================================================
 
 import * as admin from 'firebase-admin';
-import apn from '@parse/node-apn';
+import { ApnsProvider, ApnsNotificationBuilder } from './apns-client';
+import type { ApnsProviderOptions } from './apns-client';
 import { z } from 'zod';
 
 /**
@@ -34,7 +35,7 @@ export interface PushResult {
 /** Configuration for initializing the PushService */
 export interface PushServiceConfig {
   firebaseCredential: admin.ServiceAccount;
-  apnOptions?: apn.ProviderOptions;
+  apnOptions?: ApnsProviderOptions;
   apnTopic?: string; // iOS bundle identifier
 }
 
@@ -47,7 +48,7 @@ export interface PushServiceConfig {
  */
 export class PushService {
   private fcmApp: admin.app.App | null = null;
-  private apnProvider: apn.Provider | null = null;
+  private apnProvider: ApnsProvider | null = null;
   private apnTopic: string = 'com.quant.app';
 
   /**
@@ -60,7 +61,7 @@ export class PushService {
     });
 
     if (config.apnOptions) {
-      this.apnProvider = new apn.Provider(config.apnOptions);
+      this.apnProvider = new ApnsProvider(config.apnOptions);
     }
 
     if (config.apnTopic) {
@@ -189,7 +190,7 @@ export class PushService {
       return { success: false, error: 'APNs provider not initialized' };
     }
 
-    const notification = new apn.Notification();
+    const notification = new ApnsNotificationBuilder();
     notification.alert = {
       title: payload.title,
       body: payload.body,

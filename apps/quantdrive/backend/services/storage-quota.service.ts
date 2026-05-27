@@ -67,6 +67,11 @@ export class StorageQuotaService {
     }
   }
 
+  async getQuotaLimit(userId: string): Promise<number> {
+    const tier = await this.getStorageTier(userId);
+    return STORAGE_TIERS[tier].limit;
+  }
+
   async getStorageTier(userId: string): Promise<StorageTier> {
     const subscription = await this.prisma.userSubscription.findUnique({
       where: { userId },

@@ -1,5 +1,5 @@
-// Quantsync - Deep Linking Service
-// Mobile deep link handling for cloud storage platform
+// Quantads - Deep Linking Service
+// Mobile deep link handling for advertising platform
 
 export interface DeepLinkRoute {
   pattern: string;
@@ -68,9 +68,9 @@ export class DeepLinkService {
   private deferredLinks: Map<string, DeferredDeepLink> = new Map();
   private lastLink: ParsedLink | null = null;
   private universalLinkConfig: UniversalLinkConfig = {
-    domain: 'quantsync.quant.app',
-    appId: 'com.quant.quantsync',
-    paths: ['/files/*', '/folders/*', '/shared/*', '/devices/*'],
+    domain: 'quantads.quant.app',
+    appId: 'com.quant.quantads',
+    paths: ['/campaigns/*', '/creatives/*', '/audiences/*', '/analytics/*'],
     excludedPaths: ['/api/*', '/static/*'],
   };
   private linkHistory: ParsedLink[] = [];
@@ -81,15 +81,60 @@ export class DeepLinkService {
 
   private registerDefaultRoutes(): void {
     const defaultRoutes: DeepLinkRoute[] = [
-      { pattern: '/files/:id', screen: 'filesDetail', params: [{ name: 'id', type: 'string', required: true }], requiresAuth: true, fallbackUrl: 'https://quantsync.quant.app/files' },
-      { pattern: '/folders/:id', screen: 'foldersDetail', params: [{ name: 'id', type: 'string', required: true }], requiresAuth: true, fallbackUrl: 'https://quantsync.quant.app/folders' },
-      { pattern: '/shared/:id', screen: 'sharedDetail', params: [{ name: 'id', type: 'string', required: true }], requiresAuth: false, fallbackUrl: 'https://quantsync.quant.app/shared' },
-      { pattern: '/devices/:id', screen: 'devicesDetail', params: [{ name: 'id', type: 'string', required: true }], requiresAuth: true, fallbackUrl: 'https://quantsync.quant.app/devices' },
-      { pattern: '/settings/:section', screen: 'settings', params: [{ name: 'section', type: 'string', required: false, defaultValue: 'general' }], requiresAuth: true, fallbackUrl: 'https://quantsync.quant.app/settings' },
-      { pattern: '/invite/:code', screen: 'invite', params: [{ name: 'code', type: 'string', required: true }], requiresAuth: false, fallbackUrl: 'https://quantsync.quant.app/invite' },
-      { pattern: '/share/:contentType/:id', screen: 'sharedContent', params: [{ name: 'contentType', type: 'string', required: true }, { name: 'id', type: 'string', required: true }], requiresAuth: false, fallbackUrl: 'https://quantsync.quant.app/share' },
+      {
+        pattern: '/campaigns/:id',
+        screen: 'campaignsDetail',
+        params: [{ name: 'id', type: 'string', required: true }],
+        requiresAuth: true,
+        fallbackUrl: 'https://quantads.quant.app/campaigns',
+      },
+      {
+        pattern: '/creatives/:id',
+        screen: 'creativesDetail',
+        params: [{ name: 'id', type: 'string', required: true }],
+        requiresAuth: true,
+        fallbackUrl: 'https://quantads.quant.app/creatives',
+      },
+      {
+        pattern: '/audiences/:id',
+        screen: 'audiencesDetail',
+        params: [{ name: 'id', type: 'string', required: true }],
+        requiresAuth: false,
+        fallbackUrl: 'https://quantads.quant.app/audiences',
+      },
+      {
+        pattern: '/analytics/:id',
+        screen: 'analyticsDetail',
+        params: [{ name: 'id', type: 'string', required: true }],
+        requiresAuth: true,
+        fallbackUrl: 'https://quantads.quant.app/analytics',
+      },
+      {
+        pattern: '/settings/:section',
+        screen: 'settings',
+        params: [{ name: 'section', type: 'string', required: false, defaultValue: 'general' }],
+        requiresAuth: true,
+        fallbackUrl: 'https://quantads.quant.app/settings',
+      },
+      {
+        pattern: '/invite/:code',
+        screen: 'invite',
+        params: [{ name: 'code', type: 'string', required: true }],
+        requiresAuth: false,
+        fallbackUrl: 'https://quantads.quant.app/invite',
+      },
+      {
+        pattern: '/share/:contentType/:id',
+        screen: 'sharedContent',
+        params: [
+          { name: 'contentType', type: 'string', required: true },
+          { name: 'id', type: 'string', required: true },
+        ],
+        requiresAuth: false,
+        fallbackUrl: 'https://quantads.quant.app/share',
+      },
     ];
-    defaultRoutes.forEach(route => this.routes.set(route.pattern, route));
+    defaultRoutes.forEach((route) => this.routes.set(route.pattern, route));
   }
 
   public async handleUniversalLink(url: string): Promise<ParsedLink | null> {
@@ -118,27 +163,37 @@ export class DeepLinkService {
     return null;
   }
 
-  private extractParams(pattern: string, path: string): Record<string, string | number | boolean> | null {
+  private extractParams(
+    pattern: string,
+    path: string,
+  ): Record<string, string | number | boolean> | null {
     const patternParts = pattern.split('/').filter(Boolean);
     const pathParts = path.split('/').filter(Boolean);
     if (patternParts.length !== pathParts.length) return null;
     const params: Record<string, string | number | boolean> = {};
     for (let i = 0; i < patternParts.length; i++) {
-      if (patternParts[i].startsWith(':')) {
-        const paramName = patternParts[i].substring(1);
-        params[paramName] = pathParts[i];
-      } else if (patternParts[i] !== pathParts[i]) {
+      const patternPart = patternParts[i];
+      const pathPart = pathParts[i];
+      if (!patternPart || !pathPart) return null;
+      if (patternPart.startsWith(':')) {
+        const paramName = patternPart.substring(1);
+        params[paramName] = pathPart;
+      } else if (patternPart !== pathPart) {
         return null;
       }
     }
     return params;
   }
 
-  private parseUrl(url: string): { pathname: string; query: Record<string, string>; fragment?: string } | null {
+  private parseUrl(
+    url: string,
+  ): { pathname: string; query: Record<string, string>; fragment?: string } | null {
     try {
       const urlObj = new URL(url);
       const query: Record<string, string> = {};
-      urlObj.searchParams.forEach((value, key) => { query[key] = value; });
+      urlObj.searchParams.forEach((value, key) => {
+        query[key] = value;
+      });
       return { pathname: urlObj.pathname, query, fragment: urlObj.hash.substring(1) || undefined };
     } catch {
       return null;
@@ -173,7 +228,7 @@ export class DeepLinkService {
   }
 
   public registerRoutes(routes: DeepLinkRoute[]): void {
-    routes.forEach(route => this.routes.set(route.pattern, route));
+    routes.forEach((route) => this.routes.set(route.pattern, route));
   }
 
   public removeRoute(pattern: string): boolean {

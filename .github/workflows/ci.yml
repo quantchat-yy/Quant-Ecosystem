@@ -35,7 +35,6 @@ jobs:
 
       - name: Run npm audit
         run: pnpm audit --audit-level=high
-        continue-on-error: true
 
   check-docker-paths:
     runs-on: ubuntu-latest

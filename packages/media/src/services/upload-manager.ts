@@ -3,11 +3,7 @@
 // Resumable chunked upload with integrity verification
 // ============================================================================
 
-import type {
-  UploadChunk,
-  UploadSession,
-  UploadStatus,
-} from '../types';
+import type { UploadChunk, UploadSession, UploadStatus } from '../types';
 
 /** Upload manager configuration */
 interface UploadManagerConfig {
@@ -52,7 +48,7 @@ export class UploadManager {
     fileName: string,
     fileSize: number,
     mimeType: string,
-    options: { chunkSize?: number; metadata?: Record<string, unknown>; checksum?: string } = {}
+    options: { chunkSize?: number; metadata?: Record<string, unknown>; checksum?: string } = {},
   ): UploadSession {
     if (fileSize <= 0) {
       throw new Error('File size must be positive');
@@ -106,7 +102,7 @@ export class UploadManager {
     sessionId: string,
     chunkIndex: number,
     data: ArrayBuffer,
-    hash: string
+    hash: string,
   ): { success: boolean; chunk: UploadChunk; session: UploadSession } {
     const session = this.getSession(sessionId);
 
@@ -119,6 +115,10 @@ export class UploadManager {
     }
 
     const chunk = session.chunks[chunkIndex];
+
+    if (!chunk) {
+      throw new Error(`Chunk index ${chunkIndex} not found in session ${sessionId}`);
+    }
 
     // Verify chunk size
     if (data.byteLength !== chunk.size) {
@@ -134,7 +134,9 @@ export class UploadManager {
       chunk.retries++;
       if (chunk.retries >= this.config.maxRetries) {
         session.status = 'failed';
-        throw new Error(`Chunk ${chunkIndex} failed integrity check after ${chunk.retries} retries`);
+        throw new Error(
+          `Chunk ${chunkIndex} failed integrity check after ${chunk.retries} retries`,
+        );
       }
       return { success: false, chunk, session };
     }
@@ -145,7 +147,7 @@ export class UploadManager {
     chunk.uploaded = true;
     chunk.uploadedAt = Date.now();
 
-    session.uploadedChunks = session.chunks.filter(c => c.uploaded).length;
+    session.uploadedChunks = session.chunks.filter((c) => c.uploaded).length;
     session.status = 'uploading';
 
     return { success: true, chunk, session };
@@ -158,9 +160,11 @@ export class UploadManager {
     const session = this.getSession(sessionId);
 
     // Check all chunks are uploaded
-    const missingChunks = session.chunks.filter(c => !c.uploaded);
+    const missingChunks = session.chunks.filter((c) => !c.uploaded);
     if (missingChunks.length > 0) {
-      throw new Error(`Cannot complete upload: ${missingChunks.length} chunks missing (indices: ${missingChunks.map(c => c.index).join(', ')})`);
+      throw new Error(
+        `Cannot complete upload: ${missingChunks.length} chunks missing (indices: ${missingChunks.map((c) => c.index).join(', ')})`,
+      );
     }
 
     session.status = 'completing';
@@ -223,9 +227,8 @@ export class UploadManager {
       }
     }
 
-    const progress = session.totalChunks > 0
-      ? (completedChunks.length / session.totalChunks) * 100
-      : 0;
+    const progress =
+      session.totalChunks > 0 ? (completedChunks.length / session.totalChunks) * 100 : 0;
 
     return { session, pendingChunks, completedChunks, progress };
   }
@@ -246,12 +249,10 @@ export class UploadManager {
     const session = this.getSession(sessionId);
 
     const uploadedBytes = session.chunks
-      .filter(c => c.uploaded)
+      .filter((c) => c.uploaded)
       .reduce((sum, c) => sum + c.size, 0);
 
-    const progress = session.fileSize > 0
-      ? (uploadedBytes / session.fileSize) * 100
-      : 0;
+    const progress = session.fileSize > 0 ? (uploadedBytes / session.fileSize) * 100 : 0;
 
     // Calculate speed (bytes per second)
     const elapsed = Date.now() - session.startedAt;
@@ -317,7 +318,7 @@ export class UploadManager {
    */
   public getActiveSessions(): UploadSession[] {
     return Array.from(this.sessions.values()).filter(
-      s => s.status === 'uploading' || s.status === 'initialized'
+      (s) => s.status === 'uploading' || s.status === 'initialized',
     );
   }
 
@@ -343,7 +344,9 @@ export class UploadManager {
         }
       } else if (now - session.startedAt > this.config.sessionTimeoutMs) {
         session.status = 'failed';
-        for (const chunk of session.chunks) { chunk.data = null; }
+        for (const chunk of session.chunks) {
+          chunk.data = null;
+        }
         this.sessions.delete(id);
         cleaned++;
       }
@@ -416,7 +419,7 @@ export class UploadManager {
     let hash = 2166136261;
 
     for (let i = 0; i < Math.min(view.length, 1000); i++) {
-      hash ^= view[i];
+      hash ^= view[i]!;
       hash = Math.imul(hash, 16777619);
     }
 

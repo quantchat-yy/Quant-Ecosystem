@@ -5,8 +5,19 @@ import type { AppConfig } from './types';
 import errorHandler from './plugins/error-handler';
 import healthPlugin from './plugins/health';
 import authPlugin from './plugins/auth';
+import metricsPlugin from './plugins/metrics';
+import requestIdPlugin from './plugins/request-id';
 
 export async function createApp(config: AppConfig) {
+  // Production security validation
+  if (config.env === 'production') {
+    if (!config.jwtSecret || config.jwtSecret.length < 32) {
+      throw new Error(
+        '[FATAL] jwtSecret must be at least 32 characters in production. Set a strong secret.',
+      );
+    }
+  }
+
   const fastify = Fastify({
     logger:
       config.env === 'test'
@@ -61,6 +72,12 @@ export async function createApp(config: AppConfig) {
 
   // Register error handler
   await fastify.register(errorHandler);
+
+  // Register request-id propagation
+  await fastify.register(requestIdPlugin);
+
+  // Register metrics collection
+  await fastify.register(metricsPlugin);
 
   // Register auth plugin
   await fastify.register(authPlugin, {

@@ -17,6 +17,12 @@ export interface PrismaClient {
       data: Record<string, unknown>;
     }) => Promise<any>;
   };
+  userRelationship: {
+    create: (args: { data: Record<string, unknown> }) => Promise<any>;
+    findFirst: (args: Record<string, unknown>) => Promise<any>;
+    findMany: (args: Record<string, unknown>) => Promise<any[]>;
+    delete: (args: { where: Record<string, unknown> }) => Promise<any>;
+  };
   swipe: {
     create: (args: { data: Record<string, unknown> }) => Promise<any>;
     findFirst: (args: Record<string, unknown>) => Promise<any>;
@@ -26,6 +32,16 @@ export interface PrismaClient {
     create: (args: { data: Record<string, unknown> }) => Promise<any>;
     findFirst: (args: Record<string, unknown>) => Promise<any>;
     findMany: (args: Record<string, unknown>) => Promise<any[]>;
+  };
+  shortVideo: {
+    create: (args: { data: Record<string, unknown> }) => Promise<any>;
+    findUnique: (args: { where: Record<string, unknown> }) => Promise<any>;
+    findMany: (args: Record<string, unknown>) => Promise<any[]>;
+    count: (args: Record<string, unknown>) => Promise<number>;
+    update: (args: {
+      where: Record<string, unknown>;
+      data: Record<string, unknown>;
+    }) => Promise<any>;
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   $queryRaw<T = unknown>(query: TemplateStringsArray, ...values: unknown[]): Promise<T>;

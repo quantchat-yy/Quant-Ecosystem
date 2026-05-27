@@ -104,9 +104,9 @@ describe('HybridSearchEngine', () => {
       });
 
       expect(results).toHaveLength(1);
-      expect(results[0].id).toBe('doc-1');
-      expect(results[0].bm25Score).toBe(0);
-      expect(results[0].vectorScore).toBeGreaterThan(0);
+      expect(results[0]!.id).toBe('doc-1');
+      expect(results[0]!.bm25Score).toBe(0);
+      expect(results[0]!.vectorScore).toBeGreaterThan(0);
     });
 
     it('should handle empty vector results', async () => {
@@ -125,8 +125,8 @@ describe('HybridSearchEngine', () => {
       });
 
       expect(results).toHaveLength(1);
-      expect(results[0].id).toBe('doc-1');
-      expect(results[0].vectorScore).toBe(0);
+      expect(results[0]!.id).toBe('doc-1');
+      expect(results[0]!.vectorScore).toBe(0);
     });
 
     it('should handle both empty results', async () => {
@@ -165,8 +165,8 @@ describe('HybridSearchEngine', () => {
       });
 
       expect(results).toHaveLength(1);
-      expect(results[0].id).toBe('doc-1');
-      expect(results[0].score).toBe(results[0].bm25Score * 0.7 + results[0].vectorScore * 0.3);
+      expect(results[0]!.id).toBe('doc-1');
+      expect(results[0]!.score).toBe(results[0]!.bm25Score * 0.7 + results[0]!.vectorScore * 0.3);
     });
 
     it('should respect limit parameter', async () => {
@@ -209,7 +209,7 @@ describe('HybridSearchEngine', () => {
       });
 
       for (let i = 1; i < results.length; i++) {
-        expect(results[i - 1].score).toBeGreaterThanOrEqual(results[i].score);
+        expect(results[i - 1]!.score).toBeGreaterThanOrEqual(results[i]!.score);
       }
     });
   });

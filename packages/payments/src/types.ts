@@ -495,3 +495,135 @@ export interface LedgerEntry {
   metadata?: Record<string, string>;
   createdAt: number;
 }
+
+// ============================================================================
+// Fraud Detection Types
+// ============================================================================
+
+/** Risk level for fraud detection */
+export type FraudRiskLevel = 'low' | 'medium' | 'high' | 'critical';
+
+/** Individual fraud signal detected during analysis */
+export interface FraudSignal {
+  type: string;
+  score: number;
+  description: string;
+  timestamp: number;
+}
+
+/** Result of a fraud check on a transaction */
+export interface FraudCheckResult {
+  transactionId: string;
+  riskLevel: FraudRiskLevel;
+  riskScore: number;
+  signals: FraudSignal[];
+  action: 'allow' | 'flag' | 'block' | 'review';
+  checkedAt: number;
+}
+
+// ============================================================================
+// Ad Billing Types
+// ============================================================================
+
+/** Ad campaign status */
+export type AdCampaignStatus = 'active' | 'paused' | 'exhausted' | 'completed';
+
+/** Ad campaign record */
+export interface AdCampaign {
+  id: string;
+  advertiserId: string;
+  name: string;
+  budget: number;
+  dailyBudget: number;
+  spent: number;
+  dailySpent: number;
+  cpm: number;
+  cpc: number;
+  cpa: number;
+  status: AdCampaignStatus;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  createdAt: number;
+}
+
+/** Ad billing record for individual events */
+export interface AdBillingRecord {
+  id: string;
+  campaignId: string;
+  type: 'impression' | 'click' | 'conversion';
+  cost: number;
+  timestamp: number;
+}
+
+// ============================================================================
+// Agent Spending Limit Types
+// ============================================================================
+
+/** Budget configuration for an AI agent */
+export interface AgentBudget {
+  agentId: string;
+  userId: string;
+  perTransactionLimit: number;
+  hourlyLimit: number;
+  dailyLimit: number;
+  monthlyLimit: number;
+  hourlySpent: number;
+  dailySpent: number;
+  monthlySpent: number;
+  requiresApprovalAbove: number;
+  createdAt: number;
+}
+
+/** Approval request for agent spending above threshold */
+export interface AgentSpendApproval {
+  id: string;
+  agentId: string;
+  userId: string;
+  amount: number;
+  description: string;
+  status: 'pending' | 'approved' | 'denied';
+  requestedAt: number;
+  resolvedAt?: number;
+}
+
+// ============================================================================
+// Dispute Types
+// ============================================================================
+
+/** Dispute lifecycle status */
+export type DisputeStatus =
+  | 'opened'
+  | 'evidence_requested'
+  | 'under_review'
+  | 'resolved_won'
+  | 'resolved_lost';
+
+/** Reason for opening a dispute */
+export type DisputeReason = 'fraud' | 'not_received' | 'product_issue' | 'duplicate' | 'other';
+
+/** Evidence submitted for a dispute */
+export interface DisputeEvidence {
+  id: string;
+  disputeId: string;
+  submittedBy: 'customer' | 'merchant';
+  type: string;
+  content: string;
+  submittedAt: number;
+}
+
+/** Dispute record */
+export interface Dispute {
+  id: string;
+  transactionId: string;
+  customerId: string;
+  amount: number;
+  reason: DisputeReason;
+  status: DisputeStatus;
+  evidence: DisputeEvidence[];
+  resolution?: string;
+  financialImpact?: number;
+  createdAt: number;
+  updatedAt: number;
+  resolvedAt?: number;
+}

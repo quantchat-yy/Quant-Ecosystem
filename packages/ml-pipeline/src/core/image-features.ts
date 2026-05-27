@@ -28,43 +28,71 @@ export class ImageFeatureExtractor {
     // Edge detection (Sobel horizontal)
     this.kernels.set('edge_h', {
       name: 'edge_h',
-      weights: [[-1, -2, -1], [0, 0, 0], [1, 2, 1]],
+      weights: [
+        [-1, -2, -1],
+        [0, 0, 0],
+        [1, 2, 1],
+      ],
       size: 3,
     });
     // Edge detection (Sobel vertical)
     this.kernels.set('edge_v', {
       name: 'edge_v',
-      weights: [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]],
+      weights: [
+        [-1, 0, 1],
+        [-2, 0, 2],
+        [-1, 0, 1],
+      ],
       size: 3,
     });
     // Gaussian blur
     this.kernels.set('blur', {
       name: 'blur',
-      weights: [[1, 2, 1], [2, 4, 2], [1, 2, 1]].map(r => r.map(v => v / 16)),
+      weights: [
+        [1, 2, 1],
+        [2, 4, 2],
+        [1, 2, 1],
+      ].map((r) => r.map((v) => v / 16)),
       size: 3,
     });
     // Sharpen
     this.kernels.set('sharpen', {
       name: 'sharpen',
-      weights: [[0, -1, 0], [-1, 5, -1], [0, -1, 0]],
+      weights: [
+        [0, -1, 0],
+        [-1, 5, -1],
+        [0, -1, 0],
+      ],
       size: 3,
     });
     // Laplacian edge detection
     this.kernels.set('laplacian', {
       name: 'laplacian',
-      weights: [[0, 1, 0], [1, -4, 1], [0, 1, 0]],
+      weights: [
+        [0, 1, 0],
+        [1, -4, 1],
+        [0, 1, 0],
+      ],
       size: 3,
     });
     // Emboss
     this.kernels.set('emboss', {
       name: 'emboss',
-      weights: [[-2, -1, 0], [-1, 1, 1], [0, 1, 2]],
+      weights: [
+        [-2, -1, 0],
+        [-1, 1, 1],
+        [0, 1, 2],
+      ],
       size: 3,
     });
     // Identity (for testing)
     this.kernels.set('identity', {
       name: 'identity',
-      weights: [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
+      weights: [
+        [0, 0, 0],
+        [0, 1, 0],
+        [0, 0, 0],
+      ],
       size: 3,
     });
   }
@@ -88,11 +116,11 @@ export class ImageFeatureExtractor {
             const ii = i + ki - padH;
             const jj = j + kj - padW;
             if (ii >= 0 && ii < inputH && jj >= 0 && jj < inputW) {
-              sum += input[ii][jj] * kernel[ki][kj];
+              sum += input[ii]![jj]! * kernel[ki]![kj]!;
             }
           }
         }
-        output[i][j] = sum;
+        output[i]![j] = sum;
       }
     }
     return output;
@@ -113,11 +141,11 @@ export class ImageFeatureExtractor {
             const ii = i * stride + pi;
             const jj = j * stride + pj;
             if (ii < inputH && jj < inputW) {
-              maxVal = Math.max(maxVal, input[ii][jj]);
+              maxVal = Math.max(maxVal, input[ii]![jj]!);
             }
           }
         }
-        output[i][j] = maxVal === -Infinity ? 0 : maxVal;
+        output[i]![j] = maxVal === -Infinity ? 0 : maxVal;
       }
     }
     return output;
@@ -139,12 +167,12 @@ export class ImageFeatureExtractor {
             const ii = i * stride + pi;
             const jj = j * stride + pj;
             if (ii < inputH && jj < inputW) {
-              sum += input[ii][jj];
+              sum += input[ii]![jj]!;
               count++;
             }
           }
         }
-        output[i][j] = count > 0 ? sum / count : 0;
+        output[i]![j] = count > 0 ? sum / count : 0;
       }
     }
     return output;
@@ -159,7 +187,7 @@ export class ImageFeatureExtractor {
       if (!kernel) continue;
       const convolved = this.convolve2D(input, kernel.weights);
       // Apply ReLU activation
-      const activated = convolved.map(row => row.map(v => Math.max(0, v)));
+      const activated = convolved.map((row) => row.map((v) => Math.max(0, v)));
       maps.push({
         data: activated,
         width: activated[0]?.length ?? 0,
@@ -193,7 +221,7 @@ export class ImageFeatureExtractor {
     // Generate feature maps
     const featureMaps = this.generateFeatureMaps(normalized);
     // Apply pooling to each map
-    const pooledMaps: FeatureMap[] = featureMaps.map(map => ({
+    const pooledMaps: FeatureMap[] = featureMaps.map((map) => ({
       data: this.maxPool(map.data, poolSize, poolSize),
       width: Math.floor(map.width / poolSize),
       height: Math.floor(map.height / poolSize),
@@ -212,7 +240,8 @@ export class ImageFeatureExtractor {
 
   // Normalize pixel values to [0, 1]
   normalizePixels(image: number[][]): number[][] {
-    let min = Infinity, max = -Infinity;
+    let min = Infinity,
+      max = -Infinity;
     for (const row of image) {
       for (const val of row) {
         min = Math.min(min, val);
@@ -220,8 +249,8 @@ export class ImageFeatureExtractor {
       }
     }
     const range = max - min;
-    if (range === 0) return image.map(row => row.map(() => 0));
-    return image.map(row => row.map(val => (val - min) / range));
+    if (range === 0) return image.map((row) => row.map(() => 0));
+    return image.map((row) => row.map((val) => (val - min) / range));
   }
 
   // Resize grid using bilinear interpolation
@@ -242,11 +271,12 @@ export class ImageFeatureExtractor {
         const dy = srcY - y0;
         const dx = srcX - x0;
         // Bilinear interpolation
-        const val = (1 - dy) * (1 - dx) * (image[y0]?.[x0] ?? 0)
-          + (1 - dy) * dx * (image[y0]?.[x1] ?? 0)
-          + dy * (1 - dx) * (image[y1]?.[x0] ?? 0)
-          + dy * dx * (image[y1]?.[x1] ?? 0);
-        output[i][j] = val;
+        const val =
+          (1 - dy) * (1 - dx) * (image[y0]?.[x0] ?? 0) +
+          (1 - dy) * dx * (image[y0]?.[x1] ?? 0) +
+          dy * (1 - dx) * (image[y1]?.[x0] ?? 0) +
+          dy * dx * (image[y1]?.[x1] ?? 0);
+        output[i]![j] = val;
       }
     }
     return output;
@@ -254,12 +284,14 @@ export class ImageFeatureExtractor {
 
   // Compare two feature vectors
   compareFeatures(featuresA: number[], featuresB: number[]): number {
-    let dot = 0, normA = 0, normB = 0;
+    let dot = 0,
+      normA = 0,
+      normB = 0;
     const len = Math.min(featuresA.length, featuresB.length);
     for (let i = 0; i < len; i++) {
-      dot += featuresA[i] * featuresB[i];
-      normA += featuresA[i] * featuresA[i];
-      normB += featuresB[i] * featuresB[i];
+      dot += featuresA[i]! * featuresB[i]!;
+      normA += featuresA[i]! * featuresA[i]!;
+      normB += featuresB[i]! * featuresB[i]!;
     }
     const denom = Math.sqrt(normA) * Math.sqrt(normB);
     if (denom === 0) return 0;

@@ -83,9 +83,9 @@ export class ScoreFusion {
     for (const id of candidateIds) {
       const scores = rawScores.get(id)!;
       for (const ranker of this.rankers) {
-        const score = scores[ranker.name];
-        if (score < mins[ranker.name]) mins[ranker.name] = score;
-        if (score > maxs[ranker.name]) maxs[ranker.name] = score;
+        const score = scores[ranker.name]!;
+        if (score < mins[ranker.name]!) mins[ranker.name] = score;
+        if (score > maxs[ranker.name]!) maxs[ranker.name] = score;
       }
     }
 
@@ -95,9 +95,9 @@ export class ScoreFusion {
       const scores = rawScores.get(id)!;
       const normalizedScores: Record<string, number> = {};
       for (const ranker of this.rankers) {
-        const range = maxs[ranker.name] - mins[ranker.name];
+        const range = maxs[ranker.name]! - mins[ranker.name]!;
         normalizedScores[ranker.name] =
-          range === 0 ? 0.5 : (scores[ranker.name] - mins[ranker.name]) / range;
+          range === 0 ? 0.5 : (scores[ranker.name]! - mins[ranker.name]!) / range;
       }
       normalized.set(id, normalizedScores);
     }

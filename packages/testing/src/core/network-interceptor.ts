@@ -3,7 +3,12 @@
 // Request matching, response stubbing, recording, replay, error simulation
 // ============================================================================
 
-import type { InterceptedRequest, InterceptRule, InterceptResponse, RecordedExchange } from '../types';
+import type {
+  InterceptedRequest,
+  InterceptRule,
+  InterceptResponse,
+  RecordedExchange,
+} from '../types';
 
 type InterceptMode = 'intercept' | 'passthrough' | 'record' | 'replay';
 
@@ -78,7 +83,10 @@ export class NetworkInterceptor {
   /**
    * Simulates a network error for matching requests
    */
-  simulateError(matcher: RequestMatcher, errorType: 'timeout' | 'dns' | 'connection_refused' | 'network_error'): this {
+  simulateError(
+    matcher: RequestMatcher,
+    errorType: 'timeout' | 'dns' | 'connection_refused' | 'network_error',
+  ): this {
     this.rules.push({
       urlPattern: matcher.urlPattern,
       method: matcher.method,
@@ -179,7 +187,11 @@ export class NetworkInterceptor {
         } else if (this.passthrough) {
           response = this.defaultResponse;
         } else {
-          response = { status: 404, headers: {}, body: { error: `No stub for ${request.method} ${request.url}` } };
+          response = {
+            status: 404,
+            headers: {},
+            body: { error: `No stub for ${request.method} ${request.url}` },
+          };
         }
         break;
       }
@@ -187,7 +199,7 @@ export class NetworkInterceptor {
 
     // Simulate delay if specified
     if (response.delay && response.delay > 0) {
-      await new Promise(resolve => setTimeout(resolve, response.delay));
+      await new Promise((resolve) => setTimeout(resolve, response.delay));
     }
 
     // Handle error simulation
@@ -268,23 +280,26 @@ export class NetworkInterceptor {
    * Finds a matching recording for replay
    */
   private findRecording(request: InterceptedRequest): RecordedExchange | null {
-    return this.recordings.find(r =>
-      r.request.url === request.url &&
-      r.request.method === request.method
-    ) ?? null;
+    return (
+      this.recordings.find(
+        (r) => r.request.url === request.url && r.request.method === request.method,
+      ) ?? null
+    );
   }
 
   /**
    * Creates a network error response
    */
-  private createNetworkError(type: 'timeout' | 'dns' | 'connection_refused' | 'network_error'): InterceptResponse {
+  private createNetworkError(
+    type: 'timeout' | 'dns' | 'connection_refused' | 'network_error',
+  ): InterceptResponse {
     const errors: Record<string, InterceptResponse> = {
       timeout: { status: 0, headers: {}, body: null, error: 'timeout' },
       dns: { status: 0, headers: {}, body: null, error: 'dns' },
       connection_refused: { status: 0, headers: {}, body: null, error: 'connection_refused' },
       network_error: { status: 0, headers: {}, body: null, error: 'network_error' },
     };
-    return errors[type] ?? errors['network_error'];
+    return errors[type] ?? errors['network_error']!;
   }
 
   /**
@@ -314,7 +329,7 @@ export class NetworkInterceptor {
    * Gets requests matching a pattern
    */
   getRequestsTo(urlPattern: string | RegExp): InterceptedRequest[] {
-    return this.interceptedRequests.filter(r => {
+    return this.interceptedRequests.filter((r) => {
       if (urlPattern instanceof RegExp) return urlPattern.test(r.url);
       return this.matchUrlPattern(r.url, urlPattern);
     });
@@ -324,8 +339,8 @@ export class NetworkInterceptor {
    * Asserts that a URL was requested
    */
   assertRequested(urlPattern: string | RegExp, method?: string): void {
-    const matching = this.getRequestsTo(urlPattern).filter(r =>
-      !method || r.method.toUpperCase() === method.toUpperCase()
+    const matching = this.getRequestsTo(urlPattern).filter(
+      (r) => !method || r.method.toUpperCase() === method.toUpperCase(),
     );
     if (matching.length === 0) {
       const methodStr = method ? `${method} ` : '';
@@ -337,12 +352,14 @@ export class NetworkInterceptor {
    * Asserts that a URL was NOT requested
    */
   assertNotRequested(urlPattern: string | RegExp, method?: string): void {
-    const matching = this.getRequestsTo(urlPattern).filter(r =>
-      !method || r.method.toUpperCase() === method.toUpperCase()
+    const matching = this.getRequestsTo(urlPattern).filter(
+      (r) => !method || r.method.toUpperCase() === method.toUpperCase(),
     );
     if (matching.length > 0) {
       const methodStr = method ? `${method} ` : '';
-      throw new Error(`Expected ${methodStr}${urlPattern} not to have been requested, but it was called ${matching.length} times`);
+      throw new Error(
+        `Expected ${methodStr}${urlPattern} not to have been requested, but it was called ${matching.length} times`,
+      );
     }
   }
 

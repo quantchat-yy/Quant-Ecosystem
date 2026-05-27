@@ -57,6 +57,36 @@ export type {
   ProactiveSearchOptions,
 } from './services/proactive';
 
+export {
+  SavedSearchService,
+  SavedSearchSchema,
+  AlertFrequencySchema,
+} from './services/saved-search';
+export type {
+  SavedSearch,
+  AlertFrequency,
+  CreateSavedSearchInput,
+  UpdateSavedSearchInput,
+  DocumentToMatch,
+  SavedSearchMatch,
+} from './services/saved-search';
+
+export { SearchObservabilityService } from './services/search-observability';
+export type {
+  QueryRecord,
+  TimeRange,
+  SearchMetrics,
+  SlowQuery,
+  PopularQuery,
+  ZeroResultQuery,
+} from './services/search-observability';
+
+export { ReindexJobManager, ReindexJobStateSchema, ReindexJobSchema } from './services/reindex-job';
+export type { ReindexJob, ReindexJobState } from './services/reindex-job';
+
+export { NLQueryEnhancer } from './services/nl-query-enhancer';
+export type { QueryIntent, ExtractedEntity, EnhancedQuery } from './services/nl-query-enhancer';
+
 export { CrossAppSearchService } from './cross-app-search';
 export type {
   CrossAppSearchResult,

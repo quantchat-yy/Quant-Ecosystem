@@ -181,6 +181,48 @@ describe('EventService', () => {
     });
   });
 
+  describe('listEventsInRange', () => {
+    it('returns events overlapping with the given range', async () => {
+      const events = [
+        {
+          id: 'event-1',
+          title: 'Overlap',
+          description: '',
+          startTime: new Date('2024-01-15T10:00:00Z'),
+          endTime: new Date('2024-01-15T11:00:00Z'),
+          allDay: false,
+          location: '',
+          userId: 'user-1',
+          attendees: '[]',
+          recurrenceRule: null,
+          status: 'confirmed',
+          reminders: '[]',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      prisma.event.findMany.mockResolvedValue(events);
+
+      const result = await service.listEventsInRange(
+        'user-1',
+        new Date('2024-01-15T00:00:00Z'),
+        new Date('2024-01-15T23:59:59Z'),
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0]!.title).toBe('Overlap');
+      expect(prisma.event.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId: 'user-1',
+            startTime: { lt: expect.any(Date) },
+            endTime: { gt: expect.any(Date) },
+          }),
+        }),
+      );
+    });
+  });
+
   describe('addAttendee', () => {
     it('adds an attendee to the event', async () => {
       const existingEvent = {

@@ -8,10 +8,13 @@
     "start": "node --loader ts-node/esm src/main.ts",
     "dev": "node --loader ts-node/esm --watch src/main.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint ."
   },
   "dependencies": {
     "kafkajs": "^2.2.4",
+    "fastify": "^5.2.1",
+    "@quant/health-server": "workspace:*",
     "@quant/search": "workspace:*",
     "@quant/ai": "workspace:*",
     "@quant/common": "workspace:*",

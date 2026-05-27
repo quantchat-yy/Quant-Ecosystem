@@ -8,7 +8,6 @@ import type {
   MediaType,
   ExifData,
   GPSCoordinates,
-  ImageFormat,
   VideoCodec,
   AudioCodec,
 } from '../types';
@@ -52,7 +51,6 @@ export class MetadataExtractor {
   private metadataCache: Map<string, MediaMetadata>;
   private exifCache: Map<string, ExifData>;
   private colorProfileCache: Map<string, ColorProfile>;
-  private extractionCounter: number = 0;
 
   constructor() {
     this.metadataCache = new Map();
@@ -75,22 +73,35 @@ export class MetadataExtractor {
       flash?: boolean;
       dateTime?: string;
       software?: string;
-    } = {}
+    } = {},
   ): ExifData {
     const exif: ExifData = {
-      make: options.make || this.randomChoice(['Canon', 'Nikon', 'Sony', 'Fujifilm', 'Apple', 'Samsung']),
-      model: options.model || this.randomChoice(['EOS R5', 'Z9', 'A7IV', 'X-T5', 'iPhone 15 Pro', 'Galaxy S24']),
-      exposureTime: options.exposureTime || this.randomChoice(['1/125', '1/250', '1/500', '1/1000', '1/60']),
+      make:
+        options.make ||
+        this.randomChoice(['Canon', 'Nikon', 'Sony', 'Fujifilm', 'Apple', 'Samsung']),
+      model:
+        options.model ||
+        this.randomChoice(['EOS R5', 'Z9', 'A7IV', 'X-T5', 'iPhone 15 Pro', 'Galaxy S24']),
+      exposureTime:
+        options.exposureTime || this.randomChoice(['1/125', '1/250', '1/500', '1/1000', '1/60']),
       fNumber: options.fNumber || this.randomChoice([1.4, 1.8, 2.8, 4.0, 5.6, 8.0, 11.0]),
       iso: options.iso || this.randomChoice([100, 200, 400, 800, 1600, 3200]),
       focalLength: options.focalLength || this.randomChoice([24, 35, 50, 85, 105, 200]),
       flash: options.flash !== undefined ? options.flash : Math.random() > 0.7,
       whiteBalance: this.randomChoice(['Auto', 'Daylight', 'Cloudy', 'Tungsten', 'Fluorescent']),
       dateTime: options.dateTime || new Date().toISOString(),
-      software: options.software || this.randomChoice(['Adobe Lightroom', 'Capture One', 'DxO PhotoLab', 'Luminar']),
+      software:
+        options.software ||
+        this.randomChoice(['Adobe Lightroom', 'Capture One', 'DxO PhotoLab', 'Luminar']),
       artist: undefined,
       copyright: undefined,
-      lens: this.randomChoice(['24-70mm f/2.8', '70-200mm f/2.8', '50mm f/1.4', '85mm f/1.8', '16-35mm f/4']),
+      lens: this.randomChoice([
+        '24-70mm f/2.8',
+        '70-200mm f/2.8',
+        '50mm f/1.4',
+        '85mm f/1.8',
+        '16-35mm f/4',
+      ]),
     };
 
     this.exifCache.set(fileId, exif);
@@ -100,7 +111,10 @@ export class MetadataExtractor {
   /**
    * Get dimensions of a media file
    */
-  public getDimensions(fileId: string, options: { width?: number; height?: number; type?: MediaType } = {}): {
+  public getDimensions(
+    _fileId: string,
+    options: { width?: number; height?: number; type?: MediaType } = {},
+  ): {
     width: number;
     height: number;
     aspectRatio: number;
@@ -114,13 +128,22 @@ export class MetadataExtractor {
     const orientation = width > height ? 'landscape' : width < height ? 'portrait' : 'square';
     const megapixels = (width * height) / 1000000;
 
-    return { width, height, aspectRatio, orientation, megapixels: Math.round(megapixels * 10) / 10 };
+    return {
+      width,
+      height,
+      aspectRatio,
+      orientation,
+      megapixels: Math.round(megapixels * 10) / 10,
+    };
   }
 
   /**
    * Get duration for video/audio files
    */
-  public getDuration(fileId: string, options: { duration?: number; type?: MediaType } = {}): {
+  public getDuration(
+    _fileId: string,
+    options: { duration?: number; type?: MediaType } = {},
+  ): {
     seconds: number;
     formatted: string;
     milliseconds: number;
@@ -135,9 +158,10 @@ export class MetadataExtractor {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    const formatted = hours > 0
-      ? `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
-      : `${minutes}:${String(secs).padStart(2, '0')}`;
+    const formatted =
+      hours > 0
+        ? `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+        : `${minutes}:${String(secs).padStart(2, '0')}`;
 
     return {
       seconds,
@@ -151,9 +175,18 @@ export class MetadataExtractor {
   /**
    * Get codec information for a media file
    */
-  public getCodecInfo(fileId: string, options: { mediaType?: MediaType } = {}): {
+  public getCodecInfo(
+    _fileId: string,
+    options: { mediaType?: MediaType } = {},
+  ): {
     video?: { codec: VideoCodec; profile: string; level: string; bitDepth: number };
-    audio?: { codec: AudioCodec; profile: string; sampleRate: number; channels: number; bitDepth: number };
+    audio?: {
+      codec: AudioCodec;
+      profile: string;
+      sampleRate: number;
+      channels: number;
+      bitDepth: number;
+    };
     container: string;
     muxer: string;
   } {
@@ -161,7 +194,13 @@ export class MetadataExtractor {
 
     const result: {
       video?: { codec: VideoCodec; profile: string; level: string; bitDepth: number };
-      audio?: { codec: AudioCodec; profile: string; sampleRate: number; channels: number; bitDepth: number };
+      audio?: {
+        codec: AudioCodec;
+        profile: string;
+        sampleRate: number;
+        channels: number;
+        bitDepth: number;
+      };
       container: string;
       muxer: string;
     } = {
@@ -194,20 +233,23 @@ export class MetadataExtractor {
   /**
    * Get GPS location from media metadata
    */
-  public getGPSLocation(fileId: string, options: { latitude?: number; longitude?: number } = {}): GPSCoordinates | null {
+  public getGPSLocation(
+    _fileId: string,
+    options: { latitude?: number; longitude?: number } = {},
+  ): GPSCoordinates | null {
     // Not all files have GPS data
     const hasGPS = options.latitude !== undefined || Math.random() > 0.4;
     if (!hasGPS) return null;
 
     // Generate realistic GPS coordinates for major cities
     const locations: GPSCoordinates[] = [
-      { latitude: 40.7128, longitude: -74.0060, altitude: 10, accuracy: 5 }, // New York
+      { latitude: 40.7128, longitude: -74.006, altitude: 10, accuracy: 5 }, // New York
       { latitude: 51.5074, longitude: -0.1278, altitude: 11, accuracy: 8 }, // London
       { latitude: 35.6762, longitude: 139.6503, altitude: 40, accuracy: 3 }, // Tokyo
       { latitude: 48.8566, longitude: 2.3522, altitude: 35, accuracy: 6 }, // Paris
       { latitude: 37.7749, longitude: -122.4194, altitude: 16, accuracy: 4 }, // San Francisco
       { latitude: -33.8688, longitude: 151.2093, altitude: 58, accuracy: 10 }, // Sydney
-      { latitude: 19.0760, longitude: 72.8777, altitude: 14, accuracy: 7 }, // Mumbai
+      { latitude: 19.076, longitude: 72.8777, altitude: 14, accuracy: 7 }, // Mumbai
     ];
 
     if (options.latitude !== undefined && options.longitude !== undefined) {
@@ -219,13 +261,16 @@ export class MetadataExtractor {
       };
     }
 
-    return locations[Math.floor(Math.random() * locations.length)];
+    return locations[Math.floor(Math.random() * locations.length)] ?? null;
   }
 
   /**
    * Get bitrate information
    */
-  public getBitrate(fileId: string, options: { size?: number; duration?: number; type?: MediaType } = {}): {
+  public getBitrate(
+    _fileId: string,
+    options: { size?: number; duration?: number; type?: MediaType } = {},
+  ): {
     overall: number; // kbps
     video?: number;
     audio?: number;
@@ -292,34 +337,45 @@ export class MetadataExtractor {
   public extractAll(
     fileId: string,
     type: MediaType,
-    options: ExtractionOptions & { size?: number; width?: number; height?: number; duration?: number } = {}
+    options: ExtractionOptions & {
+      size?: number;
+      width?: number;
+      height?: number;
+      duration?: number;
+    } = {},
   ): MediaMetadata {
     const cached = this.metadataCache.get(fileId);
     if (cached) return cached;
 
-    const dimensions = (type === 'image' || type === 'video')
-      ? this.getDimensions(fileId, { width: options.width, height: options.height, type })
-      : undefined;
+    const dimensions =
+      type === 'image' || type === 'video'
+        ? this.getDimensions(fileId, { width: options.width, height: options.height, type })
+        : undefined;
 
-    const durationInfo = (type === 'video' || type === 'audio')
-      ? this.getDuration(fileId, { duration: options.duration, type })
-      : undefined;
+    const durationInfo =
+      type === 'video' || type === 'audio'
+        ? this.getDuration(fileId, { duration: options.duration, type })
+        : undefined;
 
     const codecInfo = this.getCodecInfo(fileId, { mediaType: type });
-    const bitrateInfo = (type === 'video' || type === 'audio')
-      ? this.getBitrate(fileId, { size: options.size, duration: options.duration, type })
-      : undefined;
+    const bitrateInfo =
+      type === 'video' || type === 'audio'
+        ? this.getBitrate(fileId, { size: options.size, duration: options.duration, type })
+        : undefined;
 
     const gps = options.includeGPS !== false ? this.getGPSLocation(fileId) : undefined;
-    const exif = (type === 'image' && options.includeExif !== false) ? this.extractExif(fileId) : undefined;
-    const colorProfile = options.includeColorProfile !== false ? this.getColorProfile(fileId) : undefined;
+    const exif =
+      type === 'image' && options.includeExif !== false ? this.extractExif(fileId) : undefined;
+    const colorProfile =
+      options.includeColorProfile !== false ? this.getColorProfile(fileId) : undefined;
 
     const metadata: MediaMetadata = {
       id: fileId,
       type,
-      format: type === 'image'
-        ? this.randomChoice(['jpeg', 'png', 'webp', 'heif'])
-        : codecInfo.video?.codec || codecInfo.audio?.codec || 'unknown',
+      format:
+        type === 'image'
+          ? this.randomChoice(['jpeg', 'png', 'webp', 'heif'])
+          : codecInfo.video?.codec || codecInfo.audio?.codec || 'unknown',
       size: options.size || Math.round(Math.random() * 100 * 1024 * 1024),
       width: dimensions?.width,
       height: dimensions?.height,
@@ -345,10 +401,10 @@ export class MetadataExtractor {
   /**
    * Analyze file type from header bytes (simulated)
    */
-  public analyzeFile(fileId: string, headerBytes?: Uint8Array): FileAnalysis {
+  public analyzeFile(_fileId: string, _headerBytes?: Uint8Array): FileAnalysis {
     // Simulate magic byte detection
     const signatures: Record<string, { mime: string; ext: string; type: MediaType }> = {
-      'ffd8ff': { mime: 'image/jpeg', ext: 'jpg', type: 'image' },
+      ffd8ff: { mime: 'image/jpeg', ext: 'jpg', type: 'image' },
       '89504e47': { mime: 'image/png', ext: 'png', type: 'image' },
       '47494638': { mime: 'image/gif', ext: 'gif', type: 'image' },
       '52494646': { mime: 'image/webp', ext: 'webp', type: 'image' },
@@ -360,8 +416,8 @@ export class MetadataExtractor {
 
     // Pick a random file type for simulation
     const keys = Object.keys(signatures);
-    const key = keys[Math.floor(Math.random() * keys.length)];
-    const sig = signatures[key];
+    const key = keys[Math.floor(Math.random() * keys.length)]!;
+    const sig = signatures[key]!;
 
     return {
       mimeType: sig.mime,
@@ -391,6 +447,6 @@ export class MetadataExtractor {
   // ---- Private Methods ----
 
   private randomChoice<T>(options: T[]): T {
-    return options[Math.floor(Math.random() * options.length)];
+    return options[Math.floor(Math.random() * options.length)]!;
   }
 }

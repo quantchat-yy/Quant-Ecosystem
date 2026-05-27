@@ -14,7 +14,10 @@ export class PrivacyCompliance {
   private retentionPolicies: Map<string, RetentionPolicy>;
   private userData: Map<string, Map<string, unknown[]>>;
   private deletionLog: { userId: string; categories: string[]; timestamp: number }[];
-  private processingPurposes: Map<string, { description: string; legalBasis: string; required: boolean }>;
+  private processingPurposes: Map<
+    string,
+    { description: string; legalBasis: string; required: boolean }
+  >;
 
   constructor() {
     this.requests = new Map();
@@ -27,7 +30,11 @@ export class PrivacyCompliance {
   }
 
   /** Submit a GDPR data request (export, deletion, etc.) */
-  async submitRequest(userId: string, type: GDPRRequest['type'], categories: string[] = []): Promise<GDPRRequest> {
+  async submitRequest(
+    userId: string,
+    type: GDPRRequest['type'],
+    categories: string[] = [],
+  ): Promise<GDPRRequest> {
     const id = this.generateId('gdpr');
     const now = Date.now();
 
@@ -90,7 +97,7 @@ export class PrivacyCompliance {
 
     // Remove consent records (except proof of consent for legal basis)
     const userConsents = this.consents.get(request.userId) || [];
-    const retainedConsents = userConsents.filter(c => c.purpose === 'consent_proof');
+    const retainedConsents = userConsents.filter((c) => c.purpose === 'consent_proof');
     this.consents.set(request.userId, retainedConsents);
 
     request.status = 'completed';
@@ -125,7 +132,12 @@ export class PrivacyCompliance {
   }
 
   /** Record user consent */
-  async recordConsent(userId: string, purpose: string, granted: boolean, version: string = '1.0'): Promise<ConsentRecord> {
+  async recordConsent(
+    userId: string,
+    purpose: string,
+    granted: boolean,
+    version: string = '1.0',
+  ): Promise<ConsentRecord> {
     const now = Date.now();
     const record: ConsentRecord = {
       userId,
@@ -140,10 +152,10 @@ export class PrivacyCompliance {
     const userConsents = this.consents.get(userId) || [];
 
     // Update or add consent for this purpose
-    const existingIdx = userConsents.findIndex(c => c.purpose === purpose);
+    const existingIdx = userConsents.findIndex((c) => c.purpose === purpose);
     if (existingIdx >= 0) {
       // If withdrawing, record withdrawal timestamp
-      if (!granted && userConsents[existingIdx].granted) {
+      if (!granted && userConsents[existingIdx]!.granted) {
         record.withdrawnAt = now;
       }
       userConsents[existingIdx] = record;
@@ -158,7 +170,7 @@ export class PrivacyCompliance {
   /** Check if user has granted consent for a purpose */
   hasConsent(userId: string, purpose: string): boolean {
     const userConsents = this.consents.get(userId) || [];
-    const consent = userConsents.find(c => c.purpose === purpose);
+    const consent = userConsents.find((c) => c.purpose === purpose);
     if (!consent) return false;
     if (!consent.granted) return false;
     if (consent.expiresAt && Date.now() > consent.expiresAt) return false;
@@ -169,7 +181,7 @@ export class PrivacyCompliance {
   /** Withdraw consent for a purpose */
   async withdrawConsent(userId: string, purpose: string): Promise<boolean> {
     const userConsents = this.consents.get(userId) || [];
-    const consent = userConsents.find(c => c.purpose === purpose);
+    const consent = userConsents.find((c) => c.purpose === purpose);
     if (!consent || !consent.granted) return false;
 
     consent.granted = false;
@@ -201,7 +213,7 @@ export class PrivacyCompliance {
         const maxAge = policy.retentionDays * 86400000;
         const filtered = data.filter((item: any) => {
           const createdAt = item?.createdAt || item?.timestamp || 0;
-          return (now - createdAt) < maxAge;
+          return now - createdAt < maxAge;
         });
 
         if (filtered.length < data.length) {
@@ -228,7 +240,12 @@ export class PrivacyCompliance {
   }
 
   /** Register a processing purpose */
-  registerPurpose(id: string, description: string, legalBasis: string, required: boolean = false): void {
+  registerPurpose(
+    id: string,
+    description: string,
+    legalBasis: string,
+    required: boolean = false,
+  ): void {
     this.processingPurposes.set(id, { description, legalBasis, required });
   }
 
@@ -244,7 +261,7 @@ export class PrivacyCompliance {
 
   /** Get all requests for a user */
   getUserRequests(userId: string): GDPRRequest[] {
-    return Array.from(this.requests.values()).filter(r => r.userId === userId);
+    return Array.from(this.requests.values()).filter((r) => r.userId === userId);
   }
 
   /** Initialize default retention policies */
@@ -280,7 +297,12 @@ export class PrivacyCompliance {
 
     // Default processing purposes
     this.registerPurpose('essential', 'Essential service functionality', 'contract', true);
-    this.registerPurpose('analytics', 'Usage analytics and improvement', 'legitimate_interest', false);
+    this.registerPurpose(
+      'analytics',
+      'Usage analytics and improvement',
+      'legitimate_interest',
+      false,
+    );
     this.registerPurpose('marketing', 'Marketing communications', 'consent', false);
     this.registerPurpose('personalization', 'Content personalization', 'consent', false);
   }

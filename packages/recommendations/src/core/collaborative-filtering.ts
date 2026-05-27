@@ -2,13 +2,7 @@
 // Recommendations Package - Collaborative Filtering
 // ============================================================================
 
-import type {
-  CollaborativeConfig,
-  Rating,
-  SimilarityScore,
-  RecommendedItem,
-  SimilarityMethod,
-} from '../types';
+import type { CollaborativeConfig, Rating, SimilarityScore, RecommendedItem } from '../types';
 
 /** Collaborative filtering recommendation engine using user-user and item-item similarity */
 export class CollaborativeFilter {

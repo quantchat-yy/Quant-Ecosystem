@@ -3,10 +3,7 @@
 // Trie-based prefix matching with Levenshtein distance fuzzy matching
 // ============================================================================
 
-import type {
-  SearchSuggestion,
-  TrieNode,
-} from '../types';
+import type { SearchSuggestion, TrieNode } from '../types';
 
 /** Autocomplete configuration */
 interface AutocompleteConfig {
@@ -61,7 +58,10 @@ export class AutocompleteEngine {
   /**
    * Get suggestions for a prefix query
    */
-  public suggest(query: string, options: { limit?: number; fuzzy?: boolean } = {}): SearchSuggestion[] {
+  public suggest(
+    query: string,
+    options: { limit?: number; fuzzy?: boolean } = {},
+  ): SearchSuggestion[] {
     if (query.length < this.config.minQueryLength) return [];
 
     const limit = options.limit || this.config.maxSuggestions;
@@ -112,13 +112,13 @@ export class AutocompleteEngine {
       node = node.children.get(char)!;
     }
     node.isEnd = true;
-    node.frequency += (options.frequency || 1);
+    node.frequency += options.frequency || 1;
     node.data = options.data;
 
     // Add/update entry
     const existing = this.entries.get(normalized);
     if (existing) {
-      existing.frequency += (options.frequency || 1);
+      existing.frequency += options.frequency || 1;
       existing.lastUsedAt = Date.now();
       existing.score = this.calculateScore(existing);
       if (options.data) existing.data = options.data;
@@ -158,25 +158,27 @@ export class AutocompleteEngine {
     const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
 
     // Initialize base cases
-    for (let i = 0; i <= m; i++) dp[i][0] = i;
-    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 0; i <= m; i++) dp[i]![0] = i;
+    for (let j = 0; j <= n; j++) dp[0]![j] = j;
 
     // Fill the matrix
     for (let i = 1; i <= m; i++) {
       for (let j = 1; j <= n; j++) {
         if (a[i - 1] === b[j - 1]) {
-          dp[i][j] = dp[i - 1][j - 1];
+          dp[i]![j] = dp[i - 1]![j - 1]!;
         } else {
-          dp[i][j] = 1 + Math.min(
-            dp[i - 1][j],     // deletion
-            dp[i][j - 1],     // insertion
-            dp[i - 1][j - 1]  // substitution
-          );
+          dp[i]![j] =
+            1 +
+            Math.min(
+              dp[i - 1]![j]!, // deletion
+              dp[i]![j - 1]!, // insertion
+              dp[i - 1]![j - 1]!, // substitution
+            );
         }
       }
     }
 
-    return dp[m][n];
+    return dp[m]![n]!;
   }
 
   /**
@@ -314,7 +316,7 @@ export class AutocompleteEngine {
   public cleanup(olderThanMs?: number): number {
     const cutoff = Date.now() - (olderThanMs || this.config.popularityDecayMs);
     const before = this.searchHistory.length;
-    this.searchHistory = this.searchHistory.filter(h => h.timestamp >= cutoff);
+    this.searchHistory = this.searchHistory.filter((h) => h.timestamp >= cutoff);
     return before - this.searchHistory.length;
   }
 
@@ -336,7 +338,11 @@ export class AutocompleteEngine {
     return completions;
   }
 
-  private collectCompletions(node: TrieNode, currentWord: string, results: SearchSuggestion[]): void {
+  private collectCompletions(
+    node: TrieNode,
+    currentWord: string,
+    results: SearchSuggestion[],
+  ): void {
     if (results.length >= this.config.maxSuggestions * 2) return;
 
     if (node.isEnd) {
@@ -365,7 +371,7 @@ export class AutocompleteEngine {
       if (Math.abs(text.length - query.length) > maxDist) continue;
 
       // Quick prefix check - first character should be close
-      if (text[0] !== query[0] && this.editDistance(text[0], query[0]) > 0) {
+      if (text[0] !== query[0] && this.editDistance(text[0]!, query[0]!) > 0) {
         // Allow first character mismatch but reduce max distance
         if (maxDist < 2) continue;
       }
@@ -440,7 +446,7 @@ export class AutocompleteEngine {
 
     // Clean up unused branches
     for (let i = path.length - 1; i >= 0; i--) {
-      const { node: parentNode, char } = path[i];
+      const { node: parentNode, char } = path[i]!;
       const childNode = parentNode.children.get(char)!;
       if (childNode.children.size === 0 && !childNode.isEnd) {
         parentNode.children.delete(char);

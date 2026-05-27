@@ -32,7 +32,8 @@ export class E2ERunner {
   private results: E2EResult[] = [];
   private page: PageState;
   private screenshots: string[] = [];
-  private actionHandlers: Map<string, (step: E2EStep, page: PageState) => Promise<void>> = new Map();
+  private actionHandlers: Map<string, (step: E2EStep, page: PageState) => Promise<void>> =
+    new Map();
 
   constructor(config: Partial<E2EConfig> = {}) {
     this.config = {
@@ -98,7 +99,9 @@ export class E2ERunner {
       const el = this.findElement(step.selector!, page);
       if (!el) throw new Error(`Element not found: ${step.selector}`);
       if (!el.text.includes(step.value ?? '')) {
-        throw new Error(`Expected text "${step.value}" in element ${step.selector}, found "${el.text}"`);
+        throw new Error(
+          `Expected text "${step.value}" in element ${step.selector}, found "${el.text}"`,
+        );
       }
     });
 
@@ -110,22 +113,22 @@ export class E2ERunner {
 
     this.actionHandlers.set('wait', async (step) => {
       const ms = parseInt(step.value ?? '1000', 10);
-      await new Promise(resolve => setTimeout(resolve, Math.min(ms, 100)));
+      await new Promise((resolve) => setTimeout(resolve, Math.min(ms, 100)));
     });
 
-    this.actionHandlers.set('screenshot', async (step, page) => {
+    this.actionHandlers.set('screenshot', async (step, _page) => {
       const name = step.value ?? `screenshot_${this.screenshots.length + 1}`;
       this.screenshots.push(`${name}_${Date.now()}.png`);
     });
 
     this.actionHandlers.set('set_cookie', async (step, page) => {
       const [name, value] = (step.value ?? '').split('=');
-      page.cookies.set(name, value ?? '');
+      page.cookies.set(name ?? '', value ?? '');
     });
 
     this.actionHandlers.set('set_storage', async (step, page) => {
       const [key, value] = (step.value ?? '').split('=');
-      page.localStorage.set(key, value ?? '');
+      page.localStorage.set(key ?? '', value ?? '');
     });
   }
 
@@ -139,7 +142,11 @@ export class E2ERunner {
   /**
    * Adds a test scenario
    */
-  scenario(name: string, steps: E2EStep[], options: { tags?: string[]; retries?: number } = {}): void {
+  scenario(
+    name: string,
+    steps: E2EStep[],
+    options: { tags?: string[]; retries?: number } = {},
+  ): void {
     this.scenarios.push({
       name,
       steps,
@@ -153,9 +160,9 @@ export class E2ERunner {
    */
   feature(name: string, definition: { given: E2EStep[]; when: E2EStep[]; then: E2EStep[] }): void {
     const steps: E2EStep[] = [
-      ...definition.given.map(s => ({ ...s, type: 'given' as const })),
-      ...definition.when.map(s => ({ ...s, type: 'when' as const })),
-      ...definition.then.map(s => ({ ...s, type: 'then' as const })),
+      ...definition.given.map((s) => ({ ...s, type: 'given' as const })),
+      ...definition.when.map((s) => ({ ...s, type: 'when' as const })),
+      ...definition.then.map((s) => ({ ...s, type: 'then' as const })),
     ];
     this.scenario(name, steps);
   }
@@ -183,13 +190,13 @@ export class E2ERunner {
 
     let scenariosToRun = this.scenarios;
     if (filter?.tags && filter.tags.length > 0) {
-      scenariosToRun = this.scenarios.filter(s =>
-        filter.tags!.some(tag => s.tags.includes(tag))
+      scenariosToRun = this.scenarios.filter((s) =>
+        filter.tags!.some((tag) => s.tags.includes(tag)),
       );
     }
 
     if (this.config.parallel) {
-      await Promise.all(scenariosToRun.map(s => this.runScenario(s)));
+      await Promise.all(scenariosToRun.map((s) => this.runScenario(s)));
     } else {
       for (const scenario of scenariosToRun) {
         await this.runScenario(scenario);
@@ -227,7 +234,12 @@ export class E2ERunner {
           stepResults.push({ step, status: 'passed', duration: Date.now() - stepStart });
         } catch (err) {
           lastError = (err as Error).message;
-          stepResults.push({ step, status: 'failed', duration: Date.now() - stepStart, error: lastError });
+          stepResults.push({
+            step,
+            status: 'failed',
+            duration: Date.now() - stepStart,
+            error: lastError,
+          });
           failed = true;
 
           // Capture screenshot on failure
@@ -277,7 +289,10 @@ export class E2ERunner {
     await Promise.race([
       handler(step, this.page),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`Step timed out after ${timeout}ms: ${step.action}`)), timeout)
+        setTimeout(
+          () => reject(new Error(`Step timed out after ${timeout}ms: ${step.action}`)),
+          timeout,
+        ),
       ),
     ]);
   }
@@ -311,12 +326,18 @@ export class E2ERunner {
   /**
    * Gets summary statistics
    */
-  getSummary(): { total: number; passed: number; failed: number; skipped: number; duration: number } {
+  getSummary(): {
+    total: number;
+    passed: number;
+    failed: number;
+    skipped: number;
+    duration: number;
+  } {
     return {
       total: this.results.length,
-      passed: this.results.filter(r => r.status === 'passed').length,
-      failed: this.results.filter(r => r.status === 'failed').length,
-      skipped: this.results.filter(r => r.status === 'skipped').length,
+      passed: this.results.filter((r) => r.status === 'passed').length,
+      failed: this.results.filter((r) => r.status === 'failed').length,
+      skipped: this.results.filter((r) => r.status === 'skipped').length,
       duration: this.results.reduce((sum, r) => sum + r.duration, 0),
     };
   }

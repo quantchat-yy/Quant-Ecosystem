@@ -107,7 +107,7 @@ describe('ProactiveSearch', () => {
       });
 
       for (let i = 1; i < results.length; i++) {
-        expect(results[i - 1].score).toBeGreaterThanOrEqual(results[i].score);
+        expect(results[i - 1]!.score).toBeGreaterThanOrEqual(results[i]!.score);
       }
     });
 
@@ -145,7 +145,7 @@ describe('ProactiveSearch', () => {
       );
 
       if (results.length > 0) {
-        expect(results[0].type).toBe('emails');
+        expect(results[0]!.type).toBe('emails');
       }
     });
   });

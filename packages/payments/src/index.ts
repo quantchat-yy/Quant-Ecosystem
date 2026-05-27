@@ -42,3 +42,21 @@ export {
 export { TipService, SendTipSchema, PRESET_TIP_AMOUNTS } from './services/tip.service';
 export { CashoutService, RequestCashoutSchema } from './services/cashout.service';
 export { LedgerService, RecordEntrySchema } from './services/ledger.service';
+
+// Phase 12 Services
+export { FraudDetectionService, CheckTransactionSchema } from './services/fraud-detection.service';
+export {
+  AdBillingService,
+  CreateCampaignSchema,
+  RecordImpressionSchema,
+} from './services/ad-billing.service';
+export {
+  AgentSpendingLimitService,
+  CreateAgentBudgetSchema,
+  RecordAgentSpendSchema,
+} from './services/agent-spending-limit.service';
+export {
+  DisputeService,
+  OpenDisputeSchema,
+  SubmitEvidenceSchema,
+} from './services/dispute.service';

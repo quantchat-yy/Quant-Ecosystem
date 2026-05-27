@@ -19,9 +19,9 @@ export class DPPDiversifier {
     const len = Math.min(a.length, b.length);
 
     for (let i = 0; i < len; i++) {
-      dot += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
+      dot += a[i]! * b[i]!;
+      normA += a[i]! * a[i]!;
+      normB += b[i]! * b[i]!;
     }
 
     const denominator = Math.sqrt(normA) * Math.sqrt(normB);
@@ -37,8 +37,8 @@ export class DPPDiversifier {
       kernel.push([]);
       for (let j = 0; j < n; j++) {
         // L_ij = q_i * S_ij * q_j (quality-weighted similarity)
-        const similarity = i === j ? 1 : sim(items[i].features, items[j].features);
-        kernel[i][j] = items[i].quality * similarity * items[j].quality;
+        const similarity = i === j ? 1 : sim(items[i]!.features, items[j]!.features);
+        kernel[i]![j] = items[i]!.quality * similarity * items[j]!.quality;
       }
     }
 
@@ -85,24 +85,24 @@ export class DPPDiversifier {
       remaining.delete(bestIdx);
     }
 
-    return selected.map((idx) => candidates[idx]);
+    return selected.map((idx) => candidates[idx]!);
   }
 
   private computeMarginalGain(kernel: number[][], selected: number[], candidate: number): number {
     if (selected.length === 0) {
       // First item: gain is just the diagonal (quality^2)
-      return kernel[candidate][candidate];
+      return kernel[candidate]![candidate]!;
     }
 
     // Compute marginal gain using Schur complement approximation
     // gain = L_cc - L_cS * L_SS^{-1} * L_Sc
-    const diag = kernel[candidate][candidate];
+    const diag = kernel[candidate]![candidate]!;
 
     // Compute penalty from similarity to already selected items
     let penalty = 0;
     for (const sel of selected) {
-      const similarity = kernel[candidate][sel];
-      const selfSimilarity = kernel[sel][sel];
+      const similarity = kernel[candidate]![sel]!;
+      const selfSimilarity = kernel[sel]![sel]!;
       if (selfSimilarity > 0) {
         penalty += (similarity * similarity) / selfSimilarity;
       }

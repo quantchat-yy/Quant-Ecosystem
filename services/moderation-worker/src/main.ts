@@ -6,6 +6,7 @@ import { Worker } from 'bullmq';
 import type { Job } from 'bullmq';
 import Redis from 'ioredis';
 import pino from 'pino';
+import { startHealthServer } from '@quant/health-server';
 import type {
   ModerationResult,
   ModerationAPIClient,
@@ -249,6 +250,12 @@ async function main(): Promise<void> {
   });
 
   logger.info({ queueName }, 'Moderation worker started');
+
+  const healthPort = Number(process.env['HEALTH_PORT'] ?? '3023');
+  await startHealthServer(healthPort, {
+    redis: async () => connection.status === 'ready',
+  });
+  logger.info({ healthPort }, 'Health server started');
 
   const shutdown = async (): Promise<void> => {
     logger.info('Shutting down moderation worker...');

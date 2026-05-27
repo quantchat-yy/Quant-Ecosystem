@@ -73,8 +73,8 @@ export class InferenceEngine {
     const outputs: number[] = [];
     for (let o = 0; o < model.weights.length; o++) {
       let sum = model.bias[o] ?? 0;
-      for (let j = 0; j < model.weights[o].length; j++) {
-        sum += (model.weights[o][j] ?? 0) * (input[j] ?? 0);
+      for (let j = 0; j < model.weights[o]!.length; j++) {
+        sum += (model.weights[o]![j] ?? 0) * (input[j] ?? 0);
       }
       // Sigmoid activation
       outputs.push(1 / (1 + Math.exp(-Math.max(-500, Math.min(500, sum)))));
@@ -199,7 +199,7 @@ export class InferenceEngine {
           return { modelName: route.modelName, modelVersion: route.modelVersion };
         }
       }
-      const last = this.routes[this.routes.length - 1];
+      const last = this.routes[this.routes.length - 1]!;
       return { modelName: last.modelName, modelVersion: last.modelVersion };
     }
 
@@ -260,7 +260,7 @@ export class InferenceEngine {
     entries.sort((a, b) => a[1].hitCount - b[1].hitCount);
     const toRemove = Math.floor(this.cacheMaxSize * 0.2);
     for (let i = 0; i < toRemove && i < entries.length; i++) {
-      this.cache.delete(entries[i][0]);
+      this.cache.delete(entries[i]![0]);
     }
   }
 
@@ -279,17 +279,20 @@ export class InferenceEngine {
     const n = sorted.length;
     const mean = sorted.reduce((a, b) => a + b, 0) / n;
     return {
-      p50: sorted[Math.floor(n * 0.5)],
-      p95: sorted[Math.floor(n * 0.95)],
-      p99: sorted[Math.floor(n * 0.99)],
+      p50: sorted[Math.floor(n * 0.5)]!,
+      p95: sorted[Math.floor(n * 0.95)]!,
+      p99: sorted[Math.floor(n * 0.99)]!,
       mean,
       count: n,
-      max: sorted[n - 1],
-      min: sorted[0],
+      max: sorted[n - 1]!,
+      min: sorted[0]!,
     };
   }
 
-  getModelStats(name: string, version: string): { inferenceCount: number; isWarm: boolean; lastUsed: number } | null {
+  getModelStats(
+    name: string,
+    version: string,
+  ): { inferenceCount: number; isWarm: boolean; lastUsed: number } | null {
     const model = this.models.get(`${name}@${version}`);
     if (!model) return null;
     return {

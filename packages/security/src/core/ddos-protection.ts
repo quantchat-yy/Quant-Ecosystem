@@ -44,7 +44,11 @@ export class DDoSProtector {
   }
 
   /** Process an incoming request and determine if it should be allowed */
-  async processRequest(ip: string, endpoint: string, headers: Record<string, string> = {}): Promise<{
+  async processRequest(
+    ip: string,
+    _endpoint: string,
+    headers: Record<string, string> = {},
+  ): Promise<{
     allowed: boolean;
     reason: string;
     challenge?: ChallengeResult;
@@ -93,7 +97,12 @@ export class DDoSProtector {
     // If reputation is below challenge threshold, issue challenge
     if (reputation.score < this.config.challengeThreshold) {
       const challenge = this.issueChallenge(ip, now);
-      return { allowed: false, reason: 'challenge_required', challenge, reputation: reputation.score };
+      return {
+        allowed: false,
+        reason: 'challenge_required',
+        challenge,
+        reputation: reputation.score,
+      };
     }
 
     // If score is very low, block
@@ -105,7 +114,12 @@ export class DDoSProtector {
     // Check if under active attack
     if (this.attackMode && reputation.score < 70) {
       const challenge = this.issueChallenge(ip, now);
-      return { allowed: false, reason: 'attack_mode_challenge', challenge, reputation: reputation.score };
+      return {
+        allowed: false,
+        reason: 'attack_mode_challenge',
+        challenge,
+        reputation: reputation.score,
+      };
     }
 
     // Update request count
@@ -113,7 +127,7 @@ export class DDoSProtector {
     reputation.lastSeen = now;
 
     // Apply decay to gradually restore reputation
-    reputation.score = Math.min(100, reputation.score + (this.config.reputationDecay * 0.1));
+    reputation.score = Math.min(100, reputation.score + this.config.reputationDecay * 0.1);
 
     return { allowed: true, reason: 'allowed', reputation: reputation.score };
   }
@@ -183,13 +197,17 @@ export class DDoSProtector {
   }
 
   /** Detect suspicious traffic patterns */
-  private detectSuspiciousPatterns(ip: string, now: number, headers: Record<string, string>): number {
+  private detectSuspiciousPatterns(
+    ip: string,
+    now: number,
+    headers: Record<string, string>,
+  ): number {
     let suspicionScore = 0;
     const pattern = this.trafficPatterns.get(ip) || [];
 
     // Check request rate in pattern window
     const windowStart = now - this.config.patternWindowMs;
-    const recentRequests = pattern.filter(t => t > windowStart);
+    const recentRequests = pattern.filter((t) => t > windowStart);
 
     // High request rate
     const rps = recentRequests.length / (this.config.patternWindowMs / 1000);
@@ -204,10 +222,11 @@ export class DDoSProtector {
     if (recentRequests.length > 5) {
       const intervals: number[] = [];
       for (let i = 1; i < recentRequests.length; i++) {
-        intervals.push(recentRequests[i] - recentRequests[i - 1]);
+        intervals.push(recentRequests[i]! - recentRequests[i - 1]!);
       }
       const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-      const variance = intervals.reduce((sum, i) => sum + Math.pow(i - avgInterval, 2), 0) / intervals.length;
+      const variance =
+        intervals.reduce((sum, i) => sum + Math.pow(i - avgInterval, 2), 0) / intervals.length;
       const stdDev = Math.sqrt(variance);
 
       // Very low standard deviation means robotic timing
@@ -241,7 +260,7 @@ export class DDoSProtector {
 
     // Keep only recent entries
     const cutoff = now - this.config.patternWindowMs;
-    const cleaned = pattern.filter(t => t > cutoff);
+    const cleaned = pattern.filter((t) => t > cutoff);
     this.trafficPatterns.set(ip, cleaned);
 
     // Enforce max tracked IPs
@@ -325,7 +344,12 @@ export class DDoSProtector {
   }
 
   /** Get statistics about current state */
-  getStats(): { trackedIPs: number; blockedIPs: number; attackMode: boolean; pendingChallenges: number } {
+  getStats(): {
+    trackedIPs: number;
+    blockedIPs: number;
+    attackMode: boolean;
+    pendingChallenges: number;
+  } {
     let blockedCount = 0;
     const now = Date.now();
     for (const rep of this.reputations.values()) {
@@ -352,7 +376,7 @@ export class DDoSProtector {
     // Remove old traffic patterns
     for (const [ip, timestamps] of this.trafficPatterns) {
       const cutoff = now - this.config.patternWindowMs * 2;
-      const recent = timestamps.filter(t => t > cutoff);
+      const recent = timestamps.filter((t) => t > cutoff);
       if (recent.length === 0) {
         this.trafficPatterns.delete(ip);
       } else {

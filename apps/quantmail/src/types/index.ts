@@ -4,6 +4,8 @@
 
 import type { BaseEntity, MediaAttachment, PermissionScope, QuantApp } from '@quant/common';
 
+export type { QuantApp };
+
 // ============================================================================
 // Email Types
 // ============================================================================
@@ -91,7 +93,14 @@ export interface EmailFilter extends BaseEntity {
 
 export interface FilterCondition {
   field: 'from' | 'to' | 'subject' | 'body' | 'hasAttachment' | 'size';
-  operator: 'contains' | 'notContains' | 'equals' | 'startsWith' | 'endsWith' | 'greaterThan' | 'lessThan';
+  operator:
+    | 'contains'
+    | 'notContains'
+    | 'equals'
+    | 'startsWith'
+    | 'endsWith'
+    | 'greaterThan'
+    | 'lessThan';
   value: string;
 }
 
@@ -268,7 +277,13 @@ export interface ReviewComment {
 // CI/CD Types
 // ============================================================================
 
-export type WorkflowStatus = 'pending' | 'running' | 'success' | 'failure' | 'cancelled' | 'skipped';
+export type WorkflowStatus =
+  | 'pending'
+  | 'running'
+  | 'success'
+  | 'failure'
+  | 'cancelled'
+  | 'skipped';
 export type DeploymentEnv = 'development' | 'staging' | 'production';
 export type ArtifactType = 'binary' | 'container' | 'archive' | 'report' | 'log';
 

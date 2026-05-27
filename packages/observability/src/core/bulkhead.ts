@@ -2,12 +2,7 @@
 // Bulkhead - Resource Isolation and Concurrency Control
 // ============================================================================
 
-import {
-  BulkheadConfig,
-  BulkheadMetrics,
-  BulkheadPriority,
-  BulkheadQueueItem,
-} from '../types';
+import { BulkheadConfig, BulkheadMetrics, BulkheadPriority, BulkheadQueueItem } from '../types';
 
 const PRIORITY_ORDER: Record<BulkheadPriority, number> = {
   critical: 0,
@@ -138,7 +133,7 @@ export class Bulkhead {
     let insertIndex = this.queue.length;
 
     for (let i = 0; i < this.queue.length; i++) {
-      const existingOrder = PRIORITY_ORDER[this.queue[i].priority];
+      const existingOrder = PRIORITY_ORDER[this.queue[i]!.priority];
       if (itemOrder < existingOrder) {
         insertIndex = i;
         break;
@@ -166,12 +161,13 @@ export class Bulkhead {
       this.metrics.activeCount = this.activeCount;
       const startTime = Date.now();
 
-      item.fn()
-        .then(result => {
+      item
+        .fn()
+        .then((result) => {
           this.recordExecution(Date.now() - startTime, true);
           item.resolve(result);
         })
-        .catch(error => {
+        .catch((error) => {
           this.recordExecution(Date.now() - startTime, false);
           item.reject(error instanceof Error ? error : new Error(String(error)));
         })
@@ -224,25 +220,22 @@ export class Bulkhead {
   private adjustConcurrency(): void {
     const now = Date.now();
     const windowMs = 30000; // 30 second window
-    this.adaptiveWindow = this.adaptiveWindow.filter(e => now - e.timestamp < windowMs);
+    this.adaptiveWindow = this.adaptiveWindow.filter((e) => now - e.timestamp < windowMs);
 
     if (this.adaptiveWindow.length < 10) return;
 
-    const successes = this.adaptiveWindow.filter(e => e.success).length;
+    const successes = this.adaptiveWindow.filter((e) => e.success).length;
     const successRate = successes / this.adaptiveWindow.length;
 
     if (successRate > 0.95 && this.maxConcurrentAdaptive < this.config.maxConcurrent * 2) {
       // High success rate - increase concurrency
       this.maxConcurrentAdaptive = Math.min(
         this.maxConcurrentAdaptive + 1,
-        this.config.maxConcurrent * 2
+        this.config.maxConcurrent * 2,
       );
     } else if (successRate < 0.5 && this.maxConcurrentAdaptive > 1) {
       // Low success rate - decrease concurrency
-      this.maxConcurrentAdaptive = Math.max(
-        Math.floor(this.maxConcurrentAdaptive * 0.75),
-        1
-      );
+      this.maxConcurrentAdaptive = Math.max(Math.floor(this.maxConcurrentAdaptive * 0.75), 1);
     }
   }
 
@@ -283,9 +276,7 @@ export class Bulkhead {
 
   // Get current max concurrent (considering adaptive)
   getCurrentMaxConcurrent(): number {
-    return this.config.adaptiveSizing
-      ? this.maxConcurrentAdaptive
-      : this.config.maxConcurrent;
+    return this.config.adaptiveSizing ? this.maxConcurrentAdaptive : this.config.maxConcurrent;
   }
 
   // Get config

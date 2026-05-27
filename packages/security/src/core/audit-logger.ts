@@ -105,7 +105,7 @@ export class AuditLogger {
     let previousHash = '0000000000000000000000000000000000000000000000000000000000000000';
 
     for (let i = 0; i < this.entries.length; i++) {
-      const entry = this.entries[i];
+      const entry = this.entries[i]!;
 
       // Verify previous hash link
       if (entry.previousHash !== previousHash) {
@@ -138,18 +138,24 @@ export class AuditLogger {
   searchByActor(actorId: string, limit: number = 50): AuditLogEntry[] {
     if (this.config.enableIndexing) {
       const indices = this.actorIndex.get(actorId) || [];
-      return indices.slice(-limit).map(i => this.entries[i]).filter(Boolean);
+      return indices
+        .slice(-limit)
+        .map((i) => this.entries[i])
+        .filter((e): e is AuditLogEntry => e !== undefined);
     }
-    return this.entries.filter(e => e.actor.id === actorId).slice(-limit);
+    return this.entries.filter((e) => e.actor.id === actorId).slice(-limit);
   }
 
   /** Search audit log by action */
   searchByAction(action: string, limit: number = 50): AuditLogEntry[] {
     if (this.config.enableIndexing) {
       const indices = this.actionIndex.get(action) || [];
-      return indices.slice(-limit).map(i => this.entries[i]).filter(Boolean);
+      return indices
+        .slice(-limit)
+        .map((i) => this.entries[i])
+        .filter((e): e is AuditLogEntry => e !== undefined);
     }
-    return this.entries.filter(e => e.action === action).slice(-limit);
+    return this.entries.filter((e) => e.action === action).slice(-limit);
   }
 
   /** Search audit log by resource */
@@ -157,23 +163,24 @@ export class AuditLogger {
     if (this.config.enableIndexing) {
       const key = resourceId ? `${resource}:${resourceId}` : resource;
       const indices = this.resourceIndex.get(key) || this.resourceIndex.get(resource) || [];
-      return indices.slice(-limit).map(i => this.entries[i]).filter(Boolean);
+      return indices
+        .slice(-limit)
+        .map((i) => this.entries[i])
+        .filter((e): e is AuditLogEntry => e !== undefined);
     }
     return this.entries
-      .filter(e => e.resource === resource && (!resourceId || e.resourceId === resourceId))
+      .filter((e) => e.resource === resource && (!resourceId || e.resourceId === resourceId))
       .slice(-limit);
   }
 
   /** Search by time range */
   searchByTimeRange(start: number, end: number, limit: number = 100): AuditLogEntry[] {
-    return this.entries
-      .filter(e => e.timestamp >= start && e.timestamp <= end)
-      .slice(-limit);
+    return this.entries.filter((e) => e.timestamp >= start && e.timestamp <= end).slice(-limit);
   }
 
   /** Search by outcome */
   searchByOutcome(outcome: 'success' | 'failure' | 'error', limit: number = 50): AuditLogEntry[] {
-    return this.entries.filter(e => e.outcome === outcome).slice(-limit);
+    return this.entries.filter((e) => e.outcome === outcome).slice(-limit);
   }
 
   /** Get recent entries */
@@ -183,14 +190,14 @@ export class AuditLogger {
 
   /** Get entry by ID */
   getEntry(id: string): AuditLogEntry | undefined {
-    return this.entries.find(e => e.id === id);
+    return this.entries.find((e) => e.id === id);
   }
 
   /** Apply retention policy - remove entries older than retention period */
   async applyRetention(): Promise<number> {
-    const cutoff = Date.now() - (this.config.retentionDays * 86400000);
+    const cutoff = Date.now() - this.config.retentionDays * 86400000;
     const before = this.entries.length;
-    this.entries = this.entries.filter(e => e.timestamp > cutoff);
+    this.entries = this.entries.filter((e) => e.timestamp > cutoff);
     const removed = before - this.entries.length;
 
     if (removed > 0) {
@@ -201,10 +208,14 @@ export class AuditLogger {
   }
 
   /** Export audit log for compliance */
-  async export(start?: number, end?: number): Promise<{ entries: AuditLogEntry[]; integrityValid: boolean; exportedAt: number }> {
-    const filtered = start && end
-      ? this.entries.filter(e => e.timestamp >= start && e.timestamp <= end)
-      : [...this.entries];
+  async export(
+    start?: number,
+    end?: number,
+  ): Promise<{ entries: AuditLogEntry[]; integrityValid: boolean; exportedAt: number }> {
+    const filtered =
+      start && end
+        ? this.entries.filter((e) => e.timestamp >= start && e.timestamp <= end)
+        : [...this.entries];
 
     const integrity = this.verifyIntegrity();
 
@@ -253,14 +264,20 @@ export class AuditLogger {
     this.timeIndex.clear();
 
     for (let i = 0; i < this.entries.length; i++) {
-      this.updateIndexes(this.entries[i], i);
+      this.updateIndexes(this.entries[i]!, i);
     }
   }
 
   /** Compute hash for tamper detection */
   private computeHash(input: string): string {
-    let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
-    let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+    let h0 = 0x6a09e667,
+      h1 = 0xbb67ae85,
+      h2 = 0x3c6ef372,
+      h3 = 0xa54ff53a;
+    let h4 = 0x510e527f,
+      h5 = 0x9b05688c,
+      h6 = 0x1f83d9ab,
+      h7 = 0x5be0cd19;
 
     for (let round = 0; round < 3; round++) {
       for (let i = 0; i < input.length; i++) {
@@ -274,11 +291,14 @@ export class AuditLogger {
         h6 = Math.imul(h6 ^ (c + 7 + i), 0x27d4eb2f) >>> 0;
         h7 = Math.imul(h7 ^ (c ^ i ^ round), 0x165667b1) >>> 0;
       }
-      h0 ^= h4 >>> 13; h1 ^= h5 >>> 7; h2 ^= h6 >>> 17; h3 ^= h7 >>> 11;
+      h0 ^= h4 >>> 13;
+      h1 ^= h5 >>> 7;
+      h2 ^= h6 >>> 17;
+      h3 ^= h7 >>> 11;
     }
 
     return [h0, h1, h2, h3, h4, h5, h6, h7]
-      .map(h => (h >>> 0).toString(16).padStart(8, '0'))
+      .map((h) => (h >>> 0).toString(16).padStart(8, '0'))
       .join('');
   }
 

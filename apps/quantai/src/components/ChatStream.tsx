@@ -89,12 +89,15 @@ export default function ChatStream({
     }
   }, [content, isStreaming]);
 
-  const handleCopyCode = useCallback((code: string, index: number) => {
-    navigator.clipboard?.writeText(code);
-    setCopiedIndex(index);
-    setTimeout(() => setCopiedIndex(null), 2000);
-    onCopyCode?.(code);
-  }, [onCopyCode]);
+  const handleCopyCode = useCallback(
+    (code: string, index: number) => {
+      navigator.clipboard?.writeText(code);
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
+      onCopyCode?.(code);
+    },
+    [onCopyCode],
+  );
 
   const renderInlineFormatting = useCallback((text: string): JSX.Element => {
     const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g);
@@ -102,7 +105,11 @@ export default function ChatStream({
       <span>
         {parts.map((part, i) => {
           if (part.startsWith('`') && part.endsWith('`')) {
-            return <code key={i} className="inline-code">{part.slice(1, -1)}</code>;
+            return (
+              <code key={i} className="inline-code">
+                {part.slice(1, -1)}
+              </code>
+            );
           }
           if (part.startsWith('**') && part.endsWith('**')) {
             return <strong key={i}>{part.slice(2, -2)}</strong>;
@@ -122,8 +129,12 @@ export default function ChatStream({
         {parsedBlocks.map((block, i) => {
           switch (block.type) {
             case 'heading':
-              const HeadingTag = `h${block.level || 1}` as keyof JSX.IntrinsicElements;
-              return <HeadingTag key={i} className="stream-heading">{block.content}</HeadingTag>;
+              const HeadingTag = `h${block.level || 1}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+              return (
+                <HeadingTag key={i} className="stream-heading">
+                  {block.content}
+                </HeadingTag>
+              );
 
             case 'code':
               return (
@@ -154,7 +165,7 @@ export default function ChatStream({
             case 'citation':
               const citationMatch = block.content.match(/\[cite:(\d+)\]/);
               const citationId = citationMatch?.[1];
-              const citation = citations.find(c => c.id === citationId);
+              const citation = citations.find((c) => c.id === citationId);
               if (citation) {
                 return (
                   <div
@@ -171,13 +182,15 @@ export default function ChatStream({
               return <p key={i}>{block.content}</p>;
 
             default:
-              return <p key={i} className="stream-paragraph">{renderInlineFormatting(block.content)}</p>;
+              return (
+                <p key={i} className="stream-paragraph">
+                  {renderInlineFormatting(block.content)}
+                </p>
+              );
           }
         })}
 
-        {isStreaming && (
-          <span className="streaming-cursor">|</span>
-        )}
+        {isStreaming && <span className="streaming-cursor">|</span>}
       </div>
 
       {model && (
@@ -190,7 +203,7 @@ export default function ChatStream({
         <div className="citations-section">
           <h4>Sources</h4>
           <div className="citations-list">
-            {citations.map(citation => (
+            {citations.map((citation) => (
               <div
                 key={citation.id}
                 className="citation-item"

@@ -48,6 +48,30 @@ export class TranscriptService {
     return segment;
   }
 
+  startTranscription(roomId: string): void {
+    if (!this.transcripts.has(roomId)) {
+      this.transcripts.set(roomId, []);
+    }
+  }
+
+  addSegment(roomId: string, segment: Omit<TranscriptSegment, 'id'>): TranscriptSegment {
+    const fullSegment: TranscriptSegment = {
+      ...segment,
+      id: randomUUID(),
+    };
+
+    const existing = this.transcripts.get(roomId) ?? [];
+    existing.push(fullSegment);
+    this.transcripts.set(roomId, existing);
+
+    return fullSegment;
+  }
+
+  getFullTranscript(roomId: string): string {
+    const segments = this.getTranscript(roomId);
+    return segments.map((s) => `[${s.participantId}]: ${s.text}`).join('\n');
+  }
+
   getTranscript(roomId: string): TranscriptSegment[] {
     return this.transcripts.get(roomId) ?? [];
   }

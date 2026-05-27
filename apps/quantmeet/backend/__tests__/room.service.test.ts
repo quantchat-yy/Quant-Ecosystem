@@ -475,4 +475,116 @@ describe('RoomService', () => {
       ).toThrow('Room is closed');
     });
   });
+
+  describe('listRooms', () => {
+    it('returns rooms where user is host', () => {
+      service.createRoom({
+        name: 'Room A',
+        hostId: 'user-1',
+        settings: {
+          maxParticipants: 50,
+          waitingRoom: false,
+          muteOnEntry: false,
+          allowScreenShare: true,
+          enableRecording: false,
+          enableTranscript: false,
+        },
+      });
+      service.createRoom({
+        name: 'Room B',
+        hostId: 'user-2',
+        settings: {
+          maxParticipants: 50,
+          waitingRoom: false,
+          muteOnEntry: false,
+          allowScreenShare: true,
+          enableRecording: false,
+          enableTranscript: false,
+        },
+      });
+
+      const rooms = service.listRooms('user-1');
+
+      expect(rooms).toHaveLength(1);
+      expect(rooms[0]!.name).toBe('Room A');
+    });
+
+    it('returns rooms where user is participant', () => {
+      const room = service.createRoom({
+        name: 'Room C',
+        hostId: 'user-2',
+        settings: {
+          maxParticipants: 50,
+          waitingRoom: false,
+          muteOnEntry: false,
+          allowScreenShare: true,
+          enableRecording: false,
+          enableTranscript: false,
+        },
+      });
+
+      service.joinRoom(room.id, {
+        userId: 'user-1',
+        displayName: 'Alice',
+        role: 'participant',
+        audioEnabled: true,
+        videoEnabled: true,
+      });
+
+      const rooms = service.listRooms('user-1');
+
+      expect(rooms).toHaveLength(1);
+      expect(rooms[0]!.name).toBe('Room C');
+    });
+  });
+
+  describe('endMeeting', () => {
+    it('closes the room when called by host', () => {
+      const room = service.createRoom({
+        name: 'Meeting Room',
+        hostId: 'user-1',
+        settings: {
+          maxParticipants: 50,
+          waitingRoom: false,
+          muteOnEntry: false,
+          allowScreenShare: true,
+          enableRecording: false,
+          enableTranscript: false,
+        },
+      });
+
+      service.joinRoom(room.id, {
+        userId: 'user-2',
+        displayName: 'Bob',
+        role: 'participant',
+        audioEnabled: true,
+        videoEnabled: true,
+      });
+
+      service.endMeeting(room.id, 'user-1');
+
+      const closedRoom = service.getRoom(room.id);
+      expect(closedRoom.status).toBe('closed');
+      expect(closedRoom.participants).toHaveLength(0);
+    });
+
+    it('throws UNAUTHORIZED when non-host tries to end meeting', () => {
+      const room = service.createRoom({
+        name: 'Meeting Room',
+        hostId: 'user-1',
+        settings: {
+          maxParticipants: 50,
+          waitingRoom: false,
+          muteOnEntry: false,
+          allowScreenShare: true,
+          enableRecording: false,
+          enableTranscript: false,
+        },
+      });
+
+      expect(() => service.endMeeting(room.id, 'user-2')).toThrow(
+        'Only the host can end the meeting',
+      );
+    });
+  });
 });

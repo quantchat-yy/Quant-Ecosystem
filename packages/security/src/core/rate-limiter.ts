@@ -25,7 +25,10 @@ export class SlidingWindowRateLimiter {
   private windows: Map<string, SlidingWindowEntry[]>;
   private blockedKeys: Map<string, number>;
   private burstTracker: Map<string, { count: number; windowStart: number }>;
-  private keyMetrics: Map<string, { totalRequests: number; totalBlocked: number; lastReset: number }>;
+  private keyMetrics: Map<
+    string,
+    { totalRequests: number; totalBlocked: number; lastReset: number }
+  >;
 
   constructor(config: Partial<RateLimitConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -36,7 +39,11 @@ export class SlidingWindowRateLimiter {
   }
 
   /** Check if a request is allowed under rate limits */
-  async checkLimit(key: string, endpoint: string = '/', weight: number = 1): Promise<RateLimitResult> {
+  async checkLimit(
+    key: string,
+    endpoint: string = '/',
+    weight: number = 1,
+  ): Promise<RateLimitResult> {
     const now = Date.now();
     const compositeKey = this.buildKey(key, endpoint);
 
@@ -208,8 +215,8 @@ export class SlidingWindowRateLimiter {
     if (!entries) return;
 
     // Keep entries from current and previous window for sliding calculation
-    const cutoff = now - (this.config.windowMs * 2);
-    const cleaned = entries.filter(e => e.timestamp > cutoff);
+    const cutoff = now - this.config.windowMs * 2;
+    const cleaned = entries.filter((e) => e.timestamp > cutoff);
     this.windows.set(key, cleaned);
   }
 
@@ -222,7 +229,11 @@ export class SlidingWindowRateLimiter {
 
   /** Update key metrics */
   private updateMetrics(key: string, allowed: boolean): void {
-    const metrics = this.keyMetrics.get(key) || { totalRequests: 0, totalBlocked: 0, lastReset: Date.now() };
+    const metrics = this.keyMetrics.get(key) || {
+      totalRequests: 0,
+      totalBlocked: 0,
+      lastReset: Date.now(),
+    };
     metrics.totalRequests++;
     if (!allowed) metrics.totalBlocked++;
     this.keyMetrics.set(key, metrics);
@@ -300,9 +311,9 @@ export class SlidingWindowRateLimiter {
     let removedKeys = 0;
 
     for (const [key, entries] of this.windows) {
-      const cutoff = now - (this.config.windowMs * 2);
+      const cutoff = now - this.config.windowMs * 2;
       const before = entries.length;
-      const after = entries.filter(e => e.timestamp > cutoff);
+      const after = entries.filter((e) => e.timestamp > cutoff);
       removedEntries += before - after.length;
 
       if (after.length === 0) {
@@ -329,7 +340,7 @@ export class SlidingWindowRateLimiter {
   }
 
   /** Configure rate limit for specific endpoint pattern */
-  setEndpointLimit(endpoint: string, maxRequests: number, windowMs?: number): void {
+  setEndpointLimit(_endpoint: string, maxRequests: number, windowMs?: number): void {
     // Store endpoint-specific overrides (simplification: update global config for this instance)
     this.config = {
       ...this.config,

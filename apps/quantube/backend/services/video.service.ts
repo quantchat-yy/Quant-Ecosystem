@@ -223,6 +223,36 @@ export class VideoService {
     });
   }
 
+  async likeVideo(videoId: string, _userId: string): Promise<Video> {
+    const video = await this.prisma.video.findUnique({
+      where: { id: videoId },
+    });
+
+    if (!video || video.deletedAt) {
+      throw createAppError('Video not found', 404, 'VIDEO_NOT_FOUND');
+    }
+
+    return this.prisma.video.update({
+      where: { id: videoId },
+      data: { likeCount: { increment: 1 } },
+    });
+  }
+
+  async addComment(videoId: string, _userId: string, _content: string): Promise<Video> {
+    const video = await this.prisma.video.findUnique({
+      where: { id: videoId },
+    });
+
+    if (!video || video.deletedAt) {
+      throw createAppError('Video not found', 404, 'VIDEO_NOT_FOUND');
+    }
+
+    return this.prisma.video.update({
+      where: { id: videoId },
+      data: { commentCount: { increment: 1 } },
+    });
+  }
+
   async search(query: string, options: PaginationOptions = {}): Promise<PaginatedResult<Video>> {
     const page = options.page ?? 1;
     const pageSize = options.pageSize ?? 20;

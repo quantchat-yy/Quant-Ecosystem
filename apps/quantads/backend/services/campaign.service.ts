@@ -186,6 +186,29 @@ export class CampaignService {
     });
   }
 
+  async resumeCampaign(campaignId: string): Promise<Campaign> {
+    const campaign = await this.prisma.campaign.findUnique({
+      where: { id: campaignId },
+    });
+
+    if (!campaign || campaign.deletedAt) {
+      throw createAppError('Campaign not found', 404, 'CAMPAIGN_NOT_FOUND');
+    }
+
+    if (campaign.status !== 'PAUSED') {
+      throw createAppError(
+        'Only paused campaigns can be resumed',
+        400,
+        'INVALID_STATUS_TRANSITION',
+      );
+    }
+
+    return this.prisma.campaign.update({
+      where: { id: campaignId },
+      data: { status: 'ACTIVE', updatedAt: new Date() },
+    });
+  }
+
   async deleteCampaign(campaignId: string): Promise<Campaign> {
     const campaign = await this.prisma.campaign.findUnique({
       where: { id: campaignId },

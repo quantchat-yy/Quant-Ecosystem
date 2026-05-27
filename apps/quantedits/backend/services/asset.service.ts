@@ -47,6 +47,16 @@ export class AssetService {
       .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
   }
 
+  async getAsset(assetId: string): Promise<Asset> {
+    const asset = this.assets.find((a) => a.id === assetId);
+
+    if (!asset) {
+      throw createAppError('Asset not found', 404, 'ASSET_NOT_FOUND');
+    }
+
+    return asset;
+  }
+
   async deleteAsset(assetId: string): Promise<void> {
     const index = this.assets.findIndex((a) => a.id === assetId);
 

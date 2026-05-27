@@ -311,7 +311,15 @@ export type PermissionScope =
   | 'ai:use'
   | 'realtime:connect'
   | 'ads:manage'
-  | 'analytics:read';
+  | 'analytics:read'
+  | 'workspace:manage'
+  | 'workspace:read'
+  | 'agent:execute'
+  | 'agent:manage'
+  | 'memory:read'
+  | 'memory:write'
+  | 'context:read'
+  | 'context:write';
 
 /** Rate limit configuration */
 export interface RateLimitConfig {
@@ -327,4 +335,87 @@ export interface WebhookPayload<T = unknown> {
   data: T;
   signature: string;
   source: QuantApp;
+}
+
+// ============================================================================
+// Phase 6: Identity, Permissions, Workspaces, Context Graph
+// ============================================================================
+
+/** Workspace within the Quant ecosystem */
+export interface Workspace extends BaseEntity {
+  name: string;
+  slug: string;
+  ownerId: string;
+  orgId?: string;
+  description: string;
+  settings: Record<string, unknown>;
+}
+
+/** Organization that owns workspaces */
+export interface Organization extends BaseEntity {
+  name: string;
+  slug: string;
+  ownerId: string;
+  billingEmail: string;
+}
+
+/** Team within a workspace */
+export interface Team extends BaseEntity {
+  name: string;
+  workspaceId: string;
+  memberIds: string[];
+}
+
+/** Role type for workspace members */
+export type Role = 'owner' | 'admin' | 'member' | 'guest';
+
+/** Permission entry for fine-grained access control */
+export interface Permission {
+  id: string;
+  action: string;
+  resource: string;
+  scope: string;
+}
+
+/** App-level permission grant for a user */
+export interface AppGrant extends BaseEntity {
+  userId: string;
+  appId: QuantApp;
+  scopes: PermissionScope[];
+  grantedAt: Date;
+}
+
+/** Agent-level resource grant for a user */
+export interface AgentGrant extends BaseEntity {
+  userId: string;
+  agentId: string;
+  resourceTypes: string[];
+  workspaceId: string;
+  expiresAt?: Date;
+}
+
+/** Resource tracked across the ecosystem */
+export interface Resource extends BaseEntity {
+  type: string;
+  ownerId: string;
+  workspaceId: string;
+  title: string;
+  metadata: Record<string, unknown>;
+}
+
+/** Context item in the knowledge graph */
+export interface ContextItem extends BaseEntity {
+  type: string;
+  workspaceId: string;
+  ownerId: string;
+  content: string;
+  relationships: string[];
+}
+
+/** Memory item stored per user per app */
+export interface MemoryItem extends BaseEntity {
+  userId: string;
+  appSource: QuantApp;
+  content: string;
+  paused: boolean;
 }

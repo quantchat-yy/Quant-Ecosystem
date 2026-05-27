@@ -66,7 +66,7 @@ const BookmarksPage: React.FC = () => {
   }, [fetchBookmarks]);
 
   const handleRemoveBookmark = useCallback(async (postId: string) => {
-    setBookmarks(prev => prev.filter(b => b.id !== postId));
+    setBookmarks((prev) => prev.filter((b) => b.id !== postId));
     await fetch(`/api/posts/${postId}/bookmark`, { method: 'DELETE' });
   }, []);
 
@@ -87,7 +87,7 @@ const BookmarksPage: React.FC = () => {
   }, [newFolderName, fetchBookmarks]);
 
   const handleMoveToFolder = useCallback(async (postId: string, folderId: string) => {
-    setBookmarks(prev => prev.map(b => b.id === postId ? { ...b, folderId } : b));
+    setBookmarks((prev) => prev.map((b) => (b.id === postId ? { ...b, folderId } : b)));
     await fetch(`/api/bookmarks/${postId}/move`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -107,7 +107,9 @@ const BookmarksPage: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <div className="text-red-500 text-xl mb-4">Failed to load bookmarks</div>
-        <button onClick={fetchBookmarks} className="px-6 py-2 bg-blue-500 text-white rounded-full">Retry</button>
+        <button onClick={fetchBookmarks} className="px-6 py-2 bg-blue-500 text-white rounded-full">
+          Retry
+        </button>
       </div>
     );
   }
@@ -117,7 +119,9 @@ const BookmarksPage: React.FC = () => {
       <header className="sticky top-0 bg-white/90 backdrop-blur border-b z-10 px-4 py-3">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-bold">Bookmarks</h1>
-          <button onClick={() => setShowCreateFolder(true)} className="text-sm text-blue-500">+ Folder</button>
+          <button onClick={() => setShowCreateFolder(true)} className="text-sm text-blue-500">
+            + Folder
+          </button>
         </div>
         <input
           type="text"
@@ -128,16 +132,27 @@ const BookmarksPage: React.FC = () => {
         />
         <div className="flex items-center justify-between">
           <div className="flex gap-2 overflow-x-auto">
-            <button onClick={() => setSelectedFolder(null)} className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${!selectedFolder ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}>
+            <button
+              onClick={() => setSelectedFolder(null)}
+              className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${!selectedFolder ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
+            >
               All ({bookmarks.length})
             </button>
-            {folders.map(folder => (
-              <button key={folder.id} onClick={() => setSelectedFolder(folder.id)} className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${selectedFolder === folder.id ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}>
+            {folders.map((folder) => (
+              <button
+                key={folder.id}
+                onClick={() => setSelectedFolder(folder.id)}
+                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${selectedFolder === folder.id ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
+              >
                 {folder.name} ({folder.count})
               </button>
             ))}
           </div>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortBy)} className="border rounded px-2 py-1 text-xs">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortBy)}
+            className="border rounded px-2 py-1 text-xs"
+          >
             <option value="recent">Recent</option>
             <option value="oldest">Oldest</option>
             <option value="popular">Popular</option>
@@ -153,7 +168,7 @@ const BookmarksPage: React.FC = () => {
         </div>
       ) : (
         <div className="divide-y">
-          {bookmarks.map(post => (
+          {bookmarks.map((post) => (
             <article key={post.id} className="px-4 py-3 hover:bg-gray-50 group">
               <div className="flex gap-3">
                 <img src={post.authorAvatar} alt="" className="w-10 h-10 rounded-full" />
@@ -161,12 +176,14 @@ const BookmarksPage: React.FC = () => {
                   <div className="flex items-center gap-1 mb-0.5">
                     <span className="font-bold text-sm">{post.authorName}</span>
                     <span className="text-gray-500 text-xs">@{post.authorHandle}</span>
-                    <span className="text-xs text-gray-400 ml-auto">{new Date(post.bookmarkedAt).toLocaleDateString()}</span>
+                    <span className="text-xs text-gray-400 ml-auto">
+                      {new Date(post.bookmarkedAt).toLocaleDateString()}
+                    </span>
                   </div>
                   <p className="text-gray-900 text-sm line-clamp-3">{post.content}</p>
                   {post.media.length > 0 && (
                     <div className="mt-2 rounded-lg overflow-hidden">
-                      <img src={post.media[0].url} alt="" className="w-full h-32 object-cover" />
+                      <img src={post.media[0]?.url} alt="" className="w-full h-32 object-cover" />
                     </div>
                   )}
                   <div className="flex items-center justify-between mt-2">
@@ -182,9 +199,18 @@ const BookmarksPage: React.FC = () => {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <option value="">No folder</option>
-                        {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                        {folders.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.name}
+                          </option>
+                        ))}
                       </select>
-                      <button onClick={() => handleRemoveBookmark(post.id)} className="text-xs text-red-500 hover:text-red-700 p-1">Remove</button>
+                      <button
+                        onClick={() => handleRemoveBookmark(post.id)}
+                        className="text-xs text-red-500 hover:text-red-700 p-1"
+                      >
+                        Remove
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -198,10 +224,26 @@ const BookmarksPage: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-6">
             <h2 className="text-lg font-bold mb-4">New Folder</h2>
-            <input type="text" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} className="w-full border rounded-lg px-3 py-2 mb-4" placeholder="Folder name" />
+            <input
+              type="text"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 mb-4"
+              placeholder="Folder name"
+            />
             <div className="flex gap-3">
-              <button onClick={() => setShowCreateFolder(false)} className="flex-1 py-2 border rounded-full">Cancel</button>
-              <button onClick={handleCreateFolder} className="flex-1 py-2 bg-blue-500 text-white rounded-full">Create</button>
+              <button
+                onClick={() => setShowCreateFolder(false)}
+                className="flex-1 py-2 border rounded-full"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateFolder}
+                className="flex-1 py-2 bg-blue-500 text-white rounded-full"
+              >
+                Create
+              </button>
             </div>
           </div>
         </div>

@@ -8,11 +8,13 @@
     "start": "node --loader ts-node/esm src/main.ts",
     "dev": "node --loader ts-node/esm --watch src/main.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@quant/moderation": "workspace:*",
     "@quant/queue": "workspace:*",
+    "@quant/health-server": "workspace:*",
     "@quant/data-plane": "workspace:*",
     "@quant/security": "workspace:*",
     "@quant/common": "workspace:*",

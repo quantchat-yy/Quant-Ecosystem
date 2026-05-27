@@ -83,6 +83,25 @@ export class StoryService {
     });
   }
 
+  async getViewers(
+    storyId: string,
+    userId: string,
+  ): Promise<{ storyId: string; viewCount: number }> {
+    const story = await this.prisma.story.findUnique({
+      where: { id: storyId },
+    });
+
+    if (!story) {
+      throw createAppError('Story not found', 404, 'STORY_NOT_FOUND');
+    }
+
+    if (story.userId !== userId) {
+      throw createAppError('Only the owner can view story viewers', 403, 'NOT_STORY_OWNER');
+    }
+
+    return { storyId, viewCount: story.viewCount };
+  }
+
   async expireStories(): Promise<number> {
     const now = new Date();
 

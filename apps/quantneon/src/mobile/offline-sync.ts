@@ -1,5 +1,5 @@
-// Quantneon - Offline Sync Service
-// Mobile offline synchronization for social media platform
+// Quantads - Offline Sync Service
+// Mobile offline synchronization for advertising platform
 
 export interface SyncOperation {
   id: string;
@@ -63,13 +63,31 @@ export class OfflineSyncService {
   private queue: SyncOperation[] = [];
   private conflicts: Map<string, ConflictRecord> = new Map();
   private entityStatuses: Map<string, SyncStatus> = new Map();
-  private connectivity: ConnectivityState = { isOnline: true, connectionType: 'wifi', effectiveBandwidth: 10000, lastCheckedAt: Date.now() };
-  private deltaSyncConfig: DeltaSyncConfig = { enabled: true, minChangeThreshold: 64, compressionEnabled: true, batchSize: 50 };
-  private backgroundSyncConfig: BackgroundSyncConfig = { enabled: true, minIntervalMs: 300000, requiresCharging: false, requiresWifi: false, maxBatchSize: 100 };
+  private connectivity: ConnectivityState = {
+    isOnline: true,
+    connectionType: 'wifi',
+    effectiveBandwidth: 10000,
+    lastCheckedAt: Date.now(),
+  };
+  private deltaSyncConfig: DeltaSyncConfig = {
+    enabled: true,
+    minChangeThreshold: 64,
+    compressionEnabled: true,
+    batchSize: 50,
+  };
+  private backgroundSyncConfig: BackgroundSyncConfig = {
+    enabled: true,
+    minIntervalMs: 300000,
+    requiresCharging: false,
+    requiresWifi: false,
+    maxBatchSize: 100,
+  };
   private connectivityListeners: Array<(state: ConnectivityState) => void> = [];
   private isSyncing: boolean = false;
 
-  public addToQueue(operation: Omit<SyncOperation, 'id' | 'createdAt' | 'retryCount' | 'status'>): SyncOperation {
+  public addToQueue(
+    operation: Omit<SyncOperation, 'id' | 'createdAt' | 'retryCount' | 'status'>,
+  ): SyncOperation {
     const op: SyncOperation = {
       ...operation,
       id: `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -95,7 +113,7 @@ export class OfflineSyncService {
     let failed = 0;
     let conflicts = 0;
 
-    const pendingOps = this.queue.filter(op => op.status === 'pending' || op.status === 'failed');
+    const pendingOps = this.queue.filter((op) => op.status === 'pending' || op.status === 'failed');
     for (const op of pendingOps) {
       if (!this.areDependenciesMet(op)) continue;
       op.status = 'in_progress';
@@ -117,20 +135,20 @@ export class OfflineSyncService {
         }
       }
     }
-    this.queue = this.queue.filter(op => op.status !== 'completed');
+    this.queue = this.queue.filter((op) => op.status !== 'completed');
     this.isSyncing = false;
     return { processed, failed, conflicts };
   }
 
   private areDependenciesMet(op: SyncOperation): boolean {
-    return op.dependencies.every(depId => {
-      const dep = this.queue.find(q => q.id === depId);
+    return op.dependencies.every((depId) => {
+      const dep = this.queue.find((q) => q.id === depId);
       return !dep || dep.status === 'completed';
     });
   }
 
-  private async executeOperation(op: SyncOperation): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 10));
+  private async executeOperation(_op: SyncOperation): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 10));
   }
 
   private isConflict(error: unknown): boolean {
@@ -149,12 +167,15 @@ export class OfflineSyncService {
     this.updateEntityStatus(op.entityId, op.entityType, 'conflict');
   }
 
-  public resolveConflict(conflictId: string, resolution: 'last_write_wins' | 'manual' | 'discard'): boolean {
+  public resolveConflict(
+    conflictId: string,
+    resolution: 'last_write_wins' | 'manual' | 'discard',
+  ): boolean {
     const conflict = this.conflicts.get(conflictId);
     if (!conflict) return false;
     conflict.resolvedAt = Date.now();
     conflict.resolution = resolution;
-    const op = this.queue.find(o => o.id === conflict.operationId);
+    const op = this.queue.find((o) => o.id === conflict.operationId);
     if (op) {
       if (resolution === 'discard') {
         op.status = 'completed';
@@ -177,7 +198,7 @@ export class OfflineSyncService {
     if (wasOffline && this.connectivity.isOnline) {
       this.triggerBackgroundSync();
     }
-    this.connectivityListeners.forEach(cb => cb(this.connectivity));
+    this.connectivityListeners.forEach((cb) => cb(this.connectivity));
   }
 
   public onConnectivityChange(callback: (state: ConnectivityState) => void): () => void {
@@ -188,7 +209,10 @@ export class OfflineSyncService {
     };
   }
 
-  public computeDelta(original: Record<string, unknown>, modified: Record<string, unknown>): Record<string, unknown> {
+  public computeDelta(
+    original: Record<string, unknown>,
+    modified: Record<string, unknown>,
+  ): Record<string, unknown> {
     const delta: Record<string, unknown> = {};
     for (const key of Object.keys(modified)) {
       if (JSON.stringify(original[key]) !== JSON.stringify(modified[key])) {
@@ -206,13 +230,17 @@ export class OfflineSyncService {
     return Array.from(this.entityStatuses.values());
   }
 
-  private updateEntityStatus(entityId: string, entityType: string, state: SyncStatus['state']): void {
+  private updateEntityStatus(
+    entityId: string,
+    entityType: string,
+    state: SyncStatus['state'],
+  ): void {
     const existing = this.entityStatuses.get(entityId);
     this.entityStatuses.set(entityId, {
       entityId,
       entityType,
       state,
-      lastSyncedAt: state === 'synced' ? Date.now() : (existing?.lastSyncedAt || 0),
+      lastSyncedAt: state === 'synced' ? Date.now() : existing?.lastSyncedAt || 0,
       localVersion: (existing?.localVersion || 0) + 1,
       remoteVersion: existing?.remoteVersion || 0,
     });
@@ -225,11 +253,11 @@ export class OfflineSyncService {
   }
 
   public getQueueSize(): number {
-    return this.queue.filter(op => op.status === 'pending').length;
+    return this.queue.filter((op) => op.status === 'pending').length;
   }
 
   public getConflicts(): ConflictRecord[] {
-    return Array.from(this.conflicts.values()).filter(c => !c.resolvedAt);
+    return Array.from(this.conflicts.values()).filter((c) => !c.resolvedAt);
   }
 
   public clearQueue(): void {

@@ -2,7 +2,7 @@
 // Recommendations Package - Real-time Personalizer
 // ============================================================================
 
-import type { PersonalizationConfig, SessionSignal, RecommendedItem, BanditStrategy } from '../types';
+import type { PersonalizationConfig, SessionSignal, RecommendedItem } from '../types';
 
 /** Arm state for multi-armed bandit */
 interface BanditArm {
@@ -46,7 +46,7 @@ export class RealtimePersonalizer {
     // Keep only recent signals
     const maxAge = 30 * 60 * 1000; // 30 minutes
     const cutoff = Date.now() - maxAge;
-    const filtered = signals.filter(s => s.timestamp > cutoff);
+    const filtered = signals.filter((s) => s.timestamp > cutoff);
     this.sessionSignals.set(userId, filtered);
 
     // Update scores
@@ -150,10 +150,10 @@ export class RealtimePersonalizer {
   private selectEpsilonGreedy(candidates: string[]): string {
     if (Math.random() < this.config.explorationRate) {
       // Explore: random item
-      return candidates[Math.floor(Math.random() * candidates.length)];
+      return candidates[Math.floor(Math.random() * candidates.length)]!;
     }
     // Exploit: best arm
-    let bestItem = candidates[0];
+    let bestItem = candidates[0]!;
     let bestReward = -Infinity;
     for (const itemId of candidates) {
       const arm = this.banditArms.get(itemId);
@@ -173,7 +173,7 @@ export class RealtimePersonalizer {
       totalPulls += arm?.pulls || 0;
     }
 
-    let bestItem = candidates[0];
+    let bestItem = candidates[0]!;
     let bestUCB = -Infinity;
 
     for (const itemId of candidates) {
@@ -181,7 +181,7 @@ export class RealtimePersonalizer {
       if (!arm || arm.pulls === 0) return itemId; // Explore unpulled arms
 
       const exploitation = arm.avgReward;
-      const exploration = Math.sqrt(2 * Math.log(totalPulls + 1) / arm.pulls);
+      const exploration = Math.sqrt((2 * Math.log(totalPulls + 1)) / arm.pulls);
       const ucb = exploitation + exploration;
 
       if (ucb > bestUCB) {
@@ -195,7 +195,7 @@ export class RealtimePersonalizer {
 
   /** Select item using Thompson Sampling (Beta distribution) */
   private selectThompson(candidates: string[]): string {
-    let bestItem = candidates[0];
+    let bestItem = candidates[0]!;
     let bestSample = -Infinity;
 
     for (const itemId of candidates) {
@@ -275,13 +275,13 @@ export class RealtimePersonalizer {
     if (!sessionScores || sessionScores.size === 0) return candidates.slice(0, topN);
 
     // Re-score candidates based on session signals
-    const rescored = candidates.map(item => {
+    const rescored = candidates.map((item) => {
       const sessionBoost = sessionScores.get(item.itemId) || 0;
       const recencyScore = this.computeRecencyScore(userId, item.itemId);
 
       // Contextual boosting
       let contextBoost = 0;
-      for (const [feature, weights] of this.contextWeights) {
+      for (const [_feature, weights] of this.contextWeights) {
         const weight = weights.get(item.itemId) || 0;
         contextBoost += weight;
       }
@@ -320,7 +320,7 @@ export class RealtimePersonalizer {
       .slice(0, 5)
       .map(([id]) => id);
 
-    const timestamps = signals.map(s => s.timestamp);
+    const timestamps = signals.map((s) => s.timestamp);
     const duration = Math.max(...timestamps) - Math.min(...timestamps);
 
     return { signalCount: signals.length, topItems, duration };
@@ -335,9 +335,10 @@ export class RealtimePersonalizer {
     }
 
     for (const [itemId, arm] of this.banditArms) {
-      const ucb = arm.pulls > 0
-        ? arm.avgReward + Math.sqrt(2 * Math.log(totalPulls + 1) / arm.pulls)
-        : Infinity;
+      const ucb =
+        arm.pulls > 0
+          ? arm.avgReward + Math.sqrt((2 * Math.log(totalPulls + 1)) / arm.pulls)
+          : Infinity;
       stats.set(itemId, { pulls: arm.pulls, avgReward: arm.avgReward, ucb });
     }
     return stats;

@@ -189,6 +189,34 @@ export class ShareService {
     return shares as unknown as ShareRecord[];
   }
 
+  async getShares(fileId: string, userId: string): Promise<ShareRecord[]> {
+    const file = await this.prisma.file.findUnique({ where: { id: fileId } });
+
+    if (!file) {
+      throw createAppError('File not found', 404, 'FILE_NOT_FOUND');
+    }
+
+    const fileRecord = file as unknown as { userId: string };
+
+    if (fileRecord.userId !== userId) {
+      throw createAppError('Not authorized to view shares for this file', 403, 'UNAUTHORIZED');
+    }
+
+    const shares = await this.prisma.share.findMany({
+      where: { fileId },
+    });
+
+    return shares as unknown as ShareRecord[];
+  }
+
+  async getSharedWithMe(userId: string): Promise<ShareRecord[]> {
+    const shares = await this.prisma.share.findMany({
+      where: { sharedWithUserId: userId, status: 'accepted' },
+    });
+
+    return shares as unknown as ShareRecord[];
+  }
+
   async getShare(shareId: string, userId: string): Promise<ShareRecord> {
     const share = await this.prisma.share.findUnique({ where: { id: shareId } });
 

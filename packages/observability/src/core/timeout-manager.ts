@@ -2,11 +2,7 @@
 // Timeout Manager - Cascading Timeout and Deadline Management
 // ============================================================================
 
-import {
-  TimeoutConfig,
-  TimeoutContext,
-  TimeoutResult,
-} from '../types';
+import { TimeoutConfig, TimeoutContext, TimeoutResult } from '../types';
 
 interface TimeoutPolicy {
   operation: string;
@@ -47,7 +43,7 @@ export class TimeoutManager {
     operation: string,
     fn: (ctx: TimeoutContext) => Promise<T>,
     timeoutMs?: number,
-    parentContext?: TimeoutContext
+    parentContext?: TimeoutContext,
   ): Promise<TimeoutResult<T>> {
     this.totalExecutions++;
     const effectiveTimeout = this.getEffectiveTimeout(operation, timeoutMs, parentContext);
@@ -106,7 +102,7 @@ export class TimeoutManager {
     fn: (ctx: TimeoutContext) => Promise<T>,
     context: TimeoutContext,
     contextId: string,
-    timeoutMs: number
+    timeoutMs: number,
   ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       let settled = false;
@@ -115,24 +111,26 @@ export class TimeoutManager {
         if (!settled) {
           settled = true;
           this.cancelTokens.set(contextId, true);
-          reject(new TimeoutError(
-            `Operation '${context.operation}' timed out after ${timeoutMs}ms`,
-            context.operation,
-            timeoutMs,
-            Date.now() - context.startTime
-          ));
+          reject(
+            new TimeoutError(
+              `Operation '${context.operation}' timed out after ${timeoutMs}ms`,
+              context.operation,
+              timeoutMs,
+              Date.now() - context.startTime,
+            ),
+          );
         }
       }, timeoutMs);
 
       fn(context)
-        .then(result => {
+        .then((result) => {
           if (!settled) {
             settled = true;
             clearTimeout(timer);
             resolve(result);
           }
         })
-        .catch(error => {
+        .catch((error) => {
           if (!settled) {
             settled = true;
             clearTimeout(timer);
@@ -146,7 +144,7 @@ export class TimeoutManager {
   private getEffectiveTimeout(
     operation: string,
     overrideMs?: number,
-    parentContext?: TimeoutContext
+    parentContext?: TimeoutContext,
   ): number {
     // Priority: override > adaptive > policy > default
     let timeout: number;
@@ -199,9 +197,9 @@ export class TimeoutManager {
     const history = this.latencyHistory.get(operation);
     if (!history || history.length < 10) return;
 
-    const sorted = [...history].map(h => h.duration).sort((a, b) => a - b);
+    const sorted = [...history].map((h) => h.duration).sort((a, b) => a - b);
     const p99Index = Math.ceil(sorted.length * 0.99) - 1;
-    const p99 = sorted[Math.max(0, p99Index)];
+    const p99 = sorted[Math.max(0, p99Index)]!;
 
     // Adaptive timeout = p99 * multiplier
     const adaptiveTimeout = Math.ceil(p99 * this.config.adaptiveMultiplier);
@@ -223,11 +221,14 @@ export class TimeoutManager {
   }
 
   // Create a child timeout context
-  createChildContext(operation: string, parentContext: TimeoutContext, timeoutMs?: number): TimeoutContext {
+  createChildContext(
+    operation: string,
+    parentContext: TimeoutContext,
+    timeoutMs?: number,
+  ): TimeoutContext {
     const parentRemaining = parentContext.deadline - Date.now();
-    const childTimeout = timeoutMs !== undefined
-      ? Math.min(timeoutMs, parentRemaining)
-      : parentRemaining;
+    const childTimeout =
+      timeoutMs !== undefined ? Math.min(timeoutMs, parentRemaining) : parentRemaining;
 
     return {
       startTime: Date.now(),
@@ -268,26 +269,28 @@ export class TimeoutManager {
     const history = this.latencyHistory.get(operation);
     if (!history || history.length === 0) return null;
 
-    const sorted = [...history].map(h => h.duration).sort((a, b) => a - b);
+    const sorted = [...history].map((h) => h.duration).sort((a, b) => a - b);
     const index = Math.ceil(sorted.length * 0.99) - 1;
-    return sorted[Math.max(0, index)];
+    return sorted[Math.max(0, index)]!;
   }
 
   // Get latency statistics for an operation
-  getLatencyStats(operation: string): { count: number; min: number; max: number; avg: number; p50: number; p99: number } | null {
+  getLatencyStats(
+    operation: string,
+  ): { count: number; min: number; max: number; avg: number; p50: number; p99: number } | null {
     const history = this.latencyHistory.get(operation);
     if (!history || history.length === 0) return null;
 
-    const sorted = [...history].map(h => h.duration).sort((a, b) => a - b);
+    const sorted = [...history].map((h) => h.duration).sort((a, b) => a - b);
     const sum = sorted.reduce((a, b) => a + b, 0);
 
     return {
       count: sorted.length,
-      min: sorted[0],
-      max: sorted[sorted.length - 1],
+      min: sorted[0]!,
+      max: sorted[sorted.length - 1]!,
       avg: sum / sorted.length,
-      p50: sorted[Math.ceil(sorted.length * 0.5) - 1],
-      p99: sorted[Math.ceil(sorted.length * 0.99) - 1],
+      p50: sorted[Math.ceil(sorted.length * 0.5) - 1]!,
+      p99: sorted[Math.ceil(sorted.length * 0.99) - 1]!,
     };
   }
 
@@ -308,7 +311,13 @@ export class TimeoutManager {
   }
 
   // Get stats
-  getStats(): { totalExecutions: number; totalTimeouts: number; timeoutRate: number; activeContexts: number; policies: number } {
+  getStats(): {
+    totalExecutions: number;
+    totalTimeouts: number;
+    timeoutRate: number;
+    activeContexts: number;
+    policies: number;
+  } {
     return {
       totalExecutions: this.totalExecutions,
       totalTimeouts: this.totalTimeouts,

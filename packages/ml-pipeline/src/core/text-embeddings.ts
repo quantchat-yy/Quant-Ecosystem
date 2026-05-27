@@ -23,7 +23,7 @@ export class TextEmbeddingEngine {
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, ' ')
       .split(/\s+/)
-      .filter(t => t.length > 0);
+      .filter((t) => t.length > 0);
   }
 
   buildVocabulary(documents: string[]): void {
@@ -56,49 +56,54 @@ export class TextEmbeddingEngine {
     this.buildVocabulary(documents);
     // Initialize random vectors
     for (const [word] of this.vocabulary.entries()) {
-      const vec = new Array(this.embeddingDim).fill(0).map(() => (Math.random() - 0.5) / this.embeddingDim);
+      const vec = new Array(this.embeddingDim)
+        .fill(0)
+        .map(() => (Math.random() - 0.5) / this.embeddingDim);
       this.wordVectors.set(word, vec);
     }
     // Context vectors for negative sampling
     const contextVectors: Map<string, number[]> = new Map();
     for (const [word] of this.vocabulary.entries()) {
-      contextVectors.set(word, new Array(this.embeddingDim).fill(0).map(() => (Math.random() - 0.5) / this.embeddingDim));
+      contextVectors.set(
+        word,
+        new Array(this.embeddingDim).fill(0).map(() => (Math.random() - 0.5) / this.embeddingDim),
+      );
     }
     const vocabWords = Array.from(this.vocabulary.keys());
     const numNegSamples = 5;
     for (let epoch = 0; epoch < epochs; epoch++) {
       const lr = learningRate * (1 - epoch / epochs);
       for (const doc of documents) {
-        const tokens = this.tokenize(doc).filter(t => this.vocabulary.has(t));
+        const tokens = this.tokenize(doc).filter((t) => this.vocabulary.has(t));
         for (let i = 0; i < tokens.length; i++) {
-          const centerWord = tokens[i];
+          const centerWord = tokens[i]!;
           const centerVec = this.wordVectors.get(centerWord)!;
           // Positive pairs within window
           const windowStart = Math.max(0, i - this.windowSize);
           const windowEnd = Math.min(tokens.length - 1, i + this.windowSize);
           for (let j = windowStart; j <= windowEnd; j++) {
             if (j === i) continue;
-            const contextWord = tokens[j];
+            const contextWord = tokens[j]!;
             const ctxVec = contextVectors.get(contextWord)!;
             // Positive sample: sigmoid(dot product) should be 1
             const dot = this.dotProduct(centerVec, ctxVec);
             const sigmoid = 1 / (1 + Math.exp(-Math.max(-10, Math.min(10, dot))));
             const gradPos = (1 - sigmoid) * lr;
             for (let d = 0; d < this.embeddingDim; d++) {
-              centerVec[d] += gradPos * ctxVec[d];
-              ctxVec[d] += gradPos * centerVec[d];
+              centerVec[d]! += gradPos * ctxVec[d]!;
+              ctxVec[d]! += gradPos * centerVec[d]!;
             }
             // Negative samples
             for (let n = 0; n < numNegSamples; n++) {
-              const negWord = vocabWords[Math.floor(Math.random() * vocabWords.length)];
+              const negWord = vocabWords[Math.floor(Math.random() * vocabWords.length)]!;
               if (negWord === contextWord) continue;
               const negVec = contextVectors.get(negWord)!;
               const negDot = this.dotProduct(centerVec, negVec);
               const negSigmoid = 1 / (1 + Math.exp(-Math.max(-10, Math.min(10, negDot))));
               const gradNeg = -negSigmoid * lr;
               for (let d = 0; d < this.embeddingDim; d++) {
-                centerVec[d] += gradNeg * negVec[d];
-                negVec[d] += gradNeg * centerVec[d];
+                centerVec[d]! += gradNeg * negVec[d]!;
+                negVec[d]! += gradNeg * centerVec[d]!;
               }
             }
           }
@@ -110,7 +115,7 @@ export class TextEmbeddingEngine {
   private dotProduct(a: number[], b: number[]): number {
     let sum = 0;
     for (let i = 0; i < a.length; i++) {
-      sum += a[i] * b[i];
+      sum += a[i]! * b[i]!;
     }
     return sum;
   }
@@ -167,14 +172,14 @@ export class TextEmbeddingEngine {
       const wordVec = this.wordVectors.get(term);
       if (wordVec) {
         for (let i = 0; i < this.embeddingDim; i++) {
-          vector[i] += wordVec[i] * weight;
+          vector[i]! += wordVec[i]! * weight;
         }
         totalWeight += weight;
       }
     }
     if (totalWeight > 0) {
       for (let i = 0; i < this.embeddingDim; i++) {
-        vector[i] /= totalWeight;
+        vector[i]! /= totalWeight;
       }
     }
     return vector;
@@ -188,11 +193,13 @@ export class TextEmbeddingEngine {
   }
 
   private cosineSimilarity(a: number[], b: number[]): number {
-    let dot = 0, normA = 0, normB = 0;
+    let dot = 0,
+      normA = 0,
+      normB = 0;
     for (let i = 0; i < a.length; i++) {
-      dot += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
+      dot += a[i]! * b[i]!;
+      normA += a[i]! * a[i]!;
+      normB += b[i]! * b[i]!;
     }
     const denom = Math.sqrt(normA) * Math.sqrt(normB);
     if (denom === 0) return 0;

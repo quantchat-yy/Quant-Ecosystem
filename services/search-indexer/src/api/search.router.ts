@@ -99,10 +99,13 @@ export class SearchRouter {
     const scopes = validated.scopes ?? [...ALL_SCOPES];
     const searchPromises = scopes.map((scope) => {
       const mapping = SCOPE_INDEX_MAP[scope];
+      if (!mapping) return Promise.resolve([]);
       return this.hybridSearch.hybridSearch(validated.query, embedding, {
         index: mapping.index,
         collection: mapping.collection,
         limit: 50,
+        bm25Weight: 0.5,
+        vectorWeight: 0.5,
       });
     });
 

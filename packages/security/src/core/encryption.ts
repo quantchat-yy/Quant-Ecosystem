@@ -86,7 +86,7 @@ export class EncryptionService {
       encryptedData.ciphertext,
       keyEntry.key,
       encryptedData.iv,
-      associatedData
+      associatedData,
     );
 
     if (!this.timingSafeEqual(expectedTag, encryptedData.tag)) {
@@ -153,7 +153,10 @@ export class EncryptionService {
   }
 
   /** Envelope encryption - encrypt data key with RSA, then encrypt data with data key */
-  async envelopeEncrypt(plaintext: string, keyPairId: string): Promise<{
+  async envelopeEncrypt(
+    plaintext: string,
+    keyPairId: string,
+  ): Promise<{
     encryptedData: EncryptedData;
     encryptedDataKey: string;
   }> {
@@ -205,13 +208,13 @@ export class EncryptionService {
   /** Check if key rotation is needed and rotate if so */
   private async checkKeyRotation(now: number): Promise<void> {
     const currentKey = this.keyStore.get(this.currentKeyId);
-    if (currentKey && (now - currentKey.createdAt) > this.config.keyRotationInterval) {
+    if (currentKey && now - currentKey.createdAt > this.config.keyRotationInterval) {
       await this.rotateKeys();
     }
   }
 
   /** AES-256-GCM encryption simulation */
-  private aes256GCMEncrypt(plaintext: string, key: string, iv: string, aad?: string): string {
+  private aes256GCMEncrypt(plaintext: string, key: string, iv: string, _aad?: string): string {
     // Simulate AES-256-GCM: XOR plaintext with keystream derived from key+IV
     const keystream = this.generateKeystream(key, iv, plaintext.length);
     let ciphertext = '';
@@ -275,8 +278,14 @@ export class EncryptionService {
 
   /** HMAC hash function */
   private hmacHash(message: string, key: string): string {
-    const ipad = key.split('').map((c, i) => String.fromCharCode(c.charCodeAt(0) ^ 0x36)).join('');
-    const opad = key.split('').map((c, i) => String.fromCharCode(c.charCodeAt(0) ^ 0x5c)).join('');
+    const ipad = key
+      .split('')
+      .map((c, _i) => String.fromCharCode(c.charCodeAt(0) ^ 0x36))
+      .join('');
+    const opad = key
+      .split('')
+      .map((c, _i) => String.fromCharCode(c.charCodeAt(0) ^ 0x5c))
+      .join('');
     const inner = this.fnvHash(ipad + message);
     return this.fnvHash(opad + inner);
   }
@@ -305,7 +314,7 @@ export class EncryptionService {
   }
 
   /** Generate a large pseudo-prime for RSA simulation */
-  private generateLargePrime(bits: number): number {
+  private generateLargePrime(_bits: number): number {
     // For simulation, generate a prime-like number
     const base = Math.floor(Math.random() * 10000) + 10000;
     // Find next prime after base
@@ -380,7 +389,12 @@ export class EncryptionService {
   }
 
   /** Get encryption service statistics */
-  getStats(): { totalEncryptions: number; totalDecryptions: number; activeKeys: number; keyPairs: number } {
+  getStats(): {
+    totalEncryptions: number;
+    totalDecryptions: number;
+    activeKeys: number;
+    keyPairs: number;
+  } {
     return {
       totalEncryptions: this.encryptionCount,
       totalDecryptions: this.decryptionCount,

@@ -28,9 +28,13 @@ export class PerformanceProfiler {
   private functionProfiles: Map<string, FunctionProfile> = new Map();
   private callStack: string[] = [];
   private budgets: Map<string, PerformanceBudget> = new Map();
-  private budgetViolations: Array<{ functionName: string; duration: number; budget: number; timestamp: number }> = [];
+  private budgetViolations: Array<{
+    functionName: string;
+    duration: number;
+    budget: number;
+    timestamp: number;
+  }> = [];
   private eventLoopSamples: number[] = [];
-  private memoryLeakBaseline: number = 0;
   private allocationTracking: Map<string, number> = new Map();
   private asyncOperations: Map<string, { startTime: number; operation: string }> = new Map();
 
@@ -126,7 +130,7 @@ export class PerformanceProfiler {
 
   // Update function profile statistics
   private updateFunctionProfile(name: string, duration: number): void {
-    const parent = this.callStack.length > 1 ? this.callStack[this.callStack.length - 2] : null;
+    const parent = this.callStack.length > 1 ? this.callStack[this.callStack.length - 2]! : null;
 
     if (!this.functionProfiles.has(name)) {
       this.functionProfiles.set(name, {
@@ -183,7 +187,12 @@ export class PerformanceProfiler {
   }
 
   // Get budget violations
-  getBudgetViolations(): Array<{ functionName: string; duration: number; budget: number; timestamp: number }> {
+  getBudgetViolations(): Array<{
+    functionName: string;
+    duration: number;
+    budget: number;
+    timestamp: number;
+  }> {
     return [...this.budgetViolations];
   }
 
@@ -219,7 +228,7 @@ export class PerformanceProfiler {
   measureEventLoopLag(): Promise<number> {
     const expectedDelay = 1;
     const start = Date.now();
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       setTimeout(() => {
         const actual = Date.now() - start;
         const lag = actual - expectedDelay;
@@ -243,9 +252,9 @@ export class PerformanceProfiler {
 
     return {
       avg: sum / sorted.length,
-      p50: sorted[Math.ceil(sorted.length * 0.5) - 1],
-      p99: sorted[Math.ceil(sorted.length * 0.99) - 1],
-      max: sorted[sorted.length - 1],
+      p50: sorted[Math.ceil(sorted.length * 0.5) - 1]!,
+      p99: sorted[Math.ceil(sorted.length * 0.99) - 1]!,
+      max: sorted[sorted.length - 1]!,
       samples: sorted.length,
     };
   }
@@ -342,7 +351,7 @@ export class PerformanceProfiler {
 
   // Convert call tree to flame graph format
   private convertToFlameGraph(nodes: CallTreeNode[], depth: number): FlameGraphEntry[] {
-    return nodes.map(node => ({
+    return nodes.map((node) => ({
       name: node.functionName,
       value: node.totalTime,
       children: this.convertToFlameGraph(node.children, depth + 1),
@@ -351,11 +360,16 @@ export class PerformanceProfiler {
   }
 
   // Insert a path into flame graph
-  private insertFlameGraphPath(roots: FlameGraphEntry[], frames: string[], duration: number, depth: number): void {
+  private insertFlameGraphPath(
+    roots: FlameGraphEntry[],
+    frames: string[],
+    duration: number,
+    depth: number,
+  ): void {
     if (frames.length === 0) return;
 
-    const name = frames[0];
-    let existing = roots.find(r => r.name === name);
+    const name = frames[0]!;
+    let existing = roots.find((r) => r.name === name);
 
     if (!existing) {
       existing = { name, value: 0, children: [], depth };
@@ -376,8 +390,8 @@ export class PerformanceProfiler {
     }
 
     const snapshots = session.memorySnapshots;
-    const first = snapshots[0];
-    const last = snapshots[snapshots.length - 1];
+    const first = snapshots[0]!;
+    const last = snapshots[snapshots.length - 1]!;
     const timeDelta = (last.timestamp - first.timestamp) / 1000;
 
     if (timeDelta === 0) return { leaking: false, growthRate: 0, snapshots };
@@ -397,7 +411,7 @@ export class PerformanceProfiler {
 
     let increasingCount = 0;
     for (let i = 1; i < snapshots.length; i++) {
-      if (snapshots[i].heapUsed > snapshots[i - 1].heapUsed) {
+      if (snapshots[i]!.heapUsed > snapshots[i - 1]!.heapUsed) {
         increasingCount++;
       }
     }
@@ -460,8 +474,10 @@ export class PerformanceProfiler {
 
   // Get stats
   getStats(): { sessions: number; functions: number; samples: number; budgetViolations: number } {
-    const totalSamples = Array.from(this.sessions.values())
-      .reduce((sum, s) => sum + s.samples.length, 0);
+    const totalSamples = Array.from(this.sessions.values()).reduce(
+      (sum, s) => sum + s.samples.length,
+      0,
+    );
     return {
       sessions: this.sessions.size,
       functions: this.functionProfiles.size,

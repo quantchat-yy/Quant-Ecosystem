@@ -2,13 +2,7 @@
 // Retry Handler - Intelligent Retry with Backoff and Jitter
 // ============================================================================
 
-import {
-  RetryConfig,
-  RetryMetrics,
-  RetryResult,
-  BackoffStrategy,
-  JitterType,
-} from '../types';
+import { RetryConfig, RetryMetrics, RetryResult } from '../types';
 
 type RetryPredicate = (error: Error) => boolean;
 type OnRetryCallback = (error: Error, attempt: number, delay: number) => void;
@@ -164,7 +158,7 @@ export class RetryHandler {
   }
 
   // Apply jitter to delay
-  private applyJitter(delay: number, attempt: number): number {
+  private applyJitter(delay: number, _attempt: number): number {
     switch (this.config.jitterType) {
       case 'full':
         // Full jitter: random(0, calculatedDelay)
@@ -189,7 +183,7 @@ export class RetryHandler {
   private isNonRetryable(error: Error): boolean {
     if (this.config.nonRetryableErrors.length === 0) return false;
     return this.config.nonRetryableErrors.some(
-      errType => error.name === errType || error.message.includes(errType)
+      (errType) => error.name === errType || error.message.includes(errType),
     );
   }
 
@@ -197,7 +191,7 @@ export class RetryHandler {
   private isRetryable(error: Error): boolean {
     if (this.config.retryableErrors.length === 0) return true;
     return this.config.retryableErrors.some(
-      errType => error.name === errType || error.message.includes(errType)
+      (errType) => error.name === errType || error.message.includes(errType),
     );
   }
 
@@ -212,7 +206,7 @@ export class RetryHandler {
 
   // Sleep utility
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   // Set custom retry predicate

@@ -140,4 +140,45 @@ describe('ActionItemsService', () => {
       expect(prompt).toContain('Task C');
     });
   });
+
+  describe('getActionItems', () => {
+    it('returns empty array when no items extracted for room', () => {
+      const items = service.getActionItems('room-nonexistent');
+      expect(items).toEqual([]);
+    });
+
+    it('returns items after extractFromRoomId', async () => {
+      const segments = [makeSegment({ text: 'Do something' })];
+      const mockTranscriptService = createMockTranscriptService(segments);
+      mockAI.generateText.mockResolvedValue('Task 1\nTask 2');
+
+      await service.extractFromRoomId('room-1', mockTranscriptService as never);
+
+      const items = service.getActionItems('room-1');
+      expect(items).toHaveLength(2);
+      expect(items[0]!.title).toBe('Task 1');
+    });
+  });
+
+  describe('completeActionItem', () => {
+    it('marks an action item as completed', async () => {
+      const segments = [makeSegment({ text: 'Fix the bug' })];
+      const mockTranscriptService = createMockTranscriptService(segments);
+      mockAI.generateText.mockResolvedValue('Fix the bug');
+
+      const items = await service.extractFromRoomId('room-1', mockTranscriptService as never);
+      const itemId = items[0]!.id;
+
+      const completed = service.completeActionItem(itemId, 'user-1');
+
+      expect(completed.status).toBe('completed');
+      expect(completed.id).toBe(itemId);
+    });
+
+    it('throws ACTION_ITEM_NOT_FOUND for unknown id', () => {
+      expect(() => service.completeActionItem('unknown-id', 'user-1')).toThrow(
+        'Action item not found',
+      );
+    });
+  });
 });

@@ -6,18 +6,11 @@ import {
   Counter,
   Gauge,
   Histogram,
-  HistogramBucket,
   Summary,
   SummaryQuantile,
   MetricLabels,
-  MetricExport,
   TimerResult,
 } from '../types';
-
-interface MetricKey {
-  name: string;
-  labelsKey: string;
-}
 
 interface RateWindow {
   timestamp: number;
@@ -28,17 +21,28 @@ export class MetricsCollector {
   private counters: Map<string, Counter> = new Map();
   private gauges: Map<string, Gauge> = new Map();
   private histograms: Map<string, Histogram> = new Map();
-  private summaries: Map<string, { values: number[]; config: { name: string; labels: MetricLabels; window: number; quantiles: number[] } }> = new Map();
+  private summaries: Map<
+    string,
+    {
+      values: number[];
+      config: { name: string; labels: MetricLabels; window: number; quantiles: number[] };
+    }
+  > = new Map();
   private timers: Map<string, { startTime: number; histogram: string }> = new Map();
   private rateWindows: Map<string, RateWindow[]> = new Map();
-  private defaultBuckets: number[] = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 25, 50, 100];
+  private defaultBuckets: number[] = [
+    0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 25, 50, 100,
+  ];
   private metricDescriptions: Map<string, string> = new Map();
 
   constructor() {}
 
   // Generate unique key for metric + labels combination
   private makeKey(name: string, labels: MetricLabels): string {
-    const sortedLabels = Object.keys(labels).sort().map(k => `${k}="${labels[k]}"`).join(',');
+    const sortedLabels = Object.keys(labels)
+      .sort()
+      .map((k) => `${k}="${labels[k]}"`)
+      .join(',');
     return `${name}{${sortedLabels}}`;
   }
 
@@ -142,13 +146,18 @@ export class MetricsCollector {
   // --- Histogram Operations ---
 
   // Create histogram with configurable buckets
-  createHistogram(name: string, description?: string, buckets?: number[], labels: MetricLabels = {}): Histogram {
+  createHistogram(
+    name: string,
+    description?: string,
+    buckets?: number[],
+    labels: MetricLabels = {},
+  ): Histogram {
     const key = this.makeKey(name, labels);
     if (!this.histograms.has(key)) {
       const sortedBuckets = (buckets || this.defaultBuckets).sort((a, b) => a - b);
       const histogram: Histogram = {
         name,
-        buckets: sortedBuckets.map(bound => ({ upperBound: bound, count: 0 })),
+        buckets: sortedBuckets.map((bound) => ({ upperBound: bound, count: 0 })),
         count: 0,
         sum: 0,
         labels,
@@ -216,7 +225,20 @@ export class MetricsCollector {
   }
 
   // Get histogram statistics
-  getHistogramStats(name: string, labels: MetricLabels = {}): { count: number; sum: number; avg: number; min: number; max: number; p50: number; p90: number; p95: number; p99: number } {
+  getHistogramStats(
+    name: string,
+    labels: MetricLabels = {},
+  ): {
+    count: number;
+    sum: number;
+    avg: number;
+    min: number;
+    max: number;
+    p50: number;
+    p90: number;
+    p95: number;
+    p99: number;
+  } {
     const key = this.makeKey(name, labels);
     const histogram = this.histograms.get(key);
     if (!histogram || histogram.count === 0) {
@@ -239,7 +261,13 @@ export class MetricsCollector {
   // --- Summary Operations (CKMS-inspired quantile tracking) ---
 
   // Create summary with configurable quantiles
-  createSummary(name: string, description?: string, quantiles?: number[], windowMs?: number, labels: MetricLabels = {}): void {
+  createSummary(
+    name: string,
+    description?: string,
+    quantiles?: number[],
+    windowMs?: number,
+    labels: MetricLabels = {},
+  ): void {
     const key = this.makeKey(name, labels);
     if (!this.summaries.has(key)) {
       this.summaries.set(key, {
@@ -292,11 +320,11 @@ export class MetricsCollector {
     const count = sorted.length;
     const sum = sorted.reduce((a, b) => a + b, 0);
 
-    const quantiles: SummaryQuantile[] = summary.config.quantiles.map(q => {
+    const quantiles: SummaryQuantile[] = summary.config.quantiles.map((q) => {
       const index = Math.ceil(q * count) - 1;
       return {
         quantile: q,
-        value: sorted[Math.max(0, Math.min(index, count - 1))],
+        value: sorted[Math.max(0, Math.min(index, count - 1))]!,
       };
     });
 
@@ -351,7 +379,7 @@ export class MetricsCollector {
 
     // Keep last 5 minutes of data
     const cutoff = Date.now() - 300000;
-    while (window.length > 0 && window[0].timestamp < cutoff) {
+    while (window.length > 0 && window[0]!.timestamp < cutoff) {
       window.shift();
     }
   }
@@ -364,11 +392,11 @@ export class MetricsCollector {
 
     const now = Date.now();
     const cutoff = now - windowMs;
-    const relevantPoints = window.filter(p => p.timestamp >= cutoff);
+    const relevantPoints = window.filter((p) => p.timestamp >= cutoff);
     if (relevantPoints.length < 2) return 0;
 
-    const first = relevantPoints[0];
-    const last = relevantPoints[relevantPoints.length - 1];
+    const first = relevantPoints[0]!;
+    const last = relevantPoints[relevantPoints.length - 1]!;
     const timeDelta = (last.timestamp - first.timestamp) / 1000;
     if (timeDelta === 0) return 0;
 
@@ -419,7 +447,9 @@ export class MetricsCollector {
       const labelsStr = this.formatLabels(hist.labels);
       for (const bucket of hist.buckets) {
         const le = bucket.upperBound === Infinity ? '+Inf' : bucket.upperBound.toString();
-        lines.push(`${hist.name}_bucket{le="${le}"${labelsStr ? ',' + labelsStr.slice(1, -1) : ''}} ${bucket.count}`);
+        lines.push(
+          `${hist.name}_bucket{le="${le}"${labelsStr ? ',' + labelsStr.slice(1, -1) : ''}} ${bucket.count}`,
+        );
       }
       lines.push(`${hist.name}_sum${labelsStr} ${hist.sum}`);
       lines.push(`${hist.name}_count${labelsStr} ${hist.count}`);
@@ -434,7 +464,9 @@ export class MetricsCollector {
         lines.push(`# TYPE ${summary.config.name} summary`);
         const labelsStr = this.formatLabels(summary.config.labels);
         for (const q of quantileData.quantiles) {
-          lines.push(`${summary.config.name}{quantile="${q.quantile}"${labelsStr ? ',' + labelsStr.slice(1, -1) : ''}} ${q.value}`);
+          lines.push(
+            `${summary.config.name}{quantile="${q.quantile}"${labelsStr ? ',' + labelsStr.slice(1, -1) : ''}} ${q.value}`,
+          );
         }
         lines.push(`${summary.config.name}_sum${labelsStr} ${quantileData.sum}`);
         lines.push(`${summary.config.name}_count${labelsStr} ${quantileData.count}`);
@@ -508,7 +540,13 @@ export class MetricsCollector {
   }
 
   // Get stats
-  getStats(): { counters: number; gauges: number; histograms: number; summaries: number; activeTimers: number } {
+  getStats(): {
+    counters: number;
+    gauges: number;
+    histograms: number;
+    summaries: number;
+    activeTimers: number;
+  } {
     return {
       counters: this.counters.size,
       gauges: this.gauges.size,

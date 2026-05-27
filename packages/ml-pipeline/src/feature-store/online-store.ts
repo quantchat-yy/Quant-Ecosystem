@@ -93,7 +93,7 @@ export class OnlineFeatureStore {
       const raw = results[i];
       if (raw) {
         const record: FeatureRecord = JSON.parse(raw);
-        featureMap.set(entityIds[i], record.features);
+        featureMap.set(entityIds[i]!, record.features);
       }
     }
 

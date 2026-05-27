@@ -6,11 +6,12 @@
   "types": "src/index.ts",
   "scripts": {
     "build": "prisma generate --schema=prisma/schema.prisma || echo 'Prisma generate failed - engine binaries may not be available'",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "prisma generate --schema=prisma/schema.prisma && tsc --noEmit",
     "test": "vitest run",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx src/seed.ts"
+    "db:seed": "tsx src/seed.ts",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@prisma/client": "^6.19.3"

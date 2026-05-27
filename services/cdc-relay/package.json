@@ -8,11 +8,13 @@
     "start": "node --loader ts-node/esm src/index.ts",
     "dev": "node --loader ts-node/esm --watch src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint ."
   },
   "dependencies": {
     "kafkajs": "^2.2.4",
     "@prisma/client": "^6.19.3",
+    "@quant/health-server": "workspace:*",
     "@quant/common": "workspace:*",
     "zod": "^3.24.2",
     "pino": "^9.6.0"

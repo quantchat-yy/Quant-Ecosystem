@@ -14,7 +14,11 @@ interface Post {
   isVerified: boolean;
   content: string;
   media: { type: 'image' | 'video' | 'gif'; url: string; thumbnail?: string }[];
-  poll?: { options: { id: string; text: string; votes: number }[]; totalVotes: number; endsAt: string };
+  poll?: {
+    options: { id: string; text: string; votes: number }[];
+    totalVotes: number;
+    endsAt: string;
+  };
   likes: number;
   reposts: number;
   replies: number;
@@ -26,18 +30,6 @@ interface Post {
   threadId?: string;
   communityId?: string;
   communityName?: string;
-}
-
-interface FeedState {
-  posts: Post[];
-  mode: 'algorithm' | 'chronological';
-  loading: boolean;
-  loadingMore: boolean;
-  cursor: string | null;
-  hasMore: boolean;
-  error: string | null;
-  newPostsCount: number;
-  wsConnected: boolean;
 }
 
 const FeedPage: React.FC = () => {
@@ -68,7 +60,7 @@ const FeedPage: React.FC = () => {
       if (!response.ok) throw new Error('Failed to load feed');
       const data = await response.json();
       if (pageCursor) {
-        setPosts(prev => [...prev, ...data.posts]);
+        setPosts((prev) => [...prev, ...data.posts]);
       } else {
         setPosts(data.posts);
       }
@@ -95,14 +87,16 @@ const FeedPage: React.FC = () => {
       try {
         const msg = JSON.parse(event.data);
         if (msg.type === 'new_post') {
-          setNewPostsCount(prev => prev + 1);
+          setNewPostsCount((prev) => prev + 1);
         } else if (msg.type === 'post_updated') {
-          setPosts(prev => prev.map(p => p.id === msg.post.id ? { ...p, ...msg.post } : p));
+          setPosts((prev) => prev.map((p) => (p.id === msg.post.id ? { ...p, ...msg.post } : p)));
         }
       } catch {}
     };
     wsRef.current = ws;
-    return () => { ws.close(); };
+    return () => {
+      ws.close();
+    };
   }, []);
 
   const handleInfiniteScroll = useCallback(() => {
@@ -117,11 +111,13 @@ const FeedPage: React.FC = () => {
           handleInfiniteScroll();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
     observerRef.current = observer;
     if (bottomRef.current) observer.observe(bottomRef.current);
-    return () => { observer.disconnect(); };
+    return () => {
+      observer.disconnect();
+    };
   }, [handleInfiniteScroll]);
 
   const handleModeSwitch = useCallback((newMode: 'algorithm' | 'chronological') => {
@@ -145,32 +141,46 @@ const FeedPage: React.FC = () => {
   }, [mode, fetchFeed]);
 
   const handleLike = useCallback(async (postId: string) => {
-    setPosts(prev => prev.map(p => {
-      if (p.id === postId) {
-        return { ...p, isLiked: !p.isLiked, likes: p.isLiked ? p.likes - 1 : p.likes + 1 };
-      }
-      return p;
-    }));
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (p.id === postId) {
+          return { ...p, isLiked: !p.isLiked, likes: p.isLiked ? p.likes - 1 : p.likes + 1 };
+        }
+        return p;
+      }),
+    );
     await fetch(`/api/posts/${postId}/like`, { method: 'POST' });
   }, []);
 
   const handleRepost = useCallback(async (postId: string) => {
-    setPosts(prev => prev.map(p => {
-      if (p.id === postId) {
-        return { ...p, isReposted: !p.isReposted, reposts: p.isReposted ? p.reposts - 1 : p.reposts + 1 };
-      }
-      return p;
-    }));
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (p.id === postId) {
+          return {
+            ...p,
+            isReposted: !p.isReposted,
+            reposts: p.isReposted ? p.reposts - 1 : p.reposts + 1,
+          };
+        }
+        return p;
+      }),
+    );
     await fetch(`/api/posts/${postId}/repost`, { method: 'POST' });
   }, []);
 
   const handleBookmark = useCallback(async (postId: string) => {
-    setPosts(prev => prev.map(p => {
-      if (p.id === postId) {
-        return { ...p, isBookmarked: !p.isBookmarked, bookmarks: p.isBookmarked ? p.bookmarks - 1 : p.bookmarks + 1 };
-      }
-      return p;
-    }));
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (p.id === postId) {
+          return {
+            ...p,
+            isBookmarked: !p.isBookmarked,
+            bookmarks: p.isBookmarked ? p.bookmarks - 1 : p.bookmarks + 1,
+          };
+        }
+        return p;
+      }),
+    );
     await fetch(`/api/posts/${postId}/bookmark`, { method: 'POST' });
   }, []);
 
@@ -199,7 +209,10 @@ const FeedPage: React.FC = () => {
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <div className="text-red-500 text-xl mb-4">Something went wrong</div>
         <p className="text-gray-600 mb-4">{error}</p>
-        <button onClick={() => fetchFeed(mode)} className="px-6 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600">
+        <button
+          onClick={() => fetchFeed(mode)}
+          className="px-6 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600"
+        >
           Try Again
         </button>
       </div>
@@ -219,7 +232,9 @@ const FeedPage: React.FC = () => {
           <button
             onClick={() => handleModeSwitch('algorithm')}
             className={`flex-1 py-3 text-center font-medium transition-colors ${
-              mode === 'algorithm' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500 hover:bg-gray-50'
+              mode === 'algorithm'
+                ? 'border-b-2 border-blue-500 text-blue-500'
+                : 'text-gray-500 hover:bg-gray-50'
             }`}
           >
             For You
@@ -227,7 +242,9 @@ const FeedPage: React.FC = () => {
           <button
             onClick={() => handleModeSwitch('chronological')}
             className={`flex-1 py-3 text-center font-medium transition-colors ${
-              mode === 'chronological' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500 hover:bg-gray-50'
+              mode === 'chronological'
+                ? 'border-b-2 border-blue-500 text-blue-500'
+                : 'text-gray-500 hover:bg-gray-50'
             }`}
           >
             Following
@@ -254,35 +271,60 @@ const FeedPage: React.FC = () => {
         <div className="flex flex-col items-center justify-center py-16 px-4">
           <div className="text-6xl mb-4">📭</div>
           <h3 className="text-xl font-semibold text-gray-700 mb-2">No posts yet</h3>
-          <p className="text-gray-500 text-center">Follow some people or join communities to see posts here.</p>
+          <p className="text-gray-500 text-center">
+            Follow some people or join communities to see posts here.
+          </p>
         </div>
       )}
 
       <div className="divide-y">
-        {posts.map(post => (
-          <article key={post.id} className="px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer">
+        {posts.map((post) => (
+          <article
+            key={post.id}
+            className="px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer"
+          >
             <div className="flex gap-3">
-              <img src={post.authorAvatar} alt={post.authorName} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
+              <img
+                src={post.authorAvatar}
+                alt={post.authorName}
+                className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1 mb-0.5">
                   <span className="font-bold text-gray-900 truncate">{post.authorName}</span>
-                  {post.isVerified && <span className="text-blue-500" title="Verified">✓</span>}
+                  {post.isVerified && (
+                    <span className="text-blue-500" title="Verified">
+                      ✓
+                    </span>
+                  )}
                   <span className="text-gray-500 truncate">@{post.authorHandle}</span>
                   <span className="text-gray-400 mx-1">·</span>
-                  <span className="text-gray-500 text-sm flex-shrink-0">{formatTime(post.createdAt)}</span>
+                  <span className="text-gray-500 text-sm flex-shrink-0">
+                    {formatTime(post.createdAt)}
+                  </span>
                 </div>
                 {post.communityName && (
                   <div className="text-xs text-purple-600 mb-1">in {post.communityName}</div>
                 )}
                 <p className="text-gray-900 whitespace-pre-wrap break-words mb-2">{post.content}</p>
                 {post.media.length > 0 && (
-                  <div className={`grid gap-1 mb-2 rounded-xl overflow-hidden ${
-                    post.media.length === 1 ? 'grid-cols-1' : post.media.length === 2 ? 'grid-cols-2' : 'grid-cols-2'
-                  }`}>
+                  <div
+                    className={`grid gap-1 mb-2 rounded-xl overflow-hidden ${
+                      post.media.length === 1
+                        ? 'grid-cols-1'
+                        : post.media.length === 2
+                          ? 'grid-cols-2'
+                          : 'grid-cols-2'
+                    }`}
+                  >
                     {post.media.map((m, idx) => (
                       <div key={idx} className="relative aspect-video bg-gray-100">
                         {m.type === 'video' ? (
-                          <video src={m.url} poster={m.thumbnail} className="w-full h-full object-cover" />
+                          <video
+                            src={m.url}
+                            poster={m.thumbnail}
+                            className="w-full h-full object-cover"
+                          />
                         ) : (
                           <img src={m.url} alt="" className="w-full h-full object-cover" />
                         )}
@@ -292,12 +334,18 @@ const FeedPage: React.FC = () => {
                 )}
                 {post.poll && (
                   <div className="border rounded-xl p-3 mb-2">
-                    {post.poll.options.map(opt => {
-                      const pct = post.poll!.totalVotes > 0 ? Math.round((opt.votes / post.poll!.totalVotes) * 100) : 0;
+                    {post.poll.options.map((opt) => {
+                      const pct =
+                        post.poll!.totalVotes > 0
+                          ? Math.round((opt.votes / post.poll!.totalVotes) * 100)
+                          : 0;
                       return (
                         <div key={opt.id} className="mb-2 last:mb-0">
                           <div className="relative h-8 bg-gray-100 rounded-full overflow-hidden">
-                            <div className="absolute inset-y-0 left-0 bg-blue-100 rounded-full" style={{ width: `${pct}%` }} />
+                            <div
+                              className="absolute inset-y-0 left-0 bg-blue-100 rounded-full"
+                              style={{ width: `${pct}%` }}
+                            />
                             <div className="absolute inset-0 flex items-center justify-between px-3">
                               <span className="text-sm font-medium">{opt.text}</span>
                               <span className="text-sm text-gray-600">{pct}%</span>
@@ -310,20 +358,36 @@ const FeedPage: React.FC = () => {
                   </div>
                 )}
                 <div className="flex items-center justify-between mt-2 max-w-md">
-                  <button onClick={() => {}} className="flex items-center gap-1 text-gray-500 hover:text-blue-500 group">
+                  <button
+                    onClick={() => {}}
+                    className="flex items-center gap-1 text-gray-500 hover:text-blue-500 group"
+                  >
                     <span className="p-2 rounded-full group-hover:bg-blue-50">💬</span>
                     <span className="text-sm">{post.replies > 0 ? post.replies : ''}</span>
                   </button>
-                  <button onClick={() => handleRepost(post.id)} className={`flex items-center gap-1 group ${post.isReposted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'}`}>
+                  <button
+                    onClick={() => handleRepost(post.id)}
+                    className={`flex items-center gap-1 group ${post.isReposted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'}`}
+                  >
                     <span className="p-2 rounded-full group-hover:bg-green-50">🔄</span>
                     <span className="text-sm">{post.reposts > 0 ? post.reposts : ''}</span>
                   </button>
-                  <button onClick={() => handleLike(post.id)} className={`flex items-center gap-1 group ${post.isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}>
-                    <span className="p-2 rounded-full group-hover:bg-red-50">{post.isLiked ? '❤️' : '🤍'}</span>
+                  <button
+                    onClick={() => handleLike(post.id)}
+                    className={`flex items-center gap-1 group ${post.isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
+                  >
+                    <span className="p-2 rounded-full group-hover:bg-red-50">
+                      {post.isLiked ? '❤️' : '🤍'}
+                    </span>
                     <span className="text-sm">{post.likes > 0 ? post.likes : ''}</span>
                   </button>
-                  <button onClick={() => handleBookmark(post.id)} className={`flex items-center gap-1 group ${post.isBookmarked ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'}`}>
-                    <span className="p-2 rounded-full group-hover:bg-blue-50">{post.isBookmarked ? '🔖' : '📑'}</span>
+                  <button
+                    onClick={() => handleBookmark(post.id)}
+                    className={`flex items-center gap-1 group ${post.isBookmarked ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'}`}
+                  >
+                    <span className="p-2 rounded-full group-hover:bg-blue-50">
+                      {post.isBookmarked ? '🔖' : '📑'}
+                    </span>
                   </button>
                   <button className="flex items-center gap-1 text-gray-500 hover:text-blue-500 group">
                     <span className="p-2 rounded-full group-hover:bg-blue-50">↗️</span>

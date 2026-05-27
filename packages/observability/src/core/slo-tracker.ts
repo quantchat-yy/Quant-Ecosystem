@@ -2,14 +2,7 @@
 // SLO Tracker - Service Level Objective Monitoring and Error Budgets
 // ============================================================================
 
-import {
-  SLODefinition,
-  SLOStatus,
-  SLOEvent,
-  SLOReport,
-  BurnRateAlert,
-  BurnRateThreshold,
-} from '../types';
+import { SLODefinition, SLOStatus, SLOEvent, SLOReport, BurnRateAlert } from '../types';
 
 interface SLOWindow {
   events: SLOEvent[];
@@ -43,7 +36,12 @@ export class SLOTracker {
   }
 
   // Record an event (success or failure)
-  recordEvent(sloName: string, success: boolean, latency?: number, metadata?: Record<string, string>): void {
+  recordEvent(
+    sloName: string,
+    success: boolean,
+    latency?: number,
+    metadata?: Record<string, string>,
+  ): void {
     const window = this.windows.get(sloName);
     if (!window) return;
 
@@ -60,7 +58,7 @@ export class SLOTracker {
     const slo = this.slos.get(sloName);
     if (slo) {
       const cutoff = Date.now() - slo.window;
-      window.events = window.events.filter(e => e.timestamp >= cutoff);
+      window.events = window.events.filter((e) => e.timestamp >= cutoff);
     }
 
     // Update status and check alerts
@@ -69,17 +67,23 @@ export class SLOTracker {
   }
 
   // Calculate error budget
-  calculateErrorBudget(sloName: string): { total: number; consumed: number; remaining: number; remainingPercentage: number } {
+  calculateErrorBudget(sloName: string): {
+    total: number;
+    consumed: number;
+    remaining: number;
+    remainingPercentage: number;
+  } {
     const slo = this.slos.get(sloName);
     const window = this.windows.get(sloName);
     if (!slo || !window) return { total: 0, consumed: 0, remaining: 0, remainingPercentage: 0 };
 
     const totalRequests = window.events.length;
-    if (totalRequests === 0) return { total: 0, consumed: 0, remaining: 0, remainingPercentage: 100 };
+    if (totalRequests === 0)
+      return { total: 0, consumed: 0, remaining: 0, remainingPercentage: 100 };
 
     // Error budget = (1 - target) * total_requests
     const allowedFailures = (1 - slo.target) * totalRequests;
-    const actualFailures = window.events.filter(e => !e.success).length;
+    const actualFailures = window.events.filter((e) => !e.success).length;
     const remaining = allowedFailures - actualFailures;
     const remainingPercentage = allowedFailures > 0 ? (remaining / allowedFailures) * 100 : 100;
 
@@ -101,10 +105,10 @@ export class SLOTracker {
     const lookbackWindow = windowMs || slo.window;
     const cutoff = now - lookbackWindow;
 
-    const relevantEvents = sloWindow.events.filter(e => e.timestamp >= cutoff);
+    const relevantEvents = sloWindow.events.filter((e) => e.timestamp >= cutoff);
     if (relevantEvents.length === 0) return 0;
 
-    const failures = relevantEvents.filter(e => !e.success).length;
+    const failures = relevantEvents.filter((e) => !e.success).length;
     const errorRate = failures / relevantEvents.length;
     const errorBudgetRate = 1 - slo.target; // Allowed error rate
 
@@ -133,7 +137,7 @@ export class SLOTracker {
     }
 
     const totalRequests = window.events.length;
-    const successes = window.events.filter(e => e.success).length;
+    const successes = window.events.filter((e) => e.success).length;
     const currentValue = totalRequests > 0 ? successes / totalRequests : 1;
 
     const sloStatus: SLOStatus = {
@@ -161,7 +165,8 @@ export class SLOTracker {
       const shortWindowBurnRate = this.calculateBurnRate(sloName, threshold.shortWindow);
 
       // Multi-window alert: both windows must exceed threshold
-      const triggered = longWindowBurnRate > threshold.burnRate && shortWindowBurnRate > threshold.burnRate;
+      const triggered =
+        longWindowBurnRate > threshold.burnRate && shortWindowBurnRate > threshold.burnRate;
 
       alerts.push({
         severity: threshold.severity,
@@ -206,7 +211,7 @@ export class SLOTracker {
   getTriggeredAlerts(): { sloName: string; alerts: BurnRateAlert[] }[] {
     const triggered: { sloName: string; alerts: BurnRateAlert[] }[] = [];
     for (const [name, alerts] of this.alerts) {
-      const activeAlerts = alerts.filter(a => a.triggered);
+      const activeAlerts = alerts.filter((a) => a.triggered);
       if (activeAlerts.length > 0) {
         triggered.push({ sloName: name, alerts: activeAlerts });
       }
@@ -253,9 +258,11 @@ export class SLOTracker {
 
     let recommendation: string;
     if (status.status === 'violated') {
-      recommendation = 'Error budget exhausted. Halt deployments and focus on reliability improvements.';
+      recommendation =
+        'Error budget exhausted. Halt deployments and focus on reliability improvements.';
     } else if (status.status === 'at_risk') {
-      recommendation = 'Error budget running low. Reduce deployment velocity and investigate error sources.';
+      recommendation =
+        'Error budget running low. Reduce deployment velocity and investigate error sources.';
     } else if (status.burnRate > 1) {
       recommendation = 'Burning error budget faster than sustainable. Monitor closely.';
     } else {
@@ -306,7 +313,7 @@ export class SLOTracker {
     if (!window) return { total: 0, successes: 0, failures: 0 };
 
     const total = window.events.length;
-    const successes = window.events.filter(e => e.success).length;
+    const successes = window.events.filter((e) => e.success).length;
     return { total, successes, failures: total - successes };
   }
 
@@ -349,7 +356,13 @@ export class SLOTracker {
   }
 
   // Get stats
-  getStats(): { totalSLOs: number; met: number; atRisk: number; violated: number; triggeredAlerts: number } {
+  getStats(): {
+    totalSLOs: number;
+    met: number;
+    atRisk: number;
+    violated: number;
+    triggeredAlerts: number;
+  } {
     let met = 0;
     let atRisk = 0;
     let violated = 0;
@@ -360,13 +373,19 @@ export class SLOTracker {
       const status = this.statusCache.get(name);
       if (status) {
         switch (status.status) {
-          case 'met': met++; break;
-          case 'at_risk': atRisk++; break;
-          case 'violated': violated++; break;
+          case 'met':
+            met++;
+            break;
+          case 'at_risk':
+            atRisk++;
+            break;
+          case 'violated':
+            violated++;
+            break;
         }
       }
       const alerts = this.alerts.get(name) || [];
-      triggeredAlerts += alerts.filter(a => a.triggered).length;
+      triggeredAlerts += alerts.filter((a) => a.triggered).length;
     }
 
     return {

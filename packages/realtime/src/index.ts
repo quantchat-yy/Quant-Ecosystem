@@ -71,3 +71,11 @@ export type { BackpressureConfig, BackpressureStats, BufferedSocket } from './ba
 // NATS Bridge
 export { NatsBridge } from './nats-bridge';
 export type { NatsBridgeConfig, NatsHandler } from './nats-bridge';
+
+// Event Schema Registry
+export { EventSchemaRegistry } from './event-schema-registry';
+export type {
+  ValidationResult,
+  ValidationSuccess,
+  ValidationFailure,
+} from './event-schema-registry';

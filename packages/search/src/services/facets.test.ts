@@ -71,7 +71,7 @@ describe('SearchFacetAggregator', () => {
       const typeFacet = facets.find((f) => f.name === 'type')!;
 
       for (let i = 1; i < typeFacet.buckets.length; i++) {
-        expect(typeFacet.buckets[i - 1].count).toBeGreaterThanOrEqual(typeFacet.buckets[i].count);
+        expect(typeFacet.buckets[i - 1]!.count).toBeGreaterThanOrEqual(typeFacet.buckets[i]!.count);
       }
     });
 
@@ -89,8 +89,8 @@ describe('SearchFacetAggregator', () => {
       const facets = aggregator.buildFacets([]);
 
       expect(facets).toHaveLength(3);
-      expect(facets[0].buckets).toHaveLength(0);
-      expect(facets[0].total).toBe(0);
+      expect(facets[0]!.buckets).toHaveLength(0);
+      expect(facets[0]!.total).toBe(0);
     });
 
     it('should handle results without dates or senders', () => {

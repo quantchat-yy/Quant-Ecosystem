@@ -2,13 +2,7 @@
 // ML Pipeline - AutoML Pipeline
 // ============================================================================
 
-import {
-  HyperParameter,
-  SearchSpace,
-  CrossValidationResult,
-  AutoMLConfig,
-  TrialResult,
-} from '../types';
+import { HyperParameter, CrossValidationResult, AutoMLConfig, TrialResult } from '../types';
 
 export class AutoMLPipeline {
   private config: AutoMLConfig;
@@ -22,9 +16,7 @@ export class AutoMLPipeline {
   }
 
   // Grid search: enumerate all parameter combinations
-  gridSearch(
-    evaluateFn: (params: Record<string, number | string>) => number
-  ): TrialResult[] {
+  gridSearch(evaluateFn: (params: Record<string, number | string>) => number): TrialResult[] {
     const combinations = this.generateGridCombinations(this.config.searchSpace.parameters);
     for (const params of combinations) {
       if (this.trialCounter >= this.config.searchSpace.maxTrials) break;
@@ -35,9 +27,7 @@ export class AutoMLPipeline {
   }
 
   // Random search: sample from parameter distributions
-  randomSearch(
-    evaluateFn: (params: Record<string, number | string>) => number
-  ): TrialResult[] {
+  randomSearch(evaluateFn: (params: Record<string, number | string>) => number): TrialResult[] {
     const maxTrials = this.config.searchSpace.maxTrials;
     for (let i = 0; i < maxTrials; i++) {
       const params = this.sampleRandomConfig(this.config.searchSpace.parameters);
@@ -49,7 +39,7 @@ export class AutoMLPipeline {
 
   private runTrial(
     params: Record<string, number | string>,
-    evaluateFn: (params: Record<string, number | string>) => number
+    evaluateFn: (params: Record<string, number | string>) => number,
   ): TrialResult | null {
     const trialId = this.trialCounter++;
     const startTime = Date.now();
@@ -92,9 +82,9 @@ export class AutoMLPipeline {
   private shouldTerminate(metric: number): boolean {
     if (this.trials.length < 5) return false;
     const completedMetrics = this.trials
-      .filter(t => t.status === 'completed')
-      .map(t => t.metric)
-      .sort((a, b) => this.config.maximize ? b - a : a - b);
+      .filter((t) => t.status === 'completed')
+      .map((t) => t.metric)
+      .sort((a, b) => (this.config.maximize ? b - a : a - b));
     const medianIdx = Math.floor(completedMetrics.length / 2);
     const median = completedMetrics[medianIdx] ?? 0;
     // Terminate if current metric is worse than median
@@ -113,8 +103,14 @@ export class AutoMLPipeline {
     features: number[][],
     labels: number[],
     params: Record<string, number | string>,
-    trainAndEvalFn: (trainX: number[][], trainY: number[], testX: number[][], testY: number[], params: Record<string, number | string>) => number,
-    k: number = 5
+    trainAndEvalFn: (
+      trainX: number[][],
+      trainY: number[],
+      testX: number[][],
+      testY: number[],
+      params: Record<string, number | string>,
+    ) => number,
+    k: number = 5,
   ): CrossValidationResult {
     const n = features.length;
     const foldSize = Math.floor(n / k);
@@ -125,10 +121,10 @@ export class AutoMLPipeline {
       const testEnd = fold === k - 1 ? n : testStart + foldSize;
       const testIdx = indices.slice(testStart, testEnd);
       const trainIdx = [...indices.slice(0, testStart), ...indices.slice(testEnd)];
-      const trainX = trainIdx.map(i => features[i]);
-      const trainY = trainIdx.map(i => labels[i]);
-      const testX = testIdx.map(i => features[i]);
-      const testY = testIdx.map(i => labels[i]);
+      const trainX = trainIdx.map((i) => features[i]!);
+      const trainY = trainIdx.map((i) => labels[i]!);
+      const testX = testIdx.map((i) => features[i]!);
+      const testY = testIdx.map((i) => labels[i]!);
       const score = trainAndEvalFn(trainX, trainY, testX, testY, params);
       scores.push(score);
     }
@@ -145,12 +141,18 @@ export class AutoMLPipeline {
     features: number[][],
     labels: number[],
     params: Record<string, number | string>,
-    trainAndEvalFn: (trainX: number[][], trainY: number[], testX: number[][], testY: number[], params: Record<string, number | string>) => number,
-    k: number = 5
+    trainAndEvalFn: (
+      trainX: number[][],
+      trainY: number[],
+      testX: number[][],
+      testY: number[],
+      params: Record<string, number | string>,
+    ) => number,
+    k: number = 5,
   ): CrossValidationResult {
     const classIndices: Map<number, number[]> = new Map();
     for (let i = 0; i < labels.length; i++) {
-      const cls = Math.round(labels[i]);
+      const cls = Math.round(labels[i]!);
       if (!classIndices.has(cls)) classIndices.set(cls, []);
       classIndices.get(cls)!.push(i);
     }
@@ -158,20 +160,20 @@ export class AutoMLPipeline {
     const folds: number[][] = Array.from({ length: k }, () => []);
     for (const [, indices] of classIndices.entries()) {
       for (let i = 0; i < indices.length; i++) {
-        folds[i % k].push(indices[i]);
+        folds[i % k]!.push(indices[i]!);
       }
     }
     const scores: number[] = [];
     for (let fold = 0; fold < k; fold++) {
-      const testIdx = folds[fold];
+      const testIdx = folds[fold]!;
       const trainIdx: number[] = [];
       for (let f = 0; f < k; f++) {
-        if (f !== fold) trainIdx.push(...folds[f]);
+        if (f !== fold) trainIdx.push(...folds[f]!);
       }
-      const trainX = trainIdx.map(i => features[i]);
-      const trainY = trainIdx.map(i => labels[i]);
-      const testX = testIdx.map(i => features[i]);
-      const testY = testIdx.map(i => labels[i]);
+      const trainX = trainIdx.map((i) => features[i]!);
+      const trainY = trainIdx.map((i) => labels[i]!);
+      const testX = testIdx.map((i) => features[i]!);
+      const testY = testIdx.map((i) => labels[i]!);
       const score = trainAndEvalFn(trainX, trainY, testX, testY, params);
       scores.push(score);
     }
@@ -184,7 +186,9 @@ export class AutoMLPipeline {
   }
 
   // Generate all grid combinations
-  private generateGridCombinations(parameters: HyperParameter[]): Record<string, number | string>[] {
+  private generateGridCombinations(
+    parameters: HyperParameter[],
+  ): Record<string, number | string>[] {
     if (parameters.length === 0) return [{}];
     const paramValues: { name: string; values: (number | string)[] }[] = [];
     for (const param of parameters) {
@@ -193,18 +197,19 @@ export class AutoMLPipeline {
         values.push(...param.choices);
       } else if (param.type === 'discrete' && param.range) {
         const step = param.step ?? 1;
-        for (let v = param.range[0]; v <= param.range[1]; v += step) {
+        for (let v = param.range[0]!; v <= param.range[1]!; v += step) {
           values.push(v);
         }
       } else if (param.type === 'continuous' && param.range) {
         // Discretize continuous into 5 points for grid search
         const steps = 5;
-        const [lo, hi] = param.range;
+        const lo = param.range[0]!;
+        const hi = param.range[1]!;
         for (let i = 0; i <= steps; i++) {
           if (param.logScale) {
-            values.push(Math.exp(Math.log(lo) + (Math.log(hi) - Math.log(lo)) * i / steps));
+            values.push(Math.exp(Math.log(lo) + ((Math.log(hi) - Math.log(lo)) * i) / steps));
           } else {
-            values.push(lo + (hi - lo) * i / steps);
+            values.push(lo + ((hi - lo) * i) / steps);
           }
         }
       }
@@ -229,17 +234,19 @@ export class AutoMLPipeline {
     const config: Record<string, number | string> = {};
     for (const param of parameters) {
       if (param.type === 'categorical' && param.choices) {
-        config[param.name] = param.choices[Math.floor(Math.random() * param.choices.length)];
+        config[param.name] = param.choices[Math.floor(Math.random() * param.choices.length)]!;
       } else if (param.range) {
         const [lo, hi] = param.range;
         if (param.logScale) {
-          config[param.name] = Math.exp(Math.log(lo) + Math.random() * (Math.log(hi) - Math.log(lo)));
+          config[param.name] = Math.exp(
+            Math.log(lo!) + Math.random() * (Math.log(hi!) - Math.log(lo!)),
+          );
         } else if (param.type === 'discrete') {
           const step = param.step ?? 1;
-          const steps = Math.floor((hi - lo) / step);
-          config[param.name] = lo + Math.floor(Math.random() * (steps + 1)) * step;
+          const steps = Math.floor((hi! - lo!) / step);
+          config[param.name] = lo! + Math.floor(Math.random() * (steps + 1)) * step;
         } else {
-          config[param.name] = lo + Math.random() * (hi - lo);
+          config[param.name] = lo! + Math.random() * (hi! - lo!);
         }
       }
     }
@@ -255,7 +262,7 @@ export class AutoMLPipeline {
   }
 
   getCompletedTrials(): TrialResult[] {
-    return this.trials.filter(t => t.status === 'completed');
+    return this.trials.filter((t) => t.status === 'completed');
   }
 
   getTrialCount(): number {

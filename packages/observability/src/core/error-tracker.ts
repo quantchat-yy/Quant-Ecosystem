@@ -2,14 +2,7 @@
 // Error Tracker - Error Capture, Deduplication, and Analysis
 // ============================================================================
 
-import {
-  ErrorContext,
-  ErrorGroup,
-  Breadcrumb,
-  StackFrame,
-  TrackedError,
-  LogLevel,
-} from '../types';
+import { ErrorContext, ErrorGroup, Breadcrumb, StackFrame, TrackedError, LogLevel } from '../types';
 
 interface AlertThreshold {
   name: string;
@@ -43,7 +36,11 @@ export class ErrorTracker {
   captureError(error: Error, context?: Partial<ErrorContext>): TrackedError {
     const stackFrames = this.parseStackTrace(error.stack || '');
     const fingerprint = this.generateFingerprint(error, stackFrames);
-    const mergedContext: ErrorContext = { ...this.defaultContext, ...context, tags: { ...this.defaultContext.tags, ...context?.tags } };
+    const mergedContext: ErrorContext = {
+      ...this.defaultContext,
+      ...context,
+      tags: { ...this.defaultContext.tags, ...context?.tags },
+    };
 
     const trackedError: TrackedError = {
       id: this.generateId(),
@@ -97,7 +94,7 @@ export class ErrorTracker {
     // Normalize stack (remove line numbers, just keep function names and file paths)
     const normalizedStack = frames
       .slice(0, 5) // Use top 5 frames
-      .map(f => `${f.functionName}@${this.normalizeFilePath(f.fileName)}`)
+      .map((f) => `${f.functionName}@${this.normalizeFilePath(f.fileName)}`)
       .join('|');
 
     // Simple hash of normalized components
@@ -138,18 +135,18 @@ export class ErrorTracker {
 
       if (match1) {
         frames.push({
-          functionName: match1[1],
-          fileName: match1[2],
-          lineNumber: parseInt(match1[3], 10),
-          columnNumber: parseInt(match1[4], 10),
+          functionName: match1[1]!,
+          fileName: match1[2]!,
+          lineNumber: parseInt(match1[3]!, 10),
+          columnNumber: parseInt(match1[4]!, 10),
           source: trimmed,
         });
       } else if (match2) {
         frames.push({
           functionName: '<anonymous>',
-          fileName: match2[1],
-          lineNumber: parseInt(match2[2], 10),
-          columnNumber: parseInt(match2[3], 10),
+          fileName: match2[1]!,
+          lineNumber: parseInt(match2[2]!, 10),
+          columnNumber: parseInt(match2[3]!, 10),
           source: trimmed,
         });
       }
@@ -205,7 +202,12 @@ export class ErrorTracker {
   }
 
   // Add breadcrumb (user action before error)
-  addBreadcrumb(category: string, message: string, level: LogLevel = 'info', data?: Record<string, unknown>): void {
+  addBreadcrumb(
+    category: string,
+    message: string,
+    level: LogLevel = 'info',
+    data?: Record<string, unknown>,
+  ): void {
     this.breadcrumbs.push({
       timestamp: Date.now(),
       category,
@@ -242,7 +244,7 @@ export class ErrorTracker {
   // Get top error groups by priority
   getTopGroups(count: number = 10): ErrorGroup[] {
     return this.getGroups()
-      .filter(g => !g.resolved)
+      .filter((g) => !g.resolved)
       .sort((a, b) => b.priority - a.priority)
       .slice(0, count);
   }
@@ -261,12 +263,17 @@ export class ErrorTracker {
   getErrorRate(): number {
     this.pruneTimestamps();
     const now = Date.now();
-    const recentErrors = this.errorTimestamps.filter(t => now - t < this.rateWindow);
+    const recentErrors = this.errorTimestamps.filter((t) => now - t < this.rateWindow);
     return recentErrors.length;
   }
 
   // Detect error rate spike
-  detectSpike(): { spiking: boolean; currentRate: number; baselineRate: number; multiplier: number } {
+  detectSpike(): {
+    spiking: boolean;
+    currentRate: number;
+    baselineRate: number;
+    multiplier: number;
+  } {
     const currentRate = this.getErrorRate();
     const spiking = this.baselineRate > 0 && currentRate > this.baselineRate * this.spikeMultiplier;
 
@@ -290,7 +297,7 @@ export class ErrorTracker {
 
   // Remove alert threshold
   removeAlertThreshold(name: string): void {
-    this.alertThresholds = this.alertThresholds.filter(t => t.name !== name);
+    this.alertThresholds = this.alertThresholds.filter((t) => t.name !== name);
   }
 
   // Check alert thresholds
@@ -310,7 +317,7 @@ export class ErrorTracker {
   // Prune old timestamps
   private pruneTimestamps(): void {
     const cutoff = Date.now() - this.rateWindow * 5;
-    this.errorTimestamps = this.errorTimestamps.filter(t => t >= cutoff);
+    this.errorTimestamps = this.errorTimestamps.filter((t) => t >= cutoff);
   }
 
   // Generate unique ID
@@ -320,7 +327,7 @@ export class ErrorTracker {
 
   // Get errors by fingerprint
   getErrorsByFingerprint(fingerprint: string): TrackedError[] {
-    return this.errors.filter(e => e.fingerprint === fingerprint);
+    return this.errors.filter((e) => e.fingerprint === fingerprint);
   }
 
   // Get recent errors
@@ -339,8 +346,14 @@ export class ErrorTracker {
   }
 
   // Get stats
-  getStats(): { totalErrors: number; uniqueGroups: number; resolvedGroups: number; unresolvedGroups: number; errorRate: number } {
-    const resolved = Array.from(this.groups.values()).filter(g => g.resolved).length;
+  getStats(): {
+    totalErrors: number;
+    uniqueGroups: number;
+    resolvedGroups: number;
+    unresolvedGroups: number;
+    errorRate: number;
+  } {
+    const resolved = Array.from(this.groups.values()).filter((g) => g.resolved).length;
     return {
       totalErrors: this.errors.length,
       uniqueGroups: this.groups.size,

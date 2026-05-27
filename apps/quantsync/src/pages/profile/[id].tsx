@@ -49,7 +49,8 @@ const ProfilePage: React.FC<{ id?: string }> = ({ id }) => {
   const [error, setError] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState<boolean>(false);
 
-  const userId = id || (typeof window !== 'undefined' ? window.location.pathname.split('/').pop() : '');
+  const userId =
+    id || (typeof window !== 'undefined' ? window.location.pathname.split('/').pop() : '');
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -66,18 +67,22 @@ const ProfilePage: React.FC<{ id?: string }> = ({ id }) => {
     }
   }, [userId]);
 
-  const fetchPosts = useCallback(async (tab: ProfileTab) => {
-    try {
-      setPostsLoading(true);
-      const res = await fetch(`/api/users/${userId}/${tab}`);
-      if (res.ok) {
-        const data = await res.json();
-        setPosts(data.posts || []);
+  const fetchPosts = useCallback(
+    async (tab: ProfileTab) => {
+      try {
+        setPostsLoading(true);
+        const res = await fetch(`/api/users/${userId}/${tab}`);
+        if (res.ok) {
+          const data = await res.json();
+          setPosts(data.posts || []);
+        }
+      } catch {
+      } finally {
+        setPostsLoading(false);
       }
-    } catch {} finally {
-      setPostsLoading(false);
-    }
-  }, [userId]);
+    },
+    [userId],
+  );
 
   useEffect(() => {
     if (userId) fetchProfile();
@@ -90,24 +95,28 @@ const ProfilePage: React.FC<{ id?: string }> = ({ id }) => {
   const handleFollow = useCallback(async () => {
     if (!profile) return;
     const action = profile.isFollowing ? 'unfollow' : 'follow';
-    setProfile(prev => prev ? {
-      ...prev,
-      isFollowing: !prev.isFollowing,
-      followersCount: prev.followersCount + (prev.isFollowing ? -1 : 1),
-    } : null);
+    setProfile((prev) =>
+      prev
+        ? {
+            ...prev,
+            isFollowing: !prev.isFollowing,
+            followersCount: prev.followersCount + (prev.isFollowing ? -1 : 1),
+          }
+        : null,
+    );
     await fetch(`/api/users/${userId}/${action}`, { method: 'POST' });
   }, [profile, userId]);
 
   const handleBlock = useCallback(async () => {
     if (!profile) return;
-    setProfile(prev => prev ? { ...prev, isBlocked: !prev.isBlocked } : null);
+    setProfile((prev) => (prev ? { ...prev, isBlocked: !prev.isBlocked } : null));
     await fetch(`/api/users/${userId}/block`, { method: 'POST' });
     setShowMenu(false);
   }, [profile, userId]);
 
   const handleMute = useCallback(async () => {
     if (!profile) return;
-    setProfile(prev => prev ? { ...prev, isMuted: !prev.isMuted } : null);
+    setProfile((prev) => (prev ? { ...prev, isMuted: !prev.isMuted } : null));
     await fetch(`/api/users/${userId}/mute`, { method: 'POST' });
     setShowMenu(false);
   }, [profile, userId]);
@@ -138,29 +147,49 @@ const ProfilePage: React.FC<{ id?: string }> = ({ id }) => {
   return (
     <div className="max-w-2xl mx-auto min-h-screen">
       <div className="h-48 bg-gradient-to-r from-blue-400 to-purple-500 relative">
-        {profile.banner && <img src={profile.banner} alt="" className="w-full h-full object-cover" />}
+        {profile.banner && (
+          <img src={profile.banner} alt="" className="w-full h-full object-cover" />
+        )}
       </div>
 
       <div className="px-4 relative">
         <div className="flex items-end justify-between -mt-16 mb-3">
-          <img src={profile.avatar} alt={profile.name} className="w-32 h-32 rounded-full border-4 border-white shadow-lg" />
+          <img
+            src={profile.avatar}
+            alt={profile.name}
+            className="w-32 h-32 rounded-full border-4 border-white shadow-lg"
+          />
           <div className="flex items-center gap-2 mt-16">
-            <button onClick={() => window.location.href = `/messages?user=${userId}`} className="w-9 h-9 border rounded-full flex items-center justify-center hover:bg-gray-50">
+            <button
+              onClick={() => (window.location.href = `/messages?user=${userId}`)}
+              className="w-9 h-9 border rounded-full flex items-center justify-center hover:bg-gray-50"
+            >
               ✉️
             </button>
             <div className="relative">
-              <button onClick={() => setShowMenu(!showMenu)} className="w-9 h-9 border rounded-full flex items-center justify-center hover:bg-gray-50">
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="w-9 h-9 border rounded-full flex items-center justify-center hover:bg-gray-50"
+              >
                 ⋯
               </button>
               {showMenu && (
                 <div className="absolute right-0 top-11 bg-white border rounded-xl shadow-lg py-1 w-48 z-20">
-                  <button onClick={handleMute} className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">
+                  <button
+                    onClick={handleMute}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
+                  >
                     {profile.isMuted ? 'Unmute' : 'Mute'} @{profile.handle}
                   </button>
-                  <button onClick={handleBlock} className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-red-600">
+                  <button
+                    onClick={handleBlock}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-red-600"
+                  >
                     {profile.isBlocked ? 'Unblock' : 'Block'} @{profile.handle}
                   </button>
-                  <button className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">Report</button>
+                  <button className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">
+                    Report
+                  </button>
                 </div>
               )}
             </div>
@@ -181,24 +210,49 @@ const ProfilePage: React.FC<{ id?: string }> = ({ id }) => {
           <div className="flex items-center gap-1">
             <h1 className="text-xl font-bold">{profile.name}</h1>
             {profile.isVerified && (
-              <span className={getVerificationColor(profile.verificationType)} title={`Verified (${profile.verificationType})`}>✓</span>
+              <span
+                className={getVerificationColor(profile.verificationType)}
+                title={`Verified (${profile.verificationType})`}
+              >
+                ✓
+              </span>
             )}
           </div>
           <p className="text-gray-500">@{profile.handle}</p>
-          {profile.isFollowedBy && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded mt-1 inline-block">Follows you</span>}
+          {profile.isFollowedBy && (
+            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded mt-1 inline-block">
+              Follows you
+            </span>
+          )}
         </div>
 
         <p className="text-gray-900 mb-3 whitespace-pre-wrap">{profile.bio}</p>
 
         <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mb-4">
           {profile.location && <span>📍 {profile.location}</span>}
-          {profile.website && <a href={profile.website} className="text-blue-500 hover:underline">🔗 {profile.website}</a>}
-          <span>📅 Joined {new Date(profile.joinDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+          {profile.website && (
+            <a href={profile.website} className="text-blue-500 hover:underline">
+              🔗 {profile.website}
+            </a>
+          )}
+          <span>
+            📅 Joined{' '}
+            {new Date(profile.joinDate).toLocaleDateString('en-US', {
+              month: 'long',
+              year: 'numeric',
+            })}
+          </span>
         </div>
 
         <div className="flex items-center gap-4 text-sm mb-4">
-          <span><strong>{profile.followingCount.toLocaleString()}</strong> <span className="text-gray-500">Following</span></span>
-          <span><strong>{profile.followersCount.toLocaleString()}</strong> <span className="text-gray-500">Followers</span></span>
+          <span>
+            <strong>{profile.followingCount.toLocaleString()}</strong>{' '}
+            <span className="text-gray-500">Following</span>
+          </span>
+          <span>
+            <strong>{profile.followersCount.toLocaleString()}</strong>{' '}
+            <span className="text-gray-500">Followers</span>
+          </span>
         </div>
       </div>
 
@@ -215,12 +269,14 @@ const ProfilePage: React.FC<{ id?: string }> = ({ id }) => {
       )}
 
       <div className="border-b flex">
-        {(['posts', 'replies', 'media', 'likes'] as ProfileTab[]).map(tab => (
+        {(['posts', 'replies', 'media', 'likes'] as ProfileTab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`flex-1 py-3 text-center text-sm font-medium capitalize ${
-              activeTab === tab ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500 hover:bg-gray-50'
+              activeTab === tab
+                ? 'border-b-2 border-blue-500 text-blue-500'
+                : 'text-gray-500 hover:bg-gray-50'
             }`}
           >
             {tab}
@@ -239,22 +295,26 @@ const ProfilePage: React.FC<{ id?: string }> = ({ id }) => {
         </div>
       ) : (
         <div className="divide-y">
-          {posts.map(post => (
+          {posts.map((post) => (
             <article key={post.id} className="px-4 py-3 hover:bg-gray-50">
               <div className="flex gap-3">
                 <img src={profile.avatar} alt="" className="w-10 h-10 rounded-full" />
                 <div className="flex-1">
                   <div className="flex items-center gap-1 mb-0.5">
                     <span className="font-bold text-sm">{profile.name}</span>
-                    {profile.isVerified && <span className={getVerificationColor(profile.verificationType)}>✓</span>}
+                    {profile.isVerified && (
+                      <span className={getVerificationColor(profile.verificationType)}>✓</span>
+                    )}
                     <span className="text-gray-500 text-sm">@{profile.handle}</span>
                     <span className="text-gray-400 mx-1">·</span>
-                    <span className="text-gray-500 text-xs">{new Date(post.createdAt).toLocaleDateString()}</span>
+                    <span className="text-gray-500 text-xs">
+                      {new Date(post.createdAt).toLocaleDateString()}
+                    </span>
                   </div>
                   <p className="text-gray-900 whitespace-pre-wrap">{post.content}</p>
                   {post.media.length > 0 && (
                     <div className="mt-2 rounded-xl overflow-hidden">
-                      <img src={post.media[0].url} alt="" className="w-full h-48 object-cover" />
+                      <img src={post.media[0]?.url} alt="" className="w-full h-48 object-cover" />
                     </div>
                   )}
                   <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">

@@ -3,11 +3,7 @@
 // User trust scoring with multi-factor calculation and history tracking
 // ============================================================================
 
-import type {
-  TrustScore,
-  TrustFactor,
-  TrustLevel,
-} from '../types';
+import type { TrustScore, TrustFactor, TrustLevel } from '../types';
 
 interface TrustScoreConfig {
   baseScore: number;
@@ -61,7 +57,6 @@ export class TrustScoreService {
   private scores: Map<string, TrustScore>;
   private updateHistory: Map<string, ScoreUpdate[]>;
   private globalScores: number[];
-  private lastDecayRun: number = 0;
 
   constructor(config: Partial<TrustScoreConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -71,20 +66,23 @@ export class TrustScoreService {
   }
 
   /** Calculate trust score for a user based on all factors */
-  async calculateScore(userId: string, factors: {
-    accountAgeDays: number;
-    reportsReceived: number;
-    reportsSubmitted: number;
-    falseReports: number;
-    contentCount: number;
-    positiveRatings: number;
-    negativeRatings: number;
-    followers: number;
-    following: number;
-    isVerified: boolean;
-    violationCount: number;
-    appealSuccessRate: number;
-  }): Promise<TrustScore> {
+  async calculateScore(
+    userId: string,
+    factors: {
+      accountAgeDays: number;
+      reportsReceived: number;
+      reportsSubmitted: number;
+      falseReports: number;
+      contentCount: number;
+      positiveRatings: number;
+      negativeRatings: number;
+      followers: number;
+      following: number;
+      isVerified: boolean;
+      violationCount: number;
+      appealSuccessRate: number;
+    },
+  ): Promise<TrustScore> {
     const factorScores = this.computeFactors(factors);
     let totalScore = 0;
     let totalWeight = 0;
@@ -94,9 +92,10 @@ export class TrustScoreService {
       totalWeight += factor.weight;
     }
 
-    const normalizedScore = totalWeight > 0
-      ? Math.round((totalScore / totalWeight) * this.config.maxScore * 100) / 100
-      : this.config.baseScore;
+    const normalizedScore =
+      totalWeight > 0
+        ? Math.round((totalScore / totalWeight) * this.config.maxScore * 100) / 100
+        : this.config.baseScore;
 
     const score = Math.max(this.config.minScore, Math.min(this.config.maxScore, normalizedScore));
     const level = this.getLevel(score);
@@ -126,7 +125,7 @@ export class TrustScoreService {
     const previousScore = trustScore.score;
     trustScore.score = Math.max(
       this.config.minScore,
-      Math.min(this.config.maxScore, trustScore.score + delta)
+      Math.min(this.config.maxScore, trustScore.score + delta),
     );
     trustScore.level = this.getLevel(trustScore.score);
     trustScore.lastCalculated = Date.now();
@@ -134,7 +133,13 @@ export class TrustScoreService {
 
     // Record update
     const updates = this.updateHistory.get(userId) || [];
-    updates.push({ userId, previousScore, newScore: trustScore.score, reason, timestamp: Date.now() });
+    updates.push({
+      userId,
+      previousScore,
+      newScore: trustScore.score,
+      reason,
+      timestamp: Date.now(),
+    });
     this.updateHistory.set(userId, updates);
 
     this.updateGlobalScores(trustScore.score);
@@ -161,14 +166,19 @@ export class TrustScoreService {
   }
 
   /** Get score history for a user */
-  async getHistory(userId: string, limit: number = 50): Promise<{ score: number; timestamp: number; reason: string }[]> {
+  async getHistory(
+    userId: string,
+    limit: number = 50,
+  ): Promise<{ score: number; timestamp: number; reason: string }[]> {
     const trustScore = this.scores.get(userId);
     if (!trustScore) return [];
     return trustScore.history.slice(-limit).reverse();
   }
 
   /** Get percentile ranking of a user's trust score */
-  async getPercentile(userId: string): Promise<{ score: number; percentile: number; rank: number; totalUsers: number }> {
+  async getPercentile(
+    userId: string,
+  ): Promise<{ score: number; percentile: number; rank: number; totalUsers: number }> {
     const trustScore = this.scores.get(userId);
     if (!trustScore) throw new Error(`Trust score not found for user: ${userId}`);
 
@@ -177,7 +187,7 @@ export class TrustScoreService {
     }
 
     const sorted = [...this.globalScores].sort((a, b) => a - b);
-    const belowCount = sorted.filter(s => s < trustScore.score).length;
+    const belowCount = sorted.filter((s) => s < trustScore.score).length;
     const percentile = Math.round((belowCount / sorted.length) * 100);
     const rank = sorted.length - belowCount;
 
@@ -195,7 +205,7 @@ export class TrustScoreService {
     let updated = 0;
     let decayed = 0;
 
-    for (const [userId, trustScore] of this.scores) {
+    for (const [_userId, trustScore] of this.scores) {
       const daysSinceCalculation = (now - trustScore.lastCalculated) / 86400000;
 
       if (daysSinceCalculation > 1) {
@@ -203,10 +213,7 @@ export class TrustScoreService {
         const decayAmount = daysSinceCalculation * this.config.decayRatePerDay;
         if (decayAmount > 0.01) {
           const previousScore = trustScore.score;
-          trustScore.score = Math.max(
-            this.config.minScore,
-            trustScore.score - decayAmount
-          );
+          trustScore.score = Math.max(this.config.minScore, trustScore.score - decayAmount);
           trustScore.level = this.getLevel(trustScore.score);
           trustScore.lastCalculated = now;
 
@@ -223,7 +230,6 @@ export class TrustScoreService {
       }
     }
 
-    this.lastDecayRun = now;
     return { updated, decayed };
   }
 
@@ -271,7 +277,7 @@ export class TrustScoreService {
     });
 
     // Report history (fewer reports = higher score)
-    const reportPenalty = Math.max(0, 1 - (data.reportsReceived * 0.05) - (data.violationCount * 0.15));
+    const reportPenalty = Math.max(0, 1 - data.reportsReceived * 0.05 - data.violationCount * 0.15);
     factors.push({
       name: 'report_history',
       weight: this.config.factorWeights['report_history'] || 0.25,
@@ -294,7 +300,10 @@ export class TrustScoreService {
     });
 
     // Community standing (followers/engagement)
-    const communityScore = Math.min(1, (data.followers / 1000) * 0.5 + (data.appealSuccessRate * 0.5));
+    const communityScore = Math.min(
+      1,
+      (data.followers / 1000) * 0.5 + data.appealSuccessRate * 0.5,
+    );
     factors.push({
       name: 'community_standing',
       weight: this.config.factorWeights['community_standing'] || 0.15,
@@ -313,9 +322,8 @@ export class TrustScoreService {
     });
 
     // Engagement quality (good reports vs false reports)
-    const reportQuality = data.reportsSubmitted > 0
-      ? Math.max(0, 1 - (data.falseReports / data.reportsSubmitted))
-      : 0.5;
+    const reportQuality =
+      data.reportsSubmitted > 0 ? Math.max(0, 1 - data.falseReports / data.reportsSubmitted) : 0.5;
     factors.push({
       name: 'engagement_quality',
       weight: this.config.factorWeights['engagement_quality'] || 0.15,

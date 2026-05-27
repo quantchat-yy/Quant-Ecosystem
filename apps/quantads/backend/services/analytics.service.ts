@@ -112,4 +112,73 @@ export class AnalyticsService {
       roi,
     };
   }
+
+  async getImpressions(
+    campaignId: string,
+    _dateRange?: { start: Date; end: Date },
+  ): Promise<{ campaignId: string; impressions: number }> {
+    const campaign = await this.prisma.campaign.findUnique({
+      where: { id: campaignId },
+    });
+
+    if (!campaign || campaign.deletedAt) {
+      throw createAppError('Campaign not found', 404, 'CAMPAIGN_NOT_FOUND');
+    }
+
+    return { campaignId: campaign.id, impressions: campaign.totalImpressions };
+  }
+
+  async getClicks(
+    campaignId: string,
+    _dateRange?: { start: Date; end: Date },
+  ): Promise<{ campaignId: string; clicks: number }> {
+    const campaign = await this.prisma.campaign.findUnique({
+      where: { id: campaignId },
+    });
+
+    if (!campaign || campaign.deletedAt) {
+      throw createAppError('Campaign not found', 404, 'CAMPAIGN_NOT_FOUND');
+    }
+
+    return { campaignId: campaign.id, clicks: campaign.totalClicks };
+  }
+
+  async getConversions(
+    campaignId: string,
+    _dateRange?: { start: Date; end: Date },
+  ): Promise<{ campaignId: string; conversions: number }> {
+    const campaign = await this.prisma.campaign.findUnique({
+      where: { id: campaignId },
+    });
+
+    if (!campaign || campaign.deletedAt) {
+      throw createAppError('Campaign not found', 404, 'CAMPAIGN_NOT_FOUND');
+    }
+
+    return { campaignId: campaign.id, conversions: campaign.totalConversions };
+  }
+
+  async getCostReport(
+    campaignId: string,
+    _dateRange?: { start: Date; end: Date },
+  ): Promise<{ campaignId: string; totalSpend: number; cpc: number; cpm: number }> {
+    const campaign = await this.prisma.campaign.findUnique({
+      where: { id: campaignId },
+    });
+
+    if (!campaign || campaign.deletedAt) {
+      throw createAppError('Campaign not found', 404, 'CAMPAIGN_NOT_FOUND');
+    }
+
+    const cpc = campaign.totalClicks > 0 ? campaign.totalSpend / campaign.totalClicks : 0;
+    const cpm =
+      campaign.totalImpressions > 0 ? (campaign.totalSpend / campaign.totalImpressions) * 1000 : 0;
+
+    return {
+      campaignId: campaign.id,
+      totalSpend: campaign.totalSpend,
+      cpc,
+      cpm,
+    };
+  }
 }

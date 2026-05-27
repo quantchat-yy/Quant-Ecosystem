@@ -262,4 +262,34 @@ describe('ConversationService', () => {
       );
     });
   });
+
+  describe('markRead', () => {
+    it('updates lastReadAt for the member', async () => {
+      prisma.conversationMember.findFirst.mockResolvedValue({
+        id: 'member-1',
+        conversationId: 'conv-1',
+        userId: 'user-1',
+      });
+      prisma.conversationMember.update.mockResolvedValue({
+        id: 'member-1',
+        lastReadAt: new Date(),
+      });
+
+      const result = await service.markRead('conv-1', 'user-1');
+
+      expect(result.lastReadAt).toBeInstanceOf(Date);
+      expect(prisma.conversationMember.update).toHaveBeenCalledWith({
+        where: { id: 'member-1' },
+        data: { lastReadAt: expect.any(Date) },
+      });
+    });
+
+    it('throws NOT_A_MEMBER when user is not in conversation', async () => {
+      prisma.conversationMember.findFirst.mockResolvedValue(null);
+
+      await expect(service.markRead('conv-1', 'user-unknown')).rejects.toThrow(
+        'User is not a member of this conversation',
+      );
+    });
+  });
 });

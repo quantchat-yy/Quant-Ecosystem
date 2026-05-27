@@ -34,7 +34,7 @@ class DeterministicRandom {
     s1 ^= s0;
     s1 ^= s0 >>> 26;
     this.s1 = s1;
-    return (((this.s0 + this.s1) >>> 0) / 4294967296);
+    return ((this.s0 + this.s1) >>> 0) / 4294967296;
   }
 
   nextInt(min: number, max: number): number {
@@ -42,7 +42,7 @@ class DeterministicRandom {
   }
 
   pick<T>(arr: T[]): T {
-    return arr[this.nextInt(0, arr.length - 1)];
+    return arr[this.nextInt(0, arr.length - 1)]!;
   }
 }
 
@@ -54,7 +54,6 @@ export class DatabaseSeeder {
   private seeds: Map<string, SeedDefinition> = new Map();
   private random: DeterministicRandom;
   private transactionLog: { action: string; table: string; timestamp: number }[] = [];
-  private inTransaction: boolean = false;
   private autoIncrements: Map<string, number> = new Map();
 
   constructor(seed: number = 42) {
@@ -64,10 +63,13 @@ export class DatabaseSeeder {
   /**
    * Registers a table schema
    */
-  registerTable(name: string, config: {
-    primaryKey?: string;
-    foreignKeys?: { column: string; references: string; refColumn: string }[];
-  } = {}): void {
+  registerTable(
+    name: string,
+    config: {
+      primaryKey?: string;
+      foreignKeys?: { column: string; references: string; refColumn: string }[];
+    } = {},
+  ): void {
     this.tables.set(name, {
       name,
       records: [],
@@ -80,7 +82,11 @@ export class DatabaseSeeder {
   /**
    * Defines seed data for a table
    */
-  defineSeed(table: string, records: Record<string, unknown>[], options: { dependencies?: string[]; truncateFirst?: boolean } = {}): void {
+  defineSeed(
+    table: string,
+    records: Record<string, unknown>[],
+    options: { dependencies?: string[]; truncateFirst?: boolean } = {},
+  ): void {
     this.seeds.set(table, {
       table,
       records,
@@ -95,7 +101,7 @@ export class DatabaseSeeder {
   private inferDependencies(table: string): string[] {
     const tableState = this.tables.get(table);
     if (!tableState) return [];
-    return tableState.foreignKeys.map(fk => fk.references);
+    return tableState.foreignKeys.map((fk) => fk.references);
   }
 
   /**
@@ -141,12 +147,12 @@ export class DatabaseSeeder {
 
     // Check for cycles
     if (result.length < this.seeds.size) {
-      const remaining = [...this.seeds.keys()].filter(n => !result.includes(n));
+      const remaining = [...this.seeds.keys()].filter((n) => !result.includes(n));
       throw new Error(`Circular dependency detected in seeds: ${remaining.join(', ')}`);
     }
 
     // Filter to only include tables that have seeds
-    return result.filter(name => this.seeds.has(name));
+    return result.filter((name) => this.seeds.has(name));
   }
 
   /**
@@ -215,7 +221,10 @@ export class DatabaseSeeder {
   /**
    * Processes a record, adding auto-increment IDs and resolving references
    */
-  private processRecord(tableName: string, record: Record<string, unknown>): Record<string, unknown> {
+  private processRecord(
+    tableName: string,
+    record: Record<string, unknown>,
+  ): Record<string, unknown> {
     const table = this.tables.get(tableName)!;
     const processed = { ...record };
 
@@ -298,7 +307,6 @@ export class DatabaseSeeder {
    * Begins a transaction
    */
   beginTransaction(): void {
-    this.inTransaction = true;
     this.transactionLog.push({ action: 'begin', table: '', timestamp: Date.now() });
   }
 
@@ -306,7 +314,6 @@ export class DatabaseSeeder {
    * Commits the current transaction
    */
   commitTransaction(): void {
-    this.inTransaction = false;
     this.transactionLog.push({ action: 'commit', table: '', timestamp: Date.now() });
   }
 
@@ -314,7 +321,6 @@ export class DatabaseSeeder {
    * Rolls back the current transaction (reverts to empty)
    */
   rollbackTransaction(): void {
-    this.inTransaction = false;
     this.transactionLog.push({ action: 'rollback', table: '', timestamp: Date.now() });
     // In a real DB this would undo changes; here we truncate
     for (const table of this.tables.values()) {
@@ -348,13 +354,20 @@ export class DatabaseSeeder {
    */
   generateData(type: string): unknown {
     switch (type) {
-      case 'string': return `value_${this.random.nextInt(1, 9999)}`;
-      case 'number': return this.random.nextInt(1, 1000);
-      case 'boolean': return this.random.next() > 0.5;
-      case 'email': return `user${this.random.nextInt(1, 999)}@test.com`;
-      case 'date': return new Date(Date.now() - this.random.nextInt(0, 365 * 86400000)).toISOString();
-      case 'uuid': return `${this.randomHex(8)}-${this.randomHex(4)}-4${this.randomHex(3)}-${this.randomHex(4)}-${this.randomHex(12)}`;
-      default: return null;
+      case 'string':
+        return `value_${this.random.nextInt(1, 9999)}`;
+      case 'number':
+        return this.random.nextInt(1, 1000);
+      case 'boolean':
+        return this.random.next() > 0.5;
+      case 'email':
+        return `user${this.random.nextInt(1, 999)}@test.com`;
+      case 'date':
+        return new Date(Date.now() - this.random.nextInt(0, 365 * 86400000)).toISOString();
+      case 'uuid':
+        return `${this.randomHex(8)}-${this.randomHex(4)}-4${this.randomHex(3)}-${this.randomHex(4)}-${this.randomHex(12)}`;
+      default:
+        return null;
     }
   }
 
@@ -373,7 +386,6 @@ export class DatabaseSeeder {
     this.tables.clear();
     this.seeds.clear();
     this.transactionLog = [];
-    this.inTransaction = false;
     this.autoIncrements.clear();
   }
 }

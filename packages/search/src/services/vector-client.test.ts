@@ -54,7 +54,7 @@ describe('VectorClient', () => {
 
       await httpsClient.getCollectionInfo('test');
 
-      const calledUrl = mockFetch.mock.calls[0][0] as string;
+      const calledUrl = mockFetch.mock.calls[0]![0] as string;
       expect(calledUrl).toContain('https://');
     });
 
@@ -206,10 +206,10 @@ describe('VectorClient', () => {
 
       const results = await client.search('test-collection', [0.1], 10, filter);
 
-      const calledBody = JSON.parse((mockFetch.mock.calls[0][1] as { body: string }).body);
+      const calledBody = JSON.parse((mockFetch.mock.calls[0]![1] as { body: string }).body);
       expect(calledBody.filter).toEqual(filter);
       expect(results).toHaveLength(1);
-      expect(results[0].payload).toEqual({ type: 'email' });
+      expect(results[0]!.payload).toEqual({ type: 'email' });
     });
 
     it('should throw on HTTP error', async () => {

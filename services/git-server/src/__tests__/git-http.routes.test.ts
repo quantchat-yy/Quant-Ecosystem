@@ -140,7 +140,7 @@ describe('Git HTTP Routes', () => {
       vi.mocked(access).mockResolvedValue(undefined);
 
       const mockSpawn = vi.mocked(spawn);
-      const mockProc = mockSpawn.mock.results[0]?.value ?? mockSpawn('/any', []);
+      const mockProc = mockSpawn.mock.results[0]?.value ?? mockSpawn('/any', [], {});
 
       vi.mocked(mockProc.stdout.on).mockImplementation(
         (event: string, cb: (data: Buffer) => void) => {
@@ -192,7 +192,7 @@ describe('Git HTTP Routes', () => {
       vi.mocked(access).mockResolvedValue(undefined);
 
       const mockSpawn = vi.mocked(spawn);
-      const mockProc = mockSpawn.mock.results[0]?.value ?? mockSpawn('/any', []);
+      const mockProc = mockSpawn.mock.results[0]?.value ?? mockSpawn('/any', [], {});
 
       vi.mocked(mockProc.stdout.on).mockImplementation(
         (event: string, cb: (data: Buffer) => void) => {

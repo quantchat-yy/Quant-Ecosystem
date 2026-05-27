@@ -10,7 +10,6 @@ import type {
   TestHook,
   TestRunSummary,
   TestRunnerConfig,
-  TestReporter,
   TestError,
 } from '../types';
 
@@ -202,10 +201,10 @@ export class TestRunner {
 
     const summary: TestRunSummary = {
       total: this.results.length,
-      passed: this.results.filter(r => r.status === 'passed').length,
-      failed: this.results.filter(r => r.status === 'failed').length,
-      skipped: this.results.filter(r => r.status === 'skipped').length,
-      todo: this.results.filter(r => r.status === 'todo').length,
+      passed: this.results.filter((r) => r.status === 'passed').length,
+      failed: this.results.filter((r) => r.status === 'failed').length,
+      skipped: this.results.filter((r) => r.status === 'skipped').length,
+      todo: this.results.filter((r) => r.status === 'todo').length,
       duration: Date.now() - startTime,
       suites: this.countSuites(this.rootSuite),
       results: [...this.results],
@@ -242,7 +241,7 @@ export class TestRunner {
 
     // Run child suites
     for (const childSuite of suite.suites) {
-      if (this.config.bail && this.results.some(r => r.status === 'failed')) {
+      if (this.config.bail && this.results.some((r) => r.status === 'failed')) {
         break;
       }
       await this.runSuite(childSuite);
@@ -254,14 +253,14 @@ export class TestRunner {
     }
 
     if (this.config.reporter && suite !== this.rootSuite) {
-      const suiteResults = this.results.filter(r => r.suiteName === suite.name);
+      const suiteResults = this.results.filter((r) => r.suiteName === suite.name);
       this.config.reporter.onSuiteEnd(suite, suiteResults);
     }
   }
 
   private async runTestsSequential(tests: TestCase[], suite: TestSuite): Promise<void> {
     for (const test of tests) {
-      if (this.config.bail && this.results.some(r => r.status === 'failed')) {
+      if (this.config.bail && this.results.some((r) => r.status === 'failed')) {
         break;
       }
       await this.runTest(test, suite);
@@ -271,7 +270,7 @@ export class TestRunner {
   private async runTestsParallel(tests: TestCase[], suite: TestSuite): Promise<void> {
     const chunks = this.chunkArray(tests, this.config.maxConcurrency);
     for (const chunk of chunks) {
-      await Promise.all(chunk.map(test => this.runTest(test, suite)));
+      await Promise.all(chunk.map((test) => this.runTest(test, suite)));
     }
   }
 
@@ -407,8 +406,14 @@ export class TestRunner {
         const result = fn();
         if (result && typeof result === 'object' && 'then' in result) {
           (result as Promise<void>)
-            .then(() => { clearTimeout(timer); resolve(); })
-            .catch((err) => { clearTimeout(timer); reject(err); });
+            .then(() => {
+              clearTimeout(timer);
+              resolve();
+            })
+            .catch((err) => {
+              clearTimeout(timer);
+              reject(err);
+            });
         } else {
           clearTimeout(timer);
           resolve();
@@ -439,8 +444,8 @@ export class TestRunner {
 
   private suiteHasOnly(suite: TestSuite): boolean {
     if (suite.only) return true;
-    if (suite.tests.some(t => t.only)) return true;
-    return suite.suites.some(s => this.suiteHasOnly(s));
+    if (suite.tests.some((t) => t.only)) return true;
+    return suite.suites.some((s) => this.suiteHasOnly(s));
   }
 
   private countSuites(suite: TestSuite): number {

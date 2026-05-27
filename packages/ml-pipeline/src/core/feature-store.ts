@@ -10,7 +10,6 @@ import {
   FeatureSchema,
   FeatureLineage,
   TransformConfig,
-  FeatureDType,
 } from '../types';
 
 interface StoredFeature {
@@ -76,7 +75,11 @@ export class FeatureStore {
     });
   }
 
-  computeFeature(entityId: string, featureName: string, rawValue: number | string | boolean | number[]): Feature {
+  computeFeature(
+    entityId: string,
+    featureName: string,
+    rawValue: number | string | boolean | number[],
+  ): Feature {
     const schema = this.schemas.get(featureName);
     if (!schema) {
       throw new Error(`Feature schema not found: ${featureName}`);
@@ -103,7 +106,7 @@ export class FeatureStore {
   private applyTransform(
     value: number | string | boolean | number[],
     transform: TransformConfig,
-    featureName: string
+    featureName: string,
   ): number | string | boolean | number[] {
     if (typeof value !== 'number' && !Array.isArray(value)) {
       return value;
@@ -132,7 +135,7 @@ export class FeatureStore {
         if (!boundaries) return value;
         const numVal = value as number;
         for (let i = 0; i < boundaries.length; i++) {
-          if (numVal < boundaries[i]) return i;
+          if (numVal < boundaries[i]!) return i;
         }
         return boundaries.length;
       }
@@ -250,13 +253,13 @@ export class FeatureStore {
     }
     const state = this.stats.get(featureName)!;
     if (state.max === state.min) {
-      bins[0] += 1;
+      bins[0]! += 1;
       return;
     }
     const range = state.max - state.min;
     const binWidth = range / numBins;
     const binIdx = Math.min(Math.floor((value - state.min) / binWidth), numBins - 1);
-    bins[binIdx] += 1;
+    bins[binIdx]! += 1;
   }
 
   getStatistics(featureName: string): FeatureStats | null {
@@ -270,9 +273,11 @@ export class FeatureStore {
       return { bin: state.min + i * binWidth, count };
     });
     // Compute skewness and kurtosis from running statistics
-    const skewness = state.count > 2 && std > 0
-      ? (state.count * state.m2) / ((state.count - 1) * (state.count - 2) * std * std * std) * (state.sum - state.count * state.mean)
-      : 0;
+    const skewness =
+      state.count > 2 && std > 0
+        ? ((state.count * state.m2) / ((state.count - 1) * (state.count - 2) * std * std * std)) *
+          (state.sum - state.count * state.mean)
+        : 0;
     return {
       mean: state.mean,
       std,
@@ -298,10 +303,14 @@ export class FeatureStore {
     }
     const n = Math.min(featureValues.length, targetValues.length);
     if (n < 2) return 0;
-    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+    let sumX = 0,
+      sumY = 0,
+      sumXY = 0,
+      sumX2 = 0,
+      sumY2 = 0;
     for (let i = 0; i < n; i++) {
-      const x = featureValues[i];
-      const y = targetValues[i];
+      const x = featureValues[i]!;
+      const y = targetValues[i]!;
       sumX += x;
       sumY += y;
       sumXY += x * y;
@@ -325,26 +334,28 @@ export class FeatureStore {
     const n = x.length;
     if (n === 0) return 0;
     const numBins = Math.max(2, Math.floor(Math.sqrt(n)));
-    const xMin = Math.min(...x), xMax = Math.max(...x);
-    const yMin = Math.min(...y), yMax = Math.max(...y);
+    const xMin = Math.min(...x),
+      xMax = Math.max(...x);
+    const yMin = Math.min(...y),
+      yMax = Math.max(...y);
     const xRange = xMax - xMin || 1;
     const yRange = yMax - yMin || 1;
     const joint: number[][] = Array.from({ length: numBins }, () => new Array(numBins).fill(0));
     const xMarginal = new Array(numBins).fill(0);
     const yMarginal = new Array(numBins).fill(0);
     for (let i = 0; i < n; i++) {
-      const xi = Math.min(Math.floor(((x[i] - xMin) / xRange) * numBins), numBins - 1);
-      const yi = Math.min(Math.floor(((y[i] - yMin) / yRange) * numBins), numBins - 1);
-      joint[xi][yi] += 1;
-      xMarginal[xi] += 1;
-      yMarginal[yi] += 1;
+      const xi = Math.min(Math.floor(((x[i]! - xMin) / xRange) * numBins), numBins - 1);
+      const yi = Math.min(Math.floor(((y[i]! - yMin) / yRange) * numBins), numBins - 1);
+      joint[xi]![yi]! += 1;
+      xMarginal[xi]! += 1;
+      yMarginal[yi]! += 1;
     }
     let mi = 0;
     for (let i = 0; i < numBins; i++) {
       for (let j = 0; j < numBins; j++) {
-        const pxy = joint[i][j] / n;
-        const px = xMarginal[i] / n;
-        const py = yMarginal[j] / n;
+        const pxy = joint[i]![j]! / n;
+        const px = xMarginal[i]! / n;
+        const py = yMarginal[j]! / n;
         if (pxy > 0 && px > 0 && py > 0) {
           mi += pxy * Math.log(pxy / (px * py));
         }

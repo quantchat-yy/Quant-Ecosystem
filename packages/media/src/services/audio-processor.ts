@@ -5,7 +5,6 @@
 
 import type {
   AudioCodec,
-  AudioEffect,
   AudioEffectConfig,
   WaveformData,
   MediaMetadata,
@@ -53,7 +52,6 @@ export class AudioProcessor {
   private sources: Map<string, AudioSource>;
   private jobs: Map<string, ProcessingJob>;
   private effectsChain: Map<string, AudioEffectConfig[]>;
-  private jobCounter: number = 0;
 
   constructor(config: Partial<AudioProcessorConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -75,7 +73,7 @@ export class AudioProcessor {
       bitDepth?: number;
       codec?: AudioCodec;
       bitrate?: number;
-    }
+    },
   ): AudioSource {
     const sampleRate = options.sampleRate || this.config.defaultSampleRate;
     const channels = options.channels || 2;
@@ -83,7 +81,10 @@ export class AudioProcessor {
     const duration = Math.min(options.duration, this.config.maxDuration);
 
     // Generate simulated sample data
-    const numSamples = Math.min(this.config.waveformSamples, Math.round(duration * sampleRate / 100));
+    const numSamples = Math.min(
+      this.config.waveformSamples,
+      Math.round((duration * sampleRate) / 100),
+    );
     const samples = this.generateSamples(numSamples, duration);
 
     const size = Math.round(duration * sampleRate * channels * (bitDepth / 8));
@@ -109,7 +110,10 @@ export class AudioProcessor {
   /**
    * Normalize audio levels to target peak/RMS
    */
-  public normalize(audioId: string, options: { targetPeak?: number; targetRMS?: number; mode?: 'peak' | 'rms' | 'lufs' } = {}): AudioSource {
+  public normalize(
+    audioId: string,
+    options: { targetPeak?: number; targetRMS?: number; mode?: 'peak' | 'rms' | 'lufs' } = {},
+  ): AudioSource {
     const source = this.getSource(audioId);
     const mode = options.mode || 'peak';
     const targetPeak = options.targetPeak || -1; // dB
@@ -136,9 +140,12 @@ export class AudioProcessor {
 
     // Apply gain to samples
     const gainLinear = Math.pow(10, gainDb / 20);
-    source.samples = source.samples.map(s => Math.max(-1, Math.min(1, s * gainLinear)));
+    source.samples = source.samples.map((s) => Math.max(-1, Math.min(1, s * gainLinear)));
 
-    this.addEffect(audioId, { type: 'normalize', params: { gainDb, mode: mode === 'peak' ? 0 : mode === 'rms' ? 1 : 2 } });
+    this.addEffect(audioId, {
+      type: 'normalize',
+      params: { gainDb, mode: mode === 'peak' ? 0 : mode === 'rms' ? 1 : 2 },
+    });
     return source;
   }
 
@@ -162,7 +169,9 @@ export class AudioProcessor {
     source.samples = source.samples.slice(startSample, endSample);
 
     source.duration = newDuration;
-    source.size = Math.round(newDuration * source.sampleRate * source.channels * (source.bitDepth / 8));
+    source.size = Math.round(
+      newDuration * source.sampleRate * source.channels * (source.bitDepth / 8),
+    );
 
     return source;
   }
@@ -184,7 +193,10 @@ export class AudioProcessor {
   /**
    * Generate waveform visualization data
    */
-  public generateWaveform(audioId: string, options: { samples?: number; channels?: number } = {}): WaveformData {
+  public generateWaveform(
+    audioId: string,
+    options: { samples?: number; channels?: number } = {},
+  ): WaveformData {
     const source = this.getSource(audioId);
     const numSamples = options.samples || this.config.waveformSamples;
 
@@ -252,7 +264,11 @@ export class AudioProcessor {
   /**
    * Convert audio to a different format
    */
-  public convertFormat(audioId: string, targetCodec: AudioCodec, options: { bitrate?: number; sampleRate?: number; channels?: number } = {}): AudioSource {
+  public convertFormat(
+    audioId: string,
+    targetCodec: AudioCodec,
+    options: { bitrate?: number; sampleRate?: number; channels?: number } = {},
+  ): AudioSource {
     const source = this.getSource(audioId);
 
     const codecBitrateRanges: Record<AudioCodec, { min: number; max: number; default: number }> = {
@@ -275,7 +291,9 @@ export class AudioProcessor {
 
     // Recalculate size based on new codec
     if (targetCodec === 'wav' || targetCodec === 'pcm' || targetCodec === 'flac') {
-      source.size = Math.round(source.duration * source.sampleRate * source.channels * (source.bitDepth / 8));
+      source.size = Math.round(
+        source.duration * source.sampleRate * source.channels * (source.bitDepth / 8),
+      );
     } else {
       source.size = Math.round(source.duration * bitrate * 125); // kbps to bytes
     }
@@ -286,7 +304,10 @@ export class AudioProcessor {
   /**
    * Detect silence in audio (returns silence regions)
    */
-  public detectSilence(audioId: string, options: { threshold?: number; minDurationMs?: number } = {}): Array<{ startMs: number; endMs: number; durationMs: number }> {
+  public detectSilence(
+    audioId: string,
+    options: { threshold?: number; minDurationMs?: number } = {},
+  ): Array<{ startMs: number; endMs: number; durationMs: number }> {
     const source = this.getSource(audioId);
     const threshold = options.threshold || 0.01; // Amplitude threshold
     const minDuration = options.minDurationMs || 500; // Minimum 500ms silence
@@ -297,7 +318,7 @@ export class AudioProcessor {
     let silenceStart: number | null = null;
 
     for (let i = 0; i < source.samples.length; i++) {
-      const amplitude = Math.abs(source.samples[i]);
+      const amplitude = Math.abs(source.samples[i]!);
       const timeMs = i * msPerSample;
 
       if (amplitude < threshold) {
@@ -368,38 +389,45 @@ export class AudioProcessor {
   private applyEffect(source: AudioSource, effect: AudioEffectConfig): void {
     switch (effect.type) {
       case 'fade_in': {
-        const fadeSamples = Math.floor((effect.params.durationMs || 1000) / 1000 * source.samples.length / source.duration);
+        const fadeSamples = Math.floor(
+          (((effect.params.durationMs || 1000) / 1000) * source.samples.length) / source.duration,
+        );
         for (let i = 0; i < Math.min(fadeSamples, source.samples.length); i++) {
-          source.samples[i] *= i / fadeSamples;
+          source.samples[i] = source.samples[i]! * (i / fadeSamples);
         }
         break;
       }
       case 'fade_out': {
-        const fadeSamples = Math.floor((effect.params.durationMs || 1000) / 1000 * source.samples.length / source.duration);
+        const fadeSamples = Math.floor(
+          (((effect.params.durationMs || 1000) / 1000) * source.samples.length) / source.duration,
+        );
         const startIdx = source.samples.length - fadeSamples;
         for (let i = Math.max(0, startIdx); i < source.samples.length; i++) {
-          source.samples[i] *= (source.samples.length - i) / fadeSamples;
+          source.samples[i] = source.samples[i]! * ((source.samples.length - i) / fadeSamples);
         }
         break;
       }
       case 'echo': {
-        const delay = Math.floor((effect.params.delayMs || 300) / 1000 * source.samples.length / source.duration);
+        const delay = Math.floor(
+          (((effect.params.delayMs || 300) / 1000) * source.samples.length) / source.duration,
+        );
         const decay = effect.params.decay || 0.5;
         for (let i = delay; i < source.samples.length; i++) {
-          source.samples[i] += source.samples[i - delay] * decay;
-          source.samples[i] = Math.max(-1, Math.min(1, source.samples[i]));
+          source.samples[i] = source.samples[i]! + source.samples[i - delay]! * decay;
+          source.samples[i] = Math.max(-1, Math.min(1, source.samples[i]!));
         }
         break;
       }
       case 'reverb': {
         const reverbTime = effect.params.reverbTime || 0.3;
         const mix = effect.params.mix || 0.3;
-        const delaySamples = Math.floor(reverbTime * source.samples.length / source.duration);
+        const delaySamples = Math.floor((reverbTime * source.samples.length) / source.duration);
         for (let i = delaySamples; i < source.samples.length; i++) {
-          const reverbed = source.samples[i - delaySamples] * 0.6 +
-            (i > delaySamples * 2 ? source.samples[i - delaySamples * 2] * 0.3 : 0);
-          source.samples[i] = source.samples[i] * (1 - mix) + reverbed * mix;
-          source.samples[i] = Math.max(-1, Math.min(1, source.samples[i]));
+          const reverbed =
+            source.samples[i - delaySamples]! * 0.6 +
+            (i > delaySamples * 2 ? source.samples[i - delaySamples * 2]! * 0.3 : 0);
+          source.samples[i] = source.samples[i]! * (1 - mix) + reverbed * mix;
+          source.samples[i] = Math.max(-1, Math.min(1, source.samples[i]!));
         }
         break;
       }
@@ -411,7 +439,7 @@ export class AudioProcessor {
           const idx = Math.floor(srcIdx);
           if (idx < source.samples.length - 1) {
             const frac = srcIdx - idx;
-            newSamples.push(source.samples[idx] * (1 - frac) + source.samples[idx + 1] * frac);
+            newSamples.push(source.samples[idx]! * (1 - frac) + source.samples[idx + 1]! * frac);
           }
         }
         source.samples = newSamples;
@@ -423,7 +451,7 @@ export class AudioProcessor {
         for (let i = 0; i < source.samples.length * (1 / speedFactor); i++) {
           const srcIdx = Math.floor(i * speedFactor);
           if (srcIdx < source.samples.length) {
-            newSamples.push(source.samples[srcIdx]);
+            newSamples.push(source.samples[srcIdx]!);
           }
         }
         source.samples = newSamples;
@@ -434,11 +462,11 @@ export class AudioProcessor {
         const threshold = effect.params.threshold || 0.5;
         const ratio = effect.params.ratio || 4;
         for (let i = 0; i < source.samples.length; i++) {
-          const abs = Math.abs(source.samples[i]);
+          const abs = Math.abs(source.samples[i]!);
           if (abs > threshold) {
             const excess = abs - threshold;
             const compressed = threshold + excess / ratio;
-            source.samples[i] = source.samples[i] > 0 ? compressed : -compressed;
+            source.samples[i] = source.samples[i]! > 0 ? compressed : -compressed;
           }
         }
         break;
@@ -447,7 +475,7 @@ export class AudioProcessor {
         // Simple noise gate
         const gate = effect.params.threshold || 0.02;
         for (let i = 0; i < source.samples.length; i++) {
-          if (Math.abs(source.samples[i]) < gate) {
+          if (Math.abs(source.samples[i]!) < gate) {
             source.samples[i] = 0;
           }
         }
@@ -477,7 +505,8 @@ export class AudioProcessor {
     for (let i = 0; i < numSamples; i++) {
       const t = (i / numSamples) * duration;
       // Generate a mix of frequencies to simulate music
-      const sample = Math.sin(2 * Math.PI * frequency * t) * 0.3 +
+      const sample =
+        Math.sin(2 * Math.PI * frequency * t) * 0.3 +
         Math.sin(2 * Math.PI * frequency * 2 * t) * 0.15 +
         Math.sin(2 * Math.PI * frequency * 0.5 * t) * 0.2 +
         (Math.random() - 0.5) * 0.1; // Add some noise

@@ -25,10 +25,33 @@ export class PasswordHasher {
     this.params = { ...DEFAULT_PARAMS, ...params };
     this.hashCount = 0;
     this.commonPasswords = new Set([
-      'password', '123456', '12345678', 'qwerty', 'abc123', 'monkey', '1234567',
-      'letmein', 'trustno1', 'dragon', 'baseball', 'iloveyou', 'master', 'sunshine',
-      'ashley', 'michael', 'shadow', '123123', '654321', 'superman', 'qazwsx',
-      'password1', 'password123', 'admin', 'welcome', 'hello', 'charlie',
+      'password',
+      '123456',
+      '12345678',
+      'qwerty',
+      'abc123',
+      'monkey',
+      '1234567',
+      'letmein',
+      'trustno1',
+      'dragon',
+      'baseball',
+      'iloveyou',
+      'master',
+      'sunshine',
+      'ashley',
+      'michael',
+      'shadow',
+      '123123',
+      '654321',
+      'superman',
+      'qazwsx',
+      'password1',
+      'password123',
+      'admin',
+      'welcome',
+      'hello',
+      'charlie',
     ]);
   }
 
@@ -124,12 +147,16 @@ export class PasswordHasher {
     const normalizedScore = Math.max(0, Math.min(5, Math.round(score)));
 
     const levels: ('very_weak' | 'weak' | 'fair' | 'strong' | 'very_strong')[] = [
-      'very_weak', 'weak', 'fair', 'strong', 'very_strong'
+      'very_weak',
+      'weak',
+      'fair',
+      'strong',
+      'very_strong',
     ];
-    const level = levels[Math.min(normalizedScore, 4)];
+    const level = levels[Math.min(normalizedScore, 4)]!;
 
     const crackTimes = ['instant', 'minutes', 'hours', 'days', 'years'];
-    const crackTime = crackTimes[Math.min(normalizedScore, 4)];
+    const crackTime = crackTimes[Math.min(normalizedScore, 4)]!;
 
     return { score: normalizedScore, level, feedback, entropy, crackTime };
   }
@@ -137,8 +164,7 @@ export class PasswordHasher {
   /** Check if password appears in common breach lists (simulation) */
   async checkBreach(password: string): Promise<{ breached: boolean; count: number }> {
     // Simulate breach database check using hash prefix
-    const hash = this.simpleHash(password.toLowerCase());
-    const prefix = hash.substring(0, 5);
+    this.simpleHash(password.toLowerCase());
 
     // Simulate: common passwords are "breached"
     if (this.commonPasswords.has(password.toLowerCase())) {
@@ -174,19 +200,20 @@ export class PasswordHasher {
     for (let t = 0; t < timeCost; t++) {
       for (let i = 0; i < blocks; i++) {
         // Argon2id: first half data-independent, second half data-dependent
-        const refIndex = t < timeCost / 2
-          ? (i + 1) % blocks
-          : Math.abs(parseInt(memory[i].substring(0, 8), 16)) % blocks;
+        const refIndex =
+          t < timeCost / 2
+            ? (i + 1) % blocks
+            : Math.abs(parseInt(memory[i]!.substring(0, 8), 16)) % blocks;
 
         // Mix blocks (simulating Blake2b compression)
-        memory[i] = this.multiRoundHash(memory[i] + memory[refIndex] + t.toString());
+        memory[i] = this.multiRoundHash(memory[i]! + memory[refIndex]! + t.toString());
       }
     }
 
     // Final hash: XOR all blocks and hash
-    let finalBlock = memory[0];
+    let finalBlock = memory[0]!;
     for (let i = 1; i < blocks; i++) {
-      finalBlock = this.xorStrings(finalBlock, memory[i]);
+      finalBlock = this.xorStrings(finalBlock, memory[i]!);
     }
 
     // Truncate to desired hash length
@@ -217,14 +244,18 @@ export class PasswordHasher {
         h7 = Math.imul(h7 ^ (c + 7), 0x27d4eb2f) >>> 0;
         h8 = Math.imul(h8 ^ (c ^ i), 0x165667b1) >>> 0;
       }
-      h1 ^= h5 >>> 13; h2 ^= h6 >>> 7;
-      h3 ^= h7 >>> 17; h4 ^= h8 >>> 11;
-      h5 ^= h1 >>> 5;  h6 ^= h2 >>> 19;
-      h7 ^= h3 >>> 3;  h8 ^= h4 >>> 23;
+      h1 ^= h5 >>> 13;
+      h2 ^= h6 >>> 7;
+      h3 ^= h7 >>> 17;
+      h4 ^= h8 >>> 11;
+      h5 ^= h1 >>> 5;
+      h6 ^= h2 >>> 19;
+      h7 ^= h3 >>> 3;
+      h8 ^= h4 >>> 23;
     }
 
     return [h1, h2, h3, h4, h5, h6, h7, h8]
-      .map(h => (h >>> 0).toString(16).padStart(8, '0'))
+      .map((h) => (h >>> 0).toString(16).padStart(8, '0'))
       .join('');
   }
 

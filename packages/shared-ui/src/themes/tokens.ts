@@ -2,6 +2,41 @@
 // Shared UI - Design Tokens (CSS Variables Map)
 // ============================================================================
 
+export interface DensityTokens {
+  compact: { spacing: string; fontSize: string };
+  normal: { spacing: string; fontSize: string };
+  comfortable: { spacing: string; fontSize: string };
+}
+
+export interface ElevationTokens {
+  0: string;
+  1: string;
+  2: string;
+  3: string;
+  4: string;
+  5: string;
+}
+
+export interface BreakpointTokens {
+  sm: string;
+  md: string;
+  lg: string;
+  xl: string;
+  '2xl': string;
+}
+
+export interface AccessibilityTokens {
+  focus: string;
+  hover: string;
+  active: string;
+  disabled: string;
+}
+
+export interface MotionTokens {
+  default: string;
+  reduced: string;
+}
+
 export interface DesignTokens {
   colors: Record<string, string>;
   spacing: Record<string, string>;
@@ -10,6 +45,43 @@ export interface DesignTokens {
   transitions: Record<string, string>;
   borderRadius: Record<string, string>;
 }
+
+export const density: DensityTokens = {
+  compact: { spacing: '0.25rem', fontSize: '0.8125rem' },
+  normal: { spacing: '0.5rem', fontSize: '0.875rem' },
+  comfortable: { spacing: '0.75rem', fontSize: '1rem' },
+};
+
+export const elevation: ElevationTokens = {
+  0: 'none',
+  1: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
+  2: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+  3: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+  4: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+  5: '0 25px 50px -12px rgb(0 0 0 / 0.25)',
+};
+
+export const breakpoints: BreakpointTokens = {
+  sm: '640px',
+  md: '768px',
+  lg: '1024px',
+  xl: '1280px',
+  '2xl': '1536px',
+};
+
+// Accessibility tokens use Tailwind CSS utility classes by design since the entire
+// UI layer is built on Tailwind. These values are not raw CSS properties.
+export const accessibility: AccessibilityTokens = {
+  focus: 'ring-2 ring-blue-500 ring-offset-2',
+  hover: 'brightness-95',
+  active: 'brightness-90',
+  disabled: 'opacity-50 cursor-not-allowed',
+};
+
+export const motion: MotionTokens = {
+  default: '200ms ease-in-out',
+  reduced: '0ms',
+};
 
 export const lightTokens: DesignTokens = {
   colors: {

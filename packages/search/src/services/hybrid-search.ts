@@ -68,7 +68,7 @@ export class HybridSearchEngine {
 
     // If MeiliSearch returns numeric _rankingScore, use it for normalization (min-max).
     // Fall back to positional rank if scores are not available.
-    const hasMeiliScores = bm25Hits.length > 0 && typeof bm25Hits[0]._rankingScore === 'number';
+    const hasMeiliScores = bm25Hits.length > 0 && typeof bm25Hits[0]!._rankingScore === 'number';
 
     const normalizedBm25 = this.normalizeScores(
       bm25Hits.map((hit, idx) => ({

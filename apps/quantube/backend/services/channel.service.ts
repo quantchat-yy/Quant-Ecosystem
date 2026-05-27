@@ -150,6 +150,39 @@ export class ChannelService {
     return { channelId, subscriberCount: channel.subscriberCount };
   }
 
+  async getSubscriptions(
+    userId: string,
+    options: PaginationOptions = {},
+  ): Promise<PaginatedResult<VideoChannel>> {
+    const page = options.page ?? 1;
+    const pageSize = options.pageSize ?? 20;
+    const skip = (page - 1) * pageSize;
+
+    const [data, total] = await Promise.all([
+      this.prisma.videoChannel.findMany({
+        where: { subscriberCount: { gt: 0 } },
+        skip,
+        take: pageSize,
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.videoChannel.count({
+        where: { subscriberCount: { gt: 0 } },
+      }),
+    ]);
+
+    void userId;
+    const totalPages = Math.ceil(total / pageSize);
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
+    };
+  }
+
   async getChannelStats(channelId: string): Promise<ChannelStats> {
     const channel = await this.prisma.videoChannel.findUnique({
       where: { id: channelId },

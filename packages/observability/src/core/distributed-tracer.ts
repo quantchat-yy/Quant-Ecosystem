@@ -66,12 +66,12 @@ export class DistributedTracer {
 
     // Retain if any span has error
     if (this.samplingConfig.tailSamplingErrorOnly) {
-      return spans.some(s => s.status.code === 'error');
+      return spans.some((s) => s.status.code === 'error');
     }
 
     // Retain if trace duration exceeds threshold
-    const startTimes = spans.map(s => s.startTime);
-    const endTimes = spans.filter(s => s.endTime !== null).map(s => s.endTime as number);
+    const startTimes = spans.map((s) => s.startTime);
+    const endTimes = spans.filter((s) => s.endTime !== null).map((s) => s.endTime as number);
     if (startTimes.length === 0 || endTimes.length === 0) return false;
 
     const traceDuration = Math.max(...endTimes) - Math.min(...startTimes);
@@ -83,7 +83,7 @@ export class DistributedTracer {
     name: string,
     kind: SpanKind = 'internal',
     parentContext?: TraceContext,
-    attributes?: Record<string, string | number | boolean>
+    attributes?: Record<string, string | number | boolean>,
   ): Span | null {
     let traceId: string;
     let parentId: string | null = null;
@@ -147,7 +147,7 @@ export class DistributedTracer {
     span.status = status || { code: 'ok' };
 
     // Remove from active stack
-    const index = this.activeSpanStack.findIndex(s => s.id === spanId);
+    const index = this.activeSpanStack.findIndex((s) => s.id === spanId);
     if (index !== -1) {
       this.activeSpanStack.splice(index, 1);
     }
@@ -155,7 +155,7 @@ export class DistributedTracer {
     // Check if this completes the trace (all spans in trace are ended)
     const traceSpanIds = this.traceSpans.get(span.traceId);
     if (traceSpanIds) {
-      const allEnded = Array.from(traceSpanIds).every(id => {
+      const allEnded = Array.from(traceSpanIds).every((id) => {
         const s = this.spans.get(id);
         return s && s.endTime !== null;
       });
@@ -172,18 +172,19 @@ export class DistributedTracer {
     if (!spanIds) return;
 
     const spans = Array.from(spanIds)
-      .map(id => this.spans.get(id)!)
+      .map((id) => this.spans.get(id)!)
       .filter(Boolean);
 
     // Tail-based sampling check
     if (!this.shouldRetainTrace(spans)) return;
 
-    const rootSpan = spans.find(s => s.parentId === null) || null;
-    const startTimes = spans.map(s => s.startTime);
-    const endTimes = spans.filter(s => s.endTime !== null).map(s => s.endTime as number);
-    const duration = endTimes.length > 0 && startTimes.length > 0
-      ? Math.max(...endTimes) - Math.min(...startTimes)
-      : 0;
+    const rootSpan = spans.find((s) => s.parentId === null) || null;
+    const startTimes = spans.map((s) => s.startTime);
+    const endTimes = spans.filter((s) => s.endTime !== null).map((s) => s.endTime as number);
+    const duration =
+      endTimes.length > 0 && startTimes.length > 0
+        ? Math.max(...endTimes) - Math.min(...startTimes)
+        : 0;
 
     const traceExport: TraceExport = {
       traceId,
@@ -200,7 +201,7 @@ export class DistributedTracer {
   addSpanEvent(
     spanId: string,
     name: string,
-    attributes?: Record<string, string | number | boolean>
+    attributes?: Record<string, string | number | boolean>,
   ): void {
     const span = this.spans.get(spanId);
     if (!span || span.endTime !== null) return;
@@ -218,7 +219,7 @@ export class DistributedTracer {
     spanId: string,
     linkedTraceId: string,
     linkedSpanId: string,
-    attributes?: Record<string, string | number | boolean>
+    attributes?: Record<string, string | number | boolean>,
   ): void {
     const span = this.spans.get(spanId);
     if (!span) return;
@@ -242,7 +243,7 @@ export class DistributedTracer {
   // Get current active span
   getActiveSpan(): Span | null {
     return this.activeSpanStack.length > 0
-      ? this.activeSpanStack[this.activeSpanStack.length - 1]
+      ? this.activeSpanStack[this.activeSpanStack.length - 1]!
       : null;
   }
 
@@ -274,15 +275,15 @@ export class DistributedTracer {
 
     const [version, traceId, spanId, flags] = parts;
     if (version !== '00') return null;
-    if (traceId.length !== 32 || spanId.length !== 16) return null;
+    if (traceId!.length !== 32 || spanId!.length !== 16) return null;
 
     const sampled = flags === '01';
     return {
-      traceId,
-      spanId,
+      traceId: traceId!,
+      spanId: spanId!,
       parentSpanId: null,
       sampled,
-      baggage: this.baggage.get(traceId) || {},
+      baggage: this.baggage.get(traceId!) || {},
     };
   }
 
@@ -318,7 +319,7 @@ export class DistributedTracer {
     const baggage: Record<string, string> = {};
     if (!header) return baggage;
 
-    header.split(',').forEach(item => {
+    header.split(',').forEach((item) => {
       const [key, value] = item.split('=');
       if (key && value) {
         baggage[key.trim()] = value.trim();
@@ -348,9 +349,7 @@ export class DistributedTracer {
   // Get children of a span
   getSpanChildren(spanId: string): Span[] {
     const childIds = this.spanChildren.get(spanId) || [];
-    return childIds
-      .map(id => this.spans.get(id))
-      .filter((s): s is Span => s !== undefined);
+    return childIds.map((id) => this.spans.get(id)).filter((s): s is Span => s !== undefined);
   }
 
   // Export trace
@@ -359,15 +358,16 @@ export class DistributedTracer {
     if (!spanIds) return null;
 
     const spans = Array.from(spanIds)
-      .map(id => this.spans.get(id)!)
+      .map((id) => this.spans.get(id)!)
       .filter(Boolean);
 
-    const rootSpan = spans.find(s => s.parentId === null) || null;
-    const startTimes = spans.map(s => s.startTime);
-    const endTimes = spans.filter(s => s.endTime !== null).map(s => s.endTime as number);
-    const duration = endTimes.length > 0 && startTimes.length > 0
-      ? Math.max(...endTimes) - Math.min(...startTimes)
-      : 0;
+    const rootSpan = spans.find((s) => s.parentId === null) || null;
+    const startTimes = spans.map((s) => s.startTime);
+    const endTimes = spans.filter((s) => s.endTime !== null).map((s) => s.endTime as number);
+    const duration =
+      endTimes.length > 0 && startTimes.length > 0
+        ? Math.max(...endTimes) - Math.min(...startTimes)
+        : 0;
 
     return {
       traceId,
@@ -414,7 +414,12 @@ export class DistributedTracer {
   }
 
   // Get statistics
-  getStats(): { totalSpans: number; activeSpans: number; completedTraces: number; traceCount: number } {
+  getStats(): {
+    totalSpans: number;
+    activeSpans: number;
+    completedTraces: number;
+    traceCount: number;
+  } {
     return {
       totalSpans: this.spans.size,
       activeSpans: this.activeSpanStack.length,
@@ -436,10 +441,10 @@ export class DistributedTracer {
     if (!spanIds) return [];
 
     return Array.from(spanIds)
-      .map(id => this.spans.get(id)!)
-      .filter(span => {
+      .map((id) => this.spans.get(id)!)
+      .filter((span) => {
         if (!span || span.endTime === null) return false;
-        return (span.endTime - span.startTime) >= threshold;
+        return span.endTime - span.startTime >= threshold;
       });
   }
 
@@ -449,10 +454,10 @@ export class DistributedTracer {
     if (!spanIds) return [];
 
     const spans = Array.from(spanIds)
-      .map(id => this.spans.get(id)!)
+      .map((id) => this.spans.get(id)!)
       .filter(Boolean);
 
-    const rootSpan = spans.find(s => s.parentId === null);
+    const rootSpan = spans.find((s) => s.parentId === null);
     if (!rootSpan) return [];
 
     // DFS to find longest path by duration

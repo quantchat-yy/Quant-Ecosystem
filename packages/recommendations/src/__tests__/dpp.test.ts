@@ -59,13 +59,13 @@ describe('DPPDiversifier', () => {
     const kernel = diversifier.buildKernel(candidates);
 
     // Diagonal should be quality^2 (since self-similarity = 1)
-    expect(kernel[0][0]).toBeCloseTo(1.0); // 1.0 * 1 * 1.0
-    expect(kernel[1][1]).toBeCloseTo(0.25); // 0.5 * 1 * 0.5
+    expect(kernel[0]![0]).toBeCloseTo(1.0); // 1.0 * 1 * 1.0
+    expect(kernel[1]![1]).toBeCloseTo(0.25); // 0.5 * 1 * 0.5
 
     // Off-diagonal: q_i * sim(i,j) * q_j
     // Orthogonal vectors have 0 similarity
-    expect(kernel[0][1]).toBeCloseTo(0);
-    expect(kernel[1][0]).toBeCloseTo(0);
+    expect(kernel[0]![1]).toBeCloseTo(0);
+    expect(kernel[1]![0]).toBeCloseTo(0);
   });
 
   it('should handle custom similarity function', () => {
@@ -79,7 +79,7 @@ describe('DPPDiversifier', () => {
     const customSim = (a: number[], b: number[]): number => {
       let sumSq = 0;
       for (let i = 0; i < a.length; i++) {
-        sumSq += (a[i] - b[i]) ** 2;
+        sumSq += (a[i]! - b[i]!) ** 2;
       }
       return 1 / (1 + Math.sqrt(sumSq));
     };

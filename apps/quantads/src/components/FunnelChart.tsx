@@ -41,34 +41,41 @@ const FunnelChart: React.FC<FunnelChartProps> = ({
 }) => {
   const [hoveredStage, setHoveredStage] = useState<string | null>(null);
   const [animatedWidths, setAnimatedWidths] = useState<number[]>([]);
-  const [showTooltip, setShowTooltip] = useState<{ x: number; y: number; stage: FunnelStage } | null>(null);
 
-  const maxValue = Math.max(...stages.map(s => s.value), 1);
+  const maxValue = Math.max(...stages.map((s) => s.value), 1);
 
   useEffect(() => {
     if (animated) {
       setAnimatedWidths(stages.map(() => 0));
       const timer = setTimeout(() => {
-        setAnimatedWidths(stages.map(s => (s.value / maxValue) * 100));
+        setAnimatedWidths(stages.map((s) => (s.value / maxValue) * 100));
       }, 100);
       return () => clearTimeout(timer);
     } else {
-      setAnimatedWidths(stages.map(s => (s.value / maxValue) * 100));
+      setAnimatedWidths(stages.map((s) => (s.value / maxValue) * 100));
     }
   }, [stages, maxValue, animated]);
 
-  const getDropOffRate = useCallback((currentIndex: number): number => {
-    if (currentIndex === 0) return 0;
-    const prev = stages[currentIndex - 1].value;
-    const curr = stages[currentIndex].value;
-    if (prev === 0) return 0;
-    return ((prev - curr) / prev) * 100;
-  }, [stages]);
+  const getDropOffRate = useCallback(
+    (currentIndex: number): number => {
+      if (currentIndex === 0) return 0;
+      const prev = stages[currentIndex - 1]?.value ?? 0;
+      const curr = stages[currentIndex]?.value ?? 0;
+      if (prev === 0) return 0;
+      return ((prev - curr) / prev) * 100;
+    },
+    [stages],
+  );
 
-  const getConversionRate = useCallback((fromIndex: number, toIndex: number): number => {
-    if (stages[fromIndex].value === 0) return 0;
-    return (stages[toIndex].value / stages[fromIndex].value) * 100;
-  }, [stages]);
+  const getConversionRate = useCallback(
+    (fromIndex: number, toIndex: number): number => {
+      const fromVal = stages[fromIndex]?.value ?? 0;
+      const toVal = stages[toIndex]?.value ?? 0;
+      if (fromVal === 0) return 0;
+      return (toVal / fromVal) * 100;
+    },
+    [stages],
+  );
 
   const formatNumber = (n: number): string => {
     if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
@@ -76,9 +83,7 @@ const FunnelChart: React.FC<FunnelChartProps> = ({
     return n.toLocaleString();
   };
 
-  const overallConversion = stages.length >= 2
-    ? getConversionRate(0, stages.length - 1)
-    : 100;
+  const overallConversion = stages.length >= 2 ? getConversionRate(0, stages.length - 1) : 100;
 
   if (stages.length === 0) {
     return (
@@ -104,19 +109,30 @@ const FunnelChart: React.FC<FunnelChartProps> = ({
                   onMouseLeave={() => setHoveredStage(null)}
                   onClick={() => onStageClick?.(stage)}
                 >
-                  <div className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-lg mb-2"
-                    style={{ backgroundColor: stage.color, transform: `scale(${0.5 + percentage / 200})` }}>
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-lg mb-2"
+                    style={{
+                      backgroundColor: stage.color,
+                      transform: `scale(${0.5 + percentage / 200})`,
+                    }}
+                  >
                     {stage.icon || formatNumber(stage.value)}
                   </div>
                   <span className="text-sm font-medium text-gray-700">{stage.name}</span>
                   <span className="text-xs text-gray-500">{formatNumber(stage.value)}</span>
-                  {showPercentages && <span className="text-xs font-medium" style={{ color: stage.color }}>{percentage.toFixed(1)}%</span>}
+                  {showPercentages && (
+                    <span className="text-xs font-medium" style={{ color: stage.color }}>
+                      {percentage.toFixed(1)}%
+                    </span>
+                  )}
                 </div>
                 {idx < stages.length - 1 && (
                   <div className="flex flex-col items-center">
                     <div className="text-gray-400 text-lg">→</div>
                     {showDropOff && (
-                      <span className="text-xs text-red-500">-{getDropOffRate(idx + 1).toFixed(1)}%</span>
+                      <span className="text-xs text-red-500">
+                        -{getDropOffRate(idx + 1).toFixed(1)}%
+                      </span>
                     )}
                   </div>
                 )}
@@ -125,7 +141,9 @@ const FunnelChart: React.FC<FunnelChartProps> = ({
           })}
         </div>
         <div className="mt-4 p-3 bg-blue-50 rounded-lg text-center">
-          <span className="text-sm text-blue-700 font-medium">Overall Conversion: {overallConversion.toFixed(2)}%</span>
+          <span className="text-sm text-blue-700 font-medium">
+            Overall Conversion: {overallConversion.toFixed(2)}%
+          </span>
         </div>
       </div>
     );
@@ -136,7 +154,9 @@ const FunnelChart: React.FC<FunnelChartProps> = ({
       {title && (
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-          <span className="text-sm text-blue-600 font-medium">Overall: {overallConversion.toFixed(2)}%</span>
+          <span className="text-sm text-blue-600 font-medium">
+            Overall: {overallConversion.toFixed(2)}%
+          </span>
         </div>
       )}
 
@@ -145,7 +165,7 @@ const FunnelChart: React.FC<FunnelChartProps> = ({
           const percentage = maxValue > 0 ? (stage.value / maxValue) * 100 : 0;
           const width = animatedWidths[idx] || 0;
           const isHovered = hoveredStage === stage.id;
-          const dropOff = getDropOffRate(idx);
+          getDropOffRate(idx);
           const compStage = comparisonStages?.[idx];
 
           return (
@@ -165,22 +185,30 @@ const FunnelChart: React.FC<FunnelChartProps> = ({
                     <div className="h-10 bg-gray-100 rounded-lg overflow-hidden relative cursor-pointer">
                       <div
                         className="h-full rounded-lg transition-all duration-700 ease-out flex items-center"
-                        style={{ width: `${width}%`, backgroundColor: stage.color, opacity: isHovered ? 1 : 0.85 }}
+                        style={{
+                          width: `${width}%`,
+                          backgroundColor: stage.color,
+                          opacity: isHovered ? 1 : 0.85,
+                        }}
                       >
                         <span className="text-white text-sm font-bold px-3 whitespace-nowrap">
                           {formatNumber(stage.value)}
                         </span>
                       </div>
                       {compStage && (
-                        <div className="absolute inset-y-0 border-r-2 border-dashed border-gray-400"
+                        <div
+                          className="absolute inset-y-0 border-r-2 border-dashed border-gray-400"
                           style={{ left: `${(compStage.value / maxValue) * 100}%` }}
-                          title={`${comparisonLabel}: ${formatNumber(compStage.value)}`} />
+                          title={`${comparisonLabel}: ${formatNumber(compStage.value)}`}
+                        />
                       )}
                     </div>
                   </div>
                   <div className="w-20 text-right">
                     {showPercentages && (
-                      <span className="text-sm font-medium" style={{ color: stage.color }}>{percentage.toFixed(1)}%</span>
+                      <span className="text-sm font-medium" style={{ color: stage.color }}>
+                        {percentage.toFixed(1)}%
+                      </span>
                     )}
                   </div>
                 </div>
@@ -188,7 +216,10 @@ const FunnelChart: React.FC<FunnelChartProps> = ({
                 {isHovered && stage.metadata && (
                   <div className="absolute right-0 top-full mt-1 bg-gray-900 text-white text-xs py-2 px-3 rounded-lg z-10 shadow-lg">
                     {Object.entries(stage.metadata).map(([key, val]) => (
-                      <div key={key} className="flex gap-2"><span className="opacity-70">{key}:</span><span>{val}</span></div>
+                      <div key={key} className="flex gap-2">
+                        <span className="opacity-70">{key}:</span>
+                        <span>{val}</span>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -199,8 +230,13 @@ const FunnelChart: React.FC<FunnelChartProps> = ({
                   <div className="w-32" />
                   <div className="flex items-center gap-2 text-xs text-gray-400">
                     <div className="w-4 h-4 flex items-center justify-center">↓</div>
-                    <span className="text-red-500 font-medium">-{getDropOffRate(idx + 1).toFixed(1)}% drop-off</span>
-                    <span className="text-gray-400">({formatNumber(stages[idx].value - stages[idx + 1].value)} lost)</span>
+                    <span className="text-red-500 font-medium">
+                      -{getDropOffRate(idx + 1).toFixed(1)}% drop-off
+                    </span>
+                    <span className="text-gray-400">
+                      ({formatNumber((stages[idx]?.value ?? 0) - (stages[idx + 1]?.value ?? 0))}{' '}
+                      lost)
+                    </span>
                   </div>
                 </div>
               )}

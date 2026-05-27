@@ -158,6 +158,19 @@ export class EventService {
     return events.map((e) => this.toCalendarEvent(e));
   }
 
+  async listEventsInRange(userId: string, start: Date, end: Date): Promise<CalendarEvent[]> {
+    const events = await this.prisma.event.findMany({
+      where: {
+        userId,
+        startTime: { lt: end },
+        endTime: { gt: start },
+      },
+      orderBy: { startTime: 'asc' },
+    });
+
+    return events.map((e) => this.toCalendarEvent(e));
+  }
+
   async addAttendee(eventId: string, userId: string, attendee: Attendee): Promise<CalendarEvent> {
     const event = await this.getEvent(eventId, userId);
 

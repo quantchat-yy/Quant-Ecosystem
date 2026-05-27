@@ -24,14 +24,17 @@ export class FixtureManager {
   /**
    * Defines a fixture with factory and optional teardown
    */
-  define<T>(name: string, config: {
-    factory: () => T | Promise<T>;
-    teardown?: (value: T) => void | Promise<void>;
-    shared?: boolean;
-    lazy?: boolean;
-    parent?: string;
-    params?: Record<string, unknown>;
-  }): void {
+  define<T>(
+    name: string,
+    config: {
+      factory: () => T | Promise<T>;
+      teardown?: (value: T) => void | Promise<void>;
+      shared?: boolean;
+      lazy?: boolean;
+      parent?: string;
+      params?: Record<string, unknown>;
+    },
+  ): void {
     if (this.fixtures.has(name)) {
       throw new Error(`Fixture "${name}" is already defined`);
     }
@@ -65,12 +68,16 @@ export class FixtureManager {
   /**
    * Defines a parameterized fixture (creates variants)
    */
-  defineParameterized<T>(baseName: string, params: Record<string, unknown>[], config: {
-    factory: (params: Record<string, unknown>) => T | Promise<T>;
-    teardown?: (value: T) => void | Promise<void>;
-  }): void {
+  defineParameterized<T>(
+    baseName: string,
+    params: Record<string, unknown>[],
+    config: {
+      factory: (params: Record<string, unknown>) => T | Promise<T>;
+      teardown?: (value: T) => void | Promise<void>;
+    },
+  ): void {
     for (let i = 0; i < params.length; i++) {
-      const paramSet = params[i];
+      const paramSet = params[i]!;
       const name = `${baseName}[${i}]`;
       this.define(name, {
         factory: () => config.factory(paramSet),
@@ -109,7 +116,7 @@ export class FixtureManager {
     }
 
     // Initialize the fixture
-    return await this.initialize(name) as T;
+    return (await this.initialize(name)) as T;
   }
 
   /**
@@ -131,9 +138,10 @@ export class FixtureManager {
     const value = await entry.definition.factory();
 
     // Merge with parent if applicable
-    const finalValue = parentValue && typeof parentValue === 'object' && typeof value === 'object'
-      ? { ...(parentValue as object), ...(value as object) }
-      : value;
+    const finalValue =
+      parentValue && typeof parentValue === 'object' && typeof value === 'object'
+        ? { ...(parentValue as object), ...(value as object) }
+        : value;
 
     const instance: FixtureInstance<T> = {
       name,
@@ -265,10 +273,14 @@ export class FixtureManager {
   /**
    * Extends an existing fixture with additional setup
    */
-  extend<T>(name: string, parentName: string, overrides: {
-    factory?: () => T | Promise<T>;
-    teardown?: (value: T) => void | Promise<void>;
-  }): void {
+  extend<T>(
+    name: string,
+    parentName: string,
+    overrides: {
+      factory?: () => T | Promise<T>;
+      teardown?: (value: T) => void | Promise<void>;
+    },
+  ): void {
     const parent = this.fixtures.get(parentName);
     if (!parent) {
       throw new Error(`Parent fixture "${parentName}" is not defined`);
@@ -276,7 +288,9 @@ export class FixtureManager {
 
     this.define(name, {
       factory: overrides.factory ?? (parent.definition.factory as () => T | Promise<T>),
-      teardown: overrides.teardown ?? (parent.definition.teardown as ((value: T) => void | Promise<void>) | undefined),
+      teardown:
+        overrides.teardown ??
+        (parent.definition.teardown as ((value: T) => void | Promise<void>) | undefined),
       parent: parentName,
       shared: parent.definition.shared,
       lazy: parent.definition.lazy,

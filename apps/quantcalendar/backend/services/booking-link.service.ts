@@ -42,6 +42,7 @@ export interface PrismaClient {
   bookingLink: {
     create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
     findUnique: (args: { where: Record<string, unknown> }) => Promise<unknown>;
+    findMany: (args: Record<string, unknown>) => Promise<unknown[]>;
   };
   event: {
     findMany: (args: Record<string, unknown>) => Promise<unknown[]>;
@@ -184,6 +185,14 @@ export class BookingLinkService {
     });
 
     return event;
+  }
+
+  async listBookings(userId: string): Promise<BookingLink[]> {
+    const links = await this.prisma.bookingLink.findMany({
+      where: { userId },
+    });
+
+    return links.map((l) => this.toBookingLink(l));
   }
 
   private toBookingLink(raw: unknown): BookingLink {

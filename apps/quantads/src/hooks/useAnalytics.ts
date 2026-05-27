@@ -3,7 +3,7 @@
 // Analytics data fetching with aggregation, date range management
 // ============================================================================
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface KPIMetric {
   label: string;
@@ -78,7 +78,13 @@ interface UseAnalyticsReturn {
 }
 
 export function useAnalytics(options: UseAnalyticsOptions = {}): UseAnalyticsReturn {
-  const { campaignId, adGroupId, initialDateRange = '7d', autoRefresh = false, refreshInterval = 60000 } = options;
+  const {
+    campaignId,
+    adGroupId,
+    initialDateRange = '7d',
+    autoRefresh = false,
+    refreshInterval = 60000,
+  } = options;
 
   const [kpis, setKpis] = useState<KPIMetric[]>([]);
   const [timeSeries, setTimeSeries] = useState<TimeSeriesPoint[]>([]);
@@ -89,7 +95,10 @@ export function useAnalytics(options: UseAnalyticsOptions = {}): UseAnalyticsRet
   const [dateRange, setDateRange] = useState<DateRange>(initialDateRange);
   const [granularity, setGranularity] = useState<Granularity>('day');
   const [breakdownType, setBreakdownType] = useState<BreakdownType>('placement');
-  const [customDateRange, setCustomDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
+  const [customDateRange, setCustomDateRange] = useState<{ start: string; end: string }>({
+    start: '',
+    end: '',
+  });
   const abortRef = useRef<AbortController | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -116,7 +125,9 @@ export function useAnalytics(options: UseAnalyticsOptions = {}): UseAnalyticsRet
     setError(null);
     try {
       const params = buildParams();
-      const response = await fetch(`/api/analytics/dashboard?${params.toString()}`, { signal: controller.signal });
+      const response = await fetch(`/api/analytics/dashboard?${params.toString()}`, {
+        signal: controller.signal,
+      });
       if (!response.ok) throw new Error('Failed to load analytics');
       const data = await response.json();
 
@@ -140,7 +151,9 @@ export function useAnalytics(options: UseAnalyticsOptions = {}): UseAnalyticsRet
   useEffect(() => {
     if (!autoRefresh) return;
     intervalRef.current = setInterval(fetchAnalytics, refreshInterval);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [autoRefresh, refreshInterval, fetchAnalytics]);
 
   useEffect(() => {
@@ -150,62 +163,84 @@ export function useAnalytics(options: UseAnalyticsOptions = {}): UseAnalyticsRet
     else if (dateRange === '90d') setGranularity('week');
   }, [dateRange]);
 
-  const aggregateBy = useCallback((field: string): BreakdownEntry[] => {
-    const grouped = new Map<string, BreakdownEntry>();
-    for (const entry of breakdown) {
-      const key = (entry as any)[field] || entry.name;
-      if (grouped.has(key)) {
-        const existing = grouped.get(key)!;
-        existing.spend += entry.spend;
-        existing.impressions += entry.impressions;
-        existing.clicks += entry.clicks;
-        existing.conversions += entry.conversions;
-      } else {
-        grouped.set(key, { ...entry, name: key });
+  const aggregateBy = useCallback(
+    (field: string): BreakdownEntry[] => {
+      const grouped = new Map<string, BreakdownEntry>();
+      for (const entry of breakdown) {
+        const key = (entry as any)[field] || entry.name;
+        if (grouped.has(key)) {
+          const existing = grouped.get(key)!;
+          existing.spend += entry.spend;
+          existing.impressions += entry.impressions;
+          existing.clicks += entry.clicks;
+          existing.conversions += entry.conversions;
+        } else {
+          grouped.set(key, { ...entry, name: key });
+        }
       }
-    }
-    return Array.from(grouped.values()).map(entry => ({
-      ...entry,
-      ctr: entry.impressions > 0 ? (entry.clicks / entry.impressions) * 100 : 0,
-      conversionRate: entry.clicks > 0 ? (entry.conversions / entry.clicks) * 100 : 0,
-      roas: entry.spend > 0 ? (entry.conversions * 50) / entry.spend : 0,
-    }));
-  }, [breakdown]);
+      return Array.from(grouped.values()).map((entry) => ({
+        ...entry,
+        ctr: entry.impressions > 0 ? (entry.clicks / entry.impressions) * 100 : 0,
+        conversionRate: entry.clicks > 0 ? (entry.conversions / entry.clicks) * 100 : 0,
+        roas: entry.spend > 0 ? (entry.conversions * 50) / entry.spend : 0,
+      }));
+    },
+    [breakdown],
+  );
 
-  const getTopPerformers = useCallback((metric: string, limit: number = 5): BreakdownEntry[] => {
-    return [...breakdown]
-      .sort((a, b) => ((b as any)[metric] || 0) - ((a as any)[metric] || 0))
-      .slice(0, limit);
-  }, [breakdown]);
+  const getTopPerformers = useCallback(
+    (metric: string, limit: number = 5): BreakdownEntry[] => {
+      return [...breakdown]
+        .sort((a, b) => ((b as any)[metric] || 0) - ((a as any)[metric] || 0))
+        .slice(0, limit);
+    },
+    [breakdown],
+  );
 
-  const exportData = useCallback(async (format: 'csv' | 'json') => {
-    try {
-      const params = buildParams();
-      params.set('format', format);
-      const response = await fetch(`/api/analytics/export?${params.toString()}`);
-      if (!response.ok) throw new Error('Export failed');
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `analytics_${dateRange}_${new Date().toISOString().split('T')[0]}.${format}`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err: any) {
-      setError(err.message);
-    }
-  }, [buildParams, dateRange]);
+  const exportData = useCallback(
+    async (format: 'csv' | 'json') => {
+      try {
+        const params = buildParams();
+        params.set('format', format);
+        const response = await fetch(`/api/analytics/export?${params.toString()}`);
+        if (!response.ok) throw new Error('Export failed');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `analytics_${dateRange}_${new Date().toISOString().split('T')[0]}.${format}`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err: any) {
+        setError(err.message);
+      }
+    },
+    [buildParams, dateRange],
+  );
 
   const refresh = useCallback(async () => {
     await fetchAnalytics();
   }, [fetchAnalytics]);
 
   return {
-    kpis, timeSeries, funnel, breakdown,
-    loading, error,
-    dateRange, granularity, breakdownType, customDateRange,
-    setDateRange, setGranularity, setBreakdownType, setCustomDateRange,
-    refresh, exportData, aggregateBy, getTopPerformers,
+    kpis,
+    timeSeries,
+    funnel,
+    breakdown,
+    loading,
+    error,
+    dateRange,
+    granularity,
+    breakdownType,
+    customDateRange,
+    setDateRange,
+    setGranularity,
+    setBreakdownType,
+    setCustomDateRange,
+    refresh,
+    exportData,
+    aggregateBy,
+    getTopPerformers,
   };
 }
 

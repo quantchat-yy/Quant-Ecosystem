@@ -6,7 +6,29 @@ import type { XSSConfig, SanitizeResult, XSSThreat } from '../types';
 
 /** Default XSS sanitization configuration */
 const DEFAULT_CONFIG: XSSConfig = {
-  allowedTags: ['p', 'br', 'b', 'i', 'em', 'strong', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code', 'pre', 'span', 'div'],
+  allowedTags: [
+    'p',
+    'br',
+    'b',
+    'i',
+    'em',
+    'strong',
+    'a',
+    'ul',
+    'ol',
+    'li',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+    'blockquote',
+    'code',
+    'pre',
+    'span',
+    'div',
+  ],
   allowedAttributes: {
     a: ['href', 'title', 'rel'],
     img: ['src', 'alt', 'width', 'height'],
@@ -22,7 +44,11 @@ const DEFAULT_CONFIG: XSSConfig = {
 };
 
 /** Dangerous patterns that indicate XSS attempts */
-const XSS_PATTERNS: { pattern: RegExp; type: string; severity: 'low' | 'medium' | 'high' | 'critical' }[] = [
+const XSS_PATTERNS: {
+  pattern: RegExp;
+  type: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+}[] = [
   { pattern: /<script[\s>]/i, type: 'script_tag', severity: 'critical' },
   { pattern: /javascript\s*:/i, type: 'javascript_protocol', severity: 'critical' },
   { pattern: /on\w+\s*=/i, type: 'event_handler', severity: 'high' },
@@ -83,9 +109,10 @@ export class XSSSanitizer {
     }
 
     // Enforce max length
-    const truncated = input.length > this.config.maxInputLength
-      ? input.substring(0, this.config.maxInputLength)
-      : input;
+    const truncated =
+      input.length > this.config.maxInputLength
+        ? input.substring(0, this.config.maxInputLength)
+        : input;
 
     // Detect threats first
     const threats = this.detectThreats(truncated);
@@ -139,7 +166,7 @@ export class XSSSanitizer {
     // Check for dangerous protocols
     const protocolMatch = trimmed.match(/^([a-z][a-z0-9+\-.]*)\s*:/);
     if (protocolMatch) {
-      const protocol = protocolMatch[1];
+      const protocol = protocolMatch[1]!;
       if (!this.config.allowedProtocols.includes(protocol)) {
         return '';
       }
@@ -182,7 +209,9 @@ export class XSSSanitizer {
     }
     // Decode numeric entities
     decoded = decoded.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)));
-    decoded = decoded.replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)));
+    decoded = decoded.replace(/&#x([0-9a-f]+);/gi, (_, code) =>
+      String.fromCharCode(parseInt(code, 16)),
+    );
     return decoded;
   }
 
@@ -213,7 +242,24 @@ export class XSSSanitizer {
 
   /** Remove dangerous HTML tags */
   private removeDangerousTags(input: string): string {
-    const dangerousTags = ['script', 'iframe', 'object', 'embed', 'applet', 'form', 'input', 'button', 'select', 'textarea', 'style', 'link', 'meta', 'base', 'svg', 'math'];
+    const dangerousTags = [
+      'script',
+      'iframe',
+      'object',
+      'embed',
+      'applet',
+      'form',
+      'input',
+      'button',
+      'select',
+      'textarea',
+      'style',
+      'link',
+      'meta',
+      'base',
+      'svg',
+      'math',
+    ];
     let clean = input;
 
     for (const tag of dangerousTags) {
@@ -231,7 +277,7 @@ export class XSSSanitizer {
 
   /** Filter attributes, keeping only allowed ones */
   private filterAttributes(input: string): string {
-    return input.replace(/<(\w+)([^>]*)>/gi, (match, tag, attrs) => {
+    return input.replace(/<(\w+)([^>]*)>/gi, (_match, tag, attrs) => {
       const tagLower = tag.toLowerCase();
       const allowedAttrs = this.config.allowedAttributes[tagLower] || [];
 
@@ -247,7 +293,7 @@ export class XSSSanitizer {
       let attrMatch;
 
       while ((attrMatch = attrRegex.exec(attrs)) !== null) {
-        const attrName = attrMatch[1].toLowerCase();
+        const attrName = attrMatch[1]!.toLowerCase();
         const attrValue = attrMatch[2] || attrMatch[3] || attrMatch[4] || '';
 
         if (allowedAttrs.includes(attrName)) {
@@ -292,7 +338,7 @@ export class XSSSanitizer {
 
   /** Sanitize URLs within HTML attributes */
   private sanitizeUrls(input: string): string {
-    return input.replace(/(href|src|action)\s*=\s*"([^"]*)"/gi, (match, attr, url) => {
+    return input.replace(/(href|src|action)\s*=\s*"([^"]*)"/gi, (_match, attr, url) => {
       const sanitized = this.sanitizeUrl(url);
       return sanitized ? `${attr}="${sanitized}"` : '';
     });
@@ -317,7 +363,7 @@ export class XSSSanitizer {
   getStats(): { totalThreats: number; bySeverity: Record<string, number> } {
     const bySeverity: Record<string, number> = { low: 0, medium: 0, high: 0, critical: 0 };
     for (const threat of this.threatLog) {
-      bySeverity[threat.severity]++;
+      bySeverity[threat.severity] = (bySeverity[threat.severity] ?? 0) + 1;
     }
     return { totalThreats: this.threatLog.length, bySeverity };
   }

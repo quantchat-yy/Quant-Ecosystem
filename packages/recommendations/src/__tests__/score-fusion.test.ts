@@ -18,8 +18,8 @@ describe('ScoreFusion', () => {
 
     expect(results).toHaveLength(3);
     // Results should be sorted by final score
-    expect(results[0].finalScore).toBeGreaterThanOrEqual(results[1].finalScore);
-    expect(results[1].finalScore).toBeGreaterThanOrEqual(results[2].finalScore);
+    expect(results[0]!.finalScore).toBeGreaterThanOrEqual(results[1]!.finalScore);
+    expect(results[1]!.finalScore).toBeGreaterThanOrEqual(results[2]!.finalScore);
   });
 
   it('should normalize scores before weighting', () => {
@@ -60,8 +60,8 @@ describe('ScoreFusion', () => {
     const fusion = new ScoreFusion();
     const results = fusion.fuse(['item1', 'item2']);
 
-    expect(results[0].finalScore).toBe(0);
-    expect(results[1].finalScore).toBe(0);
+    expect(results[0]!.finalScore).toBe(0);
+    expect(results[1]!.finalScore).toBe(0);
   });
 
   it('should track ranker count', () => {

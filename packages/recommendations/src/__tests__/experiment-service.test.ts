@@ -80,12 +80,12 @@ describe('ExperimentService', () => {
     const result = service.computeResult('exp-stats');
 
     expect(result.experimentId).toBe('exp-stats');
-    expect(result.bucketStats['control'].exposures).toBe(100);
-    expect(result.bucketStats['control'].conversions).toBe(10);
-    expect(result.bucketStats['control'].rate).toBeCloseTo(0.1);
-    expect(result.bucketStats['treatment'].exposures).toBe(100);
-    expect(result.bucketStats['treatment'].conversions).toBe(20);
-    expect(result.bucketStats['treatment'].rate).toBeCloseTo(0.2);
+    expect(result.bucketStats['control']!.exposures).toBe(100);
+    expect(result.bucketStats['control']!.conversions).toBe(10);
+    expect(result.bucketStats['control']!.rate).toBeCloseTo(0.1);
+    expect(result.bucketStats['treatment']!.exposures).toBe(100);
+    expect(result.bucketStats['treatment']!.conversions).toBe(20);
+    expect(result.bucketStats['treatment']!.rate).toBeCloseTo(0.2);
 
     // Lift should be 100% (from 10% to 20%)
     expect(result.lift).toBeCloseTo(1.0, 1);
@@ -175,23 +175,23 @@ describe('ExperimentService', () => {
 
     // Should have comparisons for both treatments vs control
     expect(result.comparisons).toHaveLength(2);
-    expect(result.comparisons[0].control).toBe('control');
-    expect(result.comparisons[0].treatment).toBe('variant_a');
-    expect(result.comparisons[1].control).toBe('control');
-    expect(result.comparisons[1].treatment).toBe('variant_b');
+    expect(result.comparisons[0]!.control).toBe('control');
+    expect(result.comparisons[0]!.treatment).toBe('variant_a');
+    expect(result.comparisons[1]!.control).toBe('control');
+    expect(result.comparisons[1]!.treatment).toBe('variant_b');
 
     // variant_b should have higher lift than variant_a
-    expect(result.comparisons[1].lift).toBeGreaterThan(result.comparisons[0].lift);
+    expect(result.comparisons[1]!.lift).toBeGreaterThan(result.comparisons[0]!.lift);
 
     // Both should have valid p-values
-    expect(result.comparisons[0].pValue).toBeGreaterThanOrEqual(0);
-    expect(result.comparisons[0].pValue).toBeLessThanOrEqual(1);
-    expect(result.comparisons[1].pValue).toBeGreaterThanOrEqual(0);
-    expect(result.comparisons[1].pValue).toBeLessThanOrEqual(1);
+    expect(result.comparisons[0]!.pValue).toBeGreaterThanOrEqual(0);
+    expect(result.comparisons[0]!.pValue).toBeLessThanOrEqual(1);
+    expect(result.comparisons[1]!.pValue).toBeGreaterThanOrEqual(0);
+    expect(result.comparisons[1]!.pValue).toBeLessThanOrEqual(1);
 
     // bucket stats for all 3 buckets
-    expect(result.bucketStats['control'].rate).toBeCloseTo(0.1);
-    expect(result.bucketStats['variant_a'].rate).toBeCloseTo(0.2);
-    expect(result.bucketStats['variant_b'].rate).toBeCloseTo(0.3);
+    expect(result.bucketStats['control']!.rate).toBeCloseTo(0.1);
+    expect(result.bucketStats['variant_a']!.rate).toBeCloseTo(0.2);
+    expect(result.bucketStats['variant_b']!.rate).toBeCloseTo(0.3);
   });
 });

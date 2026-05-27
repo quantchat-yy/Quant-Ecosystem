@@ -29,9 +29,9 @@ export class TrendingDetector {
     this.shareChains = new Map();
     this.decayRate = 0.1;
     this.windowSizes = [
-      1 * 60 * 60 * 1000,   // 1 hour
-      6 * 60 * 60 * 1000,   // 6 hours
-      24 * 60 * 60 * 1000,  // 24 hours
+      1 * 60 * 60 * 1000, // 1 hour
+      6 * 60 * 60 * 1000, // 6 hours
+      24 * 60 * 60 * 1000, // 24 hours
       7 * 24 * 60 * 60 * 1000, // 7 days
     ];
     this.maxInteractions = 100000;
@@ -43,7 +43,12 @@ export class TrendingDetector {
   }
 
   /** Record an interaction */
-  recordInteraction(itemId: string, timestamp: number, type: string = 'view', weight: number = 1): void {
+  recordInteraction(
+    itemId: string,
+    timestamp: number,
+    type: string = 'view',
+    weight: number = 1,
+  ): void {
     this.interactions.push({ itemId, timestamp, weight, type });
 
     // Maintain max size
@@ -126,7 +131,9 @@ export class TrendingDetector {
     const uniqueSharers = chain.size;
 
     // How many new views each share generates (simplified)
-    const viewCount = this.interactions.filter(i => i.itemId === itemId && i.type === 'view').length;
+    const viewCount = this.interactions.filter(
+      (i) => i.itemId === itemId && i.type === 'view',
+    ).length;
     if (viewCount === 0) return 0;
 
     // K = (invites per user) * (conversion rate)
@@ -139,7 +146,7 @@ export class TrendingDetector {
   /** Detect breakout items (sudden spike vs gradual growth) */
   detectBreakouts(windowMs: number, threshold: number = 2): string[] {
     const breakouts: string[] = [];
-    const itemIds = new Set(this.interactions.map(i => i.itemId));
+    const itemIds = new Set(this.interactions.map((i) => i.itemId));
 
     for (const itemId of itemIds) {
       const velocityScore = this.computeVelocity(itemId, windowMs);
@@ -180,7 +187,7 @@ export class TrendingDetector {
 
   /** Get overall trending items across all time windows */
   getTrending(topN: number = 10): TrendingItem[] {
-    const itemIds = new Set(this.interactions.map(i => i.itemId));
+    const itemIds = new Set(this.interactions.map((i) => i.itemId));
     const trendingScores: Map<string, number> = new Map();
 
     for (const itemId of itemIds) {
@@ -189,18 +196,18 @@ export class TrendingDetector {
       // Multi-window scoring (shorter windows weighted more)
       const windowWeights = [4, 3, 2, 1];
       for (let i = 0; i < this.windowSizes.length; i++) {
-        const velocity = this.computeVelocity(itemId, this.windowSizes[i]);
-        compositeScore += velocity.velocity * windowWeights[i];
+        const velocity = this.computeVelocity(itemId, this.windowSizes[i]!);
+        compositeScore += velocity.velocity * windowWeights[i]!;
 
         // Bonus for acceleration
         if (velocity.acceleration > 0) {
-          compositeScore += velocity.acceleration * windowWeights[i] * 0.5;
+          compositeScore += velocity.acceleration * windowWeights[i]! * 0.5;
         }
       }
 
       // Viral bonus
       const viralCoeff = this.computeViralCoefficient(itemId);
-      compositeScore *= (1 + viralCoeff * 0.3);
+      compositeScore *= 1 + viralCoeff * 0.3;
 
       trendingScores.set(itemId, compositeScore);
     }
@@ -209,8 +216,8 @@ export class TrendingDetector {
       .sort((a, b) => b[1] - a[1])
       .slice(0, topN);
 
-    return sorted.map(([itemId, score]) => {
-      const velocity = this.computeVelocity(itemId, this.windowSizes[0]);
+    return sorted.map(([itemId, _score]) => {
+      const velocity = this.computeVelocity(itemId, this.windowSizes[0]!);
       return {
         itemId,
         velocity: velocity.velocity,
@@ -248,6 +255,6 @@ export class TrendingDetector {
   cleanup(): void {
     const maxWindow = Math.max(...this.windowSizes) * 2;
     const cutoff = Date.now() - maxWindow;
-    this.interactions = this.interactions.filter(i => i.timestamp > cutoff);
+    this.interactions = this.interactions.filter((i) => i.timestamp > cutoff);
   }
 }

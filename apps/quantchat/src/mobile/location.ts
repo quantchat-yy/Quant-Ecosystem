@@ -1,5 +1,5 @@
-// Quantchat - Location Service
-// Mobile location services for messaging platform
+// Quantads - Location Service
+// Mobile location services for advertising platform
 
 export interface Coordinates {
   latitude: number;
@@ -75,9 +75,14 @@ export interface BackgroundLocationConfig {
 }
 
 export class LocationService {
-  private currentLocation: LocationResult | null = null;
   private isTracking: boolean = false;
-  private trackingConfig: TrackingConfig = { accuracy: 'balanced', distanceFilter: 50, intervalMs: 10000, fastestIntervalMs: 5000, maxWaitMs: 15000 };
+  private trackingConfig: TrackingConfig = {
+    accuracy: 'balanced',
+    distanceFilter: 50,
+    intervalMs: 10000,
+    fastestIntervalMs: 5000,
+    maxWaitMs: 15000,
+  };
   private geofences: Map<string, GeofenceRegion> = new Map();
   private locationHistory: LocationHistoryEntry[] = [];
   private permission: LocationPermission = 'not_determined';
@@ -88,8 +93,8 @@ export class LocationService {
     accuracy: 'balanced',
     distanceFilter: 100,
     showNotification: true,
-    notificationTitle: 'Quantchat Location',
-    notificationBody: 'Using location for location sharing',
+    notificationTitle: 'Quantads Location',
+    notificationBody: 'Using location for location targeting',
   };
 
   public async requestPermission(level: 'always' | 'when_in_use'): Promise<LocationPermission> {
@@ -106,11 +111,17 @@ export class LocationService {
       throw new Error('Location permission not granted');
     }
     const location: LocationResult = {
-      coords: { latitude: 37.7749, longitude: -122.4194, accuracy: accuracy === 'high' ? 5 : 50, altitude: 10, speed: 0, heading: 0 },
+      coords: {
+        latitude: 37.7749,
+        longitude: -122.4194,
+        accuracy: accuracy === 'high' ? 5 : 50,
+        altitude: 10,
+        speed: 0,
+        heading: 0,
+      },
       timestamp: Date.now(),
       provider: accuracy === 'high' ? 'gps' : 'fused',
     };
-    this.currentLocation = location;
     return location;
   }
 
@@ -144,7 +155,9 @@ export class LocationService {
   }
 
   public getActiveGeofences(): GeofenceRegion[] {
-    return Array.from(this.geofences.values()).filter(g => !g.expiresAt || g.expiresAt > Date.now());
+    return Array.from(this.geofences.values()).filter(
+      (g) => !g.expiresAt || g.expiresAt > Date.now(),
+    );
   }
 
   public async reverseGeocode(latitude: number, longitude: number): Promise<GeocodingResult> {
@@ -177,7 +190,9 @@ export class LocationService {
     const phi2 = (lat2 * Math.PI) / 180;
     const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
     const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
-    const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) + Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    const a =
+      Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+      Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }

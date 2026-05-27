@@ -283,4 +283,55 @@ describe('ShareService', () => {
       );
     });
   });
+
+  describe('getShares', () => {
+    it('returns shares for a specific file when user owns it', async () => {
+      prisma.file.findUnique.mockResolvedValue({ id: 'file-1', userId: 'user-1' });
+      const shares = [
+        { id: 'share-1', fileId: 'file-1', ownerUserId: 'user-1', sharedWithUserId: 'user-2' },
+      ];
+      prisma.share.findMany.mockResolvedValue(shares);
+
+      const result = await service.getShares('file-1', 'user-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0]!.fileId).toBe('file-1');
+    });
+
+    it('throws 404 when file not found', async () => {
+      prisma.file.findUnique.mockResolvedValue(null);
+
+      await expect(service.getShares('missing-file', 'user-1')).rejects.toThrow('File not found');
+    });
+
+    it('throws 403 when user does not own the file', async () => {
+      prisma.file.findUnique.mockResolvedValue({ id: 'file-1', userId: 'user-other' });
+
+      await expect(service.getShares('file-1', 'user-1')).rejects.toThrow(
+        'Not authorized to view shares for this file',
+      );
+    });
+  });
+
+  describe('getSharedWithMe', () => {
+    it('returns accepted shares where user is recipient', async () => {
+      const shares = [
+        {
+          id: 'share-1',
+          fileId: 'file-1',
+          ownerUserId: 'user-2',
+          sharedWithUserId: 'user-1',
+          status: 'accepted',
+        },
+      ];
+      prisma.share.findMany.mockResolvedValue(shares);
+
+      const result = await service.getSharedWithMe('user-1');
+
+      expect(result).toHaveLength(1);
+      expect(prisma.share.findMany).toHaveBeenCalledWith({
+        where: { sharedWithUserId: 'user-1', status: 'accepted' },
+      });
+    });
+  });
 });

@@ -103,8 +103,8 @@ export class ModelMonitor {
     const curBins = this.binValues(current, numBins);
     let psi = 0;
     for (let i = 0; i < numBins; i++) {
-      const refProp = (refBins[i] + 0.001) / (reference.length + 0.001 * numBins);
-      const curProp = (curBins[i] + 0.001) / (current.length + 0.001 * numBins);
+      const refProp = (refBins[i]! + 0.001) / (reference.length + 0.001 * numBins);
+      const curProp = (curBins[i]! + 0.001) / (current.length + 0.001 * numBins);
       psi += (curProp - refProp) * Math.log(curProp / refProp);
     }
     return psi;
@@ -117,8 +117,8 @@ export class ModelMonitor {
     const qBins = this.binValues(q, numBins);
     let kl = 0;
     for (let i = 0; i < numBins; i++) {
-      const pProp = (pBins[i] + 0.001) / (p.length + 0.001 * numBins);
-      const qProp = (qBins[i] + 0.001) / (q.length + 0.001 * numBins);
+      const pProp = (pBins[i]! + 0.001) / (p.length + 0.001 * numBins);
+      const qProp = (qBins[i]! + 0.001) / (q.length + 0.001 * numBins);
       kl += pProp * Math.log(pProp / qProp);
     }
     return kl;
@@ -127,10 +127,11 @@ export class ModelMonitor {
   // Kolmogorov-Smirnov test statistic
   computeKSStatistic(a: number[], b: number[]): number {
     const combined = [
-      ...a.map(v => ({ value: v, source: 'a' as const })),
-      ...b.map(v => ({ value: v, source: 'b' as const })),
+      ...a.map((v) => ({ value: v, source: 'a' as const })),
+      ...b.map((v) => ({ value: v, source: 'b' as const })),
     ].sort((x, y) => x.value - y.value);
-    let aCDF = 0, bCDF = 0;
+    let aCDF = 0,
+      bCDF = 0;
     let maxDiff = 0;
     for (const item of combined) {
       if (item.source === 'a') aCDF += 1 / a.length;
@@ -218,7 +219,7 @@ export class ModelMonitor {
     const performanceMetrics: Record<string, number> = {};
     for (const [name, metric] of this.metrics.entries()) {
       if (metric.values.length > 0) {
-        performanceMetrics[name] = metric.values[metric.values.length - 1];
+        performanceMetrics[name] = metric.values[metric.values.length - 1]!;
       }
     }
     const report: DriftReport = {
@@ -230,7 +231,7 @@ export class ModelMonitor {
       alerts: this.getRecentAlerts(10),
     };
     // Check if retraining should be triggered
-    const driftedCount = featureDrifts.filter(f => f.drifted).length;
+    const driftedCount = featureDrifts.filter((f) => f.drifted).length;
     if (driftedCount > featureDrifts.length * 0.5 || predictionDrift.drifted) {
       this.retrainingTriggered = true;
     }
@@ -242,17 +243,31 @@ export class ModelMonitor {
       if (rule.metric !== metricName) continue;
       let triggered = false;
       switch (rule.operator) {
-        case 'gt': triggered = value > rule.threshold; break;
-        case 'lt': triggered = value < rule.threshold; break;
-        case 'gte': triggered = value >= rule.threshold; break;
-        case 'lte': triggered = value <= rule.threshold; break;
-        case 'eq': triggered = value === rule.threshold; break;
+        case 'gt':
+          triggered = value > rule.threshold;
+          break;
+        case 'lt':
+          triggered = value < rule.threshold;
+          break;
+        case 'gte':
+          triggered = value >= rule.threshold;
+          break;
+        case 'lte':
+          triggered = value <= rule.threshold;
+          break;
+        case 'eq':
+          triggered = value === rule.threshold;
+          break;
       }
       if (triggered) {
         const state = this.alertStates.get(metricName);
         const now = Date.now();
         if (state && now - state.lastTriggered >= rule.cooldown) {
-          this.createAlert(metricName, value, `Alert rule triggered: ${metricName} ${rule.operator} ${rule.threshold}`);
+          this.createAlert(
+            metricName,
+            value,
+            `Alert rule triggered: ${metricName} ${rule.operator} ${rule.threshold}`,
+          );
           state.lastTriggered = now;
           state.triggerCount++;
         }
@@ -295,7 +310,7 @@ export class ModelMonitor {
   }
 
   getAlertsBySeveity(severity: AlertSeverity): ModelDriftAlert[] {
-    return this.alerts.filter(a => a.severity === severity);
+    return this.alerts.filter((a) => a.severity === severity);
   }
 
   shouldRetrain(): boolean {
@@ -313,7 +328,7 @@ export class ModelMonitor {
   }
 
   getMonitoredFeatures(): string[] {
-    return Array.from(this.metrics.keys()).filter(k => k !== '__predictions__');
+    return Array.from(this.metrics.keys()).filter((k) => k !== '__predictions__');
   }
 
   clear(): void {

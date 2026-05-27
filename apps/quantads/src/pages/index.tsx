@@ -3,7 +3,7 @@
 // Ads manager dashboard with overview metrics
 // ============================================================================
 
-import type { Campaign, CampaignMetrics } from '../types';
+import type { Campaign } from '../types';
 
 interface DashboardState {
   totalSpend: number;
@@ -26,17 +26,17 @@ export function DashboardPage() {
     isLoading: true,
   };
 
-  async function loadDashboard(): Promise<void> {
-    state.isLoading = true;
-    // API call: quantAdsAPI.getDashboard()
-    state.isLoading = false;
-  }
-
   return {
     type: 'DashboardPage',
     layout: 'full-width',
     components: {
-      header: { type: 'PageHeader', props: { title: 'Ads Manager', action: { label: 'Create Campaign', href: '/create-campaign' } } },
+      header: {
+        type: 'PageHeader',
+        props: {
+          title: 'Ads Manager',
+          action: { label: 'Create Campaign', href: '/create-campaign' },
+        },
+      },
       metrics: {
         type: 'MetricsGrid',
         props: {
@@ -49,8 +49,14 @@ export function DashboardPage() {
           ],
         },
       },
-      chart: { type: 'AnalyticsChart', props: { period: '7d', metrics: ['impressions', 'clicks', 'spend'] } },
-      campaigns: { type: 'CampaignList', props: { campaigns: state.recentCampaigns, compact: true } },
+      chart: {
+        type: 'AnalyticsChart',
+        props: { period: '7d', metrics: ['impressions', 'clicks', 'spend'] },
+      },
+      campaigns: {
+        type: 'CampaignList',
+        props: { campaigns: state.recentCampaigns, compact: true },
+      },
     },
   };
 }

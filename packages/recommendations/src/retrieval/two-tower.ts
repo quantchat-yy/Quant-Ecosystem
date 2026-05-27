@@ -52,7 +52,7 @@ export class TwoTowerRetrieval {
 
     for (let j = 0; j < outputDim; j++) {
       for (let i = 0; i < inputLen; i++) {
-        result[j] += input[i] * weights[i][j];
+        result[j]! += input[i]! * weights[i]![j]!;
       }
     }
 
@@ -60,7 +60,7 @@ export class TwoTowerRetrieval {
     const norm = Math.sqrt(result.reduce((sum, v) => sum + v * v, 0));
     if (norm > 0) {
       for (let i = 0; i < result.length; i++) {
-        result[i] /= norm;
+        result[i]! /= norm;
       }
     }
 
@@ -75,7 +75,7 @@ export class TwoTowerRetrieval {
   }
 
   retrieve(
-    userId: string,
+    _userId: string,
     userFeatures: number[],
     k: number,
   ): Array<{ id: string; score: number }> {
@@ -104,9 +104,9 @@ export class TwoTowerRetrieval {
     const len = Math.min(a.length, b.length);
 
     for (let i = 0; i < len; i++) {
-      dot += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
+      dot += a[i]! * b[i]!;
+      normA += a[i]! * a[i]!;
+      normB += b[i]! * b[i]!;
     }
 
     const denominator = Math.sqrt(normA) * Math.sqrt(normB);

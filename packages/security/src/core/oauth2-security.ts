@@ -26,7 +26,16 @@ export class OAuth2Security {
   private pkceChallenges: Map<string, PKCEChallenge>;
   private stateTokens: Map<string, { createdAt: number; used: boolean; clientId: string }>;
   private nonces: Map<string, { createdAt: number; used: boolean }>;
-  private authCodes: Map<string, { clientId: string; scopes: string[]; codeChallenge?: string; redirectUri: string; expiresAt: number }>;
+  private authCodes: Map<
+    string,
+    {
+      clientId: string;
+      scopes: string[];
+      codeChallenge?: string;
+      redirectUri: string;
+      expiresAt: number;
+    }
+  >;
   private tokenBindings: Map<string, { clientId: string; userId: string; scopes: string[] }>;
 
   constructor(config: Partial<OAuth2Config> = {}) {
@@ -118,7 +127,7 @@ export class OAuth2Security {
   }
 
   /** Validate a redirect URI against registered URIs */
-  validateRedirectUri(uri: string, clientId?: string): { valid: boolean; reason: string } {
+  validateRedirectUri(uri: string, _clientId?: string): { valid: boolean; reason: string } {
     if (!uri) {
       return { valid: false, reason: 'missing_redirect_uri' };
     }
@@ -140,7 +149,7 @@ export class OAuth2Security {
     if (this.config.redirectUris.length > 0) {
       const normalizedUri = this.normalizeUri(uri);
       const match = this.config.redirectUris.some(
-        registered => this.normalizeUri(registered) === normalizedUri
+        (registered) => this.normalizeUri(registered) === normalizedUri,
       );
       if (!match) {
         return { valid: false, reason: 'uri_not_registered' };
@@ -149,7 +158,9 @@ export class OAuth2Security {
 
     // Block localhost in production (unless explicitly registered)
     if (uri.includes('localhost') || uri.includes('127.0.0.1')) {
-      if (!this.config.redirectUris.some(r => r.includes('localhost') || r.includes('127.0.0.1'))) {
+      if (
+        !this.config.redirectUris.some((r) => r.includes('localhost') || r.includes('127.0.0.1'))
+      ) {
         return { valid: false, reason: 'localhost_not_allowed' };
       }
     }
@@ -243,7 +254,12 @@ export class OAuth2Security {
   }
 
   /** Exchange authorization code for token (with PKCE validation) */
-  async exchangeCode(code: string, codeVerifier: string, redirectUri: string, clientId: string): Promise<{
+  async exchangeCode(
+    code: string,
+    codeVerifier: string,
+    redirectUri: string,
+    clientId: string,
+  ): Promise<{
     success: boolean;
     error?: string;
     accessToken?: string;
@@ -301,7 +317,10 @@ export class OAuth2Security {
   }
 
   /** Validate an access token */
-  validateToken(token: string): { valid: boolean; binding?: { clientId: string; scopes: string[] } } {
+  validateToken(token: string): {
+    valid: boolean;
+    binding?: { clientId: string; scopes: string[] };
+  } {
     const binding = this.tokenBindings.get(token);
     if (!binding) return { valid: false };
     return { valid: true, binding: { clientId: binding.clientId, scopes: binding.scopes } };
@@ -316,8 +335,14 @@ export class OAuth2Security {
 
   /** SHA-256 hash simulation */
   private sha256(input: string): string {
-    let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
-    let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+    let h0 = 0x6a09e667,
+      h1 = 0xbb67ae85,
+      h2 = 0x3c6ef372,
+      h3 = 0xa54ff53a;
+    let h4 = 0x510e527f,
+      h5 = 0x9b05688c,
+      h6 = 0x1f83d9ab,
+      h7 = 0x5be0cd19;
 
     for (let i = 0; i < input.length; i++) {
       const c = input.charCodeAt(i);
@@ -332,7 +357,7 @@ export class OAuth2Security {
     }
 
     return [h0, h1, h2, h3, h4, h5, h6, h7]
-      .map(h => (h >>> 0).toString(16).padStart(8, '0'))
+      .map((h) => (h >>> 0).toString(16).padStart(8, '0'))
       .join('');
   }
 
@@ -356,7 +381,7 @@ export class OAuth2Security {
       normalized = normalized.replace(/\/+$/, '');
       const parts = normalized.match(/^(https?:\/\/)([^/]+)(.*)/i);
       if (parts) {
-        return parts[1].toLowerCase() + parts[2].toLowerCase() + parts[3];
+        return parts[1]!.toLowerCase() + parts[2]!.toLowerCase() + parts[3]!;
       }
       return normalized;
     } catch {

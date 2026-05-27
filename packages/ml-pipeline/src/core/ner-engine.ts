@@ -20,7 +20,6 @@ export class NEREngine {
   private gazetteers: Map<EntityType, Map<string, GazetteerEntry>> = new Map();
   private patterns: PatternRule[] = [];
   private entityAliases: Map<string, string> = new Map();
-  private contextWindowSize: number = 3;
 
   constructor() {
     this.initializePatterns();
@@ -35,12 +34,14 @@ export class NEREngine {
       confidence: 0.95,
     });
     this.patterns.push({
-      pattern: /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,?\s+\d{4})?\b/gi,
+      pattern:
+        /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,?\s+\d{4})?\b/gi,
       type: 'DATE',
       confidence: 0.95,
     });
     this.patterns.push({
-      pattern: /\b\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December)(?:\s+\d{4})?\b/gi,
+      pattern:
+        /\b\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December)(?:\s+\d{4})?\b/gi,
       type: 'DATE',
       confidence: 0.9,
     });
@@ -87,20 +88,50 @@ export class NEREngine {
 
   private initializeGazetteers(): void {
     // Initialize maps for each entity type
-    for (const type of ['PERSON', 'ORG', 'LOCATION', 'DATE', 'MONEY', 'EMAIL', 'URL', 'PHONE'] as EntityType[]) {
+    for (const type of [
+      'PERSON',
+      'ORG',
+      'LOCATION',
+      'DATE',
+      'MONEY',
+      'EMAIL',
+      'URL',
+      'PHONE',
+    ] as EntityType[]) {
       this.gazetteers.set(type, new Map());
     }
     // Common locations
     const locations: [string, string][] = [
-      ['new york', 'New York'], ['new york city', 'New York City'], ['nyc', 'New York City'],
-      ['los angeles', 'Los Angeles'], ['la', 'Los Angeles'], ['chicago', 'Chicago'],
-      ['san francisco', 'San Francisco'], ['sf', 'San Francisco'], ['london', 'London'],
-      ['paris', 'Paris'], ['tokyo', 'Tokyo'], ['berlin', 'Berlin'], ['sydney', 'Sydney'],
-      ['united states', 'United States'], ['usa', 'United States'], ['us', 'United States'],
-      ['united kingdom', 'United Kingdom'], ['uk', 'United Kingdom'], ['canada', 'Canada'],
-      ['australia', 'Australia'], ['germany', 'Germany'], ['france', 'France'], ['japan', 'Japan'],
-      ['china', 'China'], ['india', 'India'], ['brazil', 'Brazil'], ['california', 'California'],
-      ['texas', 'Texas'], ['florida', 'Florida'], ['washington', 'Washington'],
+      ['new york', 'New York'],
+      ['new york city', 'New York City'],
+      ['nyc', 'New York City'],
+      ['los angeles', 'Los Angeles'],
+      ['la', 'Los Angeles'],
+      ['chicago', 'Chicago'],
+      ['san francisco', 'San Francisco'],
+      ['sf', 'San Francisco'],
+      ['london', 'London'],
+      ['paris', 'Paris'],
+      ['tokyo', 'Tokyo'],
+      ['berlin', 'Berlin'],
+      ['sydney', 'Sydney'],
+      ['united states', 'United States'],
+      ['usa', 'United States'],
+      ['us', 'United States'],
+      ['united kingdom', 'United Kingdom'],
+      ['uk', 'United Kingdom'],
+      ['canada', 'Canada'],
+      ['australia', 'Australia'],
+      ['germany', 'Germany'],
+      ['france', 'France'],
+      ['japan', 'Japan'],
+      ['china', 'China'],
+      ['india', 'India'],
+      ['brazil', 'Brazil'],
+      ['california', 'California'],
+      ['texas', 'Texas'],
+      ['florida', 'Florida'],
+      ['washington', 'Washington'],
     ];
     const locMap = this.gazetteers.get('LOCATION')!;
     for (const [text, normalized] of locations) {
@@ -109,12 +140,24 @@ export class NEREngine {
     }
     // Common organizations
     const orgs: [string, string][] = [
-      ['google', 'Google Inc.'], ['microsoft', 'Microsoft Corp.'], ['apple', 'Apple Inc.'],
-      ['amazon', 'Amazon.com Inc.'], ['facebook', 'Meta Platforms Inc.'], ['meta', 'Meta Platforms Inc.'],
-      ['netflix', 'Netflix Inc.'], ['tesla', 'Tesla Inc.'], ['ibm', 'IBM Corp.'],
-      ['nasa', 'NASA'], ['fbi', 'FBI'], ['cia', 'CIA'], ['nato', 'NATO'],
-      ['un', 'United Nations'], ['who', 'World Health Organization'],
-      ['mit', 'MIT'], ['harvard', 'Harvard University'], ['stanford', 'Stanford University'],
+      ['google', 'Google Inc.'],
+      ['microsoft', 'Microsoft Corp.'],
+      ['apple', 'Apple Inc.'],
+      ['amazon', 'Amazon.com Inc.'],
+      ['facebook', 'Meta Platforms Inc.'],
+      ['meta', 'Meta Platforms Inc.'],
+      ['netflix', 'Netflix Inc.'],
+      ['tesla', 'Tesla Inc.'],
+      ['ibm', 'IBM Corp.'],
+      ['nasa', 'NASA'],
+      ['fbi', 'FBI'],
+      ['cia', 'CIA'],
+      ['nato', 'NATO'],
+      ['un', 'United Nations'],
+      ['who', 'World Health Organization'],
+      ['mit', 'MIT'],
+      ['harvard', 'Harvard University'],
+      ['stanford', 'Stanford University'],
     ];
     const orgMap = this.gazetteers.get('ORG')!;
     for (const [text, normalized] of orgs) {
@@ -123,13 +166,38 @@ export class NEREngine {
     }
     // Common first names (for person detection)
     const names: string[] = [
-      'james', 'john', 'robert', 'michael', 'william', 'david', 'richard', 'joseph',
-      'mary', 'patricia', 'jennifer', 'linda', 'elizabeth', 'barbara', 'susan', 'jessica',
-      'thomas', 'charles', 'daniel', 'matthew', 'sarah', 'karen', 'nancy', 'lisa',
+      'james',
+      'john',
+      'robert',
+      'michael',
+      'william',
+      'david',
+      'richard',
+      'joseph',
+      'mary',
+      'patricia',
+      'jennifer',
+      'linda',
+      'elizabeth',
+      'barbara',
+      'susan',
+      'jessica',
+      'thomas',
+      'charles',
+      'daniel',
+      'matthew',
+      'sarah',
+      'karen',
+      'nancy',
+      'lisa',
     ];
     const personMap = this.gazetteers.get('PERSON')!;
     for (const name of names) {
-      personMap.set(name, { text: name, type: 'PERSON', normalized: name.charAt(0).toUpperCase() + name.slice(1) });
+      personMap.set(name, {
+        text: name,
+        type: 'PERSON',
+        normalized: name.charAt(0).toUpperCase() + name.slice(1),
+      });
     }
   }
 
@@ -176,8 +244,8 @@ export class NEREngine {
           const idx = lowerText.indexOf(term, searchFrom);
           if (idx === -1) break;
           // Check word boundaries
-          const before = idx > 0 ? lowerText[idx - 1] : ' ';
-          const after = idx + term.length < lowerText.length ? lowerText[idx + term.length] : ' ';
+          const before = idx > 0 ? lowerText[idx - 1]! : ' ';
+          const after = idx + term.length < lowerText.length ? lowerText[idx + term.length]! : ' ';
           if (/\W/.test(before) && /\W/.test(after)) {
             const originalText = text.substring(idx, idx + term.length);
             entities.push({
@@ -201,15 +269,15 @@ export class NEREngine {
     const personIndicators = ['Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.', 'President', 'CEO', 'Director'];
     const words = text.split(/\s+/);
     for (let i = 0; i < words.length; i++) {
-      const word = words[i];
+      const word = words[i]!;
       // Check if word is a title followed by capitalized word
       const cleanWord = word.replace(/[.,;:!?]$/, '');
-      if (personIndicators.some(ind => cleanWord === ind || cleanWord === ind.replace('.', ''))) {
+      if (personIndicators.some((ind) => cleanWord === ind || cleanWord === ind.replace('.', ''))) {
         // Next word(s) are likely person name
         let name = '';
         let j = i + 1;
-        while (j < words.length && /^[A-Z]/.test(words[j])) {
-          name += (name ? ' ' : '') + words[j].replace(/[.,;:!?]$/, '');
+        while (j < words.length && /^[A-Z]/.test(words[j]!)) {
+          name += (name ? ' ' : '') + words[j]!.replace(/[.,;:!?]$/, '');
           j++;
         }
         if (name) {
@@ -235,7 +303,9 @@ export class NEREngine {
           const fullName = `${prevWord} ${cleanWord}`;
           const idx = text.indexOf(fullName);
           if (idx >= 0) {
-            const alreadyFound = entities.some(e => e.start === idx && e.end === idx + fullName.length);
+            const alreadyFound = entities.some(
+              (e) => e.start === idx && e.end === idx + fullName.length,
+            );
             if (!alreadyFound) {
               entities.push({
                 text: fullName,
@@ -254,9 +324,39 @@ export class NEREngine {
   }
 
   private isCommonWord(word: string): boolean {
-    const common = new Set(['The', 'This', 'That', 'These', 'Those', 'What', 'When', 'Where', 'Which', 'Who',
-      'How', 'Its', 'His', 'Her', 'Our', 'Their', 'Some', 'Any', 'All', 'Each', 'Every',
-      'Many', 'Much', 'More', 'Most', 'Other', 'Another', 'Such', 'Both', 'Few', 'Several']);
+    const common = new Set([
+      'The',
+      'This',
+      'That',
+      'These',
+      'Those',
+      'What',
+      'When',
+      'Where',
+      'Which',
+      'Who',
+      'How',
+      'Its',
+      'His',
+      'Her',
+      'Our',
+      'Their',
+      'Some',
+      'Any',
+      'All',
+      'Each',
+      'Every',
+      'Many',
+      'Much',
+      'More',
+      'Most',
+      'Other',
+      'Another',
+      'Such',
+      'Both',
+      'Few',
+      'Several',
+    ]);
     return common.has(word);
   }
 
@@ -265,7 +365,7 @@ export class NEREngine {
     if (entities.length <= 1) return entities;
     // Sort by span length (longest first), then by confidence
     entities.sort((a, b) => {
-      const lenDiff = (b.end - b.start) - (a.end - a.start);
+      const lenDiff = b.end - b.start - (a.end - a.start);
       if (lenDiff !== 0) return lenDiff;
       return b.confidence - a.confidence;
     });
@@ -325,13 +425,13 @@ export class NEREngine {
 
   // Get entities by type
   getEntitiesByType(entities: NEREntity[], type: EntityType): NEREntity[] {
-    return entities.filter(e => e.type === type);
+    return entities.filter((e) => e.type === type);
   }
 
   // Extract and link entities
   extractAndLink(text: string): NEREntity[] {
     const entities = this.extract(text);
-    return entities.map(entity => ({
+    return entities.map((entity) => ({
       ...entity,
       normalized: this.normalizeEntity(entity.text, entity.type),
     }));

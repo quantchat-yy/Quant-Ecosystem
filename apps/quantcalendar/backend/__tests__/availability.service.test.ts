@@ -71,4 +71,43 @@ describe('AvailabilityService', () => {
       expect(slots.some((s) => s.start.getHours() === 10 && s.end.getHours() === 11)).toBe(true);
     });
   });
+
+  describe('findFreeSlots', () => {
+    it('delegates to checkMultiUserAvailability', async () => {
+      const date = new Date('2024-01-15');
+      prisma.event.findMany.mockResolvedValue([]);
+
+      const slots = await service.findFreeSlots(['user-1'], date, 30);
+
+      expect(slots.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('checkConflicts', () => {
+    it('returns true when events overlap the given range', async () => {
+      prisma.event.findMany.mockResolvedValue([
+        { startTime: new Date('2024-01-15T10:00:00'), endTime: new Date('2024-01-15T11:00:00') },
+      ]);
+
+      const hasConflict = await service.checkConflicts(
+        'user-1',
+        new Date('2024-01-15T09:30:00'),
+        new Date('2024-01-15T10:30:00'),
+      );
+
+      expect(hasConflict).toBe(true);
+    });
+
+    it('returns false when no events overlap', async () => {
+      prisma.event.findMany.mockResolvedValue([]);
+
+      const hasConflict = await service.checkConflicts(
+        'user-1',
+        new Date('2024-01-15T09:00:00'),
+        new Date('2024-01-15T10:00:00'),
+      );
+
+      expect(hasConflict).toBe(false);
+    });
+  });
 });

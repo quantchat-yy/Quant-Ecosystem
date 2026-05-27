@@ -83,4 +83,8 @@ export class HistoryService {
   async clearHistory(userId: string): Promise<void> {
     this.history = this.history.filter((h) => h.userId !== userId);
   }
+
+  async removeFromHistory(userId: string, videoId: string): Promise<void> {
+    this.history = this.history.filter((h) => !(h.userId === userId && h.videoId === videoId));
+  }
 }

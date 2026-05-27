@@ -28,28 +28,119 @@ class SeededRandom {
   }
 
   pick<T>(arr: T[]): T {
-    return arr[this.nextInt(0, arr.length - 1)];
+    return arr[this.nextInt(0, arr.length - 1)]!;
   }
 
   shuffle<T>(arr: T[]): T[] {
     const result = [...arr];
     for (let i = result.length - 1; i > 0; i--) {
       const j = this.nextInt(0, i);
-      [result[i], result[j]] = [result[j], result[i]];
+      [result[i], result[j]] = [result[j]!, result[i]!];
     }
     return result;
   }
 }
 
 // Data pools for realistic generation
-const FIRST_NAMES = ['Emma', 'Liam', 'Olivia', 'Noah', 'Ava', 'Ethan', 'Sophia', 'Mason', 'Isabella', 'William', 'Mia', 'James', 'Charlotte', 'Benjamin', 'Amelia', 'Lucas', 'Harper', 'Henry', 'Evelyn', 'Alexander'];
-const LAST_NAMES = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin'];
+const FIRST_NAMES = [
+  'Emma',
+  'Liam',
+  'Olivia',
+  'Noah',
+  'Ava',
+  'Ethan',
+  'Sophia',
+  'Mason',
+  'Isabella',
+  'William',
+  'Mia',
+  'James',
+  'Charlotte',
+  'Benjamin',
+  'Amelia',
+  'Lucas',
+  'Harper',
+  'Henry',
+  'Evelyn',
+  'Alexander',
+];
+const LAST_NAMES = [
+  'Smith',
+  'Johnson',
+  'Williams',
+  'Brown',
+  'Jones',
+  'Garcia',
+  'Miller',
+  'Davis',
+  'Rodriguez',
+  'Martinez',
+  'Hernandez',
+  'Lopez',
+  'Gonzalez',
+  'Wilson',
+  'Anderson',
+  'Thomas',
+  'Taylor',
+  'Moore',
+  'Jackson',
+  'Martin',
+];
 const DOMAINS = ['gmail.com', 'yahoo.com', 'outlook.com', 'proton.me', 'icloud.com', 'mail.com'];
-const TAGS = ['technology', 'science', 'health', 'business', 'entertainment', 'sports', 'politics', 'travel', 'food', 'art', 'music', 'gaming', 'fashion', 'education', 'finance'];
-const SUBJECTS = ['Meeting tomorrow', 'Project update', 'Quick question', 'Important announcement', 'Follow up', 'Invitation', 'Reminder', 'FYI', 'Action required', 'New opportunity'];
-const VIDEO_TITLES = ['Amazing Nature Documentary', 'How to Cook Perfect Pasta', 'Tech Review 2024', 'Travel Vlog: Japan', 'Workout Routine for Beginners', 'Guitar Tutorial', 'Unboxing New Phone', 'Study Tips for Students', 'Budget Living Guide', 'DIY Home Projects'];
+const TAGS = [
+  'technology',
+  'science',
+  'health',
+  'business',
+  'entertainment',
+  'sports',
+  'politics',
+  'travel',
+  'food',
+  'art',
+  'music',
+  'gaming',
+  'fashion',
+  'education',
+  'finance',
+];
+const SUBJECTS = [
+  'Meeting tomorrow',
+  'Project update',
+  'Quick question',
+  'Important announcement',
+  'Follow up',
+  'Invitation',
+  'Reminder',
+  'FYI',
+  'Action required',
+  'New opportunity',
+];
+const VIDEO_TITLES = [
+  'Amazing Nature Documentary',
+  'How to Cook Perfect Pasta',
+  'Tech Review 2024',
+  'Travel Vlog: Japan',
+  'Workout Routine for Beginners',
+  'Guitar Tutorial',
+  'Unboxing New Phone',
+  'Study Tips for Students',
+  'Budget Living Guide',
+  'DIY Home Projects',
+];
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR', 'BRL'];
-const NOTIFICATION_TYPES = ['like', 'comment', 'follow', 'mention', 'share', 'message', 'system', 'achievement', 'reminder', 'warning'];
+const NOTIFICATION_TYPES = [
+  'like',
+  'comment',
+  'follow',
+  'mention',
+  'share',
+  'message',
+  'system',
+  'achievement',
+  'reminder',
+  'warning',
+];
 const AD_FORMATS = ['banner', 'video', 'native', 'interstitial', 'carousel', 'story'];
 const PLATFORMS = ['web', 'ios', 'android', 'desktop', 'tablet'];
 
@@ -77,7 +168,6 @@ export class MockFactory {
    * Generates a UUID-like string
    */
   private generateId(): string {
-    const hex = () => Math.floor(this.random.next() * 16).toString(16);
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
       const r = Math.floor(this.random.next() * 16);
       const v = c === 'x' ? r : (r & 0x3) | 0x8;
@@ -263,7 +353,7 @@ export class MockFactory {
       senderId: this.generateId(),
       recipientId: this.generateId(),
       description: `Payment #${this.nextSequence('payment')}`,
-      fee: parseFloat((amount * 0.029 + 0.30).toFixed(2)),
+      fee: parseFloat((amount * 0.029 + 0.3).toFixed(2)),
       reference: `TXN-${Date.now()}-${this.random.nextInt(1000, 9999)}`,
       metadata: {
         ip: `${this.random.nextInt(1, 255)}.${this.random.nextInt(0, 255)}.${this.random.nextInt(0, 255)}.${this.random.nextInt(1, 255)}`,
@@ -299,9 +389,7 @@ export class MockFactory {
    */
   createUserWithPosts(postCount: number = 3): { user: MockUser; posts: MockPost[] } {
     const user = this.createUser();
-    const posts = Array.from({ length: postCount }, () =>
-      this.createPost({ authorId: user.id })
-    );
+    const posts = Array.from({ length: postCount }, () => this.createPost({ authorId: user.id }));
     return { user, posts };
   }
 
@@ -315,10 +403,12 @@ export class MockFactory {
 
     for (let i = 0; i < messageCount; i++) {
       const isFromUser1 = this.random.next() > 0.5;
-      messages.push(this.createMessage({
-        senderId: isFromUser1 ? user1.id : user2.id,
-        recipientId: isFromUser1 ? user2.id : user1.id,
-      }));
+      messages.push(
+        this.createMessage({
+          senderId: isFromUser1 ? user1.id : user2.id,
+          recipientId: isFromUser1 ? user2.id : user1.id,
+        }),
+      );
     }
 
     return { users: [user1, user2], messages };
@@ -334,13 +424,39 @@ export class MockFactory {
   // --- Helper methods ---
 
   private generateSentence(minWords: number, maxWords: number): string {
-    const WORDS = ['the', 'quick', 'brown', 'fox', 'jumps', 'over', 'lazy', 'dog', 'while', 'exploring', 'new', 'features', 'and', 'building', 'amazing', 'products', 'with', 'great', 'attention', 'to', 'detail', 'for', 'users', 'around', 'world'];
+    const WORDS = [
+      'the',
+      'quick',
+      'brown',
+      'fox',
+      'jumps',
+      'over',
+      'lazy',
+      'dog',
+      'while',
+      'exploring',
+      'new',
+      'features',
+      'and',
+      'building',
+      'amazing',
+      'products',
+      'with',
+      'great',
+      'attention',
+      'to',
+      'detail',
+      'for',
+      'users',
+      'around',
+      'world',
+    ];
     const count = this.random.nextInt(minWords, maxWords);
     const words: string[] = [];
     for (let i = 0; i < count; i++) {
       words.push(this.random.pick(WORDS));
     }
-    words[0] = words[0].charAt(0).toUpperCase() + words[0].slice(1);
+    words[0] = words[0]!.charAt(0).toUpperCase() + words[0]!.slice(1);
     return words.join(' ') + '.';
   }
 

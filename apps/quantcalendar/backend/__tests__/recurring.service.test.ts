@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { RecurringService } from '../services/recurring.service';
 import type { CalendarEvent } from '../services/event.service';
 
@@ -19,6 +19,16 @@ function createTestEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent 
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
+  };
+}
+
+function createMockPrisma() {
+  return {
+    event: {
+      create: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    },
   };
 }
 
@@ -246,6 +256,146 @@ describe('RecurringService', () => {
       expect(serialized).toContain('FREQ=WEEKLY');
       expect(serialized).toContain('INTERVAL=2');
       expect(serialized).toContain('BYDAY=MO,WE');
+    });
+  });
+
+  describe('createRecurring', () => {
+    it('creates a recurring event via prisma', async () => {
+      const prisma = createMockPrisma();
+      const svc = new RecurringService(prisma as never);
+
+      prisma.event.create.mockImplementation(async (args: { data: Record<string, unknown> }) => ({
+        id: 'recurring-1',
+        ...args.data,
+      }));
+
+      const result = await svc.createRecurring('user-1', {
+        title: 'Daily Standup',
+        startTime: new Date('2024-01-01T09:00:00Z'),
+        endTime: new Date('2024-01-01T09:15:00Z'),
+        userId: 'user-1',
+        rule: { frequency: 'daily', interval: 1 },
+      });
+
+      expect(result.title).toBe('Daily Standup');
+      expect(result.recurrenceRule).toContain('FREQ=DAILY');
+      expect(prisma.event.create).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('expandOccurrences', () => {
+    it('delegates to expandRecurrence', () => {
+      const event = createTestEvent({
+        recurrenceRule: 'RRULE:FREQ=DAILY;COUNT=3',
+      });
+
+      const startRange = new Date('2024-01-01T00:00:00Z');
+      const endRange = new Date('2024-01-10T23:59:59Z');
+
+      const occurrences = service.expandOccurrences(event, startRange, endRange);
+
+      expect(occurrences).toHaveLength(3);
+    });
+  });
+
+  describe('updateSingle', () => {
+    it('creates a new one-off event for single occurrence update', async () => {
+      const prisma = createMockPrisma();
+      const svc = new RecurringService(prisma as never);
+
+      prisma.event.findUnique.mockResolvedValue({
+        id: 'event-1',
+        title: 'Daily Standup',
+        description: 'Team sync',
+        startTime: new Date('2024-01-01T09:00:00Z'),
+        endTime: new Date('2024-01-01T09:15:00Z'),
+        userId: 'user-1',
+        attendees: '[]',
+        reminders: '[]',
+        recurrenceRule: 'RRULE:FREQ=DAILY',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      prisma.event.create.mockImplementation(async (args: { data: Record<string, unknown> }) => ({
+        id: 'event-modified-1',
+        ...args.data,
+      }));
+
+      const result = await svc.updateSingle('event-1_2024-01-03T09:00:00.000Z', 'user-1', {
+        title: 'Extended Standup',
+      });
+
+      expect(result.title).toBe('Extended Standup');
+      expect(result.recurrenceRule).toBeNull();
+    });
+
+    it('throws 403 for wrong user', async () => {
+      const prisma = createMockPrisma();
+      const svc = new RecurringService(prisma as never);
+
+      prisma.event.findUnique.mockResolvedValue({
+        id: 'event-1',
+        userId: 'user-1',
+      });
+
+      await expect(
+        svc.updateSingle('event-1_2024-01-03', 'user-2', { title: 'Changed' }),
+      ).rejects.toThrow('Not authorized');
+    });
+  });
+
+  describe('updateAll', () => {
+    it('updates the parent recurring event', async () => {
+      const prisma = createMockPrisma();
+      const svc = new RecurringService(prisma as never);
+
+      prisma.event.findUnique.mockResolvedValue({
+        id: 'event-1',
+        title: 'Old Title',
+        description: '',
+        startTime: new Date('2024-01-01T09:00:00Z'),
+        endTime: new Date('2024-01-01T09:15:00Z'),
+        userId: 'user-1',
+        attendees: '[]',
+        reminders: '[]',
+        recurrenceRule: 'RRULE:FREQ=DAILY',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      prisma.event.update.mockImplementation(async (args) => ({
+        id: 'event-1',
+        title: (args.data as Record<string, unknown>)['title'] ?? 'Old Title',
+        description: '',
+        startTime: new Date('2024-01-01T09:00:00Z'),
+        endTime: new Date('2024-01-01T09:15:00Z'),
+        userId: 'user-1',
+        attendees: '[]',
+        reminders: '[]',
+        recurrenceRule: 'RRULE:FREQ=DAILY',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+
+      const result = await svc.updateAll('event-1', 'user-1', { title: 'New Title' });
+
+      expect(result.title).toBe('New Title');
+      expect(prisma.event.update).toHaveBeenCalledWith({
+        where: { id: 'event-1' },
+        data: expect.objectContaining({ title: 'New Title' }),
+      });
+    });
+
+    it('throws 404 when event not found', async () => {
+      const prisma = createMockPrisma();
+      const svc = new RecurringService(prisma as never);
+
+      prisma.event.findUnique.mockResolvedValue(null);
+
+      await expect(svc.updateAll('missing', 'user-1', { title: 'X' })).rejects.toThrow(
+        'Event not found',
+      );
     });
   });
 });

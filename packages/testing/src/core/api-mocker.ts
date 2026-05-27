@@ -71,7 +71,11 @@ export class APIMocker {
   /**
    * Internal route registration
    */
-  private registerRoute(method: HTTPMethod, path: string, config: RouteConfig | ((req: APIRequest) => APIResponse)): this {
+  private registerRoute(
+    method: HTTPMethod,
+    path: string,
+    config: RouteConfig | ((req: APIRequest) => APIResponse),
+  ): this {
     const key = `${method}:${path}`;
     let handler: (req: APIRequest) => APIResponse;
 
@@ -129,7 +133,16 @@ export class APIMocker {
   /**
    * Simulates an HTTP request to a registered route
    */
-  async request(method: HTTPMethod, path: string, options: { headers?: Record<string, string>; body?: unknown; params?: Record<string, string>; query?: Record<string, string> } = {}): Promise<APIResponse> {
+  async request(
+    method: HTTPMethod,
+    path: string,
+    options: {
+      headers?: Record<string, string>;
+      body?: unknown;
+      params?: Record<string, string>;
+      query?: Record<string, string>;
+    } = {},
+  ): Promise<APIResponse> {
     const req: APIRequest = {
       method,
       path,
@@ -165,7 +178,7 @@ export class APIMocker {
       let middlewareIndex = 0;
       const next = (): APIResponse => {
         if (middlewareIndex < this.middlewares.length) {
-          const middleware = this.middlewares[middlewareIndex++];
+          const middleware = this.middlewares[middlewareIndex++]!;
           return middleware(req, next);
         }
         return route.handler(req);
@@ -178,7 +191,7 @@ export class APIMocker {
     // Simulate delay
     const delay = response.delay ?? route.delay;
     if (delay > 0) {
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
 
     return response;
@@ -216,7 +229,7 @@ export class APIMocker {
     if (patternParts.length !== actualParts.length) return false;
 
     for (let i = 0; i < patternParts.length; i++) {
-      if (patternParts[i].startsWith(':')) continue;
+      if (patternParts[i]!.startsWith(':')) continue;
       if (patternParts[i] !== actualParts[i]) return false;
     }
 
@@ -233,7 +246,11 @@ export class APIMocker {
       case 'network_error':
         return { status: 0, headers: {}, body: { error: 'Network Error' } };
       case '500':
-        return { status: 500, headers: this.defaultHeaders, body: { error: 'Internal Server Error' } };
+        return {
+          status: 500,
+          headers: this.defaultHeaders,
+          body: { error: 'Internal Server Error' },
+        };
       case 'connection_refused':
         return { status: 0, headers: {}, body: { error: 'Connection Refused' } };
       default:
@@ -261,7 +278,9 @@ export class APIMocker {
     const route = this.findRoute(method, path);
     const callCount = route?.calls.length ?? 0;
     if (callCount !== times) {
-      throw new Error(`Expected ${method} ${path} to be called ${times} times, but was called ${callCount} times`);
+      throw new Error(
+        `Expected ${method} ${path} to be called ${times} times, but was called ${callCount} times`,
+      );
     }
     return true;
   }
@@ -274,9 +293,11 @@ export class APIMocker {
     if (!route || route.calls.length === 0) {
       throw new Error(`Expected ${method} ${path} to have been called`);
     }
-    const lastCall = route.calls[route.calls.length - 1];
+    const lastCall = route.calls[route.calls.length - 1]!;
     if (JSON.stringify(lastCall.body) !== JSON.stringify(expectedBody)) {
-      throw new Error(`Expected ${method} ${path} to be called with ${JSON.stringify(expectedBody)}, got ${JSON.stringify(lastCall.body)}`);
+      throw new Error(
+        `Expected ${method} ${path} to be called with ${JSON.stringify(expectedBody)}, got ${JSON.stringify(lastCall.body)}`,
+      );
     }
     return true;
   }
@@ -287,7 +308,9 @@ export class APIMocker {
   assertNotCalled(method: HTTPMethod, path: string): boolean {
     const route = this.findRoute(method, path);
     if (route && route.calls.length > 0) {
-      throw new Error(`Expected ${method} ${path} not to have been called, but it was called ${route.calls.length} times`);
+      throw new Error(
+        `Expected ${method} ${path} not to have been called, but it was called ${route.calls.length} times`,
+      );
     }
     return true;
   }

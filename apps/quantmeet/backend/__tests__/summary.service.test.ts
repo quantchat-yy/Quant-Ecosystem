@@ -130,4 +130,24 @@ describe('SummaryService', () => {
       expect(mockAI.generateText).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('getSummary', () => {
+    it('returns null when no summary exists for room', () => {
+      const result = service.getSummary('room-nonexistent');
+      expect(result).toBeNull();
+    });
+
+    it('returns the generated summary for a room after generation', async () => {
+      mockAI.generateText.mockResolvedValue('Summary text\nKey point');
+
+      const segments = [makeSegment({ roomId: 'room-1' })];
+      await service.generateSummary(segments);
+
+      const result = service.getSummary('room-1');
+
+      expect(result).not.toBeNull();
+      expect(result!.summary).toBe('Summary text');
+      expect(result!.roomId).toBe('room-1');
+    });
+  });
 });

@@ -32,8 +32,8 @@ export class ItemItemCollaborative {
       const uniqueItems = [...new Set(items)];
       for (let i = 0; i < uniqueItems.length; i++) {
         for (let j = i + 1; j < uniqueItems.length; j++) {
-          const a = uniqueItems[i];
-          const b = uniqueItems[j];
+          const a = uniqueItems[i]!;
+          const b = uniqueItems[j]!;
           this.incrementCooccurrence(a, b);
           this.incrementCooccurrence(b, a);
         }

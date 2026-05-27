@@ -9,6 +9,7 @@ import {
 } from './main';
 import type { Producer } from 'kafkajs';
 import type { SearchClient, VectorClient } from '@quant/search';
+import { SavedSearchService } from '@quant/search';
 import type { BatchEmbedder } from './embedder';
 
 function createMockDeps(): IndexerDeps {
@@ -25,7 +26,9 @@ function createMockDeps(): IndexerDeps {
     embedBatch: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
   } as unknown as BatchEmbedder;
 
-  return { searchClient, vectorClient, embedder };
+  const savedSearchService = new SavedSearchService();
+
+  return { searchClient, vectorClient, embedder, savedSearchService };
 }
 
 describe('Event Routing', () => {
@@ -264,7 +267,7 @@ describe('retryWithBackoff', () => {
     await retryWithBackoff(handler, 3, event, producer, 'test-topic', mockLogger);
 
     expect(handler).toHaveBeenCalledTimes(3);
-    expect((producer.send as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+    expect(producer.send as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
   it('publishes to DLQ after all retries are exhausted', async () => {
@@ -279,9 +282,9 @@ describe('retryWithBackoff', () => {
     ).rejects.toThrow('permanent failure');
 
     expect(handler).toHaveBeenCalledTimes(3);
-    expect((producer.send as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(1);
+    expect(producer.send as ReturnType<typeof vi.fn>).toHaveBeenCalledTimes(1);
 
-    const sendCall = (producer.send as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const sendCall = (producer.send as ReturnType<typeof vi.fn>).mock.calls[0]![0];
     expect(sendCall.topic).toBe('test-topic.dlq');
 
     const payload = JSON.parse(sendCall.messages[0].value as string);
@@ -302,7 +305,7 @@ describe('deadLetterPublish', () => {
       deadLetterPublish(producer, 'test-topic', event, new Error('original'), mockLogger),
     ).resolves.toBeUndefined();
 
-    expect((mockLogger.error as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(
+    expect(mockLogger.error as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'test.event' }),
       'Failed to publish to dead letter queue',
     );

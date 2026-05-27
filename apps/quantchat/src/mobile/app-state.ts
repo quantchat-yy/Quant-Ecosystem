@@ -1,12 +1,12 @@
-// Quantchat - App State Service
-// Mobile app state management for messaging platform
+// Quantads - App State Service
+// Mobile app state management for advertising platform
 
 export interface AppState {
   version: number;
   userId: string | null;
   lastActiveAt: number;
-  conversationsState: Record<string, unknown>;
-  contactsState: Record<string, unknown>;
+  campaignsState: Record<string, unknown>;
+  analyticsState: Record<string, unknown>;
   preferences: UserPreferences;
   cache: CacheState;
 }
@@ -20,7 +20,7 @@ export interface UserPreferences {
 }
 
 export interface CacheState {
-  messageCache: Record<string, unknown>;
+  metricsCache: Record<string, unknown>;
   lastCleared: number;
   sizeBytes: number;
   maxSizeBytes: number;
@@ -73,8 +73,8 @@ export class AppStateService {
       version: this.stateVersion,
       userId: null,
       lastActiveAt: Date.now(),
-      conversationsState: {},
-      contactsState: {},
+      campaignsState: {},
+      analyticsState: {},
       preferences: {
         theme: 'system',
         language: 'en',
@@ -82,7 +82,7 @@ export class AppStateService {
         biometricEnabled: false,
         offlineMode: false,
       },
-      cache: { messageCache: {}, lastCleared: Date.now(), sizeBytes: 0, maxSizeBytes: 104857600 },
+      cache: { metricsCache: {}, lastCleared: Date.now(), sizeBytes: 0, maxSizeBytes: 104857600 },
     };
   }
 
@@ -120,6 +120,7 @@ export class AppStateService {
   public async restoreState(): Promise<AppState | null> {
     if (this.snapshots.length === 0) return null;
     const latest = this.snapshots[this.snapshots.length - 1];
+    if (!latest) return null;
     const migrated = this.migrateState(latest.state as unknown as Record<string, unknown>);
     this.currentState = migrated as unknown as AppState;
     this.notifyListeners();
@@ -143,7 +144,7 @@ export class AppStateService {
   public async onMemoryWarning(): Promise<void> {
     this.currentState.cache = {
       ...this.currentState.cache,
-      messageCache: {},
+      metricsCache: {},
       sizeBytes: 0,
       lastCleared: Date.now(),
     };

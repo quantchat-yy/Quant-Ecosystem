@@ -51,10 +51,10 @@ describe('TwoTowerRetrieval', () => {
     const results = tower.retrieve('user1', [1, 0.5, 0.3, 0.8, 0.2, 0.9, 0.4, 0.6], 3);
 
     expect(results).toHaveLength(3);
-    expect(results[0].score).toBeGreaterThanOrEqual(results[1].score);
-    expect(results[1].score).toBeGreaterThanOrEqual(results[2].score);
+    expect(results[0]!.score).toBeGreaterThanOrEqual(results[1]!.score);
+    expect(results[1]!.score).toBeGreaterThanOrEqual(results[2]!.score);
     // Each result should have id and score
-    expect(results[0]).toHaveProperty('id');
+    expect(results[0]!).toHaveProperty('id');
     expect(results[0]).toHaveProperty('score');
   });
 
@@ -70,7 +70,7 @@ describe('TwoTowerRetrieval', () => {
     const results = tower.retrieveByEmbedding(userEmbedding, 2);
 
     expect(results).toHaveLength(2);
-    expect(results[0].score).toBeGreaterThanOrEqual(results[1].score);
+    expect(results[0]!.score).toBeGreaterThanOrEqual(results[1]!.score);
   });
 
   it('should return empty array when no items indexed', () => {

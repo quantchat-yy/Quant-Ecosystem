@@ -2,13 +2,7 @@
 // ML Pipeline - Embedding Store with LSH
 // ============================================================================
 
-import {
-  Embedding,
-  VectorIndex,
-  LSHConfig,
-  SimilarityResult,
-  ANNConfig,
-} from '../types';
+import { Embedding, VectorIndex, LSHConfig, SimilarityResult } from '../types';
 
 interface LSHTable {
   hashFunctions: number[][];
@@ -19,7 +13,6 @@ export class EmbeddingStore {
   private vectors: Map<string, Embedding> = new Map();
   private dimension: number;
   private lshTables: LSHTable[] = [];
-  private lshConfig: LSHConfig | null = null;
   private indexBuilt: boolean = false;
 
   constructor(dimension: number) {
@@ -42,7 +35,9 @@ export class EmbeddingStore {
     }
   }
 
-  batchInsert(embeddings: { id: string; vector: number[]; metadata?: Record<string, string> }[]): void {
+  batchInsert(
+    embeddings: { id: string; vector: number[]; metadata?: Record<string, string> }[],
+  ): void {
     for (const emb of embeddings) {
       this.vectors.set(emb.id, {
         id: emb.id,
@@ -71,9 +66,9 @@ export class EmbeddingStore {
     let normA = 0;
     let normB = 0;
     for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
+      dotProduct += a[i]! * b[i]!;
+      normA += a[i]! * a[i]!;
+      normB += b[i]! * b[i]!;
     }
     const denom = Math.sqrt(normA) * Math.sqrt(normB);
     if (denom === 0) return 0;
@@ -83,7 +78,7 @@ export class EmbeddingStore {
   euclideanDistance(a: number[], b: number[]): number {
     let sum = 0;
     for (let i = 0; i < a.length; i++) {
-      const diff = a[i] - b[i];
+      const diff = a[i]! - b[i]!;
       sum += diff * diff;
     }
     return Math.sqrt(sum);
@@ -92,13 +87,17 @@ export class EmbeddingStore {
   dotProduct(a: number[], b: number[]): number {
     let sum = 0;
     for (let i = 0; i < a.length; i++) {
-      sum += a[i] * b[i];
+      sum += a[i]! * b[i]!;
     }
     return sum;
   }
 
   // Exact K-Nearest Neighbors
-  knnExact(query: number[], k: number, metric: 'cosine' | 'euclidean' = 'cosine'): SimilarityResult[] {
+  knnExact(
+    query: number[],
+    k: number,
+    metric: 'cosine' | 'euclidean' = 'cosine',
+  ): SimilarityResult[] {
     const results: SimilarityResult[] = [];
     for (const [id, embedding] of this.vectors.entries()) {
       let score: number;
@@ -115,13 +114,15 @@ export class EmbeddingStore {
 
   // LSH Index Building
   buildLSHIndex(config: LSHConfig): void {
-    this.lshConfig = config;
     this.lshTables = [];
     for (let t = 0; t < config.numHashTables; t++) {
       const hashFunctions: number[][] = [];
       for (let h = 0; h < config.numHashFunctions; h++) {
         // Random hyperplane: generate random normal vector
-        const hyperplane = this.generateRandomHyperplane(config.dimension, config.seed ? config.seed + t * 100 + h : undefined);
+        const hyperplane = this.generateRandomHyperplane(
+          config.dimension,
+          config.seed ? config.seed + t * 100 + h : undefined,
+        );
         hashFunctions.push(hyperplane);
       }
       const table: LSHTable = { hashFunctions, buckets: new Map() };
@@ -155,7 +156,7 @@ export class EmbeddingStore {
     for (const hyperplane of table.hashFunctions) {
       let dot = 0;
       for (let i = 0; i < vector.length; i++) {
-        dot += vector[i] * hyperplane[i];
+        dot += vector[i]! * hyperplane[i]!;
       }
       bits.push(dot >= 0 ? '1' : '0');
     }
@@ -191,7 +192,8 @@ export class EmbeddingStore {
       // Multi-probe: flip bits for nearby buckets
       if (numProbes > 1) {
         for (let p = 0; p < Math.min(numProbes - 1, hash.length); p++) {
-          const flipped = hash.substring(0, p) + (hash[p] === '0' ? '1' : '0') + hash.substring(p + 1);
+          const flipped =
+            hash.substring(0, p) + (hash[p] === '0' ? '1' : '0') + hash.substring(p + 1);
           const nearBucket = table.buckets.get(flipped);
           if (nearBucket) {
             for (const id of nearBucket) candidateIds.add(id);
@@ -212,7 +214,11 @@ export class EmbeddingStore {
   }
 
   // Search with threshold
-  searchByThreshold(query: number[], threshold: number, metric: 'cosine' | 'euclidean' = 'cosine'): SimilarityResult[] {
+  searchByThreshold(
+    query: number[],
+    threshold: number,
+    metric: 'cosine' | 'euclidean' = 'cosine',
+  ): SimilarityResult[] {
     const results: SimilarityResult[] = [];
     for (const [id, embedding] of this.vectors.entries()) {
       let score: number;
@@ -239,9 +245,9 @@ export class EmbeddingStore {
     const scale = Math.sqrt(targetDim);
     for (let i = 0; i < targetDim; i++) {
       for (let j = 0; j < vector.length; j++) {
-        result[i] += projectionMatrix[i][j] * vector[j];
+        result[i]! += projectionMatrix[i]![j]! * vector[j]!;
       }
-      result[i] /= scale;
+      result[i]! /= scale;
     }
     return result;
   }
@@ -268,11 +274,11 @@ export class EmbeddingStore {
   normalize(vector: number[]): number[] {
     let norm = 0;
     for (let i = 0; i < vector.length; i++) {
-      norm += vector[i] * vector[i];
+      norm += vector[i]! * vector[i]!;
     }
     norm = Math.sqrt(norm);
     if (norm === 0) return vector;
-    return vector.map(v => v / norm);
+    return vector.map((v) => v / norm);
   }
 
   getIndexInfo(): VectorIndex {
@@ -304,7 +310,7 @@ export class EmbeddingStore {
     const centroid = new Array(this.dimension).fill(0);
     for (const [, embedding] of this.vectors.entries()) {
       for (let i = 0; i < this.dimension; i++) {
-        centroid[i] += embedding.vector[i];
+        centroid[i] += embedding.vector[i]!;
       }
     }
     const n = this.vectors.size;

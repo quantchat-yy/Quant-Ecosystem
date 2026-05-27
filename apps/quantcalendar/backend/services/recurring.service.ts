@@ -1,3 +1,4 @@
+import { createAppError } from '@quant/server-core';
 import type { CalendarEvent } from './event.service';
 
 export interface RecurrenceRule {
@@ -10,7 +11,63 @@ export interface RecurrenceRule {
   exceptions?: Date[];
 }
 
+export interface CreateRecurringInput {
+  title: string;
+  description?: string;
+  startTime: Date;
+  endTime: Date;
+  userId: string;
+  rule: RecurrenceRule;
+}
+
+export interface PrismaClient {
+  event: {
+    create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
+    findUnique: (args: { where: Record<string, unknown> }) => Promise<unknown>;
+    update: (args: {
+      where: Record<string, unknown>;
+      data: Record<string, unknown>;
+    }) => Promise<unknown>;
+  };
+}
+
 export class RecurringService {
+  private readonly prisma: PrismaClient | null;
+
+  constructor(prisma?: PrismaClient) {
+    this.prisma = prisma ?? null;
+  }
+
+  async createRecurring(userId: string, input: CreateRecurringInput): Promise<CalendarEvent> {
+    if (!this.prisma) {
+      throw createAppError('Prisma client not available', 500, 'INTERNAL_ERROR');
+    }
+    const rrule = this.serializeRRule(input.rule);
+    const now = new Date();
+    const event = await this.prisma.event.create({
+      data: {
+        title: input.title,
+        description: input.description ?? '',
+        startTime: input.startTime,
+        endTime: input.endTime,
+        allDay: false,
+        location: '',
+        userId,
+        attendees: JSON.stringify([]),
+        recurrenceRule: rrule,
+        status: 'confirmed',
+        reminders: JSON.stringify([]),
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+    return this.toCalendarEvent(event);
+  }
+
+  expandOccurrences(event: CalendarEvent, startRange: Date, endRange: Date): CalendarEvent[] {
+    return this.expandRecurrence(event, startRange, endRange);
+  }
+
   expandRecurrence(event: CalendarEvent, startRange: Date, endRange: Date): CalendarEvent[] {
     if (!event.recurrenceRule) {
       return [event];
@@ -66,10 +123,90 @@ export class RecurringService {
 
   addException(
     eventId: string,
-    userId: string,
+    _userId: string,
     exceptionDate: Date,
   ): { eventId: string; exceptionDate: Date } {
     return { eventId, exceptionDate };
+  }
+
+  async updateSingle(
+    occurrenceId: string,
+    userId: string,
+    data: { title?: string; description?: string; startTime?: Date; endTime?: Date },
+  ): Promise<CalendarEvent> {
+    if (!this.prisma) {
+      throw createAppError('Prisma client not available', 500, 'INTERNAL_ERROR');
+    }
+    // For single occurrence updates, we find the parent event and add an exception,
+    // then create a new one-off event for this occurrence
+    const parts = occurrenceId.split('_');
+    const parentId = parts[0];
+    if (!parentId) {
+      throw createAppError('Invalid occurrence ID', 400, 'INVALID_OCCURRENCE_ID');
+    }
+
+    const parent = await this.prisma.event.findUnique({ where: { id: parentId } });
+    if (!parent) {
+      throw createAppError('Event not found', 404, 'EVENT_NOT_FOUND');
+    }
+
+    const parentRecord = parent as unknown as Record<string, unknown>;
+    if (parentRecord['userId'] !== userId) {
+      throw createAppError('Not authorized', 403, 'UNAUTHORIZED');
+    }
+
+    const now = new Date();
+    const event = await this.prisma.event.create({
+      data: {
+        title: data.title ?? (parentRecord['title'] as string),
+        description: data.description ?? (parentRecord['description'] as string),
+        startTime: data.startTime ?? (parentRecord['startTime'] as Date),
+        endTime: data.endTime ?? (parentRecord['endTime'] as Date),
+        allDay: false,
+        location: '',
+        userId,
+        attendees: JSON.stringify([]),
+        recurrenceRule: null,
+        status: 'confirmed',
+        reminders: JSON.stringify([]),
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+
+    return this.toCalendarEvent(event);
+  }
+
+  async updateAll(
+    recurringId: string,
+    userId: string,
+    data: { title?: string; description?: string; startTime?: Date; endTime?: Date },
+  ): Promise<CalendarEvent> {
+    if (!this.prisma) {
+      throw createAppError('Prisma client not available', 500, 'INTERNAL_ERROR');
+    }
+    const event = await this.prisma.event.findUnique({ where: { id: recurringId } });
+    if (!event) {
+      throw createAppError('Event not found', 404, 'EVENT_NOT_FOUND');
+    }
+
+    const record = event as unknown as Record<string, unknown>;
+    if (record['userId'] !== userId) {
+      throw createAppError('Not authorized', 403, 'UNAUTHORIZED');
+    }
+
+    const updateData: Record<string, unknown> = { updatedAt: new Date() };
+    if (data.title !== undefined) updateData['title'] = data.title;
+    if (data.description !== undefined) updateData['description'] = data.description;
+    if (data.startTime !== undefined) updateData['startTime'] = data.startTime;
+    if (data.endTime !== undefined) updateData['endTime'] = data.endTime;
+
+    const updated = await this.prisma.event.update({
+      where: { id: recurringId },
+      data: updateData,
+    });
+
+    return this.toCalendarEvent(updated);
   }
 
   parseRRule(rruleString: string): RecurrenceRule {
@@ -167,7 +304,6 @@ export class RecurringService {
     switch (rule.frequency) {
       case 'daily':
         if (rule.byDay && rule.byDay.length > 0) {
-          // Advance one day at a time when byDay is specified
           next.setDate(next.getDate() + 1);
         } else {
           next.setDate(next.getDate() + rule.interval);
@@ -175,7 +311,6 @@ export class RecurringService {
         break;
       case 'weekly':
         if (rule.byDay && rule.byDay.length > 0) {
-          // Advance one day at a time to find next matching day
           next.setDate(next.getDate() + 1);
         } else {
           next.setDate(next.getDate() + 7 * rule.interval);
@@ -205,5 +340,31 @@ export class RecurringService {
     const m = String(date.getUTCMonth() + 1).padStart(2, '0');
     const d = String(date.getUTCDate()).padStart(2, '0');
     return `${y}${m}${d}T000000Z`;
+  }
+
+  private toCalendarEvent(raw: unknown): CalendarEvent {
+    const record = raw as Record<string, unknown>;
+    return {
+      id: record['id'] as string,
+      title: record['title'] as string,
+      description: (record['description'] as string) ?? '',
+      startTime: new Date(record['startTime'] as string | Date),
+      endTime: new Date(record['endTime'] as string | Date),
+      allDay: (record['allDay'] as boolean) ?? false,
+      location: (record['location'] as string) ?? '',
+      userId: record['userId'] as string,
+      attendees:
+        typeof record['attendees'] === 'string'
+          ? JSON.parse(record['attendees'] as string)
+          : ((record['attendees'] as unknown[]) ?? []),
+      recurrenceRule: (record['recurrenceRule'] as string | null) ?? null,
+      status: (record['status'] as CalendarEvent['status']) ?? 'confirmed',
+      reminders:
+        typeof record['reminders'] === 'string'
+          ? JSON.parse(record['reminders'] as string)
+          : ((record['reminders'] as unknown[]) ?? []),
+      createdAt: new Date(record['createdAt'] as string | Date),
+      updatedAt: new Date(record['updatedAt'] as string | Date),
+    };
   }
 }

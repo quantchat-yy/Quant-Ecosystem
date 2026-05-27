@@ -3,12 +3,7 @@
 // Appeal lifecycle with automatic pre-screening and human escalation
 // ============================================================================
 
-import type {
-  Appeal,
-  AppealStatus,
-  ModerationAction,
-  ContentCategory,
-} from '../types';
+import type { Appeal, ModerationAction, ContentCategory } from '../types';
 
 interface AppealServiceConfig {
   maxAppealsPerUser: number;
@@ -69,19 +64,25 @@ export class AppealService {
   }): Promise<Appeal> {
     // Check appeal limits
     const userAppeals = this.userAppeals.get(params.userId) || [];
-    const recentAppeals = userAppeals.filter(id => {
+    const recentAppeals = userAppeals.filter((id) => {
       const appeal = this.appeals.get(id);
-      return appeal && (Date.now() - appeal.createdAt) < (this.config.cooldownDays * 86400000);
+      return appeal && Date.now() - appeal.createdAt < this.config.cooldownDays * 86400000;
     });
 
     if (recentAppeals.length >= this.config.maxAppealsPerUser) {
-      throw new Error(`Maximum appeals (${this.config.maxAppealsPerUser}) reached within cooldown period`);
+      throw new Error(
+        `Maximum appeals (${this.config.maxAppealsPerUser}) reached within cooldown period`,
+      );
     }
 
     // Check for existing appeal on same content
-    const existingAppeal = userAppeals.find(id => {
+    const existingAppeal = userAppeals.find((id) => {
       const a = this.appeals.get(id);
-      return a && a.contentId === params.contentId && (a.status === 'submitted' || a.status === 'auto_reviewing' || a.status === 'human_review');
+      return (
+        a &&
+        a.contentId === params.contentId &&
+        (a.status === 'submitted' || a.status === 'auto_reviewing' || a.status === 'human_review')
+      );
     });
     if (existingAppeal) {
       throw new Error('An appeal for this content is already pending');
@@ -124,7 +125,10 @@ export class AppealService {
   }
 
   /** Approve an appeal */
-  async approve(appealId: string, params: { reviewerId: string; reason: string; newAction?: ModerationAction }): Promise<Appeal> {
+  async approve(
+    appealId: string,
+    params: { reviewerId: string; reason: string; newAction?: ModerationAction },
+  ): Promise<Appeal> {
     const appeal = this.getAppealOrThrow(appealId);
     if (appeal.status === 'approved' || appeal.status === 'denied') {
       throw new Error('Appeal is already resolved');
@@ -164,7 +168,7 @@ export class AppealService {
   async getHistory(userId: string, limit: number = 50): Promise<Appeal[]> {
     const appealIds = this.userAppeals.get(userId) || [];
     const appeals = appealIds
-      .map(id => this.appeals.get(id))
+      .map((id) => this.appeals.get(id))
       .filter((a): a is Appeal => a !== undefined)
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, limit);
@@ -172,7 +176,9 @@ export class AppealService {
   }
 
   /** Auto-review eligible appeals */
-  async autoReview(appealId: string): Promise<{ processed: boolean; decision?: 'approved' | 'denied'; reason?: string }> {
+  async autoReview(
+    appealId: string,
+  ): Promise<{ processed: boolean; decision?: 'approved' | 'denied'; reason?: string }> {
     const appeal = this.getAppealOrThrow(appealId);
     appeal.status = 'auto_reviewing';
     appeal.updatedAt = Date.now();
@@ -184,14 +190,18 @@ export class AppealService {
     }
 
     if (!this.config.autoReviewCategories.includes(contentScore.category)) {
-      return { processed: false, reason: `Category ${contentScore.category} requires human review` };
+      return {
+        processed: false,
+        reason: `Category ${contentScore.category} requires human review`,
+      };
     }
 
     // Auto-approve if original score was borderline
     if (contentScore.score < this.config.autoApproveThreshold) {
       appeal.status = 'approved';
       appeal.decision = 'overturned';
-      appeal.decisionReason = 'Auto-approved: Original classification was below confidence threshold';
+      appeal.decisionReason =
+        'Auto-approved: Original classification was below confidence threshold';
       appeal.newAction = 'approve';
       appeal.resolvedAt = Date.now();
       appeal.updatedAt = Date.now();
@@ -201,7 +211,10 @@ export class AppealService {
     // Otherwise escalate to human
     appeal.status = 'human_review';
     appeal.updatedAt = Date.now();
-    return { processed: false, reason: 'Score above auto-approve threshold - escalated to human review' };
+    return {
+      processed: false,
+      reason: 'Score above auto-approve threshold - escalated to human review',
+    };
   }
 
   /** Escalate an appeal to human review */
@@ -218,10 +231,10 @@ export class AppealService {
   /** Get appeal statistics */
   async getStats(): Promise<AppealMetrics> {
     const allAppeals = Array.from(this.appeals.values());
-    const resolved = allAppeals.filter(a => a.resolvedAt);
-    const approved = resolved.filter(a => a.decision === 'overturned');
-    const denied = resolved.filter(a => a.decision === 'upheld');
-    const autoReviewed = resolved.filter(a => !a.reviewerId);
+    const resolved = allAppeals.filter((a) => a.resolvedAt);
+    const approved = resolved.filter((a) => a.decision === 'overturned');
+    const denied = resolved.filter((a) => a.decision === 'upheld');
+    const autoReviewed = resolved.filter((a) => !a.reviewerId);
     const totalResolutionTime = resolved.reduce((sum, a) => sum + (a.resolvedAt! - a.createdAt), 0);
 
     return {

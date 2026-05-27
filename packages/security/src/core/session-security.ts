@@ -37,11 +37,14 @@ export class SessionSecurity {
   }
 
   /** Create a new secure session */
-  async createSession(userId: string, params: {
-    ip: string;
-    userAgent: string;
-    privilegeLevel?: number;
-  }): Promise<SecureSession> {
+  async createSession(
+    userId: string,
+    params: {
+      ip: string;
+      userAgent: string;
+      privilegeLevel?: number;
+    },
+  ): Promise<SecureSession> {
     const now = Date.now();
 
     // Enforce concurrent session limits
@@ -75,10 +78,13 @@ export class SessionSecurity {
   }
 
   /** Validate a session */
-  async validateSession(sessionId: string, params: {
-    ip: string;
-    userAgent: string;
-  }): Promise<{ valid: boolean; reason: string; session?: SecureSession }> {
+  async validateSession(
+    sessionId: string,
+    params: {
+      ip: string;
+      userAgent: string;
+    },
+  ): Promise<{ valid: boolean; reason: string; session?: SecureSession }> {
     const session = this.sessions.get(sessionId);
     if (!session) {
       return { valid: false, reason: 'session_not_found' };
@@ -152,7 +158,10 @@ export class SessionSecurity {
   }
 
   /** Rotate session on privilege escalation (e.g., login, sudo) */
-  async onPrivilegeEscalation(sessionId: string, newPrivilegeLevel: number): Promise<SecureSession | null> {
+  async onPrivilegeEscalation(
+    sessionId: string,
+    newPrivilegeLevel: number,
+  ): Promise<SecureSession | null> {
     if (!this.config.rotateOnAuth) {
       const session = this.sessions.get(sessionId);
       if (session) {
@@ -208,18 +217,13 @@ export class SessionSecurity {
   getUserSessions(userId: string): SecureSession[] {
     const sessionIds = this.userSessions.get(userId) || [];
     return sessionIds
-      .map(id => this.sessions.get(id))
+      .map((id) => this.sessions.get(id))
       .filter((s): s is SecureSession => s !== undefined);
   }
 
   /** Generate secure cookie attributes */
   getCookieAttributes(sessionId: string): string {
-    const parts = [
-      `sid=${sessionId}`,
-      'Path=/',
-      'HttpOnly',
-      `SameSite=${this.config.sameSite}`,
-    ];
+    const parts = [`sid=${sessionId}`, 'Path=/', 'HttpOnly', `SameSite=${this.config.sameSite}`];
 
     if (this.config.secureCookie) {
       parts.push('Secure');
@@ -240,12 +244,12 @@ export class SessionSecurity {
       // Remove oldest sessions until under limit
       const sessionsToRemove = userSessionList.length - this.config.maxConcurrent + 1;
       const sortedSessions = userSessionList
-        .map(id => this.sessions.get(id))
+        .map((id) => this.sessions.get(id))
         .filter((s): s is SecureSession => s !== undefined)
         .sort((a, b) => a.lastActivity - b.lastActivity);
 
       for (let i = 0; i < sessionsToRemove && i < sortedSessions.length; i++) {
-        await this.destroySession(sortedSessions[i].id);
+        await this.destroySession(sortedSessions[i]!.id);
       }
     }
   }

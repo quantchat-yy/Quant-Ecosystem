@@ -1,5 +1,5 @@
-// Quantmail - Contacts Sync Service
-// Mobile contacts synchronization for email platform
+// Quantads - Contacts Sync Service
+// Mobile contacts synchronization for advertising platform
 
 export interface DeviceContact {
   id: string;
@@ -57,7 +57,7 @@ export interface ConnectionSuggestion {
   displayName: string;
   avatar: string;
   mutualConnections: number;
-  reason: 'email_contacts';
+  reason: 'business_network';
   confidence: number;
 }
 
@@ -98,15 +98,15 @@ export class ContactsSyncService {
   public async findFriends(contacts: DeviceContact[]): Promise<RegisteredUser[]> {
     const matches: RegisteredUser[] = [];
     for (const contact of contacts) {
-      const phoneHashes = contact.phoneNumbers.map(p => this.hashValue(p.normalized));
-      const emailHashes = contact.emails.map(e => this.hashValue(e.normalized));
+      const phoneHashes = contact.phoneNumbers.map((p) => this.hashValue(p.normalized));
+      const emailHashes = contact.emails.map((e) => this.hashValue(e.normalized));
       const phoneMatch = await this.checkRegistered(phoneHashes, 'phone');
       const emailMatch = await this.checkRegistered(emailHashes, 'email');
       if (phoneMatch) matches.push(phoneMatch);
       else if (emailMatch) matches.push(emailMatch);
     }
     this.syncStatus.matchedContacts = matches.length;
-    matches.forEach(m => this.registeredMatches.set(m.userId, m));
+    matches.forEach((m) => this.registeredMatches.set(m.userId, m));
     return matches;
   }
 
@@ -114,18 +114,21 @@ export class ContactsSyncService {
     let hash = 0;
     for (let i = 0; i < value.length; i++) {
       const char = value.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     return Math.abs(hash).toString(36);
   }
 
-  private async checkRegistered(hashes: string[], type: 'phone' | 'email'): Promise<RegisteredUser | null> {
-    if (hashes.length === 0) return null;
+  private async checkRegistered(
+    _hashes: string[],
+    _type: 'phone' | 'email',
+  ): Promise<RegisteredUser | null> {
+    if (_hashes.length === 0) return null;
     return null;
   }
 
-  public async invite(contactId: string, options: InviteOptions): Promise<boolean> {
+  public async invite(contactId: string, _options: InviteOptions): Promise<boolean> {
     const contact = this.contacts.get(contactId);
     if (!contact) return false;
     this.invitedContacts.add(contactId);
@@ -147,11 +150,14 @@ export class ContactsSyncService {
 
   public normalizeEmail(email: string): string {
     const [local, domain] = email.toLowerCase().trim().split('@');
-    const cleanLocal = local.split('+')[0].replace(/\./g, '');
-    return cleanLocal + '@' + domain;
+    const cleanLocal = (local ?? '').split('+')[0]!.replace(/\./g, '');
+    return cleanLocal + '@' + (domain ?? '');
   }
 
-  public matchAlgorithm(contact: DeviceContact, registeredUsers: RegisteredUser[]): RegisteredUser | null {
+  public matchAlgorithm(
+    contact: DeviceContact,
+    registeredUsers: RegisteredUser[],
+  ): RegisteredUser | null {
     for (const user of registeredUsers) {
       for (const phone of contact.phoneNumbers) {
         if (this.normalizePhoneNumber(phone.number) === user.matchedValue) return user;
@@ -180,6 +186,12 @@ export class ContactsSyncService {
     this.contacts.clear();
     this.registeredMatches.clear();
     this.invitedContacts.clear();
-    this.syncStatus = { lastSyncAt: 0, totalContacts: 0, matchedContacts: 0, pendingInvites: 0, syncState: 'idle' };
+    this.syncStatus = {
+      lastSyncAt: 0,
+      totalContacts: 0,
+      matchedContacts: 0,
+      pendingInvites: 0,
+      syncState: 'idle',
+    };
   }
 }

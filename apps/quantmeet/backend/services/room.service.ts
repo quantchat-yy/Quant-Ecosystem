@@ -142,6 +142,25 @@ export class RoomService {
     return room.participants;
   }
 
+  listRooms(userId: string): Room[] {
+    const result: Room[] = [];
+    for (const room of this.rooms.values()) {
+      if (room.hostId === userId || room.participants.some((p) => p.userId === userId)) {
+        result.push(room);
+      }
+    }
+    return result;
+  }
+
+  endMeeting(roomId: string, userId: string): void {
+    const room = this.getRoom(roomId);
+    if (room.hostId !== userId) {
+      throw createAppError('Only the host can end the meeting', 403, 'UNAUTHORIZED');
+    }
+    room.status = 'closed';
+    room.participants = [];
+  }
+
   closeRoom(roomId: string): void {
     const room = this.getRoom(roomId);
     room.status = 'closed';

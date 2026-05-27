@@ -42,14 +42,14 @@ export class NeuralCF {
 
     for (let i = 0; i < userIds.length; i++) {
       const embedding = this.randomVector(embSize, scale);
-      this.userEmbeddings.set(userIds[i], embedding);
-      this.userIndex.set(userIds[i], i);
+      this.userEmbeddings.set(userIds[i]!, embedding);
+      this.userIndex.set(userIds[i]!, i);
     }
 
     for (let i = 0; i < itemIds.length; i++) {
       const embedding = this.randomVector(embSize, scale);
-      this.itemEmbeddings.set(itemIds[i], embedding);
-      this.itemIndex.set(itemIds[i], i);
+      this.itemEmbeddings.set(itemIds[i]!, embedding);
+      this.itemIndex.set(itemIds[i]!, i);
     }
 
     this.initializeLayers();
@@ -142,9 +142,9 @@ export class NeuralCF {
     for (const layer of this.layers) {
       const output: number[] = [];
       for (let i = 0; i < layer.weights.length; i++) {
-        let sum = layer.biases[i];
+        let sum = layer.biases[i]!;
         for (let j = 0; j < input.length; j++) {
-          sum += layer.weights[i][j] * input[j];
+          sum += layer.weights[i]![j]! * input[j]!;
         }
         output.push(this.activate(sum, layer.activation));
       }
@@ -155,7 +155,7 @@ export class NeuralCF {
     // Output layer with sigmoid
     let outputSum = this.outputBias;
     for (let i = 0; i < input.length; i++) {
-      outputSum += this.outputWeights[i] * input[i];
+      outputSum += this.outputWeights[i]! * input[i]!;
     }
     const output = this.activate(outputSum, 'sigmoid');
 
@@ -177,37 +177,38 @@ export class NeuralCF {
 
     // Output layer gradient
     const outputError = output - sample.label;
-    const lastActivation = activations[activations.length - 1];
+    const lastActivation = activations[activations.length - 1]!;
 
     // Update output weights
     for (let i = 0; i < this.outputWeights.length; i++) {
       const grad = outputError * (lastActivation[i] || 0);
-      this.outputWeights[i] -= lr * grad;
+      this.outputWeights[i]! -= lr * grad;
     }
     this.outputBias -= lr * outputError;
 
     // Backpropagate through hidden layers
     let layerError: number[] = [];
     for (let i = 0; i < this.outputWeights.length; i++) {
-      layerError.push(outputError * this.outputWeights[i]);
+      layerError.push(outputError * this.outputWeights[i]!);
     }
 
     for (let l = this.layers.length - 1; l >= 0; l--) {
-      const layer = this.layers[l];
-      const prevActivation = activations[l];
+      const layer = this.layers[l]!;
+      const prevActivation = activations[l]!;
       const newError: number[] = new Array(prevActivation.length).fill(0);
 
       for (let i = 0; i < layer.weights.length; i++) {
-        const delta = layerError[i] * this.activateDerivative(activations[l + 1][i], layer.activation);
+        const delta =
+          layerError[i]! * this.activateDerivative(activations[l + 1]![i]!, layer.activation);
 
         // Apply dropout conceptually
         const dropoutMask = Math.random() > this.config.dropout ? 1 : 0;
 
-        for (let j = 0; j < layer.weights[i].length; j++) {
-          newError[j] += delta * layer.weights[i][j];
-          layer.weights[i][j] -= lr * delta * prevActivation[j] * dropoutMask;
+        for (let j = 0; j < layer.weights[i]!.length; j++) {
+          newError[j]! += delta * layer.weights[i]![j]!;
+          layer.weights[i]![j]! -= lr * delta * prevActivation[j]! * dropoutMask;
         }
-        layer.biases[i] -= lr * delta * dropoutMask;
+        layer.biases[i]! -= lr * delta * dropoutMask;
       }
 
       layerError = newError;
@@ -218,10 +219,10 @@ export class NeuralCF {
     const itemEmb = this.itemEmbeddings.get(sample.itemId);
     if (userEmb && itemEmb) {
       for (let i = 0; i < userEmb.length; i++) {
-        userEmb[i] -= lr * (layerError[i] || 0);
+        userEmb[i]! -= lr * (layerError[i] || 0);
       }
       for (let i = 0; i < itemEmb.length; i++) {
-        itemEmb[i] -= lr * (layerError[userEmb.length + i] || 0);
+        itemEmb[i]! -= lr * (layerError[userEmb.length + i] || 0);
       }
     }
 
@@ -257,7 +258,11 @@ export class NeuralCF {
   }
 
   /** Get recommendations for a user */
-  recommend(userId: string, candidateItemIds: string[], topN: number = 10): Array<{ itemId: string; score: number }> {
+  recommend(
+    userId: string,
+    candidateItemIds: string[],
+    topN: number = 10,
+  ): Array<{ itemId: string; score: number }> {
     const predictions: Array<{ itemId: string; score: number }> = [];
 
     for (const itemId of candidateItemIds) {

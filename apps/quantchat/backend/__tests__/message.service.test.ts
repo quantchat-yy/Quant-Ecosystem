@@ -15,6 +15,7 @@ function createMockPrisma() {
     },
     conversationMember: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
     },
   };
 }
@@ -294,6 +295,115 @@ describe('MessageService', () => {
       await expect(service.pinMessage('msg-1', 'user-outsider')).rejects.toThrow(
         'User is not a member of this conversation',
       );
+    });
+  });
+
+  describe('reactToMessage', () => {
+    it('adds a reaction to a message', async () => {
+      prisma.message.findUnique.mockResolvedValue({
+        id: 'msg-1',
+        conversationId: 'conv-1',
+        metadata: {},
+      });
+      prisma.conversationMember.findFirst.mockResolvedValue({ id: 'member-1' });
+      prisma.message.update.mockResolvedValue({
+        id: 'msg-1',
+        metadata: { reactions: { '👍': ['user-1'] } },
+      });
+
+      const result = await service.reactToMessage('msg-1', 'user-1', '👍');
+
+      expect(prisma.message.update).toHaveBeenCalledWith({
+        where: { id: 'msg-1' },
+        data: { metadata: { reactions: { '👍': ['user-1'] } } },
+      });
+      expect(result.metadata).toEqual({ reactions: { '👍': ['user-1'] } });
+    });
+
+    it('removes reaction when user already reacted', async () => {
+      prisma.message.findUnique.mockResolvedValue({
+        id: 'msg-1',
+        conversationId: 'conv-1',
+        metadata: { reactions: { '👍': ['user-1'] } },
+      });
+      prisma.conversationMember.findFirst.mockResolvedValue({ id: 'member-1' });
+      prisma.message.update.mockResolvedValue({
+        id: 'msg-1',
+        metadata: { reactions: {} },
+      });
+
+      await service.reactToMessage('msg-1', 'user-1', '👍');
+
+      expect(prisma.message.update).toHaveBeenCalledWith({
+        where: { id: 'msg-1' },
+        data: { metadata: { reactions: {} } },
+      });
+    });
+
+    it('throws MESSAGE_NOT_FOUND for non-existent message', async () => {
+      prisma.message.findUnique.mockResolvedValue(null);
+
+      await expect(service.reactToMessage('missing', 'user-1', '👍')).rejects.toThrow(
+        'Message not found',
+      );
+    });
+
+    it('throws NOT_A_MEMBER if user is not in conversation', async () => {
+      prisma.message.findUnique.mockResolvedValue({
+        id: 'msg-1',
+        conversationId: 'conv-1',
+        metadata: {},
+      });
+      prisma.conversationMember.findFirst.mockResolvedValue(null);
+
+      await expect(service.reactToMessage('msg-1', 'user-outsider', '👍')).rejects.toThrow(
+        'User is not a member of this conversation',
+      );
+    });
+  });
+
+  describe('searchMessages', () => {
+    it('searches messages across user conversations', async () => {
+      prisma.conversationMember.findMany.mockResolvedValue([
+        { conversationId: 'conv-1' },
+        { conversationId: 'conv-2' },
+      ]);
+      const messages = [{ id: 'msg-1', content: 'Hello world', conversationId: 'conv-1' }];
+      prisma.message.findMany.mockResolvedValue(messages);
+      prisma.message.count.mockResolvedValue(1);
+
+      const result = await service.searchMessages('user-1', 'Hello');
+
+      expect(result.data).toEqual(messages);
+      expect(result.total).toBe(1);
+      expect(prisma.conversationMember.findMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1', leftAt: null },
+        select: { conversationId: true },
+      });
+      expect(prisma.message.findMany).toHaveBeenCalledWith({
+        where: {
+          conversationId: { in: ['conv-1', 'conv-2'] },
+          isDeleted: false,
+          content: { contains: 'Hello', mode: 'insensitive' },
+          NOT: { content: { startsWith: '{"ciphertext"' } },
+        },
+        skip: 0,
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+
+    it('returns paginated results', async () => {
+      prisma.conversationMember.findMany.mockResolvedValue([{ conversationId: 'conv-1' }]);
+      prisma.message.findMany.mockResolvedValue([]);
+      prisma.message.count.mockResolvedValue(50);
+
+      const result = await service.searchMessages('user-1', 'test', { page: 2, pageSize: 10 });
+
+      expect(result.page).toBe(2);
+      expect(result.totalPages).toBe(5);
+      expect(result.hasNext).toBe(true);
+      expect(result.hasPrev).toBe(true);
     });
   });
 });

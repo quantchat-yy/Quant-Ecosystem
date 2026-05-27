@@ -36,47 +36,67 @@ interface TooltipData {
 }
 
 const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
-  data, comparisonData, type, title, color = '#3b82f6', comparisonColor = '#9ca3af',
-  height = 200, showLabels = true, dateRanges, selectedRange, onRangeChange,
-  formatValue, responsive = true,
+  data,
+  comparisonData,
+  type,
+  title,
+  color = '#3b82f6',
+  comparisonColor = '#9ca3af',
+  height = 200,
+  showLabels = true,
+  dateRanges,
+  selectedRange,
+  onRangeChange,
+  formatValue,
+  responsive = true,
 }) => {
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const maxValue = useMemo(() => {
-    const allValues = [...data.map(d => d.value), ...(comparisonData || []).map(d => d.value)];
+    const allValues = [...data.map((d) => d.value), ...(comparisonData || []).map((d) => d.value)];
     return Math.max(...allValues, 1);
   }, [data, comparisonData]);
 
   const minValue = useMemo(() => {
-    return Math.min(...data.map(d => d.value), 0);
+    return Math.min(...data.map((d) => d.value), 0);
   }, [data]);
 
   const valueRange = maxValue - minValue || 1;
 
-  const getY = useCallback((value: number): number => {
-    return height - ((value - minValue) / valueRange) * (height - 20) - 10;
-  }, [height, minValue, valueRange]);
+  const getY = useCallback(
+    (value: number): number => {
+      return height - ((value - minValue) / valueRange) * (height - 20) - 10;
+    },
+    [height, minValue, valueRange],
+  );
 
-  const defaultFormatValue = useCallback((value: number): string => {
-    if (formatValue) return formatValue(value);
-    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
-    return value.toString();
-  }, [formatValue]);
+  const defaultFormatValue = useCallback(
+    (value: number): string => {
+      if (formatValue) return formatValue(value);
+      if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+      if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+      return value.toString();
+    },
+    [formatValue],
+  );
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>, index: number) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setTooltip({
-      x, y,
-      value: data[index].value,
-      date: data[index].date,
-      comparisonValue: comparisonData?.[index]?.value,
-    });
-    setHoveredIndex(index);
-  }, [data, comparisonData]);
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>, index: number) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      setTooltip({
+        x,
+        y,
+        value: data[index]!.value,
+        date: data[index]!.date,
+        comparisonValue: comparisonData?.[index]?.value,
+      });
+      setHoveredIndex(index);
+    },
+    [data, comparisonData],
+  );
 
   const handleMouseLeave = useCallback(() => {
     setTooltip(null);
@@ -84,7 +104,10 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
   }, []);
 
   const totalValue = useMemo(() => data.reduce((sum, d) => sum + d.value, 0), [data]);
-  const avgValue = useMemo(() => data.length > 0 ? totalValue / data.length : 0, [totalValue, data.length]);
+  const avgValue = useMemo(
+    () => (data.length > 0 ? totalValue / data.length : 0),
+    [totalValue, data.length],
+  );
   const trend = useMemo(() => {
     if (data.length < 2) return 0;
     const firstHalf = data.slice(0, Math.floor(data.length / 2));
@@ -100,21 +123,31 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
     const stepX = data.length > 1 ? width / (data.length - 1) : width;
 
     const createPath = (points: DataPoint[]): string => {
-      return points.map((point, idx) => {
-        const x = idx * stepX;
-        const y = getY(point.value);
-        return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
-      }).join(' ');
+      return points
+        .map((point, idx) => {
+          const x = idx * stepX;
+          const y = getY(point.value);
+          return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
+        })
+        .join(' ');
     };
 
-    const areaPath = data.map((point, idx) => {
-      const x = idx * stepX;
-      const y = getY(point.value);
-      return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
-    }).join(' ') + ` L ${(data.length - 1) * stepX} ${height} L 0 ${height} Z`;
+    const areaPath =
+      data
+        .map((point, idx) => {
+          const x = idx * stepX;
+          const y = getY(point.value);
+          return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
+        })
+        .join(' ') + ` L ${(data.length - 1) * stepX} ${height} L 0 ${height} Z`;
 
     return (
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" preserveAspectRatio="none" style={{ height: `${height}px` }}>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full"
+        preserveAspectRatio="none"
+        style={{ height: `${height}px` }}
+      >
         <defs>
           <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity="0.2" />
@@ -122,14 +155,42 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
           </linearGradient>
         </defs>
         <path d={areaPath} fill={`url(#gradient-${title})`} />
-        <path d={createPath(data)} fill="none" stroke={color} strokeWidth="0.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d={createPath(data)}
+          fill="none"
+          stroke={color}
+          strokeWidth="0.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
         {comparisonData && comparisonData.length > 0 && (
-          <path d={createPath(comparisonData)} fill="none" stroke={comparisonColor} strokeWidth="0.3" strokeDasharray="1 1" />
+          <path
+            d={createPath(comparisonData)}
+            fill="none"
+            stroke={comparisonColor}
+            strokeWidth="0.3"
+            strokeDasharray="1 1"
+          />
         )}
         {hoveredIndex !== null && (
           <>
-            <line x1={hoveredIndex * stepX} y1="0" x2={hoveredIndex * stepX} y2={height} stroke={color} strokeWidth="0.2" strokeDasharray="1 1" />
-            <circle cx={hoveredIndex * stepX} cy={getY(data[hoveredIndex].value)} r="1.5" fill={color} stroke="white" strokeWidth="0.5" />
+            <line
+              x1={hoveredIndex * stepX}
+              y1="0"
+              x2={hoveredIndex * stepX}
+              y2={height}
+              stroke={color}
+              strokeWidth="0.2"
+              strokeDasharray="1 1"
+            />
+            <circle
+              cx={hoveredIndex * stepX}
+              cy={getY(data[hoveredIndex]!.value)}
+              r="1.5"
+              fill={color}
+              stroke="white"
+              strokeWidth="0.5"
+            />
           </>
         )}
       </svg>
@@ -138,8 +199,6 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
 
   const renderBarChart = () => {
     if (data.length === 0) return null;
-    const barWidth = 100 / data.length * 0.7;
-    const gap = 100 / data.length * 0.3;
 
     return (
       <div className="flex items-end gap-[2px] w-full" style={{ height: `${height}px` }}>
@@ -184,15 +243,20 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
           <h3 className="font-bold text-gray-900">{title}</h3>
           <div className="flex items-center gap-3 mt-1">
             <span className="text-2xl font-bold">{defaultFormatValue(totalValue)}</span>
-            <span className={`text-xs px-1.5 py-0.5 rounded ${trend >= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-              {trend >= 0 ? '+' : ''}{trend.toFixed(1)}%
+            <span
+              className={`text-xs px-1.5 py-0.5 rounded ${trend >= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}
+            >
+              {trend >= 0 ? '+' : ''}
+              {trend.toFixed(1)}%
             </span>
           </div>
-          <span className="text-xs text-gray-500">Avg: {defaultFormatValue(Math.round(avgValue))}/day</span>
+          <span className="text-xs text-gray-500">
+            Avg: {defaultFormatValue(Math.round(avgValue))}/day
+          </span>
         </div>
         {dateRanges && (
           <div className="flex gap-1">
-            {dateRanges.map(range => (
+            {dateRanges.map((range) => (
               <button
                 key={range.value}
                 onClick={() => onRangeChange?.(range.value)}
@@ -207,15 +271,17 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
 
       <div className="relative" onMouseLeave={handleMouseLeave}>
         {type === 'line' ? (
-          <div onMouseMove={(e) => {
-            if (data.length === 0) return;
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const idx = Math.round((x / rect.width) * (data.length - 1));
-            if (idx >= 0 && idx < data.length) {
-              handleMouseMove(e, idx);
-            }
-          }}>
+          <div
+            onMouseMove={(e) => {
+              if (data.length === 0) return;
+              const rect = e.currentTarget.getBoundingClientRect();
+              const x = e.clientX - rect.left;
+              const idx = Math.round((x / rect.width) * (data.length - 1));
+              if (idx >= 0 && idx < data.length) {
+                handleMouseMove(e, idx);
+              }
+            }}
+          >
             {renderLineChart()}
           </div>
         ) : (
@@ -223,11 +289,19 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
         )}
 
         {tooltip && (
-          <div className="absolute bg-gray-900 text-white text-xs px-3 py-2 rounded-lg shadow-lg pointer-events-none z-10" style={{ left: `${Math.min(tooltip.x, 200)}px`, top: `${Math.max(tooltip.y - 50, 0)}px` }}>
+          <div
+            className="absolute bg-gray-900 text-white text-xs px-3 py-2 rounded-lg shadow-lg pointer-events-none z-10"
+            style={{
+              left: `${Math.min(tooltip.x, 200)}px`,
+              top: `${Math.max(tooltip.y - 50, 0)}px`,
+            }}
+          >
             <p className="font-medium">{defaultFormatValue(tooltip.value)}</p>
             <p className="text-gray-400">{tooltip.date}</p>
             {tooltip.comparisonValue !== undefined && (
-              <p className="text-gray-400">Previous: {defaultFormatValue(tooltip.comparisonValue)}</p>
+              <p className="text-gray-400">
+                Previous: {defaultFormatValue(tooltip.comparisonValue)}
+              </p>
             )}
           </div>
         )}
@@ -235,9 +309,9 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
 
       {showLabels && data.length > 0 && (
         <div className="flex justify-between mt-2 text-xs text-gray-400">
-          <span>{data[0].date}</span>
-          {data.length > 2 && <span>{data[Math.floor(data.length / 2)].date}</span>}
-          <span>{data[data.length - 1].date}</span>
+          <span>{data[0]?.date}</span>
+          {data.length > 2 && <span>{data[Math.floor(data.length / 2)]?.date}</span>}
+          <span>{data[data.length - 1]?.date}</span>
         </div>
       )}
 
@@ -248,7 +322,10 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
             <span className="text-xs text-gray-500">Current</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-0.5 rounded border-dashed" style={{ backgroundColor: comparisonColor }} />
+            <div
+              className="w-3 h-0.5 rounded border-dashed"
+              style={{ backgroundColor: comparisonColor }}
+            />
             <span className="text-xs text-gray-500">Previous</span>
           </div>
         </div>

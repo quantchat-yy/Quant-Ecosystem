@@ -151,6 +151,14 @@ export class VersionService {
     return version;
   }
 
+  async deleteVersion(versionId: string, userId: string): Promise<FileVersion> {
+    const version = await this.getVersion(versionId, userId);
+
+    await this.prisma.fileVersion.delete({ where: { id: versionId } });
+
+    return version;
+  }
+
   async purgeExpiredVersions(): Promise<number> {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

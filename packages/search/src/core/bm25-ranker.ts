@@ -3,12 +3,7 @@
 // Complete BM25/BM25+ implementation with tunable parameters
 // ============================================================================
 
-import type {
-  BM25Config,
-  SearchResult,
-  ScoreExplanation,
-  IndexDocument,
-} from '../types';
+import type { BM25Config, SearchResult, IndexDocument } from '../types';
 
 /** Internal document representation for scoring */
 interface ScoredDocument {
@@ -68,7 +63,7 @@ export class BM25Ranker {
       // Build term statistics
       const termCounts: Map<string, { count: number; positions: number[] }> = new Map();
       for (let i = 0; i < tokens.length; i++) {
-        const term = tokens[i];
+        const term = tokens[i]!;
         const existing = termCounts.get(term) || { count: 0, positions: [] };
         existing.count++;
         existing.positions.push(i);
@@ -77,14 +72,22 @@ export class BM25Ranker {
 
       for (const [term, data] of termCounts) {
         if (!this.termIndex.has(term)) {
-          this.termIndex.set(term, { documentFrequency: 0, totalFrequency: 0, postings: new Map() });
+          this.termIndex.set(term, {
+            documentFrequency: 0,
+            totalFrequency: 0,
+            postings: new Map(),
+          });
         }
         const stats = this.termIndex.get(term)!;
         if (!stats.postings.has(document.id)) {
           stats.documentFrequency++;
         }
         stats.totalFrequency += data.count;
-        stats.postings.set(document.id, { frequency: data.count, positions: data.positions, field: fieldName });
+        stats.postings.set(document.id, {
+          frequency: data.count,
+          positions: data.positions,
+          field: fieldName,
+        });
       }
     }
 
@@ -143,7 +146,10 @@ export class BM25Ranker {
   /**
    * Rank all documents against a query
    */
-  public rank(query: string, options: { limit?: number; minScore?: number; explain?: boolean } = {}): SearchResult[] {
+  public rank(
+    query: string,
+    options: { limit?: number; minScore?: number; explain?: boolean } = {},
+  ): SearchResult[] {
     const queryTerms = this.tokenize(query);
     if (queryTerms.length === 0) return [];
 
@@ -152,7 +158,13 @@ export class BM25Ranker {
     for (const [docId, doc] of this.documents) {
       let totalScore = 0;
       const matchedTerms: string[] = [];
-      const details: Array<{ term: string; tf: number; idf: number; fieldBoost: number; score: number }> = [];
+      const details: Array<{
+        term: string;
+        tf: number;
+        idf: number;
+        fieldBoost: number;
+        score: number;
+      }> = [];
 
       for (const term of queryTerms) {
         const termScore = this.scoreTermForDocument(term, doc);
@@ -211,7 +223,7 @@ export class BM25Ranker {
     const df = stats ? stats.documentFrequency : 0;
 
     // Standard BM25 IDF formula
-    return Math.log(((N - df + 0.5) / (df + 0.5)) + 1);
+    return Math.log((N - df + 0.5) / (df + 0.5) + 1);
   }
 
   /**
@@ -226,7 +238,7 @@ export class BM25Ranker {
     const denominator = rawTf + k1 * (1 - b + b * (docLength / avgDl));
 
     // BM25+ adds delta to prevent zero scores for very long documents
-    return (numerator / denominator) + (delta || 0);
+    return numerator / denominator + (delta || 0);
   }
 
   /**
@@ -356,6 +368,6 @@ export class BM25Ranker {
       .toLowerCase()
       .replace(/[^\w\s]/g, ' ')
       .split(/\s+/)
-      .filter(token => token.length > 1);
+      .filter((token) => token.length > 1);
   }
 }

@@ -4,7 +4,8 @@
 
 import { Kafka, type Consumer, type EachMessagePayload, type Producer } from 'kafkajs';
 import pino from 'pino';
-import { SearchClient, VectorClient } from '@quant/search';
+import { startHealthServer } from '@quant/health-server';
+import { SearchClient, VectorClient, SavedSearchService, ReindexJobManager } from '@quant/search';
 import { BatchEmbedder, type EmbeddingProvider } from './embedder';
 import { EmailIndexHandler } from './handlers/email.handler';
 import { MessageIndexHandler } from './handlers/message.handler';
@@ -12,6 +13,7 @@ import { PostIndexHandler } from './handlers/post.handler';
 import { VideoIndexHandler } from './handlers/video.handler';
 import { FileIndexHandler } from './handlers/file.handler';
 import { UserIndexHandler } from './handlers/user.handler';
+import { registerReindexRoutes } from './api/reindex';
 
 const logger = pino({ name: 'search-indexer' });
 
@@ -24,6 +26,7 @@ export interface IndexerDeps {
   searchClient: SearchClient;
   vectorClient: VectorClient;
   embedder: BatchEmbedder;
+  savedSearchService: SavedSearchService;
 }
 
 export type EventHandler = (payload: unknown) => Promise<void>;
@@ -55,11 +58,13 @@ export function buildHandlerMap(deps: IndexerDeps): Map<string, EventHandler> {
 }
 
 /**
- * Route a single event to the appropriate handler
+ * Route a single event to the appropriate handler.
+ * After successful handling, checks saved searches for matching alerts.
  */
 export async function routeEvent(
   handlers: Map<string, EventHandler>,
   event: EventPayload,
+  savedSearchService?: SavedSearchService,
 ): Promise<void> {
   const handler = handlers.get(event.type);
   if (!handler) {
@@ -67,6 +72,34 @@ export async function routeEvent(
     return;
   }
   await handler(event.payload);
+
+  // Post-processing: check if the indexed document matches any saved searches
+  if (savedSearchService && event.payload && typeof event.payload === 'object') {
+    try {
+      const payload = event.payload as Record<string, unknown>;
+      const id = String(payload['id'] ?? '');
+      const content = String(
+        payload['bodyPlain'] ??
+          payload['content'] ??
+          payload['description'] ??
+          payload['title'] ??
+          '',
+      );
+      const type = event.type.split('.')[0] ?? 'unknown';
+
+      if (id && content) {
+        const matches = savedSearchService.matchNewDocument({ id, content, type });
+        if (matches.length > 0) {
+          logger.info(
+            { documentId: id, matchCount: matches.length },
+            'Document matched saved searches',
+          );
+        }
+      }
+    } catch (err) {
+      logger.warn({ error: err, type: event.type }, 'Failed to check saved searches');
+    }
+  }
 }
 
 /**
@@ -172,7 +205,12 @@ async function main(): Promise<void> {
   };
   const embedder = new BatchEmbedder(embeddingProvider);
 
-  const deps: IndexerDeps = { searchClient, vectorClient, embedder };
+  const deps: IndexerDeps = {
+    searchClient,
+    vectorClient,
+    embedder,
+    savedSearchService: new SavedSearchService(),
+  };
   const handlers = buildHandlerMap(deps);
 
   const kafka = new Kafka({ clientId, brokers });
@@ -185,6 +223,12 @@ async function main(): Promise<void> {
 
   logger.info({ topic, groupId }, 'Search indexer started, consuming events');
 
+  const healthPort = Number(process.env['HEALTH_PORT'] ?? '3022');
+  const healthServer = await startHealthServer(healthPort);
+  const reindexJobManager = new ReindexJobManager();
+  registerReindexRoutes(healthServer, reindexJobManager);
+  logger.info({ healthPort }, 'Health server started');
+
   await consumer.run({
     eachMessage: async ({ message }: EachMessagePayload) => {
       try {
@@ -193,7 +237,7 @@ async function main(): Promise<void> {
 
         const event = JSON.parse(value) as EventPayload;
         await retryWithBackoff(
-          () => routeEvent(handlers, event),
+          () => routeEvent(handlers, event, deps.savedSearchService),
           3,
           event,
           dlqProducer,

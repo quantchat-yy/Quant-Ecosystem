@@ -9,7 +9,7 @@ describe('OnDeviceRanker', () => {
     mockRuntime = {
       loadModel: vi.fn().mockResolvedValue(undefined),
       run: vi.fn().mockImplementation((inputs: Record<string, Float32Array>) => {
-        const input = inputs['input'];
+        const input = inputs['input']!;
         const featureDim = 16;
         const n = input.length / featureDim;
         // Generate decreasing scores for each candidate in the batch
@@ -79,11 +79,11 @@ describe('OnDeviceRanker', () => {
     expect(mockRuntime.run).toHaveBeenCalledTimes(1);
     // Results should be ranked
     for (let i = 1; i < results.length; i++) {
-      expect(results[i - 1].score).toBeGreaterThanOrEqual(results[i].score);
+      expect(results[i - 1]!.score).toBeGreaterThanOrEqual(results[i]!.score);
     }
     // Rank should start at 1
-    expect(results[0].rank).toBe(1);
-    expect(results[19].rank).toBe(20);
+    expect(results[0]!.rank).toBe(1);
+    expect(results[19]!.rank).toBe(20);
   });
 
   it('should handle fewer than topK candidates', async () => {

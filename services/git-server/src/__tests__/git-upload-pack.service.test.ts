@@ -53,7 +53,7 @@ describe('GitUploadPackService', () => {
   describe('execute', () => {
     it('spawns git upload-pack and pipes input/output', async () => {
       const mockSpawn = vi.mocked(spawn);
-      const mockProc = mockSpawn.mock.results[0]?.value ?? mockSpawn('/any', []);
+      const mockProc = mockSpawn.mock.results[0]?.value ?? mockSpawn('/any', [], {});
 
       // Set up the mock to simulate successful execution
       vi.mocked(mockProc.stdout.on).mockImplementation(
@@ -82,10 +82,10 @@ describe('GitUploadPackService', () => {
 
     it('rejects when git process exits with non-zero code', async () => {
       const mockSpawn = vi.mocked(spawn);
-      const mockProc = mockSpawn('/any', []);
+      const mockProc = mockSpawn('/any', [], {});
 
-      vi.mocked(mockProc.stdout.on).mockImplementation(() => mockProc.stdout);
-      vi.mocked(mockProc.stderr.on).mockImplementation(() => mockProc.stderr);
+      vi.mocked(mockProc.stdout!.on).mockImplementation(() => mockProc.stdout!);
+      vi.mocked(mockProc.stderr!.on).mockImplementation(() => mockProc.stderr!);
       vi.mocked(mockProc.on).mockImplementation((event: string, cb: (code: number) => void) => {
         if (event === 'close') {
           cb(128);

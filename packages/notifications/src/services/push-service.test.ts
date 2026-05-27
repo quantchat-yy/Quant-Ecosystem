@@ -26,16 +26,16 @@ vi.mock('firebase-admin', () => ({
   },
 }));
 
-// Mock @parse/node-apn
+// Mock @quant/notifications apns-client
 const mockApnSend = vi.fn();
 const mockApnShutdown = vi.fn();
 
-vi.mock('@parse/node-apn', () => {
+vi.mock('./apns-client', () => {
   class MockProvider {
     send = mockApnSend;
     shutdown = mockApnShutdown;
   }
-  class MockNotification {
+  class MockNotificationBuilder {
     alert: unknown;
     badge?: number;
     sound?: string;
@@ -43,10 +43,8 @@ vi.mock('@parse/node-apn', () => {
     payload?: unknown;
   }
   return {
-    default: {
-      Provider: MockProvider,
-      Notification: MockNotification,
-    },
+    ApnsProvider: MockProvider,
+    ApnsNotificationBuilder: MockNotificationBuilder,
   };
 });
 

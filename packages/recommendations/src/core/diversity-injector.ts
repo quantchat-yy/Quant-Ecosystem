@@ -4,22 +4,12 @@
 
 import type { DiversityConfig, RecommendedItem } from '../types';
 
-/** Item with category metadata for diversity calculation */
-interface DiversityCandidate {
-  itemId: string;
-  score: number;
-  category: string;
-  features: number[];
-  noveltyScore: number;
-}
-
 /** Injects diversity into recommendation lists using MMR and other strategies */
 export class DiversityInjector {
   private config: DiversityConfig;
   private itemCategories: Map<string, string>;
   private itemFeatures: Map<string, number[]>;
   private userHistory: Map<string, Set<string>>;
-  private categoryDistribution: Map<string, number>;
   private globalPopularity: Map<string, number>;
 
   constructor(config: DiversityConfig) {
@@ -27,7 +17,6 @@ export class DiversityInjector {
     this.itemCategories = new Map();
     this.itemFeatures = new Map();
     this.userHistory = new Map();
-    this.categoryDistribution = new Map();
     this.globalPopularity = new Map();
   }
 
@@ -63,7 +52,7 @@ export class DiversityInjector {
       let bestIndex = 0;
 
       for (let i = 0; i < remaining.length; i++) {
-        const candidate = remaining[i];
+        const candidate = remaining[i]!;
         const relevance = candidate.score;
 
         // Find maximum similarity to already selected items
@@ -82,7 +71,7 @@ export class DiversityInjector {
         }
       }
 
-      selected.push(remaining[bestIndex]);
+      selected.push(remaining[bestIndex]!);
       remaining.splice(bestIndex, 1);
     }
 
@@ -112,9 +101,9 @@ export class DiversityInjector {
     const minLen = Math.min(featA.length, featB.length);
 
     for (let i = 0; i < minLen; i++) {
-      dot += featA[i] * featB[i];
-      magA += featA[i] * featA[i];
-      magB += featB[i] * featB[i];
+      dot += featA[i]! * featB[i]!;
+      magA += featA[i]! * featA[i]!;
+      magB += featB[i]! * featB[i]!;
     }
 
     const denom = Math.sqrt(magA) * Math.sqrt(magB);
@@ -151,7 +140,6 @@ export class DiversityInjector {
     // Check minimum categories requirement
     if (categoryCounts.size < minCategories && skipped.length > 0) {
       // Find items from underrepresented categories
-      const neededCategories = minCategories - categoryCounts.size;
       const seenCategories = new Set(categoryCounts.keys());
 
       for (const item of skipped) {
@@ -175,9 +163,6 @@ export class DiversityInjector {
   computeSerendipityScore(userId: string, itemId: string): number {
     const userHist = this.userHistory.get(userId);
     if (!userHist || userHist.size === 0) return 0.5;
-
-    const itemCategory = this.itemCategories.get(itemId) || '';
-    const itemFeats = this.itemFeatures.get(itemId);
 
     // Check how different this item is from user's history
     let totalSimilarity = 0;
@@ -212,7 +197,7 @@ export class DiversityInjector {
     // Popularity-based novelty: less popular = more novel
     const popularity = this.globalPopularity.get(itemId) || 0;
     const maxPop = Math.max(...this.globalPopularity.values(), 1);
-    const popularityNovelty = 1 - (popularity / maxPop);
+    const popularityNovelty = 1 - popularity / maxPop;
 
     // Feature-based novelty: how different from what user has seen
     let featureNovelty = 1.0;
@@ -234,7 +219,7 @@ export class DiversityInjector {
     userId: string,
     recommendations: RecommendedItem[],
     allItems: string[],
-    injectionRate: number = 0.2
+    injectionRate: number = 0.2,
   ): RecommendedItem[] {
     const numToInject = Math.ceil(recommendations.length * injectionRate);
     const result = [...recommendations];
@@ -251,7 +236,7 @@ export class DiversityInjector {
     const allCategories = new Set(this.itemCategories.values());
     const underexplored: string[] = [];
     for (const cat of allCategories) {
-      if (!userCategories.has(cat) || (userCategories.get(cat)! < 2)) {
+      if (!userCategories.has(cat) || userCategories.get(cat)! < 2) {
         underexplored.push(cat);
       }
     }
@@ -272,7 +257,7 @@ export class DiversityInjector {
       const insertPos = Math.floor(result.length * 0.3) + i; // Insert in middle-to-end positions
       if (insertPos < result.length) {
         result.splice(insertPos, 0, {
-          itemId: injected[i],
+          itemId: injected[i]!,
           score: 0.5,
           rank: insertPos + 1,
           source: 'diversity_bubble_breaker',
@@ -301,10 +286,10 @@ export class DiversityInjector {
       const numSerendipity = Math.ceil(topN * this.config.serendipityTarget);
       for (let i = diversified.length - numSerendipity; i < diversified.length; i++) {
         if (i >= 0 && i < diversified.length) {
-          const serendipity = this.computeSerendipityScore(userId, diversified[i].itemId);
+          const serendipity = this.computeSerendipityScore(userId, diversified[i]!.itemId);
           diversified[i] = {
-            ...diversified[i],
-            score: diversified[i].score * (1 + serendipity * this.config.noveltyWeight),
+            ...diversified[i]!,
+            score: diversified[i]!.score * (1 + serendipity * this.config.noveltyWeight),
           };
         }
       }

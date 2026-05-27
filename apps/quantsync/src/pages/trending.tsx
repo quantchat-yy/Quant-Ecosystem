@@ -110,7 +110,9 @@ const TrendingPage: React.FC = () => {
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <div className="text-red-500 text-xl mb-4">Failed to load trends</div>
         <p className="text-gray-600 mb-4">{error}</p>
-        <button onClick={fetchTrending} className="px-6 py-2 bg-blue-500 text-white rounded-full">Retry</button>
+        <button onClick={fetchTrending} className="px-6 py-2 bg-blue-500 text-white rounded-full">
+          Retry
+        </button>
       </div>
     );
   }
@@ -122,12 +124,14 @@ const TrendingPage: React.FC = () => {
           <h1 className="text-xl font-bold">Trending</h1>
         </div>
         <div className="flex border-b">
-          {(['hashtags', 'posts', 'foryou'] as TrendView[]).map(v => (
+          {(['hashtags', 'posts', 'foryou'] as TrendView[]).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
               className={`flex-1 py-3 text-center text-sm font-medium capitalize ${
-                view === v ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500 hover:bg-gray-50'
+                view === v
+                  ? 'border-b-2 border-blue-500 text-blue-500'
+                  : 'text-gray-500 hover:bg-gray-50'
               }`}
             >
               {v === 'foryou' ? 'For You' : v}
@@ -136,12 +140,14 @@ const TrendingPage: React.FC = () => {
         </div>
         <div className="px-4 py-2 flex items-center justify-between">
           <div className="flex gap-2">
-            {TIME_RANGES.map(tr => (
+            {TIME_RANGES.map((tr) => (
               <button
                 key={tr.value}
                 onClick={() => setTimeRange(tr.value)}
                 className={`px-3 py-1 rounded-full text-xs ${
-                  timeRange === tr.value ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  timeRange === tr.value
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
                 {tr.label}
@@ -181,11 +187,18 @@ const TrendingPage: React.FC = () => {
                       <span>{getDirectionIcon(tag.direction)}</span>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-sm text-gray-500">{formatCount(tag.postCount)} posts</span>
-                      <span className={`text-xs ${tag.direction === 'up' ? 'text-green-500' : tag.direction === 'down' ? 'text-red-500' : 'text-gray-500'}`}>
-                        {tag.direction === 'up' ? '+' : tag.direction === 'down' ? '-' : ''}{tag.changePercent}%
+                      <span className="text-sm text-gray-500">
+                        {formatCount(tag.postCount)} posts
                       </span>
-                      <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{tag.category}</span>
+                      <span
+                        className={`text-xs ${tag.direction === 'up' ? 'text-green-500' : tag.direction === 'down' ? 'text-red-500' : 'text-gray-500'}`}
+                      >
+                        {tag.direction === 'up' ? '+' : tag.direction === 'down' ? '-' : ''}
+                        {tag.changePercent}%
+                      </span>
+                      <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+                        {tag.category}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -203,7 +216,7 @@ const TrendingPage: React.FC = () => {
               <p className="text-gray-500">No trending posts right now</p>
             </div>
           ) : (
-            posts.map(post => (
+            posts.map((post) => (
               <article key={post.id} className="px-4 py-3 hover:bg-gray-50">
                 <div className="flex gap-3">
                   <img src={post.authorAvatar} alt="" className="w-10 h-10 rounded-full" />
@@ -216,7 +229,7 @@ const TrendingPage: React.FC = () => {
                     <p className="text-gray-900 mt-1 line-clamp-3">{post.content}</p>
                     {post.media && post.media.length > 0 && (
                       <div className="mt-2 rounded-xl overflow-hidden">
-                        <img src={post.media[0].url} alt="" className="w-full h-48 object-cover" />
+                        <img src={post.media[0]?.url} alt="" className="w-full h-48 object-cover" />
                       </div>
                     )}
                     <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
@@ -238,10 +251,12 @@ const TrendingPage: React.FC = () => {
             <div className="text-center py-12">
               <div className="text-5xl mb-3">✨</div>
               <h3 className="text-lg font-semibold text-gray-700">Personalized for you</h3>
-              <p className="text-gray-500 mt-1">Engage more to get personalized trend suggestions.</p>
+              <p className="text-gray-500 mt-1">
+                Engage more to get personalized trend suggestions.
+              </p>
             </div>
           ) : (
-            forYouPosts.map(post => (
+            forYouPosts.map((post) => (
               <article key={post.id} className="px-4 py-3 hover:bg-gray-50">
                 <div className="flex gap-3">
                   <img src={post.authorAvatar} alt="" className="w-10 h-10 rounded-full" />

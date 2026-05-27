@@ -1,4 +1,5 @@
 import pino from 'pino';
+import { startHealthServer } from '@quant/health-server';
 import { KafkaProducerClient } from './kafka-producer.js';
 import { OutboxPoller } from './outbox-poller.js';
 
@@ -18,6 +19,10 @@ async function main(): Promise<void> {
   poller.start();
 
   logger.info('CDC Relay service started');
+
+  const healthPort = Number(process.env['HEALTH_PORT'] ?? '3024');
+  await startHealthServer(healthPort);
+  logger.info({ healthPort }, 'Health server started');
 
   const shutdown = async (): Promise<void> => {
     logger.info('Shutting down CDC Relay...');

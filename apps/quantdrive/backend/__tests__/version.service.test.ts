@@ -199,4 +199,38 @@ describe('VersionService', () => {
       expect(Math.abs(cutoffDate.getTime() - thirtyDaysAgo.getTime())).toBeLessThan(1000);
     });
   });
+
+  describe('deleteVersion', () => {
+    it('deletes a version and returns it', async () => {
+      const version = {
+        id: 'ver-1',
+        fileId: 'file-1',
+        versionNumber: 1,
+        encryptedContent: 'data',
+        encryptionIV: 'iv',
+        encryptionAuthTag: 'tag',
+        encryptionKey: 'key',
+        size: 100,
+        createdAt: new Date(),
+      };
+      prisma.fileVersion.findUnique.mockResolvedValue(version);
+      prisma.file.findUnique.mockResolvedValue({
+        id: 'file-1',
+        userId: 'user-1',
+        isDeleted: false,
+      });
+      prisma.fileVersion.delete.mockResolvedValue(version);
+
+      const result = await service.deleteVersion('ver-1', 'user-1');
+
+      expect(result).toEqual(version);
+      expect(prisma.fileVersion.delete).toHaveBeenCalledWith({ where: { id: 'ver-1' } });
+    });
+
+    it('throws 404 when version not found', async () => {
+      prisma.fileVersion.findUnique.mockResolvedValue(null);
+
+      await expect(service.deleteVersion('missing', 'user-1')).rejects.toThrow('Version not found');
+    });
+  });
 });

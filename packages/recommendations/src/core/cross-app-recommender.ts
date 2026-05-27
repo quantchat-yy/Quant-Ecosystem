@@ -185,7 +185,7 @@ export class CrossAppRecommender {
   /** Normalize scores to 0-1 range */
   private normalizeScore(score: number, all: [string, number][]): number {
     if (all.length === 0) return 0;
-    const maxScore = all[0][1];
+    const maxScore = all[0]![1];
     return maxScore > 0 ? score / maxScore : 0;
   }
 
@@ -228,7 +228,7 @@ export class CrossAppRecommender {
 
     const apps = new Set<string>();
     for (const [key] of userPrefs) {
-      const appId = key.split(':')[0];
+      const appId = key.split(':')[0]!;
       apps.add(appId);
     }
     return Array.from(apps);

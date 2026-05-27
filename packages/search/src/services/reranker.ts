@@ -80,8 +80,8 @@ export class CohereReranker {
       const data = CohereResponseSchema.parse(await response.json());
 
       return data.results.map((r) => ({
-        id: validatedDocs[r.index].id,
-        text: validatedDocs[r.index].text,
+        id: validatedDocs[r.index]!.id,
+        text: validatedDocs[r.index]!.text,
         relevanceScore: r.relevance_score,
         originalIndex: r.index,
       }));

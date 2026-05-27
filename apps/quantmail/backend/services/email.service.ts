@@ -48,6 +48,13 @@ export interface ReceiveEmailInput {
   receivedAt?: Date;
 }
 
+export interface Label {
+  id: string;
+  userId: string;
+  name: string;
+  color?: string;
+}
+
 export class EmailService {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -283,5 +290,69 @@ export class EmailService {
       hasNext: page < totalPages,
       hasPrev: page > 1,
     };
+  }
+
+  async sendEmail(
+    userId: string,
+    data: Omit<ComposeEmailInput, 'userId'>,
+    sentFolderId: string,
+  ): Promise<Email> {
+    const draft = await this.compose({ ...data, userId });
+    return this.send(userId, draft.id, sentFolderId);
+  }
+
+  async getInbox(
+    userId: string,
+    inboxFolderId: string,
+    options: PaginationOptions = {},
+  ): Promise<PaginatedResult<Email>> {
+    return this.listByFolder(userId, inboxFolderId, options);
+  }
+
+  async trashEmail(emailId: string, userId: string): Promise<Email> {
+    return this.delete(emailId, userId, false);
+  }
+
+  async starEmail(emailId: string, userId: string): Promise<Email> {
+    return this.markStarred(emailId, userId);
+  }
+
+  async searchEmails(
+    userId: string,
+    query: string,
+    options: PaginationOptions = {},
+  ): Promise<PaginatedResult<Email>> {
+    return this.search(userId, query, options);
+  }
+
+  async getLabels(userId: string): Promise<Label[]> {
+    return (
+      this.prisma as never as { label: { findMany: (args: unknown) => Promise<Label[]> } }
+    ).label.findMany({
+      where: { userId },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async applyLabel(emailId: string, labelId: string, userId: string): Promise<Email> {
+    const email = await this.prisma.email.findUnique({ where: { id: emailId } });
+
+    if (!email) {
+      throw createAppError('Email not found', 404, 'EMAIL_NOT_FOUND');
+    }
+
+    if (email.userId !== userId) {
+      throw createAppError('Not authorized', 403, 'FORBIDDEN');
+    }
+
+    const currentLabels = (email as unknown as { labels: string[] }).labels ?? [];
+    if (currentLabels.includes(labelId)) {
+      return email;
+    }
+
+    return this.prisma.email.update({
+      where: { id: emailId },
+      data: { labels: [...currentLabels, labelId] } as never,
+    });
   }
 }

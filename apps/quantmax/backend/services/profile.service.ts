@@ -114,6 +114,65 @@ export class ProfileService {
     });
   }
 
+  async follow(
+    userId: string,
+    targetUserId: string,
+  ): Promise<{ followerId: string; followingId: string }> {
+    if (userId === targetUserId) {
+      throw createAppError('Cannot follow yourself', 400, 'SELF_FOLLOW');
+    }
+
+    const existing = await this.prisma.userRelationship.findFirst({
+      where: { followerId: userId, followingId: targetUserId, type: 'FOLLOW' },
+    });
+
+    if (existing) {
+      throw createAppError('Already following this user', 409, 'ALREADY_FOLLOWING');
+    }
+
+    await this.prisma.userRelationship.create({
+      data: { followerId: userId, followingId: targetUserId, type: 'FOLLOW' },
+    });
+
+    return { followerId: userId, followingId: targetUserId };
+  }
+
+  async unfollow(userId: string, targetUserId: string): Promise<void> {
+    const existing = await this.prisma.userRelationship.findFirst({
+      where: { followerId: userId, followingId: targetUserId, type: 'FOLLOW' },
+    });
+
+    if (!existing) {
+      throw createAppError('Not following this user', 404, 'NOT_FOLLOWING');
+    }
+
+    await this.prisma.userRelationship.delete({
+      where: { id: existing.id },
+    });
+  }
+
+  async getFollowers(userId: string): Promise<{ followerId: string; followingId: string }[]> {
+    const relationships = await this.prisma.userRelationship.findMany({
+      where: { followingId: userId, type: 'FOLLOW' },
+    });
+
+    return relationships.map((r: { followerId: string; followingId: string }) => ({
+      followerId: r.followerId,
+      followingId: r.followingId,
+    }));
+  }
+
+  async getFollowing(userId: string): Promise<{ followerId: string; followingId: string }[]> {
+    const relationships = await this.prisma.userRelationship.findMany({
+      where: { followerId: userId, type: 'FOLLOW' },
+    });
+
+    return relationships.map((r: { followerId: string; followingId: string }) => ({
+      followerId: r.followerId,
+      followingId: r.followingId,
+    }));
+  }
+
   async calculateProfileScore(userId: string): Promise<number> {
     const profile = await this.prisma.datingProfile.findUnique({
       where: { userId },

@@ -83,4 +83,13 @@ export class FilterService {
     this.appliedFilters.push(result);
     return result;
   }
+
+  async getFilterPreview(filterId: string): Promise<{ filterId: string; previewUrl: string }> {
+    const filter = AVAILABLE_FILTERS.find((f) => f.id === filterId);
+    if (!filter) {
+      throw new Error('Filter not found');
+    }
+
+    return { filterId: filter.id, previewUrl: filter.previewUrl };
+  }
 }

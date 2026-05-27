@@ -31,10 +31,7 @@ export class CaptchaChallengerService {
   private pendingChallenges: Map<string, PendingChallenge>;
   private challengeExpiry: number;
 
-  constructor(
-    reputationThreshold: number = 30,
-    suspiciousActivityThreshold: number = 0.7,
-  ) {
+  constructor(reputationThreshold: number = 30, suspiciousActivityThreshold: number = 0.7) {
     this.reputationThreshold = reputationThreshold;
     this.suspiciousActivityThreshold = suspiciousActivityThreshold;
     this.pendingChallenges = new Map();
@@ -43,7 +40,7 @@ export class CaptchaChallengerService {
 
   /** Determine if a user should be challenged with a captcha */
   shouldChallenge(
-    userId: string,
+    _userId: string,
     activity: {
       type: string;
       riskScore: number;
@@ -75,9 +72,10 @@ export class CaptchaChallengerService {
       reason = 'Very high risk activity with low reputation';
     } else if (activity.riskScore > 0.7 || badIp) {
       difficulty = 'medium';
-      reason = lowReputation && highRisk
-        ? 'Low reputation combined with suspicious activity'
-        : 'Suspicious IP reputation';
+      reason =
+        lowReputation && highRisk
+          ? 'Low reputation combined with suspicious activity'
+          : 'Suspicious IP reputation';
     }
 
     // Choose challenge type based on difficulty

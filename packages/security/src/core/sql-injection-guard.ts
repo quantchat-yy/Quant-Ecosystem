@@ -2,32 +2,81 @@
 // Security Package - SQL Injection Guard
 // ============================================================================
 
-import type { SQLInjectionConfig, ParameterizedQuery, SQLInjectionResult, SQLThreat } from '../types';
+import type {
+  SQLInjectionConfig,
+  ParameterizedQuery,
+  SQLInjectionResult,
+  SQLThreat,
+} from '../types';
 
 /** Default SQL injection protection configuration */
 const DEFAULT_CONFIG: SQLInjectionConfig = {
   strictMode: true,
   logAttempts: true,
   maxQueryLength: 10000,
-  allowedOperators: ['=', '!=', '<', '>', '<=', '>=', 'LIKE', 'IN', 'BETWEEN', 'IS NULL', 'IS NOT NULL'],
-  blockedKeywords: ['DROP', 'DELETE', 'TRUNCATE', 'ALTER', 'EXEC', 'EXECUTE', 'xp_', 'sp_', 'SHUTDOWN', 'GRANT', 'REVOKE'],
+  allowedOperators: [
+    '=',
+    '!=',
+    '<',
+    '>',
+    '<=',
+    '>=',
+    'LIKE',
+    'IN',
+    'BETWEEN',
+    'IS NULL',
+    'IS NOT NULL',
+  ],
+  blockedKeywords: [
+    'DROP',
+    'DELETE',
+    'TRUNCATE',
+    'ALTER',
+    'EXEC',
+    'EXECUTE',
+    'xp_',
+    'sp_',
+    'SHUTDOWN',
+    'GRANT',
+    'REVOKE',
+  ],
 };
 
 /** SQL injection detection patterns */
-const SQL_PATTERNS: { pattern: RegExp; type: string; severity: 'low' | 'medium' | 'high' | 'critical' }[] = [
+const SQL_PATTERNS: {
+  pattern: RegExp;
+  type: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+}[] = [
   { pattern: /('\s*(OR|AND)\s*'[^']*'\s*=\s*')/i, type: 'tautology', severity: 'critical' },
-  { pattern: /('\s*;\s*(DROP|DELETE|ALTER|INSERT|UPDATE))/i, type: 'piggyback_query', severity: 'critical' },
+  {
+    pattern: /('\s*;\s*(DROP|DELETE|ALTER|INSERT|UPDATE))/i,
+    type: 'piggyback_query',
+    severity: 'critical',
+  },
   { pattern: /(UNION\s+(ALL\s+)?SELECT)/i, type: 'union_select', severity: 'critical' },
   { pattern: /(-{2}|#|\/\*)/i, type: 'comment_injection', severity: 'high' },
   { pattern: /(WAITFOR\s+DELAY|SLEEP\s*\(|BENCHMARK\s*\()/i, type: 'time_based', severity: 'high' },
   { pattern: /(LOAD_FILE\s*\(|INTO\s+(OUT|DUMP)FILE)/i, type: 'file_access', severity: 'critical' },
-  { pattern: /(CHAR\s*\(|CHR\s*\(|ASCII\s*\(|CONCAT\s*\()/i, type: 'function_abuse', severity: 'medium' },
+  {
+    pattern: /(CHAR\s*\(|CHR\s*\(|ASCII\s*\(|CONCAT\s*\()/i,
+    type: 'function_abuse',
+    severity: 'medium',
+  },
   { pattern: /(0x[0-9a-f]{4,})/i, type: 'hex_encoding', severity: 'medium' },
-  { pattern: /(INFORMATION_SCHEMA|sys\.objects|sysobjects)/i, type: 'schema_discovery', severity: 'high' },
+  {
+    pattern: /(INFORMATION_SCHEMA|sys\.objects|sysobjects)/i,
+    type: 'schema_discovery',
+    severity: 'high',
+  },
   { pattern: /('\s*OR\s+1\s*=\s*1)/i, type: 'always_true', severity: 'critical' },
   { pattern: /(;\s*SHUTDOWN)/i, type: 'shutdown_attempt', severity: 'critical' },
   { pattern: /(xp_cmdshell|xp_regread)/i, type: 'stored_procedure', severity: 'critical' },
-  { pattern: /(HAVING\s+1\s*=\s*1|GROUP\s+BY.*HAVING)/i, type: 'having_injection', severity: 'high' },
+  {
+    pattern: /(HAVING\s+1\s*=\s*1|GROUP\s+BY.*HAVING)/i,
+    type: 'having_injection',
+    severity: 'high',
+  },
   { pattern: /(ORDER\s+BY\s+\d+--)/i, type: 'order_by_injection', severity: 'medium' },
 ];
 
@@ -58,7 +107,14 @@ export class SQLInjectionGuard {
     if (input.length > this.config.maxQueryLength) {
       return {
         isSafe: false,
-        threats: [{ type: 'length_exceeded', pattern: `length:${input.length}`, position: 0, severity: 'medium' }],
+        threats: [
+          {
+            type: 'length_exceeded',
+            pattern: `length:${input.length}`,
+            position: 0,
+            severity: 'medium',
+          },
+        ],
         sanitized: input.substring(0, this.config.maxQueryLength),
         confidence: 90,
       };
@@ -109,10 +165,16 @@ export class SQLInjectionGuard {
   }
 
   /** Build a SELECT query safely */
-  buildSelect(table: string, columns: string[], where?: Record<string, unknown>, orderBy?: string, limit?: number): ParameterizedQuery {
+  buildSelect(
+    table: string,
+    columns: string[],
+    where?: Record<string, unknown>,
+    orderBy?: string,
+    limit?: number,
+  ): ParameterizedQuery {
     // Validate table name
     const safeTable = this.escapeIdentifier(table);
-    const safeCols = columns.map(c => this.escapeIdentifier(c)).join(', ');
+    const safeCols = columns.map((c) => this.escapeIdentifier(c)).join(', ');
 
     let sql = `SELECT ${safeCols} FROM ${safeTable}`;
     const params: unknown[] = [];
@@ -256,7 +318,7 @@ export class SQLInjectionGuard {
   }
 
   /** Calculate confidence score for the analysis */
-  private calculateConfidence(threats: SQLThreat[], input: string): number {
+  private calculateConfidence(threats: SQLThreat[], _input: string): number {
     if (threats.length === 0) return 100;
     const severityWeight = { low: 5, medium: 15, high: 30, critical: 50 };
     let deduction = 0;

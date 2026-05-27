@@ -36,6 +36,22 @@ export class AvailabilityService {
     return this.computeFreeSlots(events, dayStart, dayEnd);
   }
 
+  async findFreeSlots(userIds: string[], date: Date, duration: number): Promise<TimeSlot[]> {
+    return this.checkMultiUserAvailability(userIds, date, duration);
+  }
+
+  async checkConflicts(userId: string, start: Date, end: Date): Promise<boolean> {
+    const events = await this.prisma.event.findMany({
+      where: {
+        userId,
+        startTime: { lt: end },
+        endTime: { gt: start },
+      },
+    });
+
+    return events.length > 0;
+  }
+
   async checkMultiUserAvailability(
     userIds: string[],
     date: Date,

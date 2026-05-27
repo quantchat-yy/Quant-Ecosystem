@@ -70,9 +70,9 @@ describe('ItemItemCollaborative', () => {
 
     expect(similar.length).toBeLessThanOrEqual(2);
     if (similar.length >= 2) {
-      expect(similar[0].score).toBeGreaterThanOrEqual(similar[1].score);
+      expect(similar[0]!.score).toBeGreaterThanOrEqual(similar[1]!.score);
     }
-    expect(similar[0].score).toBeGreaterThan(0);
+    expect(similar[0]!.score).toBeGreaterThan(0);
   });
 
   it('should return empty array for item with no co-occurrences', () => {

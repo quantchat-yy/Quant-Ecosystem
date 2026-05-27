@@ -59,7 +59,7 @@ const ComposePage: React.FC = () => {
   const [posting, setPosting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [draftSaved, setDraftSaved] = useState<boolean>(false);
-  const [mentionQuery, setMentionQuery] = useState<string>('');
+  const [_mentionQuery, setMentionQuery] = useState<string>('');
   const [mentionSuggestions, setMentionSuggestions] = useState<MentionSuggestion[]>([]);
   const [showMentions, setShowMentions] = useState<boolean>(false);
   const [hashtagSuggestions, setHashtagSuggestions] = useState<string[]>([]);
@@ -92,7 +92,9 @@ const ComposePage: React.FC = () => {
         setTimeout(() => setDraftSaved(false), 2000);
       }
     }, 3000);
-    return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
+    return () => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    };
   }, [content, media]);
 
   const handleContentChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -102,14 +104,14 @@ const ComposePage: React.FC = () => {
     const textBeforeCursor = value.slice(0, cursorPos);
     const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
     if (mentionMatch) {
-      setMentionQuery(mentionMatch[1]);
+      setMentionQuery(mentionMatch[1] ?? '');
       setShowMentions(true);
-      fetchMentionSuggestions(mentionMatch[1]);
+      fetchMentionSuggestions(mentionMatch[1] ?? '');
     } else {
       setShowMentions(false);
     }
     const hashtagMatch = textBeforeCursor.match(/#(\w*)$/);
-    if (hashtagMatch && hashtagMatch[1].length > 0) {
+    if (hashtagMatch && hashtagMatch[1] && hashtagMatch[1].length > 0) {
       setShowHashtags(true);
       fetchHashtagSuggestions(hashtagMatch[1]);
     } else {
@@ -123,7 +125,9 @@ const ComposePage: React.FC = () => {
       const res = await fetch(`/api/users/search?q=${encodeURIComponent(query)}&limit=5`);
       const data = await res.json();
       setMentionSuggestions(data.users || []);
-    } catch { setMentionSuggestions([]); }
+    } catch {
+      setMentionSuggestions([]);
+    }
   };
 
   const fetchHashtagSuggestions = async (query: string) => {
@@ -131,65 +135,77 @@ const ComposePage: React.FC = () => {
       const res = await fetch(`/api/hashtags/suggest?q=${encodeURIComponent(query)}&limit=5`);
       const data = await res.json();
       setHashtagSuggestions(data.hashtags || []);
-    } catch { setHashtagSuggestions([]); }
+    } catch {
+      setHashtagSuggestions([]);
+    }
   };
 
-  const insertMention = useCallback((handle: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const cursorPos = textarea.selectionStart;
-    const textBefore = content.slice(0, cursorPos);
-    const textAfter = content.slice(cursorPos);
-    const newBefore = textBefore.replace(/@\w*$/, `@${handle} `);
-    setContent(newBefore + textAfter);
-    setShowMentions(false);
-  }, [content]);
+  const insertMention = useCallback(
+    (handle: string) => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      const cursorPos = textarea.selectionStart;
+      const textBefore = content.slice(0, cursorPos);
+      const textAfter = content.slice(cursorPos);
+      const newBefore = textBefore.replace(/@\w*$/, `@${handle} `);
+      setContent(newBefore + textAfter);
+      setShowMentions(false);
+    },
+    [content],
+  );
 
-  const handleMediaUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    const newMedia: MediaItem[] = [];
-    for (let i = 0; i < files.length && media.length + newMedia.length < MAX_MEDIA; i++) {
-      const file = files[i];
-      const type = file.type.startsWith('video/') ? 'video' : 'image';
-      newMedia.push({
-        id: `media_${Date.now()}_${i}`,
-        file,
-        url: URL.createObjectURL(file),
-        type,
-      });
-    }
-    setMedia(prev => [...prev, ...newMedia]);
-  }, [media]);
+  const handleMediaUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files) return;
+      const newMedia: MediaItem[] = [];
+      for (let i = 0; i < files.length && media.length + newMedia.length < MAX_MEDIA; i++) {
+        const file = files[i];
+        if (!file) continue;
+        const type = file.type.startsWith('video/') ? 'video' : 'image';
+        newMedia.push({
+          id: `media_${Date.now()}_${i}`,
+          file,
+          url: URL.createObjectURL(file),
+          type,
+        });
+      }
+      setMedia((prev) => [...prev, ...newMedia]);
+    },
+    [media],
+  );
 
   const removeMedia = useCallback((id: string) => {
-    setMedia(prev => prev.filter(m => m.id !== id));
+    setMedia((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
   const addPollOption = useCallback(() => {
     if (pollOptions.length >= MAX_POLL_OPTIONS) return;
-    setPollOptions(prev => [...prev, { id: String(prev.length + 1), text: '' }]);
+    setPollOptions((prev) => [...prev, { id: String(prev.length + 1), text: '' }]);
   }, [pollOptions]);
 
-  const removePollOption = useCallback((id: string) => {
-    if (pollOptions.length <= MIN_POLL_OPTIONS) return;
-    setPollOptions(prev => prev.filter(o => o.id !== id));
-  }, [pollOptions]);
+  const removePollOption = useCallback(
+    (id: string) => {
+      if (pollOptions.length <= MIN_POLL_OPTIONS) return;
+      setPollOptions((prev) => prev.filter((o) => o.id !== id));
+    },
+    [pollOptions],
+  );
 
   const updatePollOption = useCallback((id: string, text: string) => {
-    setPollOptions(prev => prev.map(o => o.id === id ? { ...o, text } : o));
+    setPollOptions((prev) => prev.map((o) => (o.id === id ? { ...o, text } : o)));
   }, []);
 
   const addThreadPost = useCallback(() => {
-    setThreadPosts(prev => [...prev, { id: `thread_${Date.now()}`, content: '', media: [] }]);
+    setThreadPosts((prev) => [...prev, { id: `thread_${Date.now()}`, content: '', media: [] }]);
   }, []);
 
   const updateThreadPost = useCallback((id: string, content: string) => {
-    setThreadPosts(prev => prev.map(tp => tp.id === id ? { ...tp, content } : tp));
+    setThreadPosts((prev) => prev.map((tp) => (tp.id === id ? { ...tp, content } : tp)));
   }, []);
 
   const removeThreadPost = useCallback((id: string) => {
-    setThreadPosts(prev => prev.filter(tp => tp.id !== id));
+    setThreadPosts((prev) => prev.filter((tp) => tp.id !== id));
   }, []);
 
   const handleSubmit = useCallback(async () => {
@@ -198,22 +214,29 @@ const ComposePage: React.FC = () => {
     setError(null);
     try {
       const payload: any = { content };
-      if (media.length > 0) payload.media = media.map(m => ({ type: m.type, url: m.url }));
+      if (media.length > 0) payload.media = media.map((m) => ({ type: m.type, url: m.url }));
       if (showPoll) {
-        payload.poll = { options: pollOptions.map(o => o.text), duration: pollDuration };
+        payload.poll = { options: pollOptions.map((o) => o.text), duration: pollDuration };
       }
       if (threadMode && threadPosts.length > 0) {
-        payload.thread = threadPosts.map(tp => ({ content: tp.content }));
+        payload.thread = threadPosts.map((tp) => ({ content: tp.content }));
       }
       if (showSchedule && schedule.date) {
         payload.scheduledAt = `${schedule.date}T${schedule.time}:00Z`;
       }
-      const res = await fetch('/api/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const res = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
       if (!res.ok) throw new Error('Failed to create post');
       localStorage.removeItem('quantsync_draft');
       setContent('');
       setMedia([]);
-      setPollOptions([{ id: '1', text: '' }, { id: '2', text: '' }]);
+      setPollOptions([
+        { id: '1', text: '' },
+        { id: '2', text: '' },
+      ]);
       setShowPoll(false);
       setThreadMode(false);
       setThreadPosts([]);
@@ -222,7 +245,18 @@ const ComposePage: React.FC = () => {
     } finally {
       setPosting(false);
     }
-  }, [canPost, content, media, showPoll, pollOptions, pollDuration, threadMode, threadPosts, showSchedule, schedule]);
+  }, [
+    canPost,
+    content,
+    media,
+    showPoll,
+    pollOptions,
+    pollDuration,
+    threadMode,
+    threadPosts,
+    showSchedule,
+    schedule,
+  ]);
 
   return (
     <div className="max-w-2xl mx-auto min-h-screen bg-white">
@@ -234,7 +268,9 @@ const ComposePage: React.FC = () => {
             onClick={handleSubmit}
             disabled={!canPost}
             className={`px-5 py-2 rounded-full font-bold text-sm ${
-              canPost ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-blue-200 text-white cursor-not-allowed'
+              canPost
+                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                : 'bg-blue-200 text-white cursor-not-allowed'
             }`}
           >
             {posting ? 'Posting...' : showSchedule ? 'Schedule' : 'Post'}
@@ -265,8 +301,12 @@ const ComposePage: React.FC = () => {
 
             {showMentions && mentionSuggestions.length > 0 && (
               <div className="border rounded-lg shadow-lg bg-white mt-1 max-h-48 overflow-y-auto">
-                {mentionSuggestions.map(user => (
-                  <button key={user.id} onClick={() => insertMention(user.handle)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50">
+                {mentionSuggestions.map((user) => (
+                  <button
+                    key={user.id}
+                    onClick={() => insertMention(user.handle)}
+                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50"
+                  >
                     <img src={user.avatar} alt="" className="w-8 h-8 rounded-full" />
                     <div className="text-left">
                       <div className="font-medium text-sm">{user.name}</div>
@@ -279,8 +319,15 @@ const ComposePage: React.FC = () => {
 
             {showHashtags && hashtagSuggestions.length > 0 && (
               <div className="border rounded-lg shadow-lg bg-white mt-1">
-                {hashtagSuggestions.map(tag => (
-                  <button key={tag} onClick={() => { setContent(prev => prev.replace(/#\w*$/, `#${tag} `)); setShowHashtags(false); }} className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm">
+                {hashtagSuggestions.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => {
+                      setContent((prev) => prev.replace(/#\w*$/, `#${tag} `));
+                      setShowHashtags(false);
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm"
+                  >
                     #{tag}
                   </button>
                 ))}
@@ -289,14 +336,20 @@ const ComposePage: React.FC = () => {
 
             {media.length > 0 && (
               <div className="grid grid-cols-2 gap-2 mt-3">
-                {media.map(m => (
-                  <div key={m.id} className="relative rounded-xl overflow-hidden aspect-video bg-gray-100">
+                {media.map((m) => (
+                  <div
+                    key={m.id}
+                    className="relative rounded-xl overflow-hidden aspect-video bg-gray-100"
+                  >
                     {m.type === 'video' ? (
                       <video src={m.url} className="w-full h-full object-cover" />
                     ) : (
                       <img src={m.url} alt="" className="w-full h-full object-cover" />
                     )}
-                    <button onClick={() => removeMedia(m.id)} className="absolute top-2 right-2 w-6 h-6 bg-black/60 text-white rounded-full flex items-center justify-center text-xs">
+                    <button
+                      onClick={() => removeMedia(m.id)}
+                      className="absolute top-2 right-2 w-6 h-6 bg-black/60 text-white rounded-full flex items-center justify-center text-xs"
+                    >
                       ✕
                     </button>
                   </div>
@@ -318,16 +371,30 @@ const ComposePage: React.FC = () => {
                       maxLength={50}
                     />
                     {pollOptions.length > MIN_POLL_OPTIONS && (
-                      <button onClick={() => removePollOption(opt.id)} className="text-red-500 text-sm">✕</button>
+                      <button
+                        onClick={() => removePollOption(opt.id)}
+                        className="text-red-500 text-sm"
+                      >
+                        ✕
+                      </button>
                     )}
                   </div>
                 ))}
                 {pollOptions.length < MAX_POLL_OPTIONS && (
-                  <button onClick={addPollOption} className="text-blue-500 text-sm font-medium mt-1">+ Add option</button>
+                  <button
+                    onClick={addPollOption}
+                    className="text-blue-500 text-sm font-medium mt-1"
+                  >
+                    + Add option
+                  </button>
                 )}
                 <div className="mt-3 flex items-center gap-2">
                   <label className="text-sm text-gray-600">Duration:</label>
-                  <select value={pollDuration} onChange={(e) => setPollDuration(e.target.value)} className="border rounded px-2 py-1 text-sm">
+                  <select
+                    value={pollDuration}
+                    onChange={(e) => setPollDuration(e.target.value)}
+                    className="border rounded px-2 py-1 text-sm"
+                  >
                     <option value="1h">1 hour</option>
                     <option value="6h">6 hours</option>
                     <option value="1d">1 day</option>
@@ -350,11 +417,20 @@ const ComposePage: React.FC = () => {
                       className="w-full min-h-[80px] border rounded-lg p-3 text-sm resize-none"
                       maxLength={MAX_CHARS}
                     />
-                    <button onClick={() => removeThreadPost(tp.id)} className="absolute top-2 right-2 text-red-400 text-xs">✕</button>
-                    <div className="text-xs text-gray-400 text-right">{tp.content.length}/{MAX_CHARS}</div>
+                    <button
+                      onClick={() => removeThreadPost(tp.id)}
+                      className="absolute top-2 right-2 text-red-400 text-xs"
+                    >
+                      ✕
+                    </button>
+                    <div className="text-xs text-gray-400 text-right">
+                      {tp.content.length}/{MAX_CHARS}
+                    </div>
                   </div>
                 ))}
-                <button onClick={addThreadPost} className="text-blue-500 text-sm font-medium">+ Add to thread</button>
+                <button onClick={addThreadPost} className="text-blue-500 text-sm font-medium">
+                  + Add to thread
+                </button>
               </div>
             )}
 
@@ -362,8 +438,18 @@ const ComposePage: React.FC = () => {
               <div className="mt-4 border rounded-xl p-4">
                 <h4 className="font-medium mb-3">Schedule Post</h4>
                 <div className="flex gap-3">
-                  <input type="date" value={schedule.date} onChange={(e) => setSchedule(s => ({ ...s, date: e.target.value }))} className="border rounded px-3 py-2 text-sm" />
-                  <input type="time" value={schedule.time} onChange={(e) => setSchedule(s => ({ ...s, time: e.target.value }))} className="border rounded px-3 py-2 text-sm" />
+                  <input
+                    type="date"
+                    value={schedule.date}
+                    onChange={(e) => setSchedule((s) => ({ ...s, date: e.target.value }))}
+                    className="border rounded px-3 py-2 text-sm"
+                  />
+                  <input
+                    type="time"
+                    value={schedule.time}
+                    onChange={(e) => setSchedule((s) => ({ ...s, time: e.target.value }))}
+                    className="border rounded px-3 py-2 text-sm"
+                  />
                 </div>
               </div>
             )}
@@ -375,15 +461,30 @@ const ComposePage: React.FC = () => {
         <div className="flex items-center gap-1">
           <label className="cursor-pointer p-2 rounded-full hover:bg-blue-50 text-blue-500">
             🖼️
-            <input type="file" accept="image/*,video/*" multiple onChange={handleMediaUpload} className="hidden" />
+            <input
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              onChange={handleMediaUpload}
+              className="hidden"
+            />
           </label>
-          <button onClick={() => setShowPoll(!showPoll)} className={`p-2 rounded-full hover:bg-blue-50 ${showPoll ? 'text-blue-600' : 'text-blue-500'}`}>
+          <button
+            onClick={() => setShowPoll(!showPoll)}
+            className={`p-2 rounded-full hover:bg-blue-50 ${showPoll ? 'text-blue-600' : 'text-blue-500'}`}
+          >
             📊
           </button>
-          <button onClick={() => setThreadMode(!threadMode)} className={`p-2 rounded-full hover:bg-blue-50 ${threadMode ? 'text-blue-600' : 'text-blue-500'}`}>
+          <button
+            onClick={() => setThreadMode(!threadMode)}
+            className={`p-2 rounded-full hover:bg-blue-50 ${threadMode ? 'text-blue-600' : 'text-blue-500'}`}
+          >
             🧵
           </button>
-          <button onClick={() => setShowSchedule(!showSchedule)} className={`p-2 rounded-full hover:bg-blue-50 ${showSchedule ? 'text-blue-600' : 'text-blue-500'}`}>
+          <button
+            onClick={() => setShowSchedule(!showSchedule)}
+            className={`p-2 rounded-full hover:bg-blue-50 ${showSchedule ? 'text-blue-600' : 'text-blue-500'}`}
+          >
             📅
           </button>
         </div>
@@ -392,7 +493,10 @@ const ComposePage: React.FC = () => {
             <svg className="w-8 h-8 transform -rotate-90" viewBox="0 0 36 36">
               <circle cx="18" cy="18" r="15" fill="none" stroke="#e5e7eb" strokeWidth="3" />
               <circle
-                cx="18" cy="18" r="15" fill="none"
+                cx="18"
+                cy="18"
+                r="15"
+                fill="none"
                 stroke={isOverLimit ? '#ef4444' : charPercentage > 90 ? '#f59e0b' : '#3b82f6'}
                 strokeWidth="3"
                 strokeDasharray={`${charPercentage * 0.942} 100`}

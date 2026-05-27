@@ -6,10 +6,8 @@
 import type {
   ProcessingOptions,
   ImageFormat,
-  ImageFilter,
   ImageFilterConfig,
   ThumbnailOptions,
-  MediaMetadata,
   ProcessingJob,
 } from '../types';
 
@@ -48,7 +46,6 @@ export class ImageProcessor {
   private operationQueue: Map<string, ProcessingOperation[]>;
   private jobs: Map<string, ProcessingJob>;
   private histogramCache: Map<string, number[][]>;
-  private jobCounter: number = 0;
 
   constructor() {
     this.images = new Map();
@@ -65,7 +62,7 @@ export class ImageProcessor {
     width: number,
     height: number,
     format: ImageFormat = 'jpeg',
-    options: { quality?: number; hasAlpha?: boolean; colorSpace?: string } = {}
+    options: { quality?: number; hasAlpha?: boolean; colorSpace?: string } = {},
   ): ImageData {
     const channels = options.hasAlpha ? 4 : 3;
     const bitDepth = 8;
@@ -104,7 +101,12 @@ export class ImageProcessor {
   /**
    * Resize an image
    */
-  public resize(imageId: string, width: number, height: number, options: Partial<ProcessingOptions> = {}): ImageData {
+  public resize(
+    imageId: string,
+    width: number,
+    height: number,
+    options: Partial<ProcessingOptions> = {},
+  ): ImageData {
     const image = this.getImage(imageId);
     const fit = options.fit || 'cover';
 
@@ -234,7 +236,7 @@ export class ImageProcessor {
       fontSize?: number;
       color?: string;
       rotation?: number;
-    } = {}
+    } = {},
   ): ImageData {
     const image = this.getImage(imageId);
 
@@ -261,7 +263,10 @@ export class ImageProcessor {
   /**
    * Compress an image to target quality or size
    */
-  public compress(imageId: string, options: { quality?: number; maxSizeBytes?: number; format?: ImageFormat } = {}): ImageData {
+  public compress(
+    imageId: string,
+    options: { quality?: number; maxSizeBytes?: number; format?: ImageFormat } = {},
+  ): ImageData {
     const image = this.getImage(imageId);
     const targetQuality = options.quality || 75;
     const format = options.format || image.format;
@@ -322,15 +327,28 @@ export class ImageProcessor {
       cropHeight = Math.round(cropWidth / aspectRatio);
     }
 
-    const cropX = Math.max(0, Math.min(Math.round(focusX - cropWidth / 2), image.width - cropWidth));
-    const cropY = Math.max(0, Math.min(Math.round(focusY - cropHeight / 2), image.height - cropHeight));
+    const cropX = Math.max(
+      0,
+      Math.min(Math.round(focusX - cropWidth / 2), image.width - cropWidth),
+    );
+    const cropY = Math.max(
+      0,
+      Math.min(Math.round(focusY - cropHeight / 2), image.height - cropHeight),
+    );
 
     image.width = targetWidth;
     image.height = targetHeight;
     image.size = this.calculateSize(image);
 
     this.addOperation(imageId, 'content_aware_crop', {
-      targetWidth, targetHeight, focusX, focusY, cropX, cropY, cropWidth, cropHeight,
+      targetWidth,
+      targetHeight,
+      focusX,
+      focusY,
+      cropX,
+      cropY,
+      cropWidth,
+      cropHeight,
     });
 
     return image;
@@ -362,7 +380,12 @@ export class ImageProcessor {
   /**
    * Generate a color histogram for an image
    */
-  public getHistogram(imageId: string): { red: number[]; green: number[]; blue: number[]; luminance: number[] } {
+  public getHistogram(imageId: string): {
+    red: number[];
+    green: number[];
+    blue: number[];
+    luminance: number[];
+  } {
     const image = this.getImage(imageId);
 
     // Generate simulated histogram data (256 buckets per channel)
@@ -370,7 +393,7 @@ export class ImageProcessor {
     const green = this.generateHistogramChannel(image, 'green');
     const blue = this.generateHistogramChannel(image, 'blue');
     const luminance = red.map((r, i) =>
-      Math.round(0.299 * r + 0.587 * green[i] + 0.114 * blue[i])
+      Math.round(0.299 * r + 0.587 * green[i]! + 0.114 * blue[i]!),
     );
 
     return { red, green, blue, luminance };
@@ -416,7 +439,7 @@ export class ImageProcessor {
 
   private calculateSize(image: ImageData): number {
     const rawSize = image.width * image.height * image.channels * (image.bitDepth / 8);
-    const compressionEstimate = image.format === 'png' ? 0.3 : image.quality / 100 * 0.4;
+    const compressionEstimate = image.format === 'png' ? 0.3 : (image.quality / 100) * 0.4;
     return Math.round(rawSize * compressionEstimate);
   }
 

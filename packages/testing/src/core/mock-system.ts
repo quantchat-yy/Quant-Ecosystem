@@ -16,7 +16,7 @@ export class MockSystem {
    * Creates a mock function with full call tracking
    */
   fn<TArgs extends unknown[] = unknown[], TReturn = unknown>(
-    implementation?: (...args: TArgs) => TReturn
+    implementation?: (...args: TArgs) => TReturn,
   ): MockFn<TArgs, TReturn> {
     const mock = new MockFnImpl<TArgs, TReturn>(implementation);
     this.mocks.push(mock as any);
@@ -83,14 +83,14 @@ export class MockSystem {
    * Gets all registered mock functions
    */
   getMocks(): MockFn[] {
-    return this.mocks.map(m => m.toMockFn());
+    return this.mocks.map((m) => m.toMockFn());
   }
 
   /**
    * Gets all registered spies
    */
   getSpies(): SpyInstance[] {
-    return this.spies.map(s => ({
+    return this.spies.map((s) => ({
       object: s.object,
       method: s.method,
       original: s.original,
@@ -270,7 +270,7 @@ interface SpyInstanceImpl {
  * Convenience: standalone mock function creator
  */
 export function createMockFn<TArgs extends unknown[] = unknown[], TReturn = unknown>(
-  implementation?: (...args: TArgs) => TReturn
+  implementation?: (...args: TArgs) => TReturn,
 ): MockFn<TArgs, TReturn> {
   const system = new MockSystem();
   return system.fn(implementation);
@@ -301,7 +301,7 @@ export function createSequenceMock<T>(values: T[]): MockFn<[], T> {
   const system = new MockSystem();
   let index = 0;
   return system.fn<[], T>(() => {
-    const value = values[index % values.length];
+    const value = values[index % values.length]!;
     index++;
     return value;
   });

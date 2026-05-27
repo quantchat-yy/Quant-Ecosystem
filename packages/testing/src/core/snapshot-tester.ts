@@ -67,7 +67,11 @@ function serialize(value: unknown, indent: number = 0, seen: Set<unknown> = new 
   }
 
   if (ArrayBuffer.isView(value)) {
-    const typedArr = value as unknown as { length: number; [i: number]: number; constructor: { name: string } };
+    const typedArr = value as unknown as {
+      length: number;
+      [i: number]: number;
+      constructor: { name: string };
+    };
     const name = typedArr.constructor.name;
     const items: string[] = [];
     for (let i = 0; i < Math.min(typedArr.length, 20); i++) {
@@ -113,13 +117,17 @@ function generateDiff(expected: string, received: string): string {
 
   // Simple line-by-line diff using LCS approach
   const lcs = computeLCS(expectedLines, receivedLines);
-  let ei = 0, ri = 0, li = 0;
+  let ei = 0,
+    ri = 0,
+    li = 0;
 
   while (ei < expectedLines.length || ri < receivedLines.length) {
     if (li < lcs.length && ei < expectedLines.length && expectedLines[ei] === lcs[li]) {
       if (ri < receivedLines.length && receivedLines[ri] === lcs[li]) {
         diff.push(`  ${lcs[li]}`);
-        ei++; ri++; li++;
+        ei++;
+        ri++;
+        li++;
       } else {
         diff.push(`+ ${receivedLines[ri]}`);
         ri++;
@@ -131,7 +139,8 @@ function generateDiff(expected: string, received: string): string {
       } else if (ri < receivedLines.length) {
         diff.push(`- ${expectedLines[ei]}`);
         diff.push(`+ ${receivedLines[ri]}`);
-        ei++; ri++;
+        ei++;
+        ri++;
       } else {
         diff.push(`- ${expectedLines[ei]}`);
         ei++;
@@ -156,20 +165,22 @@ function computeLCS(a: string[], b: string[]): string[] {
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
       if (a[i - 1] === b[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1] + 1;
+        dp[i]![j] = dp[i - 1]![j - 1]! + 1;
       } else {
-        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        dp[i]![j] = Math.max(dp[i - 1]![j]!, dp[i]![j - 1]!);
       }
     }
   }
 
   const result: string[] = [];
-  let i = m, j = n;
+  let i = m,
+    j = n;
   while (i > 0 && j > 0) {
     if (a[i - 1] === b[j - 1]) {
-      result.unshift(a[i - 1]);
-      i--; j--;
-    } else if (dp[i - 1][j] > dp[i][j - 1]) {
+      result.unshift(a[i - 1]!);
+      i--;
+      j--;
+    } else if (dp[i - 1]![j]! > dp[i]![j - 1]!) {
       i--;
     } else {
       j--;
@@ -333,9 +344,9 @@ export class SnapshotTester {
     let match: RegExpExecArray | null;
 
     while ((match = regex.exec(content)) !== null) {
-      file.snapshots.set(match[1], {
-        key: match[1],
-        value: match[2],
+      file.snapshots.set(match[1]!, {
+        key: match[1]!,
+        value: match[2]!,
         timestamp: 0,
         counter: 0,
       });

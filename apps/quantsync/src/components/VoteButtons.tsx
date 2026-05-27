@@ -14,7 +14,16 @@ interface VoteButtonsProps {
   orientation?: 'horizontal' | 'vertical';
 }
 
-export function VoteButtons({ upvotes, downvotes, score, userVote, onUpvote, onDownvote, size = 'medium', orientation = 'vertical' }: VoteButtonsProps) {
+export function VoteButtons({
+  upvotes: _upvotes,
+  downvotes: _downvotes,
+  score,
+  userVote,
+  onUpvote,
+  onDownvote,
+  size = 'medium',
+  orientation = 'vertical',
+}: VoteButtonsProps) {
   return {
     type: 'div',
     className: `vote-buttons ${orientation} size-${size}`,
@@ -26,7 +35,11 @@ export function VoteButtons({ upvotes, downvotes, score, userVote, onUpvote, onD
         'aria-label': 'Upvote',
         children: [{ type: 'span', className: 'vote-icon up' }],
       },
-      { type: 'span', className: `vote-score ${score > 0 ? 'positive' : score < 0 ? 'negative' : ''}`, text: formatScore(score) },
+      {
+        type: 'span',
+        className: `vote-score ${score > 0 ? 'positive' : score < 0 ? 'negative' : ''}`,
+        text: formatScore(score),
+      },
       {
         type: 'button',
         className: `downvote-btn ${userVote === 'down' ? 'active' : ''}`,

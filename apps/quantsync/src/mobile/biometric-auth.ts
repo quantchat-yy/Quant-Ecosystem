@@ -1,5 +1,5 @@
-// Quantsync - Biometric Authentication Service
-// Mobile biometric authentication for cloud storage platform
+// Quantads - Biometric Authentication Service
+// Mobile biometric authentication for advertising platform
 
 export interface BiometricCapabilities {
   fingerprint: boolean;
@@ -84,7 +84,16 @@ export class BiometricAuthService {
 
   public async authenticate(config?: Partial<BiometricConfig>): Promise<BiometricResult> {
     if (this.isLockedOut()) {
-      return { success: false, method: 'none', timestamp: Date.now(), error: { code: 'lockout', message: 'Too many failed attempts. Try again later.', recoverable: true } };
+      return {
+        success: false,
+        method: 'none',
+        timestamp: Date.now(),
+        error: {
+          code: 'lockout',
+          message: 'Too many failed attempts. Try again later.',
+          recoverable: true,
+        },
+      };
     }
 
     const fullConfig: BiometricConfig = {
@@ -92,7 +101,7 @@ export class BiometricAuthService {
       invalidateOnNewEnrollment: false,
       confirmationRequired: true,
       title: 'Verify Identity',
-      subtitle: 'Authenticate to access cloud storage platform',
+      subtitle: 'Authenticate to access advertising platform',
       negativeButtonText: 'Cancel',
       ...config,
     };
@@ -109,9 +118,13 @@ export class BiometricAuthService {
     return result;
   }
 
-  private async performBiometricPrompt(config: BiometricConfig): Promise<BiometricResult> {
+  private async performBiometricPrompt(_config: BiometricConfig): Promise<BiometricResult> {
     if (!this.capabilities) await this.checkAvailability();
-    const method = this.capabilities?.faceId ? 'face_id' : this.capabilities?.fingerprint ? 'fingerprint' : 'device_credential';
+    const method = this.capabilities?.faceId
+      ? 'face_id'
+      : this.capabilities?.fingerprint
+        ? 'fingerprint'
+        : 'device_credential';
     return { success: true, method, timestamp: Date.now() };
   }
 
@@ -122,24 +135,57 @@ export class BiometricAuthService {
   public async enrollBiometric(userId: string): Promise<BiometricResult> {
     const capabilities = await this.checkAvailability();
     if (!capabilities.fingerprint && !capabilities.faceId) {
-      return { success: false, method: 'none', timestamp: Date.now(), error: { code: 'not_available', message: 'No biometric sensor available', recoverable: false } };
+      return {
+        success: false,
+        method: 'none',
+        timestamp: Date.now(),
+        error: {
+          code: 'not_available',
+          message: 'No biometric sensor available',
+          recoverable: false,
+        },
+      };
     }
     const keyId = `bio_key_${userId}_${Date.now()}`;
-    this.keyStore.set(keyId, { keyId, createdAt: Date.now(), lastUsed: Date.now(), biometricBound: true, purpose: 'authentication' });
-    return { success: true, method: capabilities.faceId ? 'face_id' : 'fingerprint', timestamp: Date.now() };
+    this.keyStore.set(keyId, {
+      keyId,
+      createdAt: Date.now(),
+      lastUsed: Date.now(),
+      biometricBound: true,
+      purpose: 'authentication',
+    });
+    return {
+      success: true,
+      method: capabilities.faceId ? 'face_id' : 'fingerprint',
+      timestamp: Date.now(),
+    };
   }
 
   public async protectSensitiveAction(action: string): Promise<BiometricResult> {
-    const sensitiveActions = ['share_folder', 'delete_permanently', 'delete_account', 'change_password', 'export_data'];
+    const sensitiveActions = [
+      'approve_budget',
+      'launch_campaign',
+      'delete_account',
+      'change_password',
+      'export_data',
+    ];
     if (!sensitiveActions.includes(action)) {
       return { success: true, method: 'none', timestamp: Date.now() };
     }
-    return this.authenticate({ title: 'Confirm Action', subtitle: `Verify to ${action.replace(/_/g, ' ')}`, confirmationRequired: true });
+    return this.authenticate({
+      title: 'Confirm Action',
+      subtitle: `Verify to ${action.replace(/_/g, ' ')}`,
+      confirmationRequired: true,
+    });
   }
 
   public async sessionExtend(): Promise<SessionInfo | null> {
     if (!this.currentSession) return null;
-    const result = await this.authenticate({ title: 'Extend Session', subtitle: 'Verify to stay logged in', confirmationRequired: false });
+    const result = await this.authenticate({
+      title: 'Extend Session',
+      subtitle: 'Verify to stay logged in',
+      confirmationRequired: false,
+    });
     if (result.success) {
       this.currentSession.expiresAt = Date.now() + 3600000;
       this.currentSession.lastExtension = Date.now();
@@ -150,7 +196,12 @@ export class BiometricAuthService {
   }
 
   public createSession(sessionId: string, durationMs: number): SessionInfo {
-    this.currentSession = { sessionId, expiresAt: Date.now() + durationMs, biometricVerified: false, lastExtension: Date.now() };
+    this.currentSession = {
+      sessionId,
+      expiresAt: Date.now() + durationMs,
+      biometricVerified: false,
+      lastExtension: Date.now(),
+    };
     return this.currentSession;
   }
 
@@ -159,7 +210,13 @@ export class BiometricAuthService {
   }
 
   public addToKeyStore(keyId: string, purpose: string): BiometricKeyEntry {
-    const entry: BiometricKeyEntry = { keyId, createdAt: Date.now(), lastUsed: Date.now(), biometricBound: true, purpose };
+    const entry: BiometricKeyEntry = {
+      keyId,
+      createdAt: Date.now(),
+      lastUsed: Date.now(),
+      biometricBound: true,
+      purpose,
+    };
     this.keyStore.set(keyId, entry);
     return entry;
   }

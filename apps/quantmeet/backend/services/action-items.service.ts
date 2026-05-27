@@ -23,6 +23,8 @@ export interface AIInference {
 }
 
 export class ActionItemsService {
+  private readonly actionItemStore = new Map<string, ActionItem[]>();
+
   constructor(private readonly ai: AIInference) {}
 
   async extractActionItems(transcript: TranscriptSegment[]): Promise<ActionItem[]> {
@@ -49,6 +51,21 @@ export class ActionItemsService {
     return items;
   }
 
+  getActionItems(roomId: string): ActionItem[] {
+    return this.actionItemStore.get(roomId) ?? [];
+  }
+
+  completeActionItem(itemId: string, _userId: string): ActionItem {
+    for (const [, items] of this.actionItemStore) {
+      const item = items.find((i) => i.id === itemId);
+      if (item) {
+        item.status = 'completed';
+        return item;
+      }
+    }
+    throw createAppError('Action item not found', 404, 'ACTION_ITEM_NOT_FOUND');
+  }
+
   async extractFromRoomId(
     roomId: string,
     transcriptService: TranscriptService,
@@ -58,6 +75,8 @@ export class ActionItemsService {
       throw createAppError('No transcript found for room', 404, 'TRANSCRIPT_NOT_FOUND');
     }
 
-    return this.extractActionItems(transcript);
+    const items = await this.extractActionItems(transcript);
+    this.actionItemStore.set(roomId, items);
+    return items;
   }
 }

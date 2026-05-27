@@ -68,6 +68,14 @@ export class TypingService {
     return Array.from(conversationTyping.keys());
   }
 
+  startTyping(conversationId: string, userId: string): void {
+    this.setTyping(conversationId, userId, true);
+  }
+
+  stopTyping(conversationId: string, userId: string): void {
+    this.setTyping(conversationId, userId, false);
+  }
+
   private clearTyping(conversationId: string, userId: string): void {
     const conversationTyping = this.typingUsers.get(conversationId);
     if (!conversationTyping) return;

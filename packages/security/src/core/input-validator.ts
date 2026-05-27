@@ -36,7 +36,14 @@ export class InputValidator {
     if (!schema) {
       return {
         valid: false,
-        errors: [{ field: '_schema', rule: 'exists', message: `Schema '${schemaName}' not found`, value: null }],
+        errors: [
+          {
+            field: '_schema',
+            rule: 'exists',
+            message: `Schema '${schemaName}' not found`,
+            value: null,
+          },
+        ],
         sanitized: {},
         fieldCount: 0,
       };
@@ -45,7 +52,10 @@ export class InputValidator {
   }
 
   /** Validate data against a schema object directly */
-  async validateAgainstSchema(schema: ValidationSchema, data: Record<string, unknown>): Promise<ValidationResult> {
+  async validateAgainstSchema(
+    schema: ValidationSchema,
+    data: Record<string, unknown>,
+  ): Promise<ValidationResult> {
     const errors: ValidationError[] = [];
     const sanitized: Record<string, unknown> = {};
     let fieldCount = 0;
@@ -93,7 +103,11 @@ export class InputValidator {
   }
 
   /** Validate a single field against its rule */
-  private validateField(fieldName: string, value: unknown, rule: ValidationRule): ValidationError[] {
+  private validateField(
+    fieldName: string,
+    value: unknown,
+    rule: ValidationRule,
+  ): ValidationError[] {
     const errors: ValidationError[] = [];
 
     // Required check
@@ -150,7 +164,11 @@ export class InputValidator {
 
     // Nested object validation
     if (rule.type === 'object' && rule.properties && typeof value === 'object') {
-      const nestedErrors = this.validateNestedObject(fieldName, value as Record<string, unknown>, rule.properties);
+      const nestedErrors = this.validateNestedObject(
+        fieldName,
+        value as Record<string, unknown>,
+        rule.properties,
+      );
       errors.push(...nestedErrors);
     }
 
@@ -177,51 +195,100 @@ export class InputValidator {
   }
 
   /** Check type of value against rule */
-  private checkType(fieldName: string, value: unknown, rule: ValidationRule): ValidationError | null {
+  private checkType(
+    fieldName: string,
+    value: unknown,
+    rule: ValidationRule,
+  ): ValidationError | null {
     switch (rule.type) {
       case 'string':
         if (typeof value !== 'string') {
-          return { field: fieldName, rule: 'type', message: `${fieldName} must be a string`, value };
+          return {
+            field: fieldName,
+            rule: 'type',
+            message: `${fieldName} must be a string`,
+            value,
+          };
         }
         break;
       case 'number':
         if (typeof value !== 'number' || isNaN(value)) {
-          return { field: fieldName, rule: 'type', message: `${fieldName} must be a number`, value };
+          return {
+            field: fieldName,
+            rule: 'type',
+            message: `${fieldName} must be a number`,
+            value,
+          };
         }
         break;
       case 'boolean':
         if (typeof value !== 'boolean') {
-          return { field: fieldName, rule: 'type', message: `${fieldName} must be a boolean`, value };
+          return {
+            field: fieldName,
+            rule: 'type',
+            message: `${fieldName} must be a boolean`,
+            value,
+          };
         }
         break;
       case 'object':
         if (typeof value !== 'object' || Array.isArray(value)) {
-          return { field: fieldName, rule: 'type', message: `${fieldName} must be an object`, value };
+          return {
+            field: fieldName,
+            rule: 'type',
+            message: `${fieldName} must be an object`,
+            value,
+          };
         }
         break;
       case 'array':
         if (!Array.isArray(value)) {
-          return { field: fieldName, rule: 'type', message: `${fieldName} must be an array`, value };
+          return {
+            field: fieldName,
+            rule: 'type',
+            message: `${fieldName} must be an array`,
+            value,
+          };
         }
         break;
       case 'email':
         if (typeof value !== 'string' || !this.isValidEmail(value)) {
-          return { field: fieldName, rule: 'type', message: `${fieldName} must be a valid email`, value };
+          return {
+            field: fieldName,
+            rule: 'type',
+            message: `${fieldName} must be a valid email`,
+            value,
+          };
         }
         break;
       case 'url':
         if (typeof value !== 'string' || !this.isValidUrl(value)) {
-          return { field: fieldName, rule: 'type', message: `${fieldName} must be a valid URL`, value };
+          return {
+            field: fieldName,
+            rule: 'type',
+            message: `${fieldName} must be a valid URL`,
+            value,
+          };
         }
         break;
       case 'date':
         if (typeof value === 'string' && isNaN(Date.parse(value))) {
-          return { field: fieldName, rule: 'type', message: `${fieldName} must be a valid date`, value };
+          return {
+            field: fieldName,
+            rule: 'type',
+            message: `${fieldName} must be a valid date`,
+            value,
+          };
         }
         break;
       case 'uuid':
         if (typeof value !== 'string' || !this.isValidUUID(value)) {
-          return { field: fieldName, rule: 'type', message: `${fieldName} must be a valid UUID`, value };
+          return {
+            field: fieldName,
+            rule: 'type',
+            message: `${fieldName} must be a valid UUID`,
+            value,
+          };
         }
         break;
     }
@@ -229,47 +296,98 @@ export class InputValidator {
   }
 
   /** Check minimum constraint */
-  private checkMin(fieldName: string, value: unknown, rule: ValidationRule): ValidationError | null {
+  private checkMin(
+    fieldName: string,
+    value: unknown,
+    rule: ValidationRule,
+  ): ValidationError | null {
     const min = rule.min!;
     if (typeof value === 'string' && value.length < min) {
-      return { field: fieldName, rule: 'min', message: `${fieldName} must be at least ${min} characters`, value };
+      return {
+        field: fieldName,
+        rule: 'min',
+        message: `${fieldName} must be at least ${min} characters`,
+        value,
+      };
     }
     if (typeof value === 'number' && value < min) {
-      return { field: fieldName, rule: 'min', message: `${fieldName} must be at least ${min}`, value };
+      return {
+        field: fieldName,
+        rule: 'min',
+        message: `${fieldName} must be at least ${min}`,
+        value,
+      };
     }
     if (Array.isArray(value) && value.length < min) {
-      return { field: fieldName, rule: 'min', message: `${fieldName} must have at least ${min} items`, value };
+      return {
+        field: fieldName,
+        rule: 'min',
+        message: `${fieldName} must have at least ${min} items`,
+        value,
+      };
     }
     return null;
   }
 
   /** Check maximum constraint */
-  private checkMax(fieldName: string, value: unknown, rule: ValidationRule): ValidationError | null {
+  private checkMax(
+    fieldName: string,
+    value: unknown,
+    rule: ValidationRule,
+  ): ValidationError | null {
     const max = rule.max!;
     if (typeof value === 'string' && value.length > max) {
-      return { field: fieldName, rule: 'max', message: `${fieldName} must be at most ${max} characters`, value };
+      return {
+        field: fieldName,
+        rule: 'max',
+        message: `${fieldName} must be at most ${max} characters`,
+        value,
+      };
     }
     if (typeof value === 'number' && value > max) {
-      return { field: fieldName, rule: 'max', message: `${fieldName} must be at most ${max}`, value };
+      return {
+        field: fieldName,
+        rule: 'max',
+        message: `${fieldName} must be at most ${max}`,
+        value,
+      };
     }
     if (Array.isArray(value) && value.length > max) {
-      return { field: fieldName, rule: 'max', message: `${fieldName} must have at most ${max} items`, value };
+      return {
+        field: fieldName,
+        rule: 'max',
+        message: `${fieldName} must have at most ${max} items`,
+        value,
+      };
     }
     return null;
   }
 
   /** Check pattern constraint */
-  private checkPattern(fieldName: string, value: unknown, rule: ValidationRule): ValidationError | null {
+  private checkPattern(
+    fieldName: string,
+    value: unknown,
+    rule: ValidationRule,
+  ): ValidationError | null {
     if (typeof value !== 'string') return null;
     const regex = new RegExp(rule.pattern!);
     if (!regex.test(value)) {
-      return { field: fieldName, rule: 'pattern', message: rule.message || `${fieldName} does not match required pattern`, value };
+      return {
+        field: fieldName,
+        rule: 'pattern',
+        message: rule.message || `${fieldName} does not match required pattern`,
+        value,
+      };
     }
     return null;
   }
 
   /** Validate nested object fields */
-  private validateNestedObject(parentField: string, obj: Record<string, unknown>, properties: Record<string, ValidationRule>): ValidationError[] {
+  private validateNestedObject(
+    parentField: string,
+    obj: Record<string, unknown>,
+    properties: Record<string, ValidationRule>,
+  ): ValidationError[] {
     const errors: ValidationError[] = [];
     for (const [key, rule] of Object.entries(properties)) {
       const fullPath = `${parentField}.${key}`;
@@ -280,7 +398,11 @@ export class InputValidator {
   }
 
   /** Validate array items */
-  private validateArray(fieldName: string, arr: unknown[], itemRule: ValidationRule): ValidationError[] {
+  private validateArray(
+    fieldName: string,
+    arr: unknown[],
+    itemRule: ValidationRule,
+  ): ValidationError[] {
     const errors: ValidationError[] = [];
     for (let i = 0; i < arr.length; i++) {
       const itemPath = `${fieldName}[${i}]`;
@@ -301,7 +423,8 @@ export class InputValidator {
 
   /** Email validation */
   private isValidEmail(value: string): boolean {
-    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    const emailRegex =
+      /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
     return emailRegex.test(value) && value.length <= 254;
   }
 
@@ -324,7 +447,10 @@ export class InputValidator {
   /** Register default custom validation rules */
   private registerDefaultRules(): void {
     this.customRules.set('alphanumeric', (v) => typeof v === 'string' && /^[a-zA-Z0-9]+$/.test(v));
-    this.customRules.set('slug', (v) => typeof v === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(v));
+    this.customRules.set(
+      'slug',
+      (v) => typeof v === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(v),
+    );
     this.customRules.set('phone', (v) => typeof v === 'string' && /^\+?[1-9]\d{1,14}$/.test(v));
     this.customRules.set('ipv4', (v) => typeof v === 'string' && /^(\d{1,3}\.){3}\d{1,3}$/.test(v));
     this.customRules.set('hex', (v) => typeof v === 'string' && /^[0-9a-fA-F]+$/.test(v));
@@ -342,7 +468,7 @@ export class InputValidator {
     let sum = 0;
     let alternate = false;
     for (let i = digits.length - 1; i >= 0; i--) {
-      let digit = parseInt(digits[i], 10);
+      let digit = parseInt(digits[i]!, 10);
       if (alternate) {
         digit *= 2;
         if (digit > 9) digit -= 9;

@@ -260,4 +260,93 @@ export class MessageService {
       data: { metadata: { ...(message.metadata as object), pinned: true, pinnedBy: userId } },
     });
   }
+
+  async reactToMessage(messageId: string, userId: string, reaction: string): Promise<Message> {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      throw createAppError('Message not found', 404, 'MESSAGE_NOT_FOUND');
+    }
+
+    // Verify user is a member of the conversation
+    const membership = await this.prisma.conversationMember.findFirst({
+      where: { conversationId: message.conversationId, userId, leftAt: null },
+    });
+
+    if (!membership) {
+      throw createAppError('User is not a member of this conversation', 403, 'NOT_A_MEMBER');
+    }
+
+    const currentMetadata = (message.metadata as Record<string, unknown>) ?? {};
+    const reactions = (currentMetadata['reactions'] as Record<string, string[]>) ?? {};
+    const usersForReaction = reactions[reaction] ?? [];
+
+    if (usersForReaction.includes(userId)) {
+      // Remove reaction (toggle off)
+      reactions[reaction] = usersForReaction.filter((id) => id !== userId);
+      if (reactions[reaction]!.length === 0) {
+        delete reactions[reaction];
+      }
+    } else {
+      // Add reaction
+      reactions[reaction] = [...usersForReaction, userId];
+    }
+
+    return this.prisma.message.update({
+      where: { id: messageId },
+      data: { metadata: { ...currentMetadata, reactions } },
+    });
+  }
+
+  async searchMessages(
+    userId: string,
+    query: string,
+    options: PaginationOptions = {},
+  ): Promise<PaginatedResult<Message>> {
+    const page = options.page ?? 1;
+    const pageSize = options.pageSize ?? 20;
+    const skip = (page - 1) * pageSize;
+
+    // Get conversation IDs the user belongs to
+    const memberships = await this.prisma.conversationMember.findMany({
+      where: { userId, leftAt: null },
+      select: { conversationId: true },
+    });
+
+    const conversationIds = memberships.map((m: { conversationId: string }) => m.conversationId);
+
+    // NOTE: Messages with E2E encryption store ciphertext in the content field and cannot
+    // be searched server-side. A separate metadata index is needed for searching encrypted
+    // messages (e.g., client-side search or a dedicated encrypted search index).
+    // For now, we exclude messages whose content looks like E2E encrypted payloads.
+    const where = {
+      conversationId: { in: conversationIds },
+      isDeleted: false,
+      content: { contains: query, mode: 'insensitive' as const },
+      NOT: { content: { startsWith: '{"ciphertext"' } },
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.message.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.message.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(total / pageSize);
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
+    };
+  }
 }

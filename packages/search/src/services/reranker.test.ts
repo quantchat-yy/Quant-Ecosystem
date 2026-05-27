@@ -40,12 +40,12 @@ describe('CohereReranker', () => {
       const results = await reranker.rerank('data science', sampleDocs, 3);
 
       expect(results).toHaveLength(3);
-      expect(results[0].id).toBe('doc-3');
-      expect(results[0].relevanceScore).toBe(0.98);
-      expect(results[1].id).toBe('doc-1');
-      expect(results[1].relevanceScore).toBe(0.85);
-      expect(results[2].id).toBe('doc-5');
-      expect(results[2].relevanceScore).toBe(0.72);
+      expect(results[0]!.id).toBe('doc-3');
+      expect(results[0]!.relevanceScore).toBe(0.98);
+      expect(results[1]!.id).toBe('doc-1');
+      expect(results[1]!.relevanceScore).toBe(0.85);
+      expect(results[2]!.id).toBe('doc-5');
+      expect(results[2]!.relevanceScore).toBe(0.72);
     });
 
     it('should call Cohere API with correct parameters', async () => {
@@ -82,9 +82,9 @@ describe('CohereReranker', () => {
       const results = await reranker.rerank('query', sampleDocs, 3);
 
       expect(results).toHaveLength(3);
-      expect(results[0].id).toBe('doc-1');
-      expect(results[1].id).toBe('doc-2');
-      expect(results[2].id).toBe('doc-3');
+      expect(results[0]!.id).toBe('doc-1');
+      expect(results[1]!.id).toBe('doc-2');
+      expect(results[2]!.id).toBe('doc-3');
     });
 
     it('should fall back to original ordering on network error', async () => {
@@ -93,8 +93,8 @@ describe('CohereReranker', () => {
       const results = await reranker.rerank('query', sampleDocs, 2);
 
       expect(results).toHaveLength(2);
-      expect(results[0].id).toBe('doc-1');
-      expect(results[1].id).toBe('doc-2');
+      expect(results[0]!.id).toBe('doc-1');
+      expect(results[1]!.id).toBe('doc-2');
     });
 
     it('should respect topN parameter', async () => {
@@ -126,8 +126,8 @@ describe('CohereReranker', () => {
 
       const results = await reranker.rerank('systems', sampleDocs, 2);
 
-      expect(results[0].originalIndex).toBe(3);
-      expect(results[1].originalIndex).toBe(1);
+      expect(results[0]!.originalIndex).toBe(3);
+      expect(results[1]!.originalIndex).toBe(1);
     });
 
     it('should use original score in fallback when available', async () => {
@@ -140,8 +140,8 @@ describe('CohereReranker', () => {
 
       const results = await reranker.rerank('query', docsWithScores, 2);
 
-      expect(results[0].relevanceScore).toBe(0.9);
-      expect(results[1].relevanceScore).toBe(0.7);
+      expect(results[0]!.relevanceScore).toBe(0.9);
+      expect(results[1]!.relevanceScore).toBe(0.7);
     });
   });
 });

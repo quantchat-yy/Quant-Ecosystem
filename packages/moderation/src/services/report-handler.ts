@@ -9,7 +9,6 @@ import type {
   ReportCategory,
   QueuePriority,
   ModerationAction,
-  QueueItem,
 } from '../types';
 
 interface ReportHandlerConfig {
@@ -81,7 +80,7 @@ export class ReportHandler {
   }): Promise<Report> {
     // Check for duplicate reports
     const existingReports = this.reportsByTarget.get(params.targetContentId) || [];
-    const duplicateByUser = existingReports.find(id => {
+    const duplicateByUser = existingReports.find((id) => {
       const r = this.reports.get(id);
       return r && r.reporterId === params.reporterId && r.status === 'open';
     });
@@ -145,11 +144,14 @@ export class ReportHandler {
   }
 
   /** Resolve a report with action */
-  async resolveReport(reportId: string, resolution: {
-    action: ModerationAction;
-    reason: string;
-    reviewerId: string;
-  }): Promise<Report> {
+  async resolveReport(
+    reportId: string,
+    resolution: {
+      action: ModerationAction;
+      reason: string;
+      reviewerId: string;
+    },
+  ): Promise<Report> {
     const report = this.getReportOrThrow(reportId);
 
     report.status = 'resolved';
@@ -162,7 +164,8 @@ export class ReportHandler {
     const stats = this.getOrCreateReviewer(resolution.reviewerId);
     stats.resolved++;
     const resolutionTime = report.resolvedAt - report.createdAt;
-    stats.avgResolutionTime = (stats.avgResolutionTime * (stats.resolved - 1) + resolutionTime) / stats.resolved;
+    stats.avgResolutionTime =
+      (stats.avgResolutionTime * (stats.resolved - 1) + resolutionTime) / stats.resolved;
 
     return report;
   }
@@ -190,14 +193,19 @@ export class ReportHandler {
   }): Promise<{ reports: Report[]; total: number }> {
     let results = Array.from(this.reports.values());
 
-    if (options?.status) results = results.filter(r => r.status === options.status);
-    if (options?.priority) results = results.filter(r => r.priority === options.priority);
-    if (options?.category) results = results.filter(r => r.category === options.category);
-    if (options?.assignedTo) results = results.filter(r => r.assignedTo === options.assignedTo);
+    if (options?.status) results = results.filter((r) => r.status === options.status);
+    if (options?.priority) results = results.filter((r) => r.priority === options.priority);
+    if (options?.category) results = results.filter((r) => r.category === options.category);
+    if (options?.assignedTo) results = results.filter((r) => r.assignedTo === options.assignedTo);
 
     const total = results.length;
     results = results.sort((a, b) => {
-      const priorityOrder: Record<QueuePriority, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+      const priorityOrder: Record<QueuePriority, number> = {
+        critical: 0,
+        high: 1,
+        medium: 2,
+        low: 3,
+      };
       const pDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
       if (pDiff !== 0) return pDiff;
       return a.createdAt - b.createdAt;
@@ -212,13 +220,21 @@ export class ReportHandler {
 
   /** Get prioritized reports (highest priority first) */
   async getPrioritized(limit: number = 20): Promise<Report[]> {
-    const openReports = Array.from(this.reports.values())
-      .filter(r => r.status === 'open' || r.status === 'escalated');
+    const openReports = Array.from(this.reports.values()).filter(
+      (r) => r.status === 'open' || r.status === 'escalated',
+    );
 
-    return openReports.sort((a, b) => {
-      const priorityOrder: Record<QueuePriority, number> = { critical: 0, high: 1, medium: 2, low: 3 };
-      return priorityOrder[a.priority] - priorityOrder[b.priority];
-    }).slice(0, limit);
+    return openReports
+      .sort((a, b) => {
+        const priorityOrder: Record<QueuePriority, number> = {
+          critical: 0,
+          high: 1,
+          medium: 2,
+          low: 3,
+        };
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+      })
+      .slice(0, limit);
   }
 
   /** Get moderation statistics */
@@ -250,7 +266,7 @@ export class ReportHandler {
 
     return {
       totalReports: reports.length,
-      openReports: reports.filter(r => r.status === 'open' || r.status === 'assigned').length,
+      openReports: reports.filter((r) => r.status === 'open' || r.status === 'assigned').length,
       resolvedReports: resolvedCount,
       avgResolutionTime: resolvedCount > 0 ? totalResolutionTime / resolvedCount : 0,
       byCategory,
@@ -260,7 +276,12 @@ export class ReportHandler {
   }
 
   /** Bulk resolve reports for a target */
-  async bulkResolve(targetContentId: string, action: ModerationAction, reason: string, reviewerId: string): Promise<number> {
+  async bulkResolve(
+    targetContentId: string,
+    action: ModerationAction,
+    reason: string,
+    _reviewerId: string,
+  ): Promise<number> {
     const reportIds = this.reportsByTarget.get(targetContentId) || [];
     let resolved = 0;
 
@@ -313,7 +334,14 @@ export class ReportHandler {
   private getOrCreateReviewer(reviewerId: string): ReviewerStats {
     let stats = this.reviewers.get(reviewerId);
     if (!stats) {
-      stats = { reviewerId, assigned: 0, resolved: 0, avgResolutionTime: 0, accuracy: 1, specializations: [] };
+      stats = {
+        reviewerId,
+        assigned: 0,
+        resolved: 0,
+        avgResolutionTime: 0,
+        accuracy: 1,
+        specializations: [],
+      };
       this.reviewers.set(reviewerId, stats);
     }
     return stats;

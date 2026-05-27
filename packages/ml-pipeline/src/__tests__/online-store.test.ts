@@ -129,8 +129,8 @@ describe('OnlineFeatureStore', () => {
 
       const result = await store.getRecentInteractions('user:1');
       expect(result).toHaveLength(1);
-      expect(result[0].itemId).toBe('item:10');
-      expect(result[0].interactionType).toBe('click');
+      expect(result[0]!.itemId).toBe('item:10');
+      expect(result[0]!.interactionType).toBe('click');
     });
 
     it('limits results by max count', async () => {

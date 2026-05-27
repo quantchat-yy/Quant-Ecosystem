@@ -3,4 +3,4 @@ const nextConfig = {
   transpilePackages: ['@quant/shared-ui', '@quant/common'],
   output: 'standalone',
 };
-module.exports = nextConfig;
+export default nextConfig;

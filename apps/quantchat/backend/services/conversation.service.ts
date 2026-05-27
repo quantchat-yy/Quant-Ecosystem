@@ -195,4 +195,19 @@ export class ConversationService {
       },
     });
   }
+
+  async markRead(conversationId: string, userId: string): Promise<ConversationMember> {
+    const member = await this.prisma.conversationMember.findFirst({
+      where: { conversationId, userId, leftAt: null },
+    });
+
+    if (!member) {
+      throw createAppError('User is not a member of this conversation', 404, 'NOT_A_MEMBER');
+    }
+
+    return this.prisma.conversationMember.update({
+      where: { id: member.id },
+      data: { lastReadAt: new Date() },
+    });
+  }
 }

@@ -2,7 +2,7 @@
 // Recommendations Package - Cold Start Handler
 // ============================================================================
 
-import type { ColdStartConfig, UserProfile, ItemProfile, RecommendedItem, ColdStartStrategy } from '../types';
+import type { ColdStartConfig, UserProfile, RecommendedItem } from '../types';
 
 /** Handles cold start problem for new users and new items */
 export class ColdStartHandler {
@@ -117,7 +117,7 @@ export class ColdStartHandler {
   private sortProfileToRecommendations(
     profile: Map<string, number>,
     topN: number,
-    source: string
+    source: string,
   ): RecommendedItem[] {
     const sorted = Array.from(profile.entries())
       .sort((a, b) => b[1] - a[1])
@@ -167,7 +167,7 @@ export class ColdStartHandler {
         // Explore: random item
         const randomIdx = Math.floor(Math.random() * allItems.length);
         results.push({
-          itemId: allItems[randomIdx],
+          itemId: allItems[randomIdx]!,
           score: 0.5,
           rank: i + 1,
           source: 'cold_start_exploration',
@@ -191,7 +191,7 @@ export class ColdStartHandler {
 
   /** UCB1 arm selection */
   private selectUCB1Arm(items: string[]): string {
-    let bestItem = items[0];
+    let bestItem = items[0]!;
     let bestUCB = -Infinity;
     let totalTrials = 0;
 
@@ -205,7 +205,7 @@ export class ColdStartHandler {
       if (arm.trials === 0) return item; // Unexplored arm
 
       const avgReward = arm.successes / arm.trials;
-      const exploration = Math.sqrt(2 * Math.log(totalTrials + 1) / arm.trials);
+      const exploration = Math.sqrt((2 * Math.log(totalTrials + 1)) / arm.trials);
       const ucb = avgReward + exploration;
 
       if (ucb > bestUCB) {
@@ -262,7 +262,7 @@ export class ColdStartHandler {
     coldStartRecs: RecommendedItem[],
     personalizedRecs: RecommendedItem[],
     interactionCount: number,
-    topN: number
+    topN: number,
   ): RecommendedItem[] {
     const personalizedWeight = this.getTransitionWeight(interactionCount);
     const coldStartWeight = 1 - personalizedWeight;

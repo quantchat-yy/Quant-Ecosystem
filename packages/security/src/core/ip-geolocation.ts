@@ -27,10 +27,27 @@ const DEFAULT_CONFIG: GeoConfig = {
 };
 
 /** Known Tor exit node prefixes (simulation) */
-const TOR_EXIT_PREFIXES = ['185.220.', '109.70.', '51.15.', '198.98.', '176.10.', '95.211.', '192.42.'];
+const TOR_EXIT_PREFIXES = [
+  '185.220.',
+  '109.70.',
+  '51.15.',
+  '198.98.',
+  '176.10.',
+  '95.211.',
+  '192.42.',
+];
 
 /** Known VPN provider prefixes (simulation) */
-const VPN_PREFIXES = ['104.238.', '209.58.', '45.32.', '45.76.', '45.77.', '66.70.', '149.28.', '207.246.'];
+const VPN_PREFIXES = [
+  '104.238.',
+  '209.58.',
+  '45.32.',
+  '45.76.',
+  '45.77.',
+  '66.70.',
+  '149.28.',
+  '207.246.',
+];
 
 /** Known proxy/datacenter prefixes (simulation) */
 const PROXY_PREFIXES = ['34.', '35.', '52.', '54.', '13.', '18.', '3.', '172.', '198.51.'];
@@ -42,7 +59,19 @@ const PROXY_PREFIXES = ['34.', '35.', '52.', '54.', '13.', '18.', '3.', '172.', 
 export class IPGeolocation {
   private config: GeoConfig;
   private cache: Map<string, GeoLocation>;
-  private ipRangeDatabase: Map<string, { country: string; countryCode: string; region: string; city: string; lat: number; lon: number; tz: string; isp: string }>;
+  private ipRangeDatabase: Map<
+    string,
+    {
+      country: string;
+      countryCode: string;
+      region: string;
+      city: string;
+      lat: number;
+      lon: number;
+      tz: string;
+      isp: string;
+    }
+  >;
   private blockedIPs: Set<string>;
   private lookupCount: number;
 
@@ -141,14 +170,14 @@ export class IPGeolocation {
     // Check port patterns and ASN characteristics
     const octets = ip.split('.').map(Number);
     // Heuristic: certain IP ranges commonly used by VPN providers
-    if (octets[0] === 10 || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31)) {
+    if (octets[0] === 10 || (octets[0] === 172 && octets[1]! >= 16 && octets[1]! <= 31)) {
       return false; // Private IPs are not VPNs
     }
 
     // Additional VPN detection based on IP characteristics
-    const ipNum = (octets[0] << 24) | (octets[1] << 16) | (octets[2] << 8) | octets[3];
+    const ipNum = (octets[0]! << 24) | (octets[1]! << 16) | (octets[2]! << 8) | octets[3]!;
     // Known VPN ranges (simulated)
-    if (ipNum >= 0x68EE0000 && ipNum <= 0x68EEFFFF) return true; // 104.238.x.x
+    if (ipNum >= 0x68ee0000 && ipNum <= 0x68eeffff) return true; // 104.238.x.x
 
     return false;
   }
@@ -170,7 +199,13 @@ export class IPGeolocation {
   }
 
   /** Calculate risk score for an IP */
-  private calculateRiskScore(ip: string, isVPN: boolean, isProxy: boolean, isTor: boolean, countryCode: string): number {
+  private calculateRiskScore(
+    ip: string,
+    isVPN: boolean,
+    isProxy: boolean,
+    isTor: boolean,
+    countryCode: string,
+  ): number {
     let score = 0;
 
     if (isTor) score += 40;
@@ -189,7 +224,16 @@ export class IPGeolocation {
   }
 
   /** Resolve IP to location data */
-  private resolveLocation(ip: string): { country: string; countryCode: string; region: string; city: string; lat: number; lon: number; tz: string; isp: string } {
+  private resolveLocation(ip: string): {
+    country: string;
+    countryCode: string;
+    region: string;
+    city: string;
+    lat: number;
+    lon: number;
+    tz: string;
+    isp: string;
+  } {
     // Check database first
     const prefix = ip.split('.').slice(0, 2).join('.');
     const dbEntry = this.ipRangeDatabase.get(prefix);
@@ -201,31 +245,148 @@ export class IPGeolocation {
 
     // Regional mapping based on first octet ranges (simplified)
     if (firstOctet >= 1 && firstOctet <= 50) {
-      return { country: 'United States', countryCode: 'US', region: 'California', city: 'Los Angeles', lat: 34.0522, lon: -118.2437, tz: 'America/Los_Angeles', isp: 'Generic ISP' };
+      return {
+        country: 'United States',
+        countryCode: 'US',
+        region: 'California',
+        city: 'Los Angeles',
+        lat: 34.0522,
+        lon: -118.2437,
+        tz: 'America/Los_Angeles',
+        isp: 'Generic ISP',
+      };
     } else if (firstOctet >= 51 && firstOctet <= 90) {
-      return { country: 'United Kingdom', countryCode: 'GB', region: 'England', city: 'London', lat: 51.5074, lon: -0.1278, tz: 'Europe/London', isp: 'BT Group' };
+      return {
+        country: 'United Kingdom',
+        countryCode: 'GB',
+        region: 'England',
+        city: 'London',
+        lat: 51.5074,
+        lon: -0.1278,
+        tz: 'Europe/London',
+        isp: 'BT Group',
+      };
     } else if (firstOctet >= 91 && firstOctet <= 120) {
-      return { country: 'Germany', countryCode: 'DE', region: 'Bayern', city: 'Munich', lat: 48.1351, lon: 11.5820, tz: 'Europe/Berlin', isp: 'Deutsche Telekom' };
+      return {
+        country: 'Germany',
+        countryCode: 'DE',
+        region: 'Bayern',
+        city: 'Munich',
+        lat: 48.1351,
+        lon: 11.582,
+        tz: 'Europe/Berlin',
+        isp: 'Deutsche Telekom',
+      };
     } else if (firstOctet >= 121 && firstOctet <= 150) {
-      return { country: 'Japan', countryCode: 'JP', region: 'Tokyo', city: 'Tokyo', lat: 35.6762, lon: 139.6503, tz: 'Asia/Tokyo', isp: 'NTT' };
+      return {
+        country: 'Japan',
+        countryCode: 'JP',
+        region: 'Tokyo',
+        city: 'Tokyo',
+        lat: 35.6762,
+        lon: 139.6503,
+        tz: 'Asia/Tokyo',
+        isp: 'NTT',
+      };
     } else if (firstOctet >= 151 && firstOctet <= 180) {
-      return { country: 'India', countryCode: 'IN', region: 'Maharashtra', city: 'Mumbai', lat: 19.0760, lon: 72.8777, tz: 'Asia/Kolkata', isp: 'Reliance Jio' };
+      return {
+        country: 'India',
+        countryCode: 'IN',
+        region: 'Maharashtra',
+        city: 'Mumbai',
+        lat: 19.076,
+        lon: 72.8777,
+        tz: 'Asia/Kolkata',
+        isp: 'Reliance Jio',
+      };
     } else if (firstOctet >= 181 && firstOctet <= 210) {
-      return { country: 'Brazil', countryCode: 'BR', region: 'Sao Paulo', city: 'Sao Paulo', lat: -23.5505, lon: -46.6333, tz: 'America/Sao_Paulo', isp: 'Telefonica' };
+      return {
+        country: 'Brazil',
+        countryCode: 'BR',
+        region: 'Sao Paulo',
+        city: 'Sao Paulo',
+        lat: -23.5505,
+        lon: -46.6333,
+        tz: 'America/Sao_Paulo',
+        isp: 'Telefonica',
+      };
     } else {
-      return { country: 'Australia', countryCode: 'AU', region: 'NSW', city: 'Sydney', lat: -33.8688, lon: 151.2093, tz: 'Australia/Sydney', isp: 'Telstra' };
+      return {
+        country: 'Australia',
+        countryCode: 'AU',
+        region: 'NSW',
+        city: 'Sydney',
+        lat: -33.8688,
+        lon: 151.2093,
+        tz: 'Australia/Sydney',
+        isp: 'Telstra',
+      };
     }
   }
 
   /** Initialize simulated IP database */
   private initializeDatabase(): void {
     // Populate common IP ranges
-    this.ipRangeDatabase.set('8.8', { country: 'United States', countryCode: 'US', region: 'California', city: 'Mountain View', lat: 37.4220, lon: -122.0841, tz: 'America/Los_Angeles', isp: 'Google LLC' });
-    this.ipRangeDatabase.set('1.1', { country: 'Australia', countryCode: 'AU', region: 'NSW', city: 'Sydney', lat: -33.8688, lon: 151.2093, tz: 'Australia/Sydney', isp: 'Cloudflare' });
-    this.ipRangeDatabase.set('208.67', { country: 'United States', countryCode: 'US', region: 'California', city: 'San Francisco', lat: 37.7749, lon: -122.4194, tz: 'America/Los_Angeles', isp: 'OpenDNS' });
-    this.ipRangeDatabase.set('192.168', { country: 'Private', countryCode: 'XX', region: 'Local', city: 'Local', lat: 0, lon: 0, tz: 'UTC', isp: 'Private Network' });
-    this.ipRangeDatabase.set('10.0', { country: 'Private', countryCode: 'XX', region: 'Local', city: 'Local', lat: 0, lon: 0, tz: 'UTC', isp: 'Private Network' });
-    this.ipRangeDatabase.set('172.16', { country: 'Private', countryCode: 'XX', region: 'Local', city: 'Local', lat: 0, lon: 0, tz: 'UTC', isp: 'Private Network' });
+    this.ipRangeDatabase.set('8.8', {
+      country: 'United States',
+      countryCode: 'US',
+      region: 'California',
+      city: 'Mountain View',
+      lat: 37.422,
+      lon: -122.0841,
+      tz: 'America/Los_Angeles',
+      isp: 'Google LLC',
+    });
+    this.ipRangeDatabase.set('1.1', {
+      country: 'Australia',
+      countryCode: 'AU',
+      region: 'NSW',
+      city: 'Sydney',
+      lat: -33.8688,
+      lon: 151.2093,
+      tz: 'Australia/Sydney',
+      isp: 'Cloudflare',
+    });
+    this.ipRangeDatabase.set('208.67', {
+      country: 'United States',
+      countryCode: 'US',
+      region: 'California',
+      city: 'San Francisco',
+      lat: 37.7749,
+      lon: -122.4194,
+      tz: 'America/Los_Angeles',
+      isp: 'OpenDNS',
+    });
+    this.ipRangeDatabase.set('192.168', {
+      country: 'Private',
+      countryCode: 'XX',
+      region: 'Local',
+      city: 'Local',
+      lat: 0,
+      lon: 0,
+      tz: 'UTC',
+      isp: 'Private Network',
+    });
+    this.ipRangeDatabase.set('10.0', {
+      country: 'Private',
+      countryCode: 'XX',
+      region: 'Local',
+      city: 'Local',
+      lat: 0,
+      lon: 0,
+      tz: 'UTC',
+      isp: 'Private Network',
+    });
+    this.ipRangeDatabase.set('172.16', {
+      country: 'Private',
+      countryCode: 'XX',
+      region: 'Local',
+      city: 'Local',
+      lat: 0,
+      lon: 0,
+      tz: 'UTC',
+      isp: 'Private Network',
+    });
   }
 
   /** Block an IP address */

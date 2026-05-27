@@ -2,13 +2,7 @@
 // ML Pipeline - Anomaly Detector (Isolation Forest, Z-Score, Moving Average)
 // ============================================================================
 
-import {
-  AnomalyResult,
-  IsolationTree,
-  AnomalyMethod,
-  AnomalyDetectorConfig,
-  ZScoreConfig,
-} from '../types';
+import { AnomalyResult, IsolationTree, AnomalyDetectorConfig } from '../types';
 
 interface StreamingState {
   mean: number;
@@ -24,7 +18,6 @@ export class AnomalyDetector {
   private trainingData: number[][] = [];
   private featureStats: { mean: number; std: number }[] = [];
   private streamingState: Map<string, StreamingState> = new Map();
-  private falsePositiveRate: number = 0;
   private detectionHistory: AnomalyResult[] = [];
   private maxHistorySize: number = 10000;
 
@@ -53,10 +46,10 @@ export class AnomalyDetector {
 
   private computeFeatureStats(data: number[][]): void {
     if (data.length === 0) return;
-    const numFeatures = data[0].length;
+    const numFeatures = data[0]!.length;
     this.featureStats = [];
     for (let f = 0; f < numFeatures; f++) {
-      const values = data.map(row => row[f]);
+      const values = data.map((row) => row[f]!);
       const mean = values.reduce((a, b) => a + b, 0) / values.length;
       const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length;
       this.featureStats.push({ mean, std: Math.sqrt(variance) });
@@ -78,7 +71,7 @@ export class AnomalyDetector {
     const sample: number[][] = [];
     for (let i = 0; i < size; i++) {
       const idx = Math.floor(Math.random() * data.length);
-      sample.push(data[idx]);
+      sample.push(data[idx]!);
     }
     return sample;
   }
@@ -94,9 +87,9 @@ export class AnomalyDetector {
         depth,
       };
     }
-    const numFeatures = data[0].length;
+    const numFeatures = data[0]!.length;
     const splitFeature = Math.floor(Math.random() * numFeatures);
-    const featureValues = data.map(row => row[splitFeature]);
+    const featureValues = data.map((row) => row[splitFeature]!);
     const min = Math.min(...featureValues);
     const max = Math.max(...featureValues);
     if (min === max) {
@@ -110,8 +103,8 @@ export class AnomalyDetector {
       };
     }
     const splitValue = min + Math.random() * (max - min);
-    const leftData = data.filter(row => row[splitFeature] < splitValue);
-    const rightData = data.filter(row => row[splitFeature] >= splitValue);
+    const leftData = data.filter((row) => row[splitFeature]! < splitValue);
+    const rightData = data.filter((row) => row[splitFeature]! >= splitValue);
     return {
       splitFeature,
       splitValue,
@@ -129,7 +122,7 @@ export class AnomalyDetector {
       const n = tree?.size ?? 1;
       return depth + this.averagePathLength(n);
     }
-    if (point[tree.splitFeature] < tree.splitValue) {
+    if (point[tree.splitFeature]! < tree.splitValue) {
       return this.pathLength(point, tree.left, depth + 1);
     }
     return this.pathLength(point, tree.right, depth + 1);
@@ -159,14 +152,18 @@ export class AnomalyDetector {
   }
 
   // Z-score anomaly detection
-  private zScoreDetect(point: number[]): { score: number; isAnomaly: boolean; contributions: { feature: string; contribution: number }[] } {
+  private zScoreDetect(point: number[]): {
+    score: number;
+    isAnomaly: boolean;
+    contributions: { feature: string; contribution: number }[];
+  } {
     const threshold = this.config.threshold ?? 3.0;
     const contributions: { feature: string; contribution: number }[] = [];
     let maxZScore = 0;
     for (let f = 0; f < point.length; f++) {
       const stats = this.featureStats[f];
       if (!stats || stats.std === 0) continue;
-      const zScore = Math.abs((point[f] - stats.mean) / stats.std);
+      const zScore = Math.abs((point[f]! - stats.mean) / stats.std);
       contributions.push({ feature: `feature_${f}`, contribution: zScore });
       maxZScore = Math.max(maxZScore, zScore);
     }
@@ -181,10 +178,19 @@ export class AnomalyDetector {
   }
 
   // Moving average anomaly detection
-  private movingAverageDetect(value: number, streamId: string = 'default'): { score: number; isAnomaly: boolean } {
+  private movingAverageDetect(
+    value: number,
+    streamId: string = 'default',
+  ): { score: number; isAnomaly: boolean } {
     let state = this.streamingState.get(streamId);
     if (!state) {
-      state = { mean: value, variance: 0, count: 0, ema: value, threshold: this.config.threshold ?? 3.0 };
+      state = {
+        mean: value,
+        variance: 0,
+        count: 0,
+        ema: value,
+        threshold: this.config.threshold ?? 3.0,
+      };
       this.streamingState.set(streamId, state);
       return { score: 0, isAnomaly: false };
     }
@@ -211,7 +217,7 @@ export class AnomalyDetector {
     for (let f = 0; f < point.length; f++) {
       const stats = this.featureStats[f];
       if (!stats || stats.std === 0) continue;
-      const normalized = (point[f] - stats.mean) / stats.std;
+      const normalized = (point[f]! - stats.mean) / stats.std;
       mahalDist += normalized * normalized;
     }
     mahalDist = Math.sqrt(mahalDist / Math.max(point.length, 1));
@@ -283,16 +289,15 @@ export class AnomalyDetector {
 
   // Batch anomaly detection
   detectBatch(data: number[][]): AnomalyResult[] {
-    return data.map(point => this.detect(point));
+    return data.map((point) => this.detect(point));
   }
 
   // Adaptive threshold adjustment
   adjustThreshold(targetFPR: number = 0.05): void {
     if (this.detectionHistory.length < 100) return;
-    const scores = this.detectionHistory.map(r => r.score).sort((a, b) => a - b);
+    const scores = this.detectionHistory.map((r) => r.score).sort((a, b) => a - b);
     const idx = Math.floor(scores.length * (1 - targetFPR));
     this.config.threshold = scores[idx] ?? this.config.threshold;
-    this.falsePositiveRate = targetFPR;
   }
 
   private trackResult(result: AnomalyResult): void {
@@ -305,7 +310,7 @@ export class AnomalyDetector {
   // Get anomaly rate
   getAnomalyRate(): number {
     if (this.detectionHistory.length === 0) return 0;
-    const anomalies = this.detectionHistory.filter(r => r.isAnomaly).length;
+    const anomalies = this.detectionHistory.filter((r) => r.isAnomaly).length;
     return anomalies / this.detectionHistory.length;
   }
 

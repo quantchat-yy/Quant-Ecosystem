@@ -103,7 +103,7 @@ describe('RecommendationPipeline', () => {
     const results = pipeline.recommend('user1', context);
 
     expect(results).toHaveLength(1);
-    expect(results[0].score).toBe(0.9);
+    expect(results[0]!.score).toBe(0.9);
   });
 
   it('should handle empty retrieval gracefully', () => {
@@ -130,7 +130,7 @@ describe('RecommendationPipeline', () => {
 
     // Should sort by score and take top 2
     expect(results).toHaveLength(2);
-    expect(results[0].id).toBe('item2');
-    expect(results[1].id).toBe('item3');
+    expect(results[0]!.id).toBe('item2');
+    expect(results[1]!.id).toBe('item3');
   });
 });

@@ -3,13 +3,7 @@
 // Rule engine with conditions and automated action execution
 // ============================================================================
 
-import type {
-  AutoRule,
-  RuleCondition,
-  RuleOperator,
-  ModerationAction,
-  ActionLogEntry,
-} from '../types';
+import type { AutoRule, RuleCondition, ModerationAction, ActionLogEntry } from '../types';
 
 interface AutoActionConfig {
   maxRulesPerAction: number;
@@ -101,9 +95,11 @@ export class AutoActionEngine {
   }
 
   /** Evaluate all active rules against a context */
-  async evaluate(context: EvaluationContext): Promise<{ matched: AutoRule[]; actions: ModerationAction[] }> {
+  async evaluate(
+    context: EvaluationContext,
+  ): Promise<{ matched: AutoRule[]; actions: ModerationAction[] }> {
     const activeRules = Array.from(this.rules.values())
-      .filter(r => r.enabled)
+      .filter((r) => r.enabled)
       .sort((a, b) => b.priority - a.priority);
 
     const matched: AutoRule[] = [];
@@ -113,8 +109,8 @@ export class AutoActionEngine {
       if (this.isRuleOnCooldown(rule)) continue;
       if (this.isRateExceeded(rule)) continue;
 
-      const allConditionsMet = rule.conditions.every(condition =>
-        this.evaluateCondition(condition, context)
+      const allConditionsMet = rule.conditions.every((condition) =>
+        this.evaluateCondition(condition, context),
       );
 
       if (allConditionsMet) {
@@ -172,18 +168,18 @@ export class AutoActionEngine {
   }): Promise<ActionLogEntry[]> {
     let entries = Array.from(this.actionLog.values());
 
-    if (options?.ruleId) entries = entries.filter(e => e.ruleId === options.ruleId);
-    if (options?.userId) entries = entries.filter(e => e.targetUserId === options.userId);
-    if (options?.action) entries = entries.filter(e => e.action === options.action);
-    if (options?.startDate) entries = entries.filter(e => e.createdAt >= options.startDate!);
-    if (options?.endDate) entries = entries.filter(e => e.createdAt <= options.endDate!);
+    if (options?.ruleId) entries = entries.filter((e) => e.ruleId === options.ruleId);
+    if (options?.userId) entries = entries.filter((e) => e.targetUserId === options.userId);
+    if (options?.action) entries = entries.filter((e) => e.action === options.action);
+    if (options?.startDate) entries = entries.filter((e) => e.createdAt >= options.startDate!);
+    if (options?.endDate) entries = entries.filter((e) => e.createdAt <= options.endDate!);
 
     const limit = options?.limit || 100;
     return entries.sort((a, b) => b.createdAt - a.createdAt).slice(0, limit);
   }
 
   /** Rollback a previously executed action */
-  async rollback(logEntryId: string, reason?: string): Promise<ActionLogEntry> {
+  async rollback(logEntryId: string, _reason?: string): Promise<ActionLogEntry> {
     if (!this.config.enableRollback) {
       throw new Error('Rollback is not enabled');
     }
@@ -202,13 +198,13 @@ export class AutoActionEngine {
     const rule = this.rules.get(ruleId);
     if (!rule) throw new Error(`Rule not found: ${ruleId}`);
 
-    const conditionResults = rule.conditions.map(condition => ({
+    const conditionResults = rule.conditions.map((condition) => ({
       condition,
       passed: this.evaluateCondition(condition, context),
       actualValue: this.getFieldValue(context, condition.field),
     }));
 
-    const matched = conditionResults.every(r => r.passed);
+    const matched = conditionResults.every((r) => r.passed);
 
     return {
       ruleId,
@@ -221,7 +217,7 @@ export class AutoActionEngine {
   /** Get all active rules */
   async getActiveRules(): Promise<AutoRule[]> {
     return Array.from(this.rules.values())
-      .filter(r => r.enabled)
+      .filter((r) => r.enabled)
       .sort((a, b) => b.priority - a.priority);
   }
 
@@ -242,7 +238,10 @@ export class AutoActionEngine {
   }
 
   /** Update rule conditions */
-  async updateRule(ruleId: string, updates: Partial<Pick<AutoRule, 'conditions' | 'action' | 'priority' | 'cooldownMs'>>): Promise<AutoRule> {
+  async updateRule(
+    ruleId: string,
+    updates: Partial<Pick<AutoRule, 'conditions' | 'action' | 'priority' | 'cooldownMs'>>,
+  ): Promise<AutoRule> {
     const rule = this.rules.get(ruleId);
     if (!rule) throw new Error(`Rule not found: ${ruleId}`);
 
@@ -262,17 +261,28 @@ export class AutoActionEngine {
     const targetValue = condition.value;
 
     switch (condition.operator) {
-      case 'gt': return Number(fieldValue) > Number(targetValue);
-      case 'gte': return Number(fieldValue) >= Number(targetValue);
-      case 'lt': return Number(fieldValue) < Number(targetValue);
-      case 'lte': return Number(fieldValue) <= Number(targetValue);
-      case 'eq': return fieldValue === targetValue;
-      case 'neq': return fieldValue !== targetValue;
-      case 'contains': return String(fieldValue).includes(String(targetValue));
-      case 'matches': return new RegExp(String(targetValue)).test(String(fieldValue));
-      case 'in': return Array.isArray(targetValue) && targetValue.includes(fieldValue);
-      case 'not_in': return Array.isArray(targetValue) && !targetValue.includes(fieldValue);
-      default: return false;
+      case 'gt':
+        return Number(fieldValue) > Number(targetValue);
+      case 'gte':
+        return Number(fieldValue) >= Number(targetValue);
+      case 'lt':
+        return Number(fieldValue) < Number(targetValue);
+      case 'lte':
+        return Number(fieldValue) <= Number(targetValue);
+      case 'eq':
+        return fieldValue === targetValue;
+      case 'neq':
+        return fieldValue !== targetValue;
+      case 'contains':
+        return String(fieldValue).includes(String(targetValue));
+      case 'matches':
+        return new RegExp(String(targetValue)).test(String(fieldValue));
+      case 'in':
+        return Array.isArray(targetValue) && targetValue.includes(fieldValue);
+      case 'not_in':
+        return Array.isArray(targetValue) && !targetValue.includes(fieldValue);
+      default:
+        return false;
     }
   }
 
@@ -288,17 +298,21 @@ export class AutoActionEngine {
 
   private isRuleOnCooldown(rule: AutoRule): boolean {
     if (!rule.lastExecutedAt) return false;
-    return (Date.now() - rule.lastExecutedAt) < rule.cooldownMs;
+    return Date.now() - rule.lastExecutedAt < rule.cooldownMs;
   }
 
   private isRateExceeded(rule: AutoRule): boolean {
     const history = this.executionHistory.get(rule.id) || [];
     const oneHourAgo = Date.now() - 3600000;
-    const recentExecutions = history.filter(t => t > oneHourAgo);
+    const recentExecutions = history.filter((t) => t > oneHourAgo);
     return recentExecutions.length >= rule.maxExecutionsPerHour;
   }
 
-  private createLogEntry(rule: AutoRule, context: EvaluationContext, executed: boolean): ActionLogEntry {
+  private createLogEntry(
+    rule: AutoRule,
+    context: EvaluationContext,
+    _executed: boolean,
+  ): ActionLogEntry {
     const entry: ActionLogEntry = {
       id: `action_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       ruleId: rule.id,

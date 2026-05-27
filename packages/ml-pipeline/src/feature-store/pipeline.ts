@@ -146,7 +146,7 @@ export class FeatureMaterializationPipeline {
 
     if (records.length > 0) {
       // Write latest features to online store
-      await this.onlineStore.setFeatures(entityId, records[0]);
+      await this.onlineStore.setFeatures(entityId, records[0]!);
     }
   }
 

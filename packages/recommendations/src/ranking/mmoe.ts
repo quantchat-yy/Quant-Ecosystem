@@ -70,7 +70,7 @@ export class MMoERanker {
     return result as Record<ObjectiveName, number>;
   }
 
-  private defaultGating(features: number[], numExperts: number): number[] {
+  private defaultGating(_features: number[], numExperts: number): number[] {
     // Uniform gating by default (softmax over equal values)
     const weight = 1 / numExperts;
     return new Array(numExperts).fill(weight);
@@ -79,7 +79,7 @@ export class MMoERanker {
   private mixExperts(expertOutputs: number[][], gateWeights: number[]): number[] {
     if (expertOutputs.length === 0) return [];
 
-    const outputDim = expertOutputs[0].length;
+    const outputDim = expertOutputs[0]!.length;
     const mixed = new Array<number>(outputDim).fill(0);
 
     // Normalize gate weights (softmax-like)
@@ -90,7 +90,7 @@ export class MMoERanker {
     for (let i = 0; i < expertOutputs.length; i++) {
       const weight = normalizedWeights[i] ?? 0;
       for (let j = 0; j < outputDim; j++) {
-        mixed[j] += (expertOutputs[i][j] ?? 0) * weight;
+        mixed[j]! += (expertOutputs[i]![j] ?? 0) * weight;
       }
     }
 

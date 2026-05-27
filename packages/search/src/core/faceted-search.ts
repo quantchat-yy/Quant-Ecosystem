@@ -7,7 +7,6 @@ import type {
   FacetDefinition,
   FacetResult,
   FacetBucket,
-  FacetType,
   FacetRange,
   SearchFilter,
   FilterOperator,
@@ -32,7 +31,6 @@ export class FacetedSearch {
   private facets: Map<string, FacetData>;
   private documents: Map<string, IndexDocument>;
   private activeFilters: Map<string, SearchFilter[]>;
-  private filterCounter: number = 0;
 
   constructor() {
     this.facets = new Map();
@@ -122,7 +120,7 @@ export class FacetedSearch {
 
     // Get the set of documents that match current filters (excluding this facet)
     const otherFilters = activeFilters
-      ? activeFilters.filter(f => f.field !== facetData.definition.field)
+      ? activeFilters.filter((f) => f.field !== facetData.definition.field)
       : [];
     const eligibleDocs = new Set(this.applyFilters(otherFilters));
 
@@ -144,14 +142,14 @@ export class FacetedSearch {
 
     // Apply minCount filter
     if (definition.minCount && definition.minCount > 0) {
-      buckets = buckets.filter(b => b.count >= definition.minCount!);
+      buckets = buckets.filter((b) => b.count >= definition.minCount!);
     }
 
     // Mark selected buckets
     if (activeFilters) {
       for (const bucket of buckets) {
         bucket.selected = activeFilters.some(
-          f => f.field === definition.field && String(f.value) === bucket.key
+          (f) => f.field === definition.field && String(f.value) === bucket.key,
         );
       }
     }
@@ -168,7 +166,10 @@ export class FacetedSearch {
   /**
    * Build a filter tree for hierarchical facets
    */
-  public buildFilterTree(facetName: string, separator: string = '/'): {
+  public buildFilterTree(
+    facetName: string,
+    separator: string = '/',
+  ): {
     tree: Map<string, { count: number; children: Map<string, unknown> }>;
     totalDocs: number;
   } {
@@ -184,7 +185,7 @@ export class FacetedSearch {
       let currentLevel = tree;
 
       for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
+        const part = parts[i]!;
         if (!currentLevel.has(part)) {
           currentLevel.set(part, { count: 0, children: new Map() });
         }
@@ -192,7 +193,10 @@ export class FacetedSearch {
         if (i === parts.length - 1) {
           node.count = docIds.size;
         }
-        currentLevel = node.children as Map<string, { count: number; children: Map<string, unknown> }>;
+        currentLevel = node.children as Map<
+          string,
+          { count: number; children: Map<string, unknown> }
+        >;
       }
     }
 
@@ -264,7 +268,7 @@ export class FacetedSearch {
    * Get all facet definitions
    */
   public getFacetDefinitions(): FacetDefinition[] {
-    return Array.from(this.facets.values()).map(f => f.definition);
+    return Array.from(this.facets.values()).map((f) => f.definition);
   }
 
   /**
@@ -344,7 +348,11 @@ export class FacetedSearch {
     return matching;
   }
 
-  private matchesFilter(fieldValue: unknown, operator: FilterOperator, filterValue: unknown): boolean {
+  private matchesFilter(
+    fieldValue: unknown,
+    operator: FilterOperator,
+    filterValue: unknown,
+  ): boolean {
     if (operator === 'exists') {
       return fieldValue !== undefined && fieldValue !== null;
     }
@@ -385,7 +393,11 @@ export class FacetedSearch {
     }
   }
 
-  private buildTermsBuckets(facetData: FacetData, eligibleDocs: Set<string>, size: number): FacetBucket[] {
+  private buildTermsBuckets(
+    facetData: FacetData,
+    eligibleDocs: Set<string>,
+    size: number,
+  ): FacetBucket[] {
     const buckets: FacetBucket[] = [];
 
     for (const [value, docIds] of facetData.values) {
@@ -403,7 +415,11 @@ export class FacetedSearch {
     return buckets.slice(0, size);
   }
 
-  private buildRangeBuckets(facetData: FacetData, eligibleDocs: Set<string>, ranges: FacetRange[]): FacetBucket[] {
+  private buildRangeBuckets(
+    facetData: FacetData,
+    eligibleDocs: Set<string>,
+    ranges: FacetRange[],
+  ): FacetBucket[] {
     const buckets: FacetBucket[] = [];
 
     for (const range of ranges) {
@@ -412,8 +428,9 @@ export class FacetedSearch {
       for (const [docId, numValue] of facetData.numericValues) {
         if (!eligibleDocs.has(docId)) continue;
 
-        const inRange = (range.from === undefined || numValue >= range.from) &&
-                       (range.to === undefined || numValue < range.to);
+        const inRange =
+          (range.from === undefined || numValue >= range.from) &&
+          (range.to === undefined || numValue < range.to);
         if (inRange) count++;
       }
 

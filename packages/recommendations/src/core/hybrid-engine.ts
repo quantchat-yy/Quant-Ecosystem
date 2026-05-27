@@ -2,14 +2,7 @@
 // Recommendations Package - Hybrid Recommendation Engine
 // ============================================================================
 
-import type { HybridConfig, RecommendedItem, BlendingStrategy } from '../types';
-
-/** Algorithm result with confidence */
-interface AlgorithmResult {
-  items: RecommendedItem[];
-  confidence: number;
-  algorithm: string;
-}
+import type { HybridConfig, RecommendedItem } from '../types';
 
 /** Hybrid recommendation engine combining multiple algorithms */
 export class HybridEngine {
@@ -66,11 +59,12 @@ export class HybridEngine {
       context: this.config.contextWeight,
     };
 
-    const combinedScores: Map<string, { score: number; sources: string[]; reasons: string[] }> = new Map();
+    const combinedScores: Map<string, { score: number; sources: string[]; reasons: string[] }> =
+      new Map();
     const totalWeight = Object.values(weights).reduce((s, w) => s + w, 0);
 
     for (const [algoName, algoFn] of this.algorithms) {
-      const weight = weights[algoName] || (1 / this.algorithms.size);
+      const weight = weights[algoName] || 1 / this.algorithms.size;
       const normalizedWeight = weight / totalWeight;
       const results = algoFn(userId, topN * 2);
 
@@ -89,7 +83,8 @@ export class HybridEngine {
   /** Cascade: coarse filter then fine-rank */
   private cascadeRank(userId: string, topN: number): RecommendedItem[] {
     // Stage 1: Coarse filter - get a large candidate set
-    const candidateSet: Map<string, { score: number; sources: string[]; reasons: string[] }> = new Map();
+    const candidateSet: Map<string, { score: number; sources: string[]; reasons: string[] }> =
+      new Map();
     const coarseSize = topN * 5;
 
     for (const [algoName, algoFn] of this.algorithms) {
@@ -149,16 +144,24 @@ export class HybridEngine {
 
   /** Ensemble: vote-based combination */
   private ensembleCombine(userId: string, topN: number): RecommendedItem[] {
-    const voteScores: Map<string, { votes: number; totalScore: number; sources: string[]; reasons: string[] }> = new Map();
+    const voteScores: Map<
+      string,
+      { votes: number; totalScore: number; sources: string[]; reasons: string[] }
+    > = new Map();
 
     for (const [algoName, algoFn] of this.algorithms) {
       const results = algoFn(userId, topN);
       const confidence = this.confidenceScores.get(algoName) || 0.5;
 
       for (let i = 0; i < results.length; i++) {
-        const item = results[i];
+        const item = results[i]!;
         const positionWeight = 1 / (i + 1); // Higher weight for top positions
-        const existing = voteScores.get(item.itemId) || { votes: 0, totalScore: 0, sources: [], reasons: [] };
+        const existing = voteScores.get(item.itemId) || {
+          votes: 0,
+          totalScore: 0,
+          sources: [],
+          reasons: [],
+        };
         existing.votes += confidence;
         existing.totalScore += item.score * positionWeight * confidence;
         existing.sources.push(algoName);
@@ -168,7 +171,8 @@ export class HybridEngine {
     }
 
     // Combine votes and scores
-    const combined: Map<string, { score: number; sources: string[]; reasons: string[] }> = new Map();
+    const combined: Map<string, { score: number; sources: string[]; reasons: string[] }> =
+      new Map();
     for (const [itemId, data] of voteScores) {
       combined.set(itemId, {
         score: data.totalScore * (1 + Math.log(1 + data.votes)),
@@ -184,7 +188,7 @@ export class HybridEngine {
   private sortAndRank(
     candidates: Map<string, { score: number; sources: string[]; reasons: string[] }>,
     topN: number,
-    source: string
+    source: string,
   ): RecommendedItem[] {
     const sorted = Array.from(candidates.entries())
       .sort((a, b) => b[1].score - a[1].score)
@@ -205,7 +209,9 @@ export class HybridEngine {
   }
 
   /** Get the function of the most confident algorithm */
-  private getMostConfidentAlgorithm(): ((userId: string, topN: number) => RecommendedItem[]) | null {
+  private getMostConfidentAlgorithm():
+    | ((userId: string, topN: number) => RecommendedItem[])
+    | null {
     let bestName = '';
     let bestConfidence = 0;
     for (const [name, conf] of this.confidenceScores) {

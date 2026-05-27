@@ -3,7 +3,14 @@
 // Virtual user simulation, ramp-up patterns, real percentile calculation
 // ============================================================================
 
-import type { LoadTestConfig, LoadTestResult, LatencyStats, LatencyBucket, RampUpConfig, LoadScenario, LoadStep } from '../types';
+import type {
+  LoadTestConfig,
+  LoadTestResult,
+  LatencyStats,
+  LatencyBucket,
+  LoadScenario,
+  LoadStep,
+} from '../types';
 
 interface VirtualUser {
   id: number;
@@ -32,7 +39,9 @@ export class LoadTester {
   private results: RequestResult[] = [];
   private running: boolean = false;
   private startTime: number = 0;
-  private requestHandler: ((step: LoadStep) => Promise<{ latency: number; status: number }>) | null = null;
+  private requestHandler:
+    | ((step: LoadStep) => Promise<{ latency: number; status: number }>)
+    | null = null;
 
   constructor(config: Partial<LoadTestConfig> = {}) {
     this.config = {
@@ -43,14 +52,18 @@ export class LoadTester {
       thinkTime: config.thinkTime ?? 1000,
       requestsPerSecond: config.requestsPerSecond ?? 100,
       timeout: config.timeout ?? 5000,
-      scenarios: config.scenarios ?? [{ name: 'default', weight: 1, steps: [{ method: 'GET', path: '/' }] }],
+      scenarios: config.scenarios ?? [
+        { name: 'default', weight: 1, steps: [{ method: 'GET', path: '/' }] },
+      ],
     };
   }
 
   /**
    * Sets a custom request handler for simulation
    */
-  setRequestHandler(handler: (step: LoadStep) => Promise<{ latency: number; status: number }>): void {
+  setRequestHandler(
+    handler: (step: LoadStep) => Promise<{ latency: number; status: number }>,
+  ): void {
     this.requestHandler = handler;
   }
 
@@ -73,21 +86,24 @@ export class LoadTester {
 
     while (this.running && Date.now() < endTime) {
       // Ramp up users according to schedule
-      while (scheduleIndex < userSchedule.length && userSchedule[scheduleIndex].time <= Date.now() - this.startTime) {
-        const usersToAdd = userSchedule[scheduleIndex].users - currentUsers;
+      while (
+        scheduleIndex < userSchedule.length &&
+        userSchedule[scheduleIndex]!.time <= Date.now() - this.startTime
+      ) {
+        const usersToAdd = userSchedule[scheduleIndex]!.users - currentUsers;
         for (let i = 0; i < usersToAdd; i++) {
           this.users.push(this.createUser(currentUsers + i));
         }
-        currentUsers = userSchedule[scheduleIndex].users;
+        currentUsers = userSchedule[scheduleIndex]!.users;
         scheduleIndex++;
       }
 
       // Execute requests for active users
-      const activeUsers = this.users.filter(u => u.active);
+      const activeUsers = this.users.filter((u) => u.active);
       const batchSize = Math.min(activeUsers.length, Math.ceil(this.config.requestsPerSecond / 10));
 
       const batch = activeUsers.slice(0, batchSize);
-      await Promise.all(batch.map(user => this.executeUserRequest(user)));
+      await Promise.all(batch.map((user) => this.executeUserRequest(user)));
 
       // Think time between batches
       await this.sleep(Math.max(10, this.config.thinkTime / 10));
@@ -166,7 +182,7 @@ export class LoadTester {
    */
   private async executeUserRequest(user: VirtualUser): Promise<void> {
     const scenario = this.selectScenario();
-    const step = scenario.steps[user.requests % scenario.steps.length];
+    const step = scenario.steps[user.requests % scenario.steps.length]!;
 
     let latency: number;
     let statusCode: number;
@@ -213,7 +229,7 @@ export class LoadTester {
       if (random <= 0) return scenario;
     }
 
-    return this.config.scenarios[0];
+    return this.config.scenarios[0]!;
   }
 
   /**
@@ -249,13 +265,13 @@ export class LoadTester {
    */
   private calculateResults(): LoadTestResult {
     const totalRequests = this.results.length;
-    const successfulRequests = this.results.filter(r => r.success).length;
+    const successfulRequests = this.results.filter((r) => r.success).length;
     const failedRequests = totalRequests - successfulRequests;
     const duration = Date.now() - this.startTime;
     const throughput = totalRequests / (duration / 1000);
     const errorRate = totalRequests > 0 ? failedRequests / totalRequests : 0;
 
-    const latencies = this.results.map(r => r.latency);
+    const latencies = this.results.map((r) => r.latency);
     const latencyStats = this.calculateLatencyStats(latencies);
     const saturationPoint = this.detectSaturation();
 
@@ -278,8 +294,14 @@ export class LoadTester {
   private calculateLatencyStats(latencies: number[]): LatencyStats {
     if (latencies.length === 0) {
       return {
-        min: 0, max: 0, mean: 0, median: 0,
-        p75: 0, p90: 0, p95: 0, p99: 0,
+        min: 0,
+        max: 0,
+        mean: 0,
+        median: 0,
+        p75: 0,
+        p90: 0,
+        p95: 0,
+        p99: 0,
         buckets: [],
       };
     }
@@ -288,14 +310,14 @@ export class LoadTester {
     const sorted = [...latencies].sort((a, b) => a - b);
     const n = sorted.length;
 
-    const min = sorted[0];
-    const max = sorted[n - 1];
+    const min = sorted[0]!;
+    const max = sorted[n - 1]!;
     const mean = latencies.reduce((sum, l) => sum + l, 0) / n;
 
     // Percentile calculation using nearest-rank method
     const percentile = (p: number): number => {
       const index = Math.ceil((p / 100) * n) - 1;
-      return sorted[Math.max(0, Math.min(index, n - 1))];
+      return sorted[Math.max(0, Math.min(index, n - 1))]!;
     };
 
     const median = percentile(50);
@@ -316,8 +338,8 @@ export class LoadTester {
   private generateBuckets(sorted: number[]): LatencyBucket[] {
     if (sorted.length === 0) return [];
 
-    const min = sorted[0];
-    const max = sorted[sorted.length - 1];
+    const min = sorted[0]!;
+    const max = sorted[sorted.length - 1]!;
     const bucketCount = Math.min(10, Math.ceil(Math.sqrt(sorted.length)));
     const bucketSize = Math.max(1, Math.ceil((max - min + 1) / bucketCount));
     const buckets: LatencyBucket[] = [];
@@ -325,7 +347,7 @@ export class LoadTester {
     for (let i = 0; i < bucketCount; i++) {
       const rangeStart = min + i * bucketSize;
       const rangeEnd = rangeStart + bucketSize - 1;
-      const count = sorted.filter(v => v >= rangeStart && v <= rangeEnd).length;
+      const count = sorted.filter((v) => v >= rangeStart && v <= rangeEnd).length;
       buckets.push({
         rangeStart,
         rangeEnd,
@@ -351,7 +373,9 @@ export class LoadTester {
 
     while (windowStart < this.startTime + this.config.duration) {
       const windowEnd = windowStart + windowSize;
-      const windowResults = this.results.filter(r => r.timestamp >= windowStart && r.timestamp < windowEnd);
+      const windowResults = this.results.filter(
+        (r) => r.timestamp >= windowStart && r.timestamp < windowEnd,
+      );
       if (windowResults.length > 0) {
         windows.push(windowResults);
       }
@@ -361,17 +385,18 @@ export class LoadTester {
     if (windows.length < 3) return null;
 
     // Calculate p95 for first window as baseline
-    const firstWindowLatencies = windows[0].map(r => r.latency).sort((a, b) => a - b);
-    const baselineP95 = firstWindowLatencies[Math.ceil(firstWindowLatencies.length * 0.95) - 1] ?? 0;
+    const firstWindowLatencies = windows[0]!.map((r) => r.latency).sort((a, b) => a - b);
+    const baselineP95 =
+      firstWindowLatencies[Math.ceil(firstWindowLatencies.length * 0.95) - 1] ?? 0;
 
     // Find first window where p95 exceeds 2x baseline
     for (let i = 1; i < windows.length; i++) {
-      const latencies = windows[i].map(r => r.latency).sort((a, b) => a - b);
+      const latencies = windows[i]!.map((r) => r.latency).sort((a, b) => a - b);
       const p95 = latencies[Math.ceil(latencies.length * 0.95) - 1] ?? 0;
 
       if (p95 > baselineP95 * 2) {
         // Return the request rate at this point
-        return windows[i].length / (windowSize / 1000);
+        return windows[i]!.length / (windowSize / 1000);
       }
     }
 
@@ -379,6 +404,6 @@ export class LoadTester {
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

@@ -65,7 +65,10 @@ export class HoneypotDetector {
       signals.push({
         type: 'suspicious_timing',
         weight: timingScore,
-        description: timingScore > 30 ? 'Form submitted too quickly (bot speed)' : 'Form submitted too slowly (automated retry)',
+        description:
+          timingScore > 30
+            ? 'Form submitted too quickly (bot speed)'
+            : 'Form submitted too slowly (automated retry)',
       });
       totalScore += timingScore;
     }
@@ -148,8 +151,8 @@ export class HoneypotDetector {
 
   /** Check trap endpoint hit */
   async checkTrapEndpoint(endpoint: string, ip: string): Promise<BotDetectionResult> {
-    const isTrap = this.config.trapEndpoints.some(trap =>
-      endpoint.toLowerCase().includes(trap.toLowerCase())
+    const isTrap = this.config.trapEndpoints.some((trap) =>
+      endpoint.toLowerCase().includes(trap.toLowerCase()),
     );
 
     if (isTrap) {
@@ -162,11 +165,13 @@ export class HoneypotDetector {
       const result: BotDetectionResult = {
         isBot: true,
         score: 100,
-        signals: [{
-          type: 'trap_endpoint',
-          weight: 100,
-          description: `Accessed trap endpoint: ${endpoint}`,
-        }],
+        signals: [
+          {
+            type: 'trap_endpoint',
+            weight: 100,
+            description: `Accessed trap endpoint: ${endpoint}`,
+          },
+        ],
         action: 'block',
       };
 
@@ -179,7 +184,7 @@ export class HoneypotDetector {
   }
 
   /** Generate a JavaScript challenge */
-  generateJSChallenge(sessionId: string): { challengeScript: string; challengeId: string } {
+  generateJSChallenge(_sessionId: string): { challengeScript: string; challengeId: string } {
     const a = Math.floor(Math.random() * 100) + 1;
     const b = Math.floor(Math.random() * 100) + 1;
     const answer = (a * b + a - b).toString();
@@ -251,10 +256,21 @@ export class HoneypotDetector {
     if (!userAgent || userAgent.length === 0) return 30;
 
     const botPatterns = [
-      /bot/i, /crawler/i, /spider/i, /scraper/i,
-      /headless/i, /phantom/i, /selenium/i, /puppeteer/i,
-      /curl/i, /wget/i, /python-requests/i, /go-http-client/i,
-      /httpclient/i, /java\//i, /libwww/i,
+      /bot/i,
+      /crawler/i,
+      /spider/i,
+      /scraper/i,
+      /headless/i,
+      /phantom/i,
+      /selenium/i,
+      /puppeteer/i,
+      /curl/i,
+      /wget/i,
+      /python-requests/i,
+      /go-http-client/i,
+      /httpclient/i,
+      /java\//i,
+      /libwww/i,
     ];
 
     for (const pattern of botPatterns) {
@@ -302,7 +318,7 @@ export class HoneypotDetector {
 
   /** Get statistics */
   getStats(): { totalDetections: number; botsDetected: number; trapHits: number } {
-    const botsDetected = this.detectionLog.filter(d => d.isBot).length;
+    const botsDetected = this.detectionLog.filter((d) => d.isBot).length;
     let trapHitCount = 0;
     for (const hits of this.trapHits.values()) {
       trapHitCount += hits.length;

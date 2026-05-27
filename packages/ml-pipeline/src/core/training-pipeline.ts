@@ -10,8 +10,6 @@ import {
   DataBatch,
   DataSplit,
   Checkpoint,
-  LossFunction,
-  LRSchedule,
 } from '../types';
 
 export class TrainingPipeline {
@@ -20,7 +18,6 @@ export class TrainingPipeline {
   private bias: number[] = [];
   private history: EpochHistory[] = [];
   private bestCheckpoint: Checkpoint | null = null;
-  private currentEpoch: number = 0;
   private patienceCounter: number = 0;
   private bestValLoss: number = Infinity;
 
@@ -72,16 +69,16 @@ export class TrainingPipeline {
     const testIdx = indices.slice(trainSize + valSize);
     return {
       train: {
-        features: trainIdx.map(i => features[i]),
-        labels: trainIdx.map(i => labels[i]),
+        features: trainIdx.map((i) => features[i]!),
+        labels: trainIdx.map((i) => labels[i]!),
       },
       validation: {
-        features: valIdx.map(i => features[i]),
-        labels: valIdx.map(i => labels[i]),
+        features: valIdx.map((i) => features[i]!),
+        labels: valIdx.map((i) => labels[i]!),
       },
       test: {
-        features: testIdx.map(i => features[i]),
-        labels: testIdx.map(i => labels[i]),
+        features: testIdx.map((i) => features[i]!),
+        labels: testIdx.map((i) => labels[i]!),
       },
     };
   }
@@ -89,7 +86,7 @@ export class TrainingPipeline {
   private stratifiedIndices(labels: number[]): number[] {
     const classIndices: Map<number, number[]> = new Map();
     for (let i = 0; i < labels.length; i++) {
-      const cls = Math.round(labels[i]);
+      const cls = Math.round(labels[i]!);
       if (!classIndices.has(cls)) classIndices.set(cls, []);
       classIndices.get(cls)!.push(i);
     }
@@ -97,10 +94,10 @@ export class TrainingPipeline {
       classIndices.set(cls, this.shuffleArray(indices));
     }
     const result: number[] = [];
-    const maxLen = Math.max(...Array.from(classIndices.values()).map(v => v.length));
+    const maxLen = Math.max(...Array.from(classIndices.values()).map((v) => v.length));
     for (let i = 0; i < maxLen; i++) {
       for (const [, indices] of classIndices.entries()) {
-        if (i < indices.length) result.push(indices[i]);
+        if (i < indices.length) result.push(indices[i]!);
       }
     }
     return result;
@@ -110,7 +107,7 @@ export class TrainingPipeline {
     const result = [...arr];
     for (let i = result.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [result[i], result[j]] = [result[j], result[i]];
+      [result[i], result[j]] = [result[j]!, result[i]!];
     }
     return result;
   }
@@ -128,8 +125,8 @@ export class TrainingPipeline {
       const end = Math.min(start + batchSize, n);
       const batchIndices = indices.slice(start, end);
       yield {
-        features: batchIndices.map(i => features[i]),
-        labels: batchIndices.map(i => labels[i]),
+        features: batchIndices.map((i) => features[i]!),
+        labels: batchIndices.map((i) => labels[i]!),
         batchIndex: b,
         batchSize: end - start,
         isLast: b === numBatches - 1,
@@ -146,10 +143,9 @@ export class TrainingPipeline {
     this.history = [];
     this.bestValLoss = Infinity;
     this.patienceCounter = 0;
-    let velocityW: number[][] = this.weights.map(r => r.map(() => 0));
+    let velocityW: number[][] = this.weights.map((r) => r.map(() => 0));
     let velocityB: number[] = this.bias.map(() => 0);
     for (let epoch = 0; epoch < this.config.epochs; epoch++) {
-      this.currentEpoch = epoch;
       const epochStart = Date.now();
       const lr = this.getLearningRate(epoch);
       let epochLoss = 0;
@@ -160,16 +156,17 @@ export class TrainingPipeline {
         batchCount++;
         // Weight update with momentum
         for (let i = 0; i < this.weights.length; i++) {
-          for (let j = 0; j < this.weights[i].length; j++) {
-            velocityW[i][j] = (this.config.momentum ?? 0.9) * velocityW[i][j] - lr * gradW[i][j];
-            this.weights[i][j] += velocityW[i][j];
+          for (let j = 0; j < this.weights[i]!.length; j++) {
+            velocityW[i]![j]! =
+              (this.config.momentum ?? 0.9) * velocityW[i]![j]! - lr * gradW[i]![j]!;
+            this.weights[i]![j]! += velocityW[i]![j]!;
             // Weight decay
-            this.weights[i][j] *= (1 - lr * (this.config.weightDecay ?? 0));
+            this.weights[i]![j]! *= 1 - lr * (this.config.weightDecay ?? 0);
           }
         }
         for (let i = 0; i < this.bias.length; i++) {
-          velocityB[i] = (this.config.momentum ?? 0.9) * velocityB[i] - lr * gradB[i];
-          this.bias[i] += velocityB[i];
+          velocityB[i]! = (this.config.momentum ?? 0.9) * velocityB[i]! - lr * gradB[i]!;
+          this.bias[i]! += velocityB[i]!;
         }
       }
       const trainLoss = epochLoss / Math.max(batchCount, 1);
@@ -192,7 +189,7 @@ export class TrainingPipeline {
         this.patienceCounter = 0;
         this.bestCheckpoint = {
           epoch,
-          weights: this.weights.map(r => [...r]),
+          weights: this.weights.map((r) => [...r]),
           bias: [...this.bias],
           valLoss,
           metrics: valMetrics,
@@ -224,7 +221,7 @@ export class TrainingPipeline {
 
   private computeGradients(
     features: number[][],
-    labels: number[]
+    labels: number[],
   ): { loss: number; gradW: number[][]; gradB: number[] } {
     const n = features.length;
     const outputDim = this.weights.length;
@@ -233,14 +230,14 @@ export class TrainingPipeline {
     const gradB: number[] = new Array(outputDim).fill(0);
     let totalLoss = 0;
     for (let i = 0; i < n; i++) {
-      const x = features[i];
-      const y = labels[i];
+      const x = features[i]!;
+      const y = labels[i]!;
       // Forward pass
       const outputs: number[] = [];
       for (let o = 0; o < outputDim; o++) {
-        let sum = this.bias[o];
+        let sum = this.bias[o]!;
         for (let j = 0; j < inputDim; j++) {
-          sum += this.weights[o][j] * (x[j] ?? 0);
+          sum += this.weights[o]![j]! * (x[j] ?? 0);
         }
         outputs.push(this.activationForward(sum));
       }
@@ -249,19 +246,19 @@ export class TrainingPipeline {
       totalLoss += loss;
       // Backward pass
       for (let o = 0; o < outputDim; o++) {
-        const dAct = this.activationBackward(outputs[o]);
+        const dAct = this.activationBackward(outputs[o]!);
         const delta = dLoss * dAct;
-        gradB[o] += delta;
+        gradB[o]! += delta;
         for (let j = 0; j < inputDim; j++) {
-          gradW[o][j] += delta * (x[j] ?? 0);
+          gradW[o]![j]! += delta * (x[j] ?? 0);
         }
       }
     }
     // Average gradients
     for (let o = 0; o < outputDim; o++) {
-      gradB[o] /= n;
+      gradB[o]! /= n;
       for (let j = 0; j < inputDim; j++) {
-        gradW[o][j] /= n;
+        gradW[o]![j]! /= n;
       }
     }
     return { loss: totalLoss / n, gradW, gradB };
@@ -314,8 +311,8 @@ export class TrainingPipeline {
   private computeLoss(features: number[][], labels: number[]): number {
     let totalLoss = 0;
     for (let i = 0; i < features.length; i++) {
-      const pred = this.predict(features[i]);
-      const { loss } = this.computeLossAndGradient(pred, labels[i]);
+      const pred = this.predict(features[i]!);
+      const { loss } = this.computeLossAndGradient(pred, labels[i]!);
       totalLoss += loss;
     }
     return totalLoss / Math.max(features.length, 1);
@@ -330,10 +327,13 @@ export class TrainingPipeline {
   }
 
   evaluate(features: number[][], labels: number[]): EvaluationMetrics {
-    const predictions = features.map(f => this.predict(f));
-    const binaryPreds = predictions.map(p => p >= 0.5 ? 1 : 0);
-    const binaryLabels = labels.map(l => l >= 0.5 ? 1 : 0);
-    let tp = 0, fp = 0, fn = 0, tn = 0;
+    const predictions = features.map((f) => this.predict(f));
+    const binaryPreds = predictions.map((p) => (p >= 0.5 ? 1 : 0));
+    const binaryLabels = labels.map((l) => (l >= 0.5 ? 1 : 0));
+    let tp = 0,
+      fp = 0,
+      fn = 0,
+      tn = 0;
     for (let i = 0; i < binaryPreds.length; i++) {
       if (binaryPreds[i] === 1 && binaryLabels[i] === 1) tp++;
       else if (binaryPreds[i] === 1 && binaryLabels[i] === 0) fp++;
@@ -343,11 +343,12 @@ export class TrainingPipeline {
     const accuracy = (tp + tn) / Math.max(tp + fp + fn + tn, 1);
     const precision = tp / Math.max(tp + fp, 1);
     const recall = tp / Math.max(tp + fn, 1);
-    const f1 = 2 * precision * recall / Math.max(precision + recall, 1e-10);
+    const f1 = (2 * precision * recall) / Math.max(precision + recall, 1e-10);
     const auc = this.computeAUC(predictions, binaryLabels);
-    let mse = 0, mae = 0;
+    let mse = 0,
+      mae = 0;
     for (let i = 0; i < predictions.length; i++) {
-      const diff = predictions[i] - labels[i];
+      const diff = predictions[i]! - labels[i]!;
       mse += diff * diff;
       mae += Math.abs(diff);
     }
@@ -361,16 +362,20 @@ export class TrainingPipeline {
       auc,
       mse,
       mae,
-      confusionMatrix: [[tn, fp], [fn, tp]],
+      confusionMatrix: [
+        [tn, fp],
+        [fn, tp],
+      ],
     };
   }
 
   private computeAUC(scores: number[], labels: number[]): number {
     // Trapezoidal rule for ROC AUC
-    const pairs = scores.map((s, i) => ({ score: s, label: labels[i] }));
+    const pairs = scores.map((s, i) => ({ score: s, label: labels[i]! }));
     pairs.sort((a, b) => b.score - a.score);
-    let tp = 0, fp = 0;
-    const totalPos = labels.filter(l => l === 1).length;
+    let tp = 0,
+      fp = 0;
+    const totalPos = labels.filter((l) => l === 1).length;
     const totalNeg = labels.length - totalPos;
     if (totalPos === 0 || totalNeg === 0) return 0.5;
     const points: { fpr: number; tpr: number }[] = [{ fpr: 0, tpr: 0 }];
@@ -381,8 +386,8 @@ export class TrainingPipeline {
     }
     let auc = 0;
     for (let i = 1; i < points.length; i++) {
-      const dx = points[i].fpr - points[i - 1].fpr;
-      const avgY = (points[i].tpr + points[i - 1].tpr) / 2;
+      const dx = points[i]!.fpr - points[i - 1]!.fpr;
+      const avgY = (points[i]!.tpr + points[i - 1]!.tpr) / 2;
       auc += dx * avgY;
     }
     return auc;
@@ -398,7 +403,7 @@ export class TrainingPipeline {
       }
       case 'cosine_annealing': {
         const tMax = this.config.epochs;
-        return baseLR * 0.5 * (1 + Math.cos(Math.PI * epoch / tMax));
+        return baseLR * 0.5 * (1 + Math.cos((Math.PI * epoch) / tMax));
       }
       case 'exponential_decay': {
         const rate = this.config.lrDecayRate ?? 0.95;
@@ -418,11 +423,11 @@ export class TrainingPipeline {
   }
 
   getWeights(): { weights: number[][]; bias: number[] } {
-    return { weights: this.weights.map(r => [...r]), bias: [...this.bias] };
+    return { weights: this.weights.map((r) => [...r]), bias: [...this.bias] };
   }
 
   setWeights(weights: number[][], bias: number[]): void {
-    this.weights = weights.map(r => [...r]);
+    this.weights = weights.map((r) => [...r]);
     this.bias = [...bias];
   }
 }

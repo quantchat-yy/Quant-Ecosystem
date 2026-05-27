@@ -390,3 +390,159 @@ export interface CSAMMatcherInterface {
   checkHash(hash: string): Promise<{ matched: boolean; reportId?: string }>;
   reportMatch(params: { hash: string; source: string }): Promise<void>;
 }
+
+// ============================================================================
+// Phase 13 - Abuse Graph, Spam, AI Safety, Ad Policy, Bot Detection, Labels, Audit
+// ============================================================================
+
+/** Node in the abuse graph representing a user */
+export interface AbuseNode {
+  userId: string;
+  riskScore: number;
+  signals: string[];
+  firstSeen: number;
+  lastSeen: number;
+}
+
+/** Edge in the abuse graph representing a relationship */
+export interface AbuseEdge {
+  fromUserId: string;
+  toUserId: string;
+  type: 'shared_ip' | 'shared_device' | 'coordinated_activity' | 'follow_pattern' | 'same_content';
+  weight: number;
+  createdAt: number;
+}
+
+/** Detected cluster of abusive accounts */
+export interface AbuseCluster {
+  id: string;
+  memberIds: string[];
+  riskScore: number;
+  signals: string[];
+  detectedAt: number;
+}
+
+/** Types of spam signals */
+export type SpamSignalType =
+  | 'rate_limit'
+  | 'duplicate_content'
+  | 'link_spam'
+  | 'new_account_burst'
+  | 'keyword_spam';
+
+/** Individual spam signal */
+export interface SpamSignal {
+  type: SpamSignalType;
+  confidence: number;
+  description: string;
+}
+
+/** Spam verdict */
+export type SpamVerdict = 'clean' | 'suspicious' | 'spam';
+
+/** Result of a spam check */
+export interface SpamCheckResult {
+  verdict: SpamVerdict;
+  confidence: number;
+  signals: SpamSignal[];
+}
+
+/** AI output safety issue types */
+export interface AIOutputSafetyIssue {
+  type: 'pii_leak' | 'harmful_content' | 'unlabeled_ai' | 'low_confidence' | 'prohibited_topic';
+  description: string;
+  severity: Severity;
+}
+
+/** Result of AI output safety check */
+export interface AIOutputSafetyResult {
+  safe: boolean;
+  issues: AIOutputSafetyIssue[];
+  labelApplied: boolean;
+  checkedAt: number;
+}
+
+/** Ad policy violation */
+export interface AdPolicyViolation {
+  type: 'prohibited_category' | 'misleading_claim' | 'targeting_minors' | 'creative_violation';
+  description: string;
+  severity: Severity;
+}
+
+/** Result of ad policy check */
+export interface AdPolicyCheckResult {
+  decision: 'approved' | 'rejected' | 'needs_review';
+  violations: AdPolicyViolation[];
+  checkedAt: number;
+}
+
+/** Bot classification levels */
+export type BotClassification = 'human' | 'likely_human' | 'suspicious' | 'likely_bot' | 'bot';
+
+/** Individual bot detection signal */
+export interface BotSignal {
+  type: string;
+  score: number;
+  description: string;
+}
+
+/** Result of bot detection check */
+export interface BotCheckResult {
+  userId: string;
+  score: number;
+  classification: BotClassification;
+  signals: BotSignal[];
+  checkedAt: number;
+}
+
+/** Content label types */
+export type ContentLabelType =
+  | 'ai_generated'
+  | 'mature_content'
+  | 'graphic_violence'
+  | 'sensitive_topic'
+  | 'sponsored'
+  | 'political';
+
+/** Record of a content label */
+export interface ContentLabelRecord {
+  id: string;
+  contentId: string;
+  label: ContentLabelType;
+  appliedBy: string;
+  appliedAt: number;
+}
+
+/** Content warning configuration */
+export interface ContentWarningConfig {
+  label: ContentLabelType;
+  requiresInterstitial: boolean;
+  warningMessage: string;
+}
+
+/** Safety event types for audit logging */
+export type SafetyEventType =
+  | 'content_flagged'
+  | 'content_removed'
+  | 'user_warned'
+  | 'user_banned'
+  | 'appeal_submitted'
+  | 'appeal_resolved'
+  | 'policy_changed'
+  | 'manual_override'
+  | 'bot_detected'
+  | 'spam_blocked'
+  | 'abuse_cluster_detected';
+
+/** Safety audit log entry */
+export interface SafetyAuditEntry {
+  id: string;
+  eventType: SafetyEventType;
+  actor: string;
+  targetUserId?: string;
+  targetContentId?: string;
+  action: string;
+  reason: string;
+  metadata: Record<string, unknown>;
+  timestamp: number;
+}

@@ -1,13 +1,187 @@
 import { PrismaClient } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 
+if (process.env['NODE_ENV'] === 'production') {
+  throw new Error('Refusing to seed in production. This script is for local development only.');
+}
+
 const prisma = new PrismaClient();
+
+// Deterministic demo users for local development
+const DEMO_USERS = [
+  {
+    email: 'personal@quant.dev',
+    username: 'personal_user',
+    displayName: 'Alex Personal',
+    role: 'USER' as const,
+    bio: 'A regular user exploring the Quant ecosystem.',
+  },
+  {
+    email: 'admin@quant.dev',
+    username: 'admin_user',
+    displayName: 'Admin Thompson',
+    role: 'ADMIN' as const,
+    bio: 'Team administrator managing the workspace.',
+  },
+  {
+    email: 'creator@quant.dev',
+    username: 'creator_user',
+    displayName: 'Casey Creator',
+    role: 'USER' as const,
+    bio: 'Content creator and video producer.',
+  },
+  {
+    email: 'advertiser@quant.dev',
+    username: 'advertiser_user',
+    displayName: 'Morgan Advertiser',
+    role: 'USER' as const,
+    bio: 'Digital marketing specialist running campaigns.',
+  },
+  {
+    email: 'moderator@quant.dev',
+    username: 'moderator_user',
+    displayName: 'Sam Moderator',
+    role: 'USER' as const,
+    bio: 'Community moderator keeping things safe.',
+  },
+  {
+    email: 'developer@quant.dev',
+    username: 'developer_user',
+    displayName: 'Dev Johnson',
+    role: 'USER' as const,
+    bio: 'Platform developer and API tester.',
+  },
+];
+
+async function seedDemoUsers() {
+  console.log('Creating demo users...');
+  const demoUserRecords = [];
+
+  for (const demoUser of DEMO_USERS) {
+    const user = await prisma.user.upsert({
+      where: { email: demoUser.email },
+      update: {},
+      create: {
+        email: demoUser.email,
+        username: demoUser.username,
+        displayName: demoUser.displayName,
+        passwordHash: 'demo-password-hash-not-for-production',
+        avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(demoUser.displayName)}`,
+        bio: demoUser.bio,
+        role: demoUser.role,
+        status: 'ACTIVE',
+        emailVerified: true,
+      },
+    });
+    demoUserRecords.push(user);
+  }
+
+  console.log(`Created ${demoUserRecords.length} demo users`);
+  return demoUserRecords;
+}
+
+async function seedDemoData(demoUsers: Awaited<ReturnType<typeof seedDemoUsers>>) {
+  console.log('Creating demo data for demo users...');
+
+  // Create 10 emails per demo user
+  for (const user of demoUsers) {
+    for (let i = 0; i < 10; i++) {
+      await prisma.email.create({
+        data: {
+          userId: user.id,
+          fromAddress: faker.internet.email(),
+          fromName: faker.person.fullName(),
+          toAddresses: JSON.stringify([user.email]),
+          subject: faker.lorem.sentence(),
+          bodyPlain: faker.lorem.paragraphs(2),
+          snippet: faker.lorem.sentence(),
+          isRead: i < 5,
+          receivedAt: faker.date.recent({ days: 14 }),
+        },
+      });
+    }
+  }
+  console.log('Created 60 demo emails (10 per user)');
+
+  // Create 5 chat conversations among demo users
+  for (let i = 0; i < 5; i++) {
+    const creator = demoUsers[i % demoUsers.length]!;
+    const participant = demoUsers[(i + 1) % demoUsers.length]!;
+
+    const conversation = await prisma.conversation.create({
+      data: {
+        type: 'DIRECT',
+        createdBy: creator.id,
+        lastMessageAt: new Date(),
+        members: {
+          create: [
+            { userId: creator.id, role: 'OWNER' },
+            { userId: participant.id, role: 'MEMBER' },
+          ],
+        },
+      },
+    });
+
+    for (let j = 0; j < 8; j++) {
+      await prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          senderId: j % 2 === 0 ? creator.id : participant.id,
+          type: 'TEXT',
+          content: faker.lorem.sentence(),
+        },
+      });
+    }
+  }
+  console.log('Created 5 demo conversations');
+
+  // Create 10 posts from demo users
+  for (let i = 0; i < 10; i++) {
+    const user = demoUsers[i % demoUsers.length]!;
+    await prisma.post.create({
+      data: {
+        userId: user.id,
+        type: 'TEXT',
+        content: faker.lorem.paragraph(),
+        visibility: 'PUBLIC',
+        moderationStatus: 'APPROVED',
+        publishedAt: faker.date.recent({ days: 30 }),
+        likeCount: faker.number.int({ min: 5, max: 100 }),
+        viewCount: faker.number.int({ min: 50, max: 1000 }),
+      },
+    });
+  }
+  console.log('Created 10 demo posts');
+
+  // Create 10 notifications per demo user
+  for (const user of demoUsers) {
+    for (let i = 0; i < 10; i++) {
+      await prisma.notification.create({
+        data: {
+          userId: user.id,
+          type: faker.helpers.arrayElement(['like', 'comment', 'follow', 'mention', 'message']),
+          title: faker.lorem.words(3),
+          body: faker.lorem.sentence(),
+          isRead: i < 5,
+          sourceApp: faker.helpers.arrayElement(['quantsync', 'quantchat', 'quantube']),
+        },
+      });
+    }
+  }
+  console.log('Created 60 demo notifications (10 per user)');
+}
 
 async function main() {
   console.log('Seeding database...');
 
-  // Create 50 users
-  const users = [];
+  // Step 1: Create deterministic demo users
+  const demoUsers = await seedDemoUsers();
+
+  // Step 2: Create demo data for demo users
+  await seedDemoData(demoUsers);
+
+  // Step 3: Create random users
+  const users = [...demoUsers];
   for (let i = 0; i < 50; i++) {
     const user = await prisma.user.create({
       data: {
@@ -27,7 +201,7 @@ async function main() {
     });
     users.push(user);
   }
-  console.log(`Created ${users.length} users`);
+  console.log(`Created ${users.length - demoUsers.length} random users`);
 
   // Create 20 conversations with messages
   for (let i = 0; i < 20; i++) {

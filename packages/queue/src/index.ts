@@ -12,3 +12,5 @@ export {
   ModerationJobSchema,
   type ModerationJob,
 } from './job-definitions.js';
+export { QueueDeadLetter } from './dead-letter.js';
+export type { DeadLetterRecord, DeadLetterFilters, DeadLetterStats } from './dead-letter.js';

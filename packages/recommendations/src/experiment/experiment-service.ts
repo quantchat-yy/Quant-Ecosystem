@@ -68,7 +68,7 @@ export class ExperimentService {
     }
 
     // Fallback to last bucket
-    return experiment.buckets[experiment.buckets.length - 1];
+    return experiment.buckets[experiment.buckets.length - 1]!;
   }
 
   logExposure(userId: string, experimentId: string, bucket: string): void {
@@ -117,11 +117,11 @@ export class ExperimentService {
 
     // Compute pairwise comparisons: each treatment vs control
     const buckets = experiment.buckets;
-    const control = bucketStats[buckets[0]];
+    const control = bucketStats[buckets[0]!]!;
     const comparisons: BucketComparison[] = [];
 
     for (let i = 1; i < buckets.length; i++) {
-      const treatment = bucketStats[buckets[i]];
+      const treatment = bucketStats[buckets[i]!]!;
       const { pValue, lift } = this.zTestForProportions(
         control.conversions,
         control.exposures,
@@ -129,8 +129,8 @@ export class ExperimentService {
         treatment.exposures,
       );
       comparisons.push({
-        control: buckets[0],
-        treatment: buckets[i],
+        control: buckets[0]!,
+        treatment: buckets[i]!,
         pValue,
         lift,
         significant: pValue < 0.05,

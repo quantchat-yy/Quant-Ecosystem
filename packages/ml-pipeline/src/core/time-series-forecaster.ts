@@ -13,8 +13,6 @@ import {
 export class TimeSeriesForecaster {
   private data: TimeSeriesPoint[] = [];
   private residuals: number[] = [];
-  private level: number = 0;
-  private trend: number = 0;
   private seasonal: number[] = [];
   private fitted: boolean = false;
 
@@ -28,17 +26,16 @@ export class TimeSeriesForecaster {
 
   // Simple Exponential Smoothing (SES)
   simpleExponentialSmoothing(alpha: number, horizon: number = 1): Forecast[] {
-    const values = this.data.map(p => p.value);
+    const values = this.data.map((p) => p.value);
     if (values.length === 0) return [];
-    let level = values[0];
+    let level: number = values[0]!;
     const smoothed: number[] = [level];
     this.residuals = [];
     for (let i = 1; i < values.length; i++) {
-      level = alpha * values[i] + (1 - alpha) * level;
+      level = alpha * values[i]! + (1 - alpha) * level;
       smoothed.push(level);
-      this.residuals.push(values[i] - smoothed[i - 1]);
+      this.residuals.push(values[i]! - smoothed[i - 1]!);
     }
-    this.level = level;
     this.fitted = true;
     // Generate forecasts with confidence intervals
     const residualVar = this.computeResidualVariance();
@@ -59,19 +56,17 @@ export class TimeSeriesForecaster {
 
   // Double Exponential Smoothing (Holt's method)
   doubleExponentialSmoothing(alpha: number, beta: number, horizon: number = 1): Forecast[] {
-    const values = this.data.map(p => p.value);
+    const values = this.data.map((p) => p.value);
     if (values.length < 2) return [];
-    let level = values[0];
-    let trend = values[1] - values[0];
+    let level: number = values[0]!;
+    let trend: number = values[1]! - values[0]!;
     this.residuals = [];
     for (let i = 1; i < values.length; i++) {
       const prevLevel = level;
-      level = alpha * values[i] + (1 - alpha) * (level + trend);
+      level = alpha * values[i]! + (1 - alpha) * (level + trend);
       trend = beta * (level - prevLevel) + (1 - beta) * trend;
-      this.residuals.push(values[i] - (prevLevel + trend));
+      this.residuals.push(values[i]! - (prevLevel + trend));
     }
-    this.level = level;
-    this.trend = trend;
     this.fitted = true;
     const residualVar = this.computeResidualVariance();
     const forecasts: Forecast[] = [];
@@ -92,7 +87,7 @@ export class TimeSeriesForecaster {
 
   // Triple Exponential Smoothing (Holt-Winters)
   tripleExponentialSmoothing(config: ExponentialSmoothingConfig, horizon: number = 1): Forecast[] {
-    const values = this.data.map(p => p.value);
+    const values = this.data.map((p) => p.value);
     const period = config.seasonalPeriod ?? 12;
     if (values.length < period * 2) {
       return this.doubleExponentialSmoothing(config.alpha, config.beta ?? 0.1, horizon);
@@ -104,24 +99,23 @@ export class TimeSeriesForecaster {
     this.seasonal = new Array(period).fill(0);
     const firstPeriodMean = values.slice(0, period).reduce((a, b) => a + b, 0) / period;
     for (let i = 0; i < period; i++) {
-      this.seasonal[i] = values[i] - firstPeriodMean;
+      this.seasonal[i] = values[i]! - firstPeriodMean;
     }
     let level = firstPeriodMean;
-    let trend = (values[period] - values[0]) / period;
+    let trend = (values[period]! - values[0]!) / period;
     this.residuals = [];
     for (let i = period; i < values.length; i++) {
       const seasonalIdx = i % period;
       const prevLevel = level;
-      level = alpha * (values[i] - this.seasonal[seasonalIdx]) + (1 - alpha) * (level + trend);
+      level = alpha * (values[i]! - this.seasonal[seasonalIdx]!) + (1 - alpha) * (level + trend);
       trend = beta * (level - prevLevel) + (1 - beta) * trend;
-      this.seasonal[seasonalIdx] = gamma * (values[i] - level) + (1 - gamma) * this.seasonal[seasonalIdx];
-      const forecast = prevLevel + trend + this.seasonal[seasonalIdx];
-      this.residuals.push(values[i] - forecast);
+      this.seasonal[seasonalIdx] =
+        gamma * (values[i]! - level) + (1 - gamma) * this.seasonal[seasonalIdx]!;
+      const forecast = prevLevel + trend + this.seasonal[seasonalIdx]!;
+      this.residuals.push(values[i]! - forecast);
     }
     // Apply damping if requested
     const phi = config.damped ? 0.98 : 1.0;
-    this.level = level;
-    this.trend = trend;
     this.fitted = true;
     const residualVar = this.computeResidualVariance();
     const forecasts: Forecast[] = [];
@@ -131,7 +125,7 @@ export class TimeSeriesForecaster {
     for (let h = 1; h <= horizon; h++) {
       dampedTrend += Math.pow(phi, h) * trend;
       const seasonalIdx = (values.length + h - 1) % period;
-      const point = level + dampedTrend + this.seasonal[seasonalIdx];
+      const point = level + dampedTrend + this.seasonal[seasonalIdx]!;
       const width = 1.96 * Math.sqrt(residualVar * (1 + h * 0.2));
       forecasts.push({
         point,
@@ -145,21 +139,21 @@ export class TimeSeriesForecaster {
 
   // Detect seasonality using autocorrelation
   detectSeasonality(maxLag?: number): SeasonalityResult {
-    const values = this.data.map(p => p.value);
+    const values = this.data.map((p) => p.value);
     const n = values.length;
     const maxL = maxLag ?? Math.floor(n / 2);
     const mean = values.reduce((a, b) => a + b, 0) / n;
     // Compute autocorrelations
     let variance = 0;
     for (let i = 0; i < n; i++) {
-      variance += (values[i] - mean) ** 2;
+      variance += (values[i]! - mean) ** 2;
     }
     variance /= n;
     const autocorrelations: number[] = [];
     for (let lag = 1; lag <= maxL; lag++) {
       let sum = 0;
       for (let i = 0; i < n - lag; i++) {
-        sum += (values[i] - mean) * (values[i + lag] - mean);
+        sum += (values[i]! - mean) * (values[i + lag]! - mean);
       }
       const acf = sum / (n * variance);
       autocorrelations.push(acf);
@@ -168,8 +162,8 @@ export class TimeSeriesForecaster {
     let bestLag = 1;
     let bestAcf = -1;
     for (let i = 1; i < autocorrelations.length; i++) {
-      if (autocorrelations[i] > bestAcf && i > 1) {
-        bestAcf = autocorrelations[i];
+      if (autocorrelations[i]! > bestAcf && i > 1) {
+        bestAcf = autocorrelations[i]!;
         bestLag = i + 1;
       }
     }
@@ -182,12 +176,12 @@ export class TimeSeriesForecaster {
 
   // ARIMA-like forecasting
   arimaForecast(config: ARIMAConfig, horizon: number = 1): Forecast[] {
-    let values = this.data.map(p => p.value);
+    let values = this.data.map((p) => p.value);
     // Differencing for stationarity
     for (let d = 0; d < config.d; d++) {
       const diffed: number[] = [];
       for (let i = 1; i < values.length; i++) {
-        diffed.push(values[i] - values[i - 1]);
+        diffed.push(values[i]! - values[i - 1]!);
       }
       values = diffed;
     }
@@ -202,15 +196,15 @@ export class TimeSeriesForecaster {
     for (let i = config.p; i < values.length; i++) {
       let arComponent = 0;
       for (let j = 0; j < config.p; j++) {
-        arComponent += arCoeffs[j] * values[i - j - 1];
+        arComponent += arCoeffs[j]! * values[i - j - 1]!;
       }
       let maComponent = 0;
       for (let j = 0; j < Math.min(config.q, residuals.length); j++) {
-        maComponent += 0.5 * residuals[residuals.length - 1 - j]; // simplified MA weights
+        maComponent += 0.5 * residuals[residuals.length - 1 - j]!; // simplified MA weights
       }
       const prediction = arComponent + maComponent;
       fitted.push(prediction);
-      residuals.push(values[i] - prediction);
+      residuals.push(values[i]! - prediction);
     }
     this.residuals = residuals;
     this.fitted = true;
@@ -225,11 +219,11 @@ export class TimeSeriesForecaster {
       let arComponent = 0;
       for (let j = 0; j < config.p; j++) {
         const idx = extendedValues.length - 1 - j;
-        if (idx >= 0) arComponent += arCoeffs[j] * extendedValues[idx];
+        if (idx >= 0) arComponent += arCoeffs[j]! * extendedValues[idx]!;
       }
       let maComponent = 0;
       for (let j = 0; j < Math.min(config.q, extendedResiduals.length); j++) {
-        maComponent += 0.3 * extendedResiduals[extendedResiduals.length - 1 - j];
+        maComponent += 0.3 * extendedResiduals[extendedResiduals.length - 1 - j]!;
       }
       const point = arComponent + maComponent;
       extendedValues.push(point);
@@ -237,8 +231,8 @@ export class TimeSeriesForecaster {
       // Undo differencing
       let forecastValue = point;
       if (config.d > 0) {
-        const originalValues = this.data.map(p => p.value);
-        forecastValue = originalValues[originalValues.length - 1] + point;
+        const originalValues = this.data.map((p) => p.value);
+        forecastValue = originalValues[originalValues.length - 1]! + point;
       }
       const width = 1.96 * Math.sqrt(residualVar * h);
       forecasts.push({
@@ -258,33 +252,33 @@ export class TimeSeriesForecaster {
     // Compute autocorrelations for Yule-Walker
     const acf: number[] = [1];
     let variance = 0;
-    for (let i = 0; i < n; i++) variance += (values[i] - mean) ** 2;
+    for (let i = 0; i < n; i++) variance += (values[i]! - mean) ** 2;
     variance /= n;
     if (variance === 0) return new Array(order).fill(0);
     for (let lag = 1; lag <= order; lag++) {
       let sum = 0;
       for (let i = lag; i < n; i++) {
-        sum += (values[i] - mean) * (values[i - lag] - mean);
+        sum += (values[i]! - mean) * (values[i - lag]! - mean);
       }
       acf.push(sum / (n * variance));
     }
     // Levinson-Durbin algorithm
     const coeffs: number[] = new Array(order).fill(0);
-    coeffs[0] = acf[1];
-    let error = 1 - coeffs[0] * coeffs[0];
+    coeffs[0] = acf[1]!;
+    let error = 1 - coeffs[0]! * coeffs[0]!;
     for (let m = 1; m < order; m++) {
-      let lambda = acf[m + 1];
+      let lambda: number = acf[m + 1]!;
       for (let j = 0; j < m; j++) {
-        lambda -= coeffs[j] * acf[m - j];
+        lambda -= coeffs[j]! * acf[m - j]!;
       }
       lambda /= error;
       const newCoeffs = [...coeffs];
       newCoeffs[m] = lambda;
       for (let j = 0; j < m; j++) {
-        newCoeffs[j] = coeffs[j] - lambda * coeffs[m - 1 - j];
+        newCoeffs[j] = coeffs[j]! - lambda * coeffs[m - 1 - j]!;
       }
-      for (let j = 0; j <= m; j++) coeffs[j] = newCoeffs[j];
-      error *= (1 - lambda * lambda);
+      for (let j = 0; j <= m; j++) coeffs[j] = newCoeffs[j]!;
+      error *= 1 - lambda * lambda;
       if (error <= 0) break;
     }
     return coeffs;
@@ -296,7 +290,7 @@ export class TimeSeriesForecaster {
     let bestBeta = 0.1;
     let bestGamma = 0.1;
     let bestError = Infinity;
-    const values = this.data.map(p => p.value);
+    const values = this.data.map((p) => p.value);
     // Grid search over parameter space
     for (let a = 0.1; a <= 0.9; a += 0.1) {
       if (method === 'ses') {
@@ -320,26 +314,26 @@ export class TimeSeriesForecaster {
   }
 
   private computeSESError(values: number[], alpha: number): number {
-    let level = values[0];
+    let level: number = values[0]!;
     let mse = 0;
     for (let i = 1; i < values.length; i++) {
       const forecast = level;
-      mse += (values[i] - forecast) ** 2;
-      level = alpha * values[i] + (1 - alpha) * level;
+      mse += (values[i]! - forecast) ** 2;
+      level = alpha * values[i]! + (1 - alpha) * level;
     }
     return mse / (values.length - 1);
   }
 
   private computeDoubleError(values: number[], alpha: number, beta: number): number {
     if (values.length < 2) return Infinity;
-    let level = values[0];
-    let trend = values[1] - values[0];
+    let level: number = values[0]!;
+    let trend: number = values[1]! - values[0]!;
     let mse = 0;
     for (let i = 1; i < values.length; i++) {
       const forecast = level + trend;
-      mse += (values[i] - forecast) ** 2;
+      mse += (values[i]! - forecast) ** 2;
       const prevLevel = level;
-      level = alpha * values[i] + (1 - alpha) * (level + trend);
+      level = alpha * values[i]! + (1 - alpha) * (level + trend);
       trend = beta * (level - prevLevel) + (1 - beta) * trend;
     }
     return mse / (values.length - 1);
@@ -347,7 +341,8 @@ export class TimeSeriesForecaster {
 
   // Residual analysis
   analyzeResiduals(): { mean: number; variance: number; isWhiteNoise: boolean; ljungBox: number } {
-    if (this.residuals.length === 0) return { mean: 0, variance: 0, isWhiteNoise: true, ljungBox: 0 };
+    if (this.residuals.length === 0)
+      return { mean: 0, variance: 0, isWhiteNoise: true, ljungBox: 0 };
     const n = this.residuals.length;
     const mean = this.residuals.reduce((a, b) => a + b, 0) / n;
     const variance = this.residuals.reduce((sum, r) => sum + (r - mean) ** 2, 0) / n;
@@ -357,7 +352,7 @@ export class TimeSeriesForecaster {
     for (let lag = 1; lag <= maxLag; lag++) {
       let sum = 0;
       for (let i = lag; i < n; i++) {
-        sum += (this.residuals[i] - mean) * (this.residuals[i - lag] - mean);
+        sum += (this.residuals[i]! - mean) * (this.residuals[i - lag]! - mean);
       }
       const rk = sum / (n * variance);
       ljungBox += (rk * rk) / (n - lag);
@@ -378,7 +373,7 @@ export class TimeSeriesForecaster {
     if (this.data.length < 2) return 1;
     const intervals: number[] = [];
     for (let i = 1; i < Math.min(this.data.length, 100); i++) {
-      intervals.push(this.data[i].timestamp - this.data[i - 1].timestamp);
+      intervals.push(this.data[i]!.timestamp - this.data[i - 1]!.timestamp);
     }
     return intervals.reduce((a, b) => a + b, 0) / intervals.length;
   }
@@ -394,8 +389,6 @@ export class TimeSeriesForecaster {
   reset(): void {
     this.data = [];
     this.residuals = [];
-    this.level = 0;
-    this.trend = 0;
     this.seasonal = [];
     this.fitted = false;
   }

@@ -113,7 +113,7 @@ export class VideoModerator {
 
     // Calculate overall scores
     const categories = this.calculateCategoryScores(frames, flags, audioAnalysis);
-    const overallScore = Math.max(...categories.map(c => c.score), 0);
+    const overallScore = Math.max(...categories.map((c) => c.score), 0);
     const action = this.determineAction(overallScore, categories);
 
     const result: ModerationResult = {
@@ -125,7 +125,7 @@ export class VideoModerator {
       action,
       confidence: this.calculateConfidence(frames.length, metadata.duration),
       automated: true,
-      flags: categories.filter(c => c.detected).map(c => c.category),
+      flags: categories.filter((c) => c.detected).map((c) => c.category),
       metadata: {
         duration: metadata.duration,
         framesSampled: frames.length,
@@ -144,7 +144,7 @@ export class VideoModerator {
     const frames: FrameSample[] = [];
     const totalFrames = Math.min(
       this.config.maxFrameSamples,
-      Math.floor(metadata.duration / this.config.sampleRateSeconds)
+      Math.floor(metadata.duration / this.config.sampleRateSeconds),
     );
 
     for (let i = 0; i < totalFrames; i++) {
@@ -170,24 +170,31 @@ export class VideoModerator {
   }
 
   /** Detect scene changes based on frame differences */
-  detectScenes(frames: FrameSample[], metadata: VideoMetadata): SceneInfo[] {
+  detectScenes(frames: FrameSample[], _metadata: VideoMetadata): SceneInfo[] {
     const scenes: SceneInfo[] = [];
     let sceneStart = 0;
     let sceneFrames: FrameSample[] = [];
 
     for (let i = 0; i < frames.length; i++) {
-      sceneFrames.push(frames[i]);
+      const currentFrame = frames[i]!;
+      sceneFrames.push(currentFrame);
 
       // Check for scene change
-      const isSceneChange = i > 0 && (
-        Math.abs(frames[i].brightness - frames[i - 1].brightness) > this.config.sceneChangeThreshold ||
-        Math.abs(frames[i].colorVariance - frames[i - 1].colorVariance) > this.config.sceneChangeThreshold ||
-        frames[i].motionScore > 0.8
-      );
+      const prevFrame = frames[i - 1];
+      const isSceneChange =
+        i > 0 &&
+        prevFrame !== undefined &&
+        (Math.abs(currentFrame.brightness - prevFrame.brightness) >
+          this.config.sceneChangeThreshold ||
+          Math.abs(currentFrame.colorVariance - prevFrame.colorVariance) >
+            this.config.sceneChangeThreshold ||
+          currentFrame.motionScore > 0.8);
 
       if (isSceneChange || i === frames.length - 1) {
-        const avgBrightness = sceneFrames.reduce((sum, f) => sum + f.brightness, 0) / sceneFrames.length;
-        const avgMotion = sceneFrames.reduce((sum, f) => sum + f.motionScore, 0) / sceneFrames.length;
+        const avgBrightness =
+          sceneFrames.reduce((sum, f) => sum + f.brightness, 0) / sceneFrames.length;
+        const avgMotion =
+          sceneFrames.reduce((sum, f) => sum + f.motionScore, 0) / sceneFrames.length;
 
         // Flag dark scenes with high motion as potentially violent
         const flags: ContentCategory[] = [];
@@ -196,15 +203,15 @@ export class VideoModerator {
 
         scenes.push({
           startTime: sceneStart,
-          endTime: frames[i].timestamp,
-          duration: frames[i].timestamp - sceneStart,
+          endTime: currentFrame.timestamp,
+          duration: currentFrame.timestamp - sceneStart,
           avgBrightness,
           avgMotion,
           frameCount: sceneFrames.length,
           flags,
         });
 
-        sceneStart = frames[i].timestamp;
+        sceneStart = currentFrame.timestamp;
         sceneFrames = [];
       }
     }
@@ -213,7 +220,7 @@ export class VideoModerator {
   }
 
   /** Analyze audio track of a video */
-  async analyzeAudio(videoId: string, metadata: VideoMetadata): Promise<AudioAnalysis> {
+  async analyzeAudio(_videoId: string, metadata: VideoMetadata): Promise<AudioAnalysis> {
     // Simulate audio analysis
     const speechSegments: { start: number; end: number; confidence: number }[] = [];
     const volumePeaks: number[] = [];
@@ -268,7 +275,11 @@ export class VideoModerator {
   }
 
   /** Moderate a live stream (processes in chunks) */
-  async moderateStream(streamId: string, chunkDuration: number, chunkIndex: number): Promise<{
+  async moderateStream(
+    streamId: string,
+    chunkDuration: number,
+    chunkIndex: number,
+  ): Promise<{
     flags: TimelineFlag[];
     shouldInterrupt: boolean;
     severity: number;
@@ -281,7 +292,7 @@ export class VideoModerator {
     for (let i = 0; i < samplesPerChunk; i++) {
       frames.push({
         index: i,
-        timestamp: startTime + (i * this.config.sampleRateSeconds),
+        timestamp: startTime + i * this.config.sampleRateSeconds,
         hash: `stream_${streamId}_${chunkIndex}_${i}`,
         brightness: 0.3 + Math.random() * 0.4,
         colorVariance: Math.random() * 0.8,
@@ -316,7 +327,11 @@ export class VideoModerator {
 
   // --- Private Methods ---
 
-  private buildTimelineFlags(frames: FrameSample[], scenes: SceneInfo[], audio: AudioAnalysis | null): TimelineFlag[] {
+  private buildTimelineFlags(
+    frames: FrameSample[],
+    scenes: SceneInfo[],
+    audio: AudioAnalysis | null,
+  ): TimelineFlag[] {
     const flags: TimelineFlag[] = [];
 
     // Flag scenes with issues
@@ -337,7 +352,7 @@ export class VideoModerator {
     if (audio && audio.hasExplicitLyrics) {
       flags.push({
         timestamp: 0,
-        duration: frames.length > 0 ? frames[frames.length - 1].timestamp : 0,
+        duration: frames.length > 0 ? (frames[frames.length - 1]?.timestamp ?? 0) : 0,
         category: 'profanity',
         confidence: 0.7,
         frameIndex: 0,
@@ -348,7 +363,11 @@ export class VideoModerator {
     return flags.sort((a, b) => a.timestamp - b.timestamp);
   }
 
-  private calculateCategoryScores(frames: FrameSample[], flags: TimelineFlag[], audio: AudioAnalysis | null): CategoryScore[] {
+  private calculateCategoryScores(
+    _frames: FrameSample[],
+    flags: TimelineFlag[],
+    audio: AudioAnalysis | null,
+  ): CategoryScore[] {
     const categoryCounts: Map<ContentCategory, number> = new Map();
     for (const flag of flags) {
       categoryCounts.set(flag.category, (categoryCounts.get(flag.category) || 0) + 1);
@@ -370,10 +389,11 @@ export class VideoModerator {
 
     // Audio-based scoring
     if (audio && audio.explicitScore > 0.5) {
-      const profanityIdx = categories.findIndex(c => c.category === 'profanity');
-      if (profanityIdx >= 0) {
-        categories[profanityIdx].score = Math.max(categories[profanityIdx].score, audio.explicitScore);
-        categories[profanityIdx].detected = categories[profanityIdx].score >= this.config.flagThreshold;
+      const profanityIdx = categories.findIndex((c) => c.category === 'profanity');
+      const profanityCategory = categories[profanityIdx];
+      if (profanityIdx >= 0 && profanityCategory) {
+        profanityCategory.score = Math.max(profanityCategory.score, audio.explicitScore);
+        profanityCategory.detected = profanityCategory.score >= this.config.flagThreshold;
       }
     }
 
@@ -388,7 +408,7 @@ export class VideoModerator {
   private determineAction(score: number, categories: CategoryScore[]): ModerationAction {
     if (score >= this.config.autoRemoveThreshold) return 'remove';
     if (score >= this.config.flagThreshold) return 'flag';
-    if (categories.some(c => c.detected)) return 'age_restrict';
+    if (categories.some((c) => c.detected)) return 'age_restrict';
     return 'approve';
   }
 }

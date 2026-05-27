@@ -58,18 +58,18 @@ export class OnDeviceRanker {
     // Batch all candidates into a single tensor [N, featureDim]
     const batchedInput = new Float32Array(n * featureDim);
     for (let i = 0; i < n; i++) {
-      const features = this.encodeFeatures(candidates[i], userPrefs);
+      const features = this.encodeFeatures(candidates[i]!, userPrefs);
       batchedInput.set(features, i * featureDim);
     }
 
     // Single ONNX inference call for the entire batch
     const result = await this.runtime.run({ input: batchedInput });
-    const output = result.outputs['score'] ?? result.outputs[Object.keys(result.outputs)[0]];
+    const output = result.outputs['score'] ?? result.outputs[Object.keys(result.outputs)[0]!]!;
 
     // Extract scores for each candidate
     const scores: Array<{ item: ContentItem; score: number }> = [];
     for (let i = 0; i < n; i++) {
-      scores.push({ item: candidates[i], score: output[i] });
+      scores.push({ item: candidates[i]!, score: output[i]! });
     }
 
     // Sort by score descending and take top-K

@@ -47,9 +47,12 @@ export class ModelRegistry {
   incrementVersion(current: string, type: 'major' | 'minor' | 'patch'): string {
     const v = this.parseVersion(current);
     switch (type) {
-      case 'major': return this.formatVersion({ major: v.major + 1, minor: 0, patch: 0 });
-      case 'minor': return this.formatVersion({ major: v.major, minor: v.minor + 1, patch: 0 });
-      case 'patch': return this.formatVersion({ major: v.major, minor: v.minor, patch: v.patch + 1 });
+      case 'major':
+        return this.formatVersion({ major: v.major + 1, minor: 0, patch: 0 });
+      case 'minor':
+        return this.formatVersion({ major: v.major, minor: v.minor + 1, patch: 0 });
+      case 'patch':
+        return this.formatVersion({ major: v.major, minor: v.minor, patch: v.patch + 1 });
     }
   }
 
@@ -58,7 +61,15 @@ export class ModelRegistry {
     version: string,
     framework: ModelFramework,
     metrics: Record<string, number>,
-    options?: { weights?: number[][]; bias?: number[]; description?: string; tags?: string[]; datasetId?: string; featureSet?: string; trainingConfig?: any }
+    options?: {
+      weights?: number[][];
+      bias?: number[];
+      description?: string;
+      tags?: string[];
+      datasetId?: string;
+      featureSet?: string;
+      trainingConfig?: any;
+    },
   ): ModelMetadata {
     const key = this.getModelKey(name, version);
     const metadata: ModelMetadata = {
@@ -106,7 +117,7 @@ export class ModelRegistry {
   getLatestVersion(name: string): string | null {
     const history = this.versionHistory.get(name);
     if (!history || history.length === 0) return null;
-    return history.sort((a, b) => this.compareVersions(b, a))[0];
+    return history.sort((a, b) => this.compareVersions(b, a))[0] ?? null;
   }
 
   private compareVersions(a: string, b: string): number {
@@ -130,7 +141,6 @@ export class ModelRegistry {
     };
     const allowed = validTransitions[model.metadata.status];
     if (!allowed.includes(newStatus)) return false;
-    const prevStatus = model.metadata.status;
     model.metadata.status = newStatus;
     model.metadata.updatedAt = Date.now();
     const transitions = this.statusTransitions.get(key) ?? [];
@@ -163,7 +173,7 @@ export class ModelRegistry {
     if (!history || history.length < 2) return null;
     const sorted = [...history].sort((a, b) => this.compareVersions(b, a));
     const currentVersion = this.productionModels.get(name);
-    const previousVersion = sorted.find(v => v !== currentVersion);
+    const previousVersion = sorted.find((v) => v !== currentVersion);
     if (!previousVersion) return null;
     if (currentVersion) {
       this.transitionStatus(name, currentVersion, 'archived');
@@ -195,13 +205,19 @@ export class ModelRegistry {
     }
   }
 
-  compareModels(nameA: string, versionA: string, nameB: string, versionB: string): ModelComparison | null {
+  compareModels(
+    nameA: string,
+    versionA: string,
+    nameB: string,
+    versionB: string,
+  ): ModelComparison | null {
     const modelA = this.getModel(nameA, versionA);
     const modelB = this.getModel(nameB, versionB);
     if (!modelA || !modelB) return null;
     const metrics: Record<string, { a: number; b: number; diff: number }> = {};
     const allMetricKeys = new Set([...Object.keys(modelA.metrics), ...Object.keys(modelB.metrics)]);
-    let winsA = 0, winsB = 0;
+    let winsA = 0,
+      winsB = 0;
     for (const key of allMetricKeys) {
       const a = modelA.metrics[key] ?? 0;
       const b = modelB.metrics[key] ?? 0;
@@ -210,11 +226,15 @@ export class ModelRegistry {
       else if (b > a) winsB++;
     }
     const totalMetrics = allMetricKeys.size || 1;
-    const winner = winsA >= winsB
-      ? `${nameA}@${versionA}`
-      : `${nameB}@${versionB}`;
+    const winner = winsA >= winsB ? `${nameA}@${versionA}` : `${nameB}@${versionB}`;
     const confidence = Math.abs(winsA - winsB) / totalMetrics;
-    return { modelA: `${nameA}@${versionA}`, modelB: `${nameB}@${versionB}`, metrics, winner, confidence };
+    return {
+      modelA: `${nameA}@${versionA}`,
+      modelB: `${nameB}@${versionB}`,
+      metrics,
+      winner,
+      confidence,
+    };
   }
 
   getLineage(name: string, version: string): ModelLineage | null {
@@ -243,7 +263,7 @@ export class ModelRegistry {
     const model = this.models.get(key);
     if (model) {
       model.tags.delete(tag);
-      model.metadata.tags = model.metadata.tags?.filter(t => t !== tag);
+      model.metadata.tags = model.metadata.tags?.filter((t) => t !== tag);
     }
   }
 

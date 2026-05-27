@@ -196,6 +196,76 @@ export class PhotoService {
     });
   }
 
+  async addComment(photoId: string, _userId: string, _content: string): Promise<Photo> {
+    const photo = await this.prisma.photo.findUnique({
+      where: { id: photoId },
+    });
+
+    if (!photo || photo.deletedAt) {
+      throw createAppError('Photo not found', 404, 'PHOTO_NOT_FOUND');
+    }
+
+    return this.prisma.photo.update({
+      where: { id: photoId },
+      data: { commentCount: { increment: 1 } },
+    });
+  }
+
+  async listFeed(userId: string, options: PaginationOptions = {}): Promise<PaginatedResult<Photo>> {
+    const page = options.page ?? 1;
+    const pageSize = options.pageSize ?? 20;
+    const skip = (page - 1) * pageSize;
+
+    const [data, total] = await Promise.all([
+      this.prisma.photo.findMany({
+        where: { deletedAt: null },
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.photo.count({ where: { deletedAt: null } }),
+    ]);
+
+    void userId;
+    const totalPages = Math.ceil(total / pageSize);
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
+    };
+  }
+
+  async getExplore(options: PaginationOptions = {}): Promise<PaginatedResult<Photo>> {
+    const page = options.page ?? 1;
+    const pageSize = options.pageSize ?? 20;
+    const skip = (page - 1) * pageSize;
+
+    const [data, total] = await Promise.all([
+      this.prisma.photo.findMany({
+        where: { deletedAt: null },
+        skip,
+        take: pageSize,
+        orderBy: { likeCount: 'desc' },
+      }),
+      this.prisma.photo.count({ where: { deletedAt: null } }),
+    ]);
+
+    const totalPages = Math.ceil(total / pageSize);
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
+    };
+  }
+
   async createAlbum(input: CreateAlbumInput): Promise<PhotoAlbum> {
     return this.prisma.photoAlbum.create({
       data: {

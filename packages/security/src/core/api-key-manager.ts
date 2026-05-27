@@ -44,11 +44,16 @@ export class APIKeyManager {
   }
 
   /** Generate a new API key */
-  async generateKey(name: string, userId: string, scopes: APIKeyScope[], options: {
-    expiresIn?: number;
-    rateLimit?: number;
-    metadata?: Record<string, string>;
-  } = {}): Promise<APIKey> {
+  async generateKey(
+    name: string,
+    userId: string,
+    scopes: APIKeyScope[],
+    options: {
+      expiresIn?: number;
+      rateLimit?: number;
+      metadata?: Record<string, string>;
+    } = {},
+  ): Promise<APIKey> {
     // Check max keys per user
     const existingKeys = this.userKeys.get(userId) || [];
     if (existingKeys.length >= this.config.maxKeysPerUser) {
@@ -89,7 +94,10 @@ export class APIKeyManager {
   }
 
   /** Validate an API key */
-  async validateKey(key: string, requiredScope?: { resource: string; action: string }): Promise<APIKeyValidation> {
+  async validateKey(
+    key: string,
+    requiredScope?: { resource: string; action: string },
+  ): Promise<APIKeyValidation> {
     const hash = this.hashKey(key);
     const keyId = this.hashIndex.get(hash);
 
@@ -187,7 +195,7 @@ export class APIKeyManager {
   getKeysForUser(userId: string): APIKey[] {
     const keyIds = this.userKeys.get(userId) || [];
     return keyIds
-      .map(id => this.keys.get(id))
+      .map((id) => this.keys.get(id))
       .filter((k): k is APIKey => k !== undefined && k.active);
   }
 
@@ -287,7 +295,7 @@ export class APIKeyManager {
       h4 = Math.imul(h4 ^ (c + 3), 0xcc9e2d51) >>> 0;
     }
 
-    return [h1, h2, h3, h4].map(h => (h >>> 0).toString(16).padStart(8, '0')).join('');
+    return [h1, h2, h3, h4].map((h) => (h >>> 0).toString(16).padStart(8, '0')).join('');
   }
 
   /** Generate unique ID */
@@ -313,7 +321,7 @@ export class APIKeyManager {
     const now = Date.now();
     let removed = 0;
 
-    for (const [id, key] of this.keys) {
+    for (const [_id, key] of this.keys) {
       if (now > key.expiresAt && key.active) {
         key.active = false;
         this.hashIndex.delete(key.hash);

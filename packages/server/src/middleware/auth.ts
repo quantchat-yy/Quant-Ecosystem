@@ -4,7 +4,14 @@
 // verification (not just base64 decode)
 // ============================================================================
 
-import type { Request, Response, NextFunction, Middleware, AuthOptions, UserContext } from '../types';
+import type {
+  Request,
+  Response,
+  NextFunction,
+  Middleware,
+  AuthOptions,
+  UserContext,
+} from '../types';
 import { TokenService } from '@quant/auth';
 import type { TokenPayload, AuthConfig } from '@quant/auth';
 
@@ -12,9 +19,45 @@ import type { TokenPayload, AuthConfig } from '@quant/auth';
 // Default Auth Configuration
 // ----------------------------------------------------------------------------
 
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (process.env.NODE_ENV === 'production') {
+    if (!secret || secret.length < 32) {
+      throw new Error('JWT_SECRET must be set to a value of at least 32 characters in production');
+    }
+    return secret;
+  }
+  if (!secret) {
+    console.warn(
+      '[SECURITY] JWT_SECRET not set - using dev-only fallback. NEVER use in production.',
+    );
+    return 'dev-only-insecure-jwt-secret-not-for-production-use-000';
+  }
+  return secret;
+}
+
+function getJwtRefreshSecret(): string {
+  const secret = process.env.JWT_REFRESH_SECRET;
+  if (process.env.NODE_ENV === 'production') {
+    if (!secret || secret.length < 32) {
+      throw new Error(
+        'JWT_REFRESH_SECRET must be set to a value of at least 32 characters in production',
+      );
+    }
+    return secret;
+  }
+  if (!secret) {
+    console.warn(
+      '[SECURITY] JWT_REFRESH_SECRET not set - using dev-only fallback. NEVER use in production.',
+    );
+    return 'dev-only-insecure-refresh-secret-not-for-production-000';
+  }
+  return secret;
+}
+
 const DEFAULT_AUTH_CONFIG: AuthConfig = {
-  jwtSecret: process.env.JWT_SECRET || 'quant-ecosystem-secret-key-2024',
-  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'quant-ecosystem-refresh-secret-2024',
+  jwtSecret: getJwtSecret(),
+  jwtRefreshSecret: getJwtRefreshSecret(),
   accessTokenExpiresIn: 3600,
   refreshTokenExpiresIn: 604800,
   issuer: 'quant-ecosystem',
@@ -131,7 +174,7 @@ export function authMiddleware(options?: AuthOptions, authConfig?: AuthConfig): 
     const requiredScopes = getRequiredScopes(req.path, scopeRequirements);
     if (requiredScopes.length > 0) {
       const hasRequiredScopes = requiredScopes.every((scope) =>
-        payload.scopes.includes(scope as any)
+        payload.scopes.includes(scope as any),
       );
       if (!hasRequiredScopes) {
         res.status(403).json({
@@ -196,8 +239,8 @@ function isPublicPath(path: string, publicPaths: string[]): boolean {
       const patternParts = pattern.split('/');
       const pathParts = path.split('/');
       if (patternParts.length === pathParts.length) {
-        const matches = patternParts.every((part, i) =>
-          part.startsWith(':') || part === pathParts[i]
+        const matches = patternParts.every(
+          (part, i) => part.startsWith(':') || part === pathParts[i],
         );
         if (matches) return true;
       }
@@ -234,7 +277,7 @@ function buildUserContext(payload: TokenPayload): UserContext {
     username: payload.username || '',
     displayName: payload.username || '',
     role: payload.role || 'user',
-    scopes: payload.scopes as string[] || [],
+    scopes: (payload.scopes as string[]) || [],
   };
 }
 

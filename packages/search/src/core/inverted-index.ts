@@ -3,11 +3,7 @@
 // Full inverted index with tokenization, stemming, and stop word removal
 // ============================================================================
 
-import type {
-  IndexDocument,
-  TokenInfo,
-  IndexStats,
-} from '../types';
+import type { IndexDocument, TokenInfo, IndexStats } from '../types';
 
 /** Posting entry in the inverted index */
 interface Posting {
@@ -28,15 +24,91 @@ interface DocumentRecord {
 
 /** English stop words list */
 const STOP_WORDS = new Set([
-  'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-  'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been',
-  'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
-  'could', 'should', 'may', 'might', 'shall', 'can', 'need', 'dare',
-  'not', 'so', 'no', 'nor', 'as', 'it', 'its', 'this', 'that', 'these',
-  'those', 'i', 'me', 'my', 'we', 'our', 'you', 'your', 'he', 'him',
-  'his', 'she', 'her', 'they', 'them', 'their', 'what', 'which', 'who',
-  'when', 'where', 'why', 'how', 'all', 'each', 'every', 'both', 'few',
-  'more', 'most', 'other', 'some', 'such', 'than', 'too', 'very', 'just',
+  'a',
+  'an',
+  'the',
+  'and',
+  'or',
+  'but',
+  'in',
+  'on',
+  'at',
+  'to',
+  'for',
+  'of',
+  'with',
+  'by',
+  'from',
+  'is',
+  'are',
+  'was',
+  'were',
+  'be',
+  'been',
+  'being',
+  'have',
+  'has',
+  'had',
+  'do',
+  'does',
+  'did',
+  'will',
+  'would',
+  'could',
+  'should',
+  'may',
+  'might',
+  'shall',
+  'can',
+  'need',
+  'dare',
+  'not',
+  'so',
+  'no',
+  'nor',
+  'as',
+  'it',
+  'its',
+  'this',
+  'that',
+  'these',
+  'those',
+  'i',
+  'me',
+  'my',
+  'we',
+  'our',
+  'you',
+  'your',
+  'he',
+  'him',
+  'his',
+  'she',
+  'her',
+  'they',
+  'them',
+  'their',
+  'what',
+  'which',
+  'who',
+  'when',
+  'where',
+  'why',
+  'how',
+  'all',
+  'each',
+  'every',
+  'both',
+  'few',
+  'more',
+  'most',
+  'other',
+  'some',
+  'such',
+  'than',
+  'too',
+  'very',
+  'just',
 ]);
 
 /**
@@ -54,7 +126,13 @@ export class InvertedIndex {
   private useStopWords: boolean;
   private useStemming: boolean;
 
-  constructor(options: { useStopWords?: boolean; useStemming?: boolean; fieldBoosts?: Record<string, number> } = {}) {
+  constructor(
+    options: {
+      useStopWords?: boolean;
+      useStemming?: boolean;
+      fieldBoosts?: Record<string, number>;
+    } = {},
+  ) {
     this.index = new Map();
     this.documents = new Map();
     this.fieldBoosts = new Map();
@@ -90,7 +168,7 @@ export class InvertedIndex {
       // Build postings for each term
       const termPositions: Map<string, number[]> = new Map();
       for (let i = 0; i < processed.length; i++) {
-        const term = processed[i];
+        const term = processed[i]!;
         if (!termPositions.has(term)) {
           termPositions.set(term, []);
         }
@@ -132,7 +210,7 @@ export class InvertedIndex {
 
     // Remove from all posting lists
     for (const [term, postings] of this.index) {
-      const filtered = postings.filter(p => p.documentId !== documentId);
+      const filtered = postings.filter((p) => p.documentId !== documentId);
       if (filtered.length === 0) {
         this.index.delete(term);
       } else {
@@ -148,7 +226,10 @@ export class InvertedIndex {
   /**
    * Search the index for documents matching the query
    */
-  public search(query: string, options: { fields?: string[]; limit?: number } = {}): Array<{ documentId: string; score: number; matchedTerms: string[] }> {
+  public search(
+    query: string,
+    options: { fields?: string[]; limit?: number } = {},
+  ): Array<{ documentId: string; score: number; matchedTerms: string[] }> {
     const tokens = this.tokenize(query);
     const terms = this.processTokens(tokens);
 
@@ -201,17 +282,14 @@ export class InvertedIndex {
       .toLowerCase()
       .replace(/[^\w\s]/g, ' ')
       .split(/\s+/)
-      .filter(token => token.length > 0);
+      .filter((token) => token.length > 0);
   }
 
   /**
    * Normalize a token (lowercase, trim, remove special chars)
    */
   public normalize(token: string): string {
-    return token
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w]/g, '');
+    return token.toLowerCase().trim().replace(/[^\w]/g, '');
   }
 
   /**
@@ -251,11 +329,26 @@ export class InvertedIndex {
 
     // Step 2: double suffixes
     const step2Suffixes: Record<string, string> = {
-      'ational': 'ate', 'tional': 'tion', 'enci': 'ence', 'anci': 'ance',
-      'izer': 'ize', 'abli': 'able', 'alli': 'al', 'entli': 'ent',
-      'eli': 'e', 'ousli': 'ous', 'ization': 'ize', 'ation': 'ate',
-      'ator': 'ate', 'alism': 'al', 'iveness': 'ive', 'fulness': 'ful',
-      'ousness': 'ous', 'aliti': 'al', 'iviti': 'ive', 'biliti': 'ble',
+      ational: 'ate',
+      tional: 'tion',
+      enci: 'ence',
+      anci: 'ance',
+      izer: 'ize',
+      abli: 'able',
+      alli: 'al',
+      entli: 'ent',
+      eli: 'e',
+      ousli: 'ous',
+      ization: 'ize',
+      ation: 'ate',
+      ator: 'ate',
+      alism: 'al',
+      iveness: 'ive',
+      fulness: 'ful',
+      ousness: 'ous',
+      aliti: 'al',
+      iviti: 'ive',
+      biliti: 'ble',
     };
 
     for (const [suffix, replacement] of Object.entries(step2Suffixes)) {
@@ -270,8 +363,13 @@ export class InvertedIndex {
 
     // Step 3
     const step3Suffixes: Record<string, string> = {
-      'icate': 'ic', 'ative': '', 'alize': 'al', 'iciti': 'ic',
-      'ical': 'ic', 'ful': '', 'ness': '',
+      icate: 'ic',
+      ative: '',
+      alize: 'al',
+      iciti: 'ic',
+      ical: 'ic',
+      ful: '',
+      ness: '',
     };
 
     for (const [suffix, replacement] of Object.entries(step3Suffixes)) {
@@ -294,11 +392,11 @@ export class InvertedIndex {
     const processed = this.processTokens([term]);
     if (processed.length === 0) return 0;
 
-    const normalizedTerm = processed[0];
+    const normalizedTerm = processed[0]!;
     const postings = this.index.get(normalizedTerm);
     if (!postings) return 0;
 
-    const posting = postings.find(p => p.documentId === documentId);
+    const posting = postings.find((p) => p.documentId === documentId);
     return posting ? posting.frequency : 0;
   }
 
@@ -309,11 +407,11 @@ export class InvertedIndex {
     const processed = this.processTokens([term]);
     if (processed.length === 0) return 0;
 
-    const normalizedTerm = processed[0];
+    const normalizedTerm = processed[0]!;
     const postings = this.index.get(normalizedTerm);
     if (!postings) return 0;
 
-    const uniqueDocs = new Set(postings.map(p => p.documentId));
+    const uniqueDocs = new Set(postings.map((p) => p.documentId));
     return uniqueDocs.size;
   }
 
@@ -359,7 +457,7 @@ export class InvertedIndex {
     let offset = 0;
 
     for (let i = 0; i < tokens.length; i++) {
-      const token = tokens[i];
+      const token = tokens[i]!;
       const startOffset = text.toLowerCase().indexOf(token, offset);
       const normalized = this.normalize(token);
       const stemmed = this.useStemming ? this.stem(normalized) : normalized;
@@ -390,17 +488,17 @@ export class InvertedIndex {
   // ---- Private Methods ----
 
   private processTokens(tokens: string[]): string[] {
-    let processed = tokens.map(t => this.normalize(t)).filter(t => t.length > 0);
+    let processed = tokens.map((t) => this.normalize(t)).filter((t) => t.length > 0);
 
     if (this.useStopWords) {
-      processed = processed.filter(t => !STOP_WORDS.has(t));
+      processed = processed.filter((t) => !STOP_WORDS.has(t));
     }
 
     if (this.useStemming) {
-      processed = processed.map(t => this.stem(t));
+      processed = processed.map((t) => this.stem(t));
     }
 
-    return processed.filter(t => t.length > 0);
+    return processed.filter((t) => t.length > 0);
   }
 
   private calculateIDF(term: string): number {
@@ -410,7 +508,7 @@ export class InvertedIndex {
     const postings = this.index.get(term);
     if (!postings) return 0;
 
-    const df = new Set(postings.map(p => p.documentId)).size;
+    const df = new Set(postings.map((p) => p.documentId)).size;
     return Math.log((N - df + 0.5) / (df + 0.5) + 1);
   }
 
@@ -445,8 +543,8 @@ export class InvertedIndex {
     }
 
     if (stem.length >= 2) {
-      const last = stem[stem.length - 1];
-      const secondLast = stem[stem.length - 2];
+      const last = stem[stem.length - 1]!;
+      const secondLast = stem[stem.length - 2]!;
       if (last === secondLast && !['l', 's', 'z'].includes(last)) {
         return stem.slice(0, -1);
       }
@@ -462,12 +560,13 @@ export class InvertedIndex {
   private endsWithCVC(word: string): boolean {
     if (word.length < 3) return false;
     const vowels = new Set(['a', 'e', 'i', 'o', 'u']);
-    const last = word[word.length - 1];
-    const mid = word[word.length - 2];
-    const first = word[word.length - 3];
+    const last = word[word.length - 1]!;
+    const mid = word[word.length - 2]!;
+    const first = word[word.length - 3]!;
 
-    return !vowels.has(last) && vowels.has(mid) && !vowels.has(first) &&
-      !['w', 'x', 'y'].includes(last);
+    return (
+      !vowels.has(last) && vowels.has(mid) && !vowels.has(first) && !['w', 'x', 'y'].includes(last)
+    );
   }
 
   private estimateSize(): number {

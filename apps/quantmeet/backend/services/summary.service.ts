@@ -22,6 +22,8 @@ export interface AIInference {
 }
 
 export class SummaryService {
+  private readonly summaries = new Map<string, MeetingSummary>();
+
   constructor(private readonly ai: AIInference) {}
 
   async generateSummary(transcript: TranscriptSegment[]): Promise<MeetingSummary> {
@@ -41,7 +43,7 @@ export class SummaryService {
 
     const roomId = transcript[0]?.roomId ?? null;
 
-    return {
+    const meetingSummary: MeetingSummary = {
       id: randomUUID(),
       roomId,
       summary,
@@ -49,6 +51,16 @@ export class SummaryService {
       decisions,
       generatedAt: new Date(),
     };
+
+    if (roomId) {
+      this.summaries.set(roomId, meetingSummary);
+    }
+
+    return meetingSummary;
+  }
+
+  getSummary(roomId: string): MeetingSummary | null {
+    return this.summaries.get(roomId) ?? null;
   }
 
   async generateFromRoomId(
