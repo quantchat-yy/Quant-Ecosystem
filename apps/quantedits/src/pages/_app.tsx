@@ -1,4 +1,5 @@
 import { QueryProvider } from '../providers/query-provider';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 interface AppProps {
   Component: React.ComponentType<Record<string, unknown>>;
@@ -7,8 +8,10 @@ interface AppProps {
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <QueryProvider>
-      <Component {...pageProps} />
-    </QueryProvider>
+    <ErrorBoundary>
+      <QueryProvider>
+        <Component {...pageProps} />
+      </QueryProvider>
+    </ErrorBoundary>
   );
 }

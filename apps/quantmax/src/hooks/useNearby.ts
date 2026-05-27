@@ -3,7 +3,9 @@
 // Nearby people state: discovery, waves, filtering
 // ============================================================================
 
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback } from 'react';
+import { apiClient } from '../services/api-client';
 
 interface NearbyPerson {
   id: string;
@@ -36,71 +38,87 @@ interface NearbyFilters {
   onlineOnly: boolean;
 }
 
-interface UseNearbyReturn {
-  people: NearbyPerson[];
-  waves: Wave[];
-  filters: NearbyFilters;
-  isLoading: boolean;
-  loadNearby: () => Promise<void>;
-  sendWave: (userId: string) => void;
-  acceptWave: (waveId: string) => void;
-  declineWave: (waveId: string) => void;
-  updateFilters: (updates: Partial<NearbyFilters>) => void;
-  refreshLocation: () => Promise<void>;
-}
+export function useNearby(userId: string = 'current-user', userInterests: string[] = []) {
+  const queryClient = useQueryClient();
+  const [filters, setFilters] = useState<NearbyFilters>({
+    maxDistance: 25,
+    ageMin: 18,
+    ageMax: 50,
+    interests: [],
+    onlineOnly: false,
+  });
 
-const ALL_INTERESTS = ['Music', 'Sports', 'Gaming', 'Travel', 'Cooking', 'Art', 'Movies', 'Books', 'Fitness', 'Photography', 'Fashion', 'Tech'];
+  const peopleQuery = useQuery({
+    queryKey: ['nearby-people', filters],
+    queryFn: async () => {
+      const response = await apiClient.getNearbyPeople(filters);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to load nearby people');
+      }
+      return (response.data ?? []) as NearbyPerson[];
+    },
+  });
 
-export function useNearby(userId: string, userInterests: string[]): UseNearbyReturn {
-  const [people, setPeople] = useState<NearbyPerson[]>([]);
-  const [waves, setWaves] = useState<Wave[]>([]);
-  const [filters, setFilters] = useState<NearbyFilters>({ maxDistance: 25, ageMin: 18, ageMax: 50, interests: [], onlineOnly: false });
-  const [isLoading, setIsLoading] = useState(false);
+  const wavesQuery = useQuery({
+    queryKey: ['nearby-waves'],
+    queryFn: async () => {
+      const response = await apiClient.getWaves();
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to load waves');
+      }
+      return (response.data ?? []) as Wave[];
+    },
+  });
 
-  const loadNearby = useCallback(async () => {
-    setIsLoading(true);
-    await new Promise(r => setTimeout(r, 500));
-    const mockPeople: NearbyPerson[] = Array.from({ length: 20 }, (_, i) => {
-      const personInterests = ALL_INTERESTS.slice(i % 4, i % 4 + 3 + Math.floor(Math.random() * 3));
-      return {
-        id: `nearby-${i}`, name: `${['Alex', 'Sam', 'Jordan', 'Casey', 'Riley', 'Morgan', 'Drew', 'Quinn'][i % 8]}`, age: 20 + Math.floor(Math.random() * 15),
-        avatar: `/avatars/nearby-${i}.jpg`, distance: Math.random() * 25, interests: personInterests,
-        mutualInterests: personInterests.filter(int => userInterests.includes(int)),
-        lastActive: Date.now() - Math.floor(Math.random() * 3600000), hasWaved: i === 2, waveReceived: i === 4 || i === 7,
-        bio: ['Love outdoor adventures!', 'Coffee addict', 'Looking for new friends', 'Music is life', 'Gym rat'][i % 5],
-      };
-    }).filter(p => p.distance <= filters.maxDistance && p.age >= filters.ageMin && p.age <= filters.ageMax)
-      .filter(p => filters.interests.length === 0 || filters.interests.some(i => p.interests.includes(i)))
-      .sort((a, b) => a.distance - b.distance);
-    setPeople(mockPeople);
-    setWaves([
-      { id: 'wave-1', fromUserId: 'nearby-4', fromUserName: 'Casey', fromUserAvatar: '/avatars/nearby-4.jpg', timestamp: Date.now() - 600000, status: 'pending' },
-      { id: 'wave-2', fromUserId: 'nearby-7', fromUserName: 'Quinn', fromUserAvatar: '/avatars/nearby-7.jpg', timestamp: Date.now() - 1800000, status: 'pending' },
-    ]);
-    setIsLoading(false);
-  }, [filters, userInterests]);
+  const sendWaveMutation = useMutation({
+    mutationFn: async (targetId: string) => {
+      const response = await apiClient.sendWave(targetId);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to send wave');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['nearby-people'] });
+    },
+  });
 
-  const sendWave = useCallback((targetId: string) => {
-    setPeople(prev => prev.map(p => p.id === targetId ? { ...p, hasWaved: true } : p));
-  }, []);
-
-  const acceptWave = useCallback((waveId: string) => {
-    setWaves(prev => prev.map(w => w.id === waveId ? { ...w, status: 'accepted' } : w));
-  }, []);
-
-  const declineWave = useCallback((waveId: string) => {
-    setWaves(prev => prev.map(w => w.id === waveId ? { ...w, status: 'declined' } : w));
-  }, []);
+  const respondWaveMutation = useMutation({
+    mutationFn: async ({ waveId, action }: { waveId: string; action: 'accept' | 'decline' }) => {
+      const response = await apiClient.respondToWave(waveId, action);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to respond to wave');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['nearby-waves'] });
+    },
+  });
 
   const updateFilters = useCallback((updates: Partial<NearbyFilters>) => {
-    setFilters(prev => ({ ...prev, ...updates }));
+    setFilters((prev) => ({ ...prev, ...updates }));
   }, []);
 
   const refreshLocation = useCallback(async () => {
-    await loadNearby();
-  }, [loadNearby]);
+    await queryClient.invalidateQueries({ queryKey: ['nearby-people'] });
+  }, [queryClient]);
 
-  return { people, waves, filters, isLoading, loadNearby, sendWave, acceptWave, declineWave, updateFilters, refreshLocation };
+  const loadNearby = useCallback(async () => {
+    await peopleQuery.refetch();
+  }, [peopleQuery]);
+
+  return {
+    people: peopleQuery.data ?? [],
+    waves: wavesQuery.data ?? [],
+    filters,
+    isLoading: peopleQuery.isLoading,
+    error: peopleQuery.error,
+    loadNearby,
+    sendWave: (targetId: string) => sendWaveMutation.mutate(targetId),
+    acceptWave: (waveId: string) => respondWaveMutation.mutate({ waveId, action: 'accept' }),
+    declineWave: (waveId: string) => respondWaveMutation.mutate({ waveId, action: 'decline' }),
+    updateFilters,
+    refreshLocation,
+  };
 }
 
 export default useNearby;

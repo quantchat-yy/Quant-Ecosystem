@@ -3,7 +3,9 @@
 // Group video rooms state: room management, participants, chat
 // ============================================================================
 
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback } from 'react';
+import { apiClient } from '../services/api-client';
 
 interface Room {
   id: string;
@@ -36,92 +38,178 @@ interface RoomChat {
   timestamp: number;
 }
 
-interface UseGroupRoomsReturn {
-  rooms: Room[];
-  currentRoom: Room | null;
-  chat: RoomChat[];
-  isInRoom: boolean;
-  isLoading: boolean;
-  loadRooms: () => Promise<void>;
-  createRoom: (topic: string, maxParticipants: number, isPrivate: boolean, tags: string[]) => Promise<Room>;
-  joinRoom: (roomId: string) => Promise<boolean>;
-  leaveRoom: () => void;
-  sendMessage: (message: string) => void;
-  toggleMute: () => void;
-  toggleCamera: () => void;
-  kickParticipant: (userId: string) => void;
-}
-
-export function useGroupRooms(userId: string): UseGroupRoomsReturn {
-  const [rooms, setRooms] = useState<Room[]>([]);
+export function useGroupRooms(userId: string) {
+  const queryClient = useQueryClient();
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
   const [chat, setChat] = useState<RoomChat[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+
+  const roomsQuery = useQuery({
+    queryKey: ['group-rooms'],
+    queryFn: async () => {
+      const response = await apiClient.getGroupRooms();
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to load rooms');
+      }
+      return (response.data ?? []) as Room[];
+    },
+  });
+
+  const createRoomMutation = useMutation({
+    mutationFn: async (data: {
+      topic: string;
+      maxParticipants: number;
+      isPrivate: boolean;
+      tags: string[];
+    }) => {
+      const response = await apiClient.createGroupRoom(data);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to create room');
+      }
+      return response.data as Room;
+    },
+    onSuccess: (room) => {
+      setCurrentRoom(room);
+      setChat([
+        {
+          id: 'sys-1',
+          userId: 'system',
+          userName: 'System',
+          message: `Room "${room.topic}" created!`,
+          timestamp: Date.now(),
+        },
+      ]);
+      queryClient.invalidateQueries({ queryKey: ['group-rooms'] });
+    },
+  });
+
+  const joinRoomMutation = useMutation({
+    mutationFn: async (roomId: string) => {
+      const response = await apiClient.joinGroupRoom(roomId);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to join room');
+      }
+      return response.data as Room;
+    },
+    onSuccess: (room) => {
+      setCurrentRoom(room);
+      setChat([
+        {
+          id: 'sys-join',
+          userId: 'system',
+          userName: 'System',
+          message: 'You joined the room!',
+          timestamp: Date.now(),
+        },
+      ]);
+    },
+  });
 
   const loadRooms = useCallback(async () => {
-    setIsLoading(true);
-    await new Promise(r => setTimeout(r, 500));
-    const mockRooms: Room[] = Array.from({ length: 8 }, (_, i) => ({
-      id: `room-${i}`, topic: ['Friday Night Hangout', 'Music Lovers', 'Gaming Squad', 'Study Group', 'Cooking Class', 'Movie Discussion', 'Language Exchange', 'Art & Design'][i],
-      hostId: `user-${i}`, hostName: `Host${i + 1}`, maxParticipants: [4, 6, 8, 4, 6, 8, 4, 6][i],
-      participants: Array.from({ length: Math.floor(Math.random() * 5) + 1 }, (_, j) => ({ id: `p-${i}-${j}`, name: `User${j + 1}`, avatar: '', isMuted: j > 2, isCameraOff: j > 3, isHost: j === 0, joinedAt: Date.now() - j * 60000 })),
-      spectators: Math.floor(Math.random() * 20), isPrivate: i % 4 === 0, createdAt: Date.now() - i * 3600000, tags: [['social', 'fun'], ['music'], ['gaming', 'esports'], ['study', 'productivity']][i % 4],
-    }));
-    setRooms(mockRooms);
-    setIsLoading(false);
-  }, []);
+    await roomsQuery.refetch();
+  }, [roomsQuery]);
 
-  const createRoom = useCallback(async (topic: string, maxParticipants: number, isPrivate: boolean, tags: string[]): Promise<Room> => {
-    const room: Room = {
-      id: `room-${Date.now()}`, topic, hostId: userId, hostName: 'You', maxParticipants, isPrivate, createdAt: Date.now(), tags, spectators: 0,
-      participants: [{ id: userId, name: 'You', avatar: '', isMuted: false, isCameraOff: false, isHost: true, joinedAt: Date.now() }],
-    };
-    setRooms(prev => [room, ...prev]);
-    setCurrentRoom(room);
-    setChat([{ id: 'sys-1', userId: 'system', userName: 'System', message: `Room "${topic}" created!`, timestamp: Date.now() }]);
-    return room;
-  }, [userId]);
+  const createRoom = useCallback(
+    async (
+      topic: string,
+      maxParticipants: number,
+      isPrivate: boolean,
+      tags: string[],
+    ): Promise<Room> => {
+      return createRoomMutation.mutateAsync({ topic, maxParticipants, isPrivate, tags });
+    },
+    [createRoomMutation],
+  );
 
-  const joinRoom = useCallback(async (roomId: string): Promise<boolean> => {
-    const room = rooms.find(r => r.id === roomId);
-    if (!room) return false;
-    if (room.participants.length >= room.maxParticipants) return false;
-    const me: Participant = { id: userId, name: 'You', avatar: '', isMuted: false, isCameraOff: false, isHost: false, joinedAt: Date.now() };
-    const updatedRoom = { ...room, participants: [...room.participants, me] };
-    setCurrentRoom(updatedRoom);
-    setRooms(prev => prev.map(r => r.id === roomId ? updatedRoom : r));
-    setChat([{ id: 'sys-join', userId: 'system', userName: 'System', message: 'You joined the room!', timestamp: Date.now() }]);
-    return true;
-  }, [rooms, userId]);
+  const joinRoom = useCallback(
+    async (roomId: string): Promise<boolean> => {
+      try {
+        await joinRoomMutation.mutateAsync(roomId);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [joinRoomMutation],
+  );
 
   const leaveRoom = useCallback(() => {
     if (!currentRoom) return;
-    setRooms(prev => prev.map(r => r.id === currentRoom.id ? { ...r, participants: r.participants.filter(p => p.id !== userId) } : r));
+    apiClient.leaveGroupRoom(currentRoom.id);
     setCurrentRoom(null);
     setChat([]);
-  }, [currentRoom, userId]);
+    queryClient.invalidateQueries({ queryKey: ['group-rooms'] });
+  }, [currentRoom, queryClient]);
 
-  const sendMessage = useCallback((message: string) => {
-    const msg: RoomChat = { id: `msg-${Date.now()}`, userId, userName: 'You', message, timestamp: Date.now() };
-    setChat(prev => [...prev, msg]);
-  }, [userId]);
+  const sendMessage = useCallback(
+    (message: string) => {
+      if (!currentRoom) return;
+      const msg: RoomChat = {
+        id: `msg-${Date.now()}`,
+        userId,
+        userName: 'You',
+        message,
+        timestamp: Date.now(),
+      };
+      setChat((prev) => [...prev, msg]);
+      apiClient.sendGroupRoomMessage(currentRoom.id, message);
+    },
+    [currentRoom, userId],
+  );
 
   const toggleMute = useCallback(() => {
     if (!currentRoom) return;
-    setCurrentRoom(prev => prev ? { ...prev, participants: prev.participants.map(p => p.id === userId ? { ...p, isMuted: !p.isMuted } : p) } : null);
+    setCurrentRoom((prev) =>
+      prev
+        ? {
+            ...prev,
+            participants: prev.participants.map((p) =>
+              p.id === userId ? { ...p, isMuted: !p.isMuted } : p,
+            ),
+          }
+        : null,
+    );
   }, [currentRoom, userId]);
 
   const toggleCamera = useCallback(() => {
     if (!currentRoom) return;
-    setCurrentRoom(prev => prev ? { ...prev, participants: prev.participants.map(p => p.id === userId ? { ...p, isCameraOff: !p.isCameraOff } : p) } : null);
+    setCurrentRoom((prev) =>
+      prev
+        ? {
+            ...prev,
+            participants: prev.participants.map((p) =>
+              p.id === userId ? { ...p, isCameraOff: !p.isCameraOff } : p,
+            ),
+          }
+        : null,
+    );
   }, [currentRoom, userId]);
 
-  const kickParticipant = useCallback((targetId: string) => {
-    if (!currentRoom) return;
-    setCurrentRoom(prev => prev ? { ...prev, participants: prev.participants.filter(p => p.id !== targetId) } : null);
-  }, [currentRoom]);
+  const kickParticipant = useCallback(
+    (targetId: string) => {
+      if (!currentRoom) return;
+      setCurrentRoom((prev) =>
+        prev ? { ...prev, participants: prev.participants.filter((p) => p.id !== targetId) } : null,
+      );
+    },
+    [currentRoom],
+  );
 
-  return { rooms, currentRoom, chat, isInRoom: !!currentRoom, isLoading, loadRooms, createRoom, joinRoom, leaveRoom, sendMessage, toggleMute, toggleCamera, kickParticipant };
+  return {
+    rooms: roomsQuery.data ?? [],
+    currentRoom,
+    chat,
+    isInRoom: !!currentRoom,
+    isLoading: roomsQuery.isLoading,
+    error: roomsQuery.error,
+    loadRooms,
+    createRoom,
+    joinRoom,
+    leaveRoom,
+    sendMessage,
+    toggleMute,
+    toggleCamera,
+    kickParticipant,
+  };
 }
 
 export default useGroupRooms;

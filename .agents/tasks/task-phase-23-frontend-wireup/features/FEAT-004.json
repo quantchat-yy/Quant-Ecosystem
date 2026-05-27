@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "feat",
   "description": "Add error.tsx route error boundaries for each app, clean up any remaining mock references in hooks, and ensure the hard gate (zero mock grep) passes. Also update the existing custom hooks (useAIChat, useFeed, etc.) to remove their internal mock generators and wire to real API calls.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "For App Router apps (quantai, quantchat, quantmail): ensure apps/<app>/src/app/error.tsx exists and renders ErrorState with a retry button (already exists for quantai/quantmail, check quantchat).",
     "For pages-dir apps (quantedits, quantmax, quantneon, quantube): add a global error boundary component in _app.tsx or a layout wrapper that catches runtime errors and renders ErrorState.",
