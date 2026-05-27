@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-6-7-identity-agents",
+  "task_description": "Implement Phase 6 (Identity, Permissions, Workspaces, Context Graph) and Phase 7 (Agentic AI Foundation) for the Quant Ecosystem. Phase 6 adds workspace-scoped RBAC, cross-app resource registry, context graph, user-controlled memory, and AI consent management. Phase 7 adds typed tool registry, permission-scoped execution engine, plan generator with approval workflow, cost tracking, safety classification, and 5 end-to-end agent workflows.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}
