@@ -159,10 +159,12 @@ export class GroomingPatternDetector {
     const combinedText = messages.map((m) => m.text.toLowerCase()).join(' ');
 
     for (const pattern of ALL_PATTERNS) {
-      const matched = pattern.keywords.some((kw) => combinedText.includes(kw));
-      if (matched) {
+      const matchCount = pattern.keywords.filter((kw) => combinedText.includes(kw)).length;
+      if (matchCount > 0) {
         matchedIndicators.push(pattern.description);
-        totalRisk += pattern.weight;
+        // Boost weight for multiple matches in the same category (capped at 1.5x)
+        const multiplier = Math.min(matchCount * 0.5, 1.5);
+        totalRisk += pattern.weight * multiplier;
       }
     }
 

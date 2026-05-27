@@ -57,9 +57,12 @@ export class TextClassifier {
   }
 
   /**
-   * Map the last API response to a full ModerationScoreCard with all 7 categories.
-   * Call after classify() to get the expanded score card.
-   * Falls back to derived scores when the API response is missing categories.
+   * Map an API response to a full ModerationScoreCard with all 7 categories.
+   *
+   * @param response - The TextModerationResponse to map. If omitted, falls back
+   *   to the last response from classify().
+   * @deprecated Calling without a response parameter relies on mutable lastResponse
+   *   state and is not safe for concurrent use. Always pass the response explicitly.
    */
   mapToScoreCard(response?: TextModerationResponse): ModerationScoreCard {
     const r = response ?? this.lastResponse;

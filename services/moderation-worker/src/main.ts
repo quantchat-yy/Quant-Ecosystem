@@ -19,6 +19,7 @@ import {
   PolicyEngine,
   KeyframeExtractor,
   MockFrameExtractorBackend,
+  FfmpegFrameExtractorBackend,
 } from '@quant/moderation';
 import { ModerationJobSchema, type ModerationJob } from '@quant/queue';
 
@@ -200,7 +201,18 @@ export function createHandlerDeps(): ModerationHandlerDeps {
 
   const videoHandler = new VideoModerationHandler({
     imageClassifier,
-    keyframeExtractor: new KeyframeExtractor(new MockFrameExtractorBackend()),
+    keyframeExtractor: new KeyframeExtractor(
+      process.env['FFMPEG_ENABLED'] === 'true'
+        ? new FfmpegFrameExtractorBackend(() => {
+            throw new Error('ffmpeg command factory not configured');
+          })
+        : (() => {
+            logger.warn(
+              'FFMPEG_ENABLED not set - video frame extraction using mock backend (no real frames extracted)',
+            );
+            return new MockFrameExtractorBackend();
+          })(),
+    ),
     policyEngine,
     actionExecutor,
   });

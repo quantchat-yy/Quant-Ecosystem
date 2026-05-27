@@ -66,9 +66,23 @@ export class ImageModerationHandler {
     const imageHash = this.hasher.computeImageHash(imageBytes);
 
     // CSAM hash check BEFORE any storage or classification (Phase 20)
+    // Fail-closed: ANY error (including timeout) results in removal.
     if (this.csamMatchService) {
-      const csamResult = await this.csamMatchService.checkHash(imageHash);
-      if (csamResult.matched) {
+      let csamMatched = false;
+      let csamReportId: string | undefined;
+      let csamFlags: string[] = ['illegal', 'csam_match'];
+
+      try {
+        const csamResult = await this.csamMatchService.checkHash(imageHash);
+        csamMatched = csamResult.matched;
+        csamReportId = csamResult.reportId;
+      } catch {
+        // Fail-closed: timeout or any provider error blocks the upload
+        csamMatched = true;
+        csamFlags = ['csam_check_failed'];
+      }
+
+      if (csamMatched) {
         const csamBlockResult: ModerationResult = {
           id: `imgmod_csam_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
           contentId: job.contentId,
@@ -78,8 +92,14 @@ export class ImageModerationHandler {
           action: 'remove',
           confidence: 0.99,
           automated: true,
-          flags: ['illegal', 'csam_match'],
-          metadata: { hash: imageHash, reportId: csamResult.reportId, matchType: 'csam_provider' },
+          flags: csamFlags,
+          metadata: {
+            hash: imageHash,
+            reportId: csamReportId,
+            matchType: csamFlags.includes('csam_check_failed')
+              ? 'csam_check_failed'
+              : 'csam_provider',
+          },
           createdAt: Date.now(),
         };
 
@@ -88,7 +108,9 @@ export class ImageModerationHandler {
           contentId: job.contentId,
           userId: job.userId,
           severity: 'critical',
-          reason: 'CSAM hash match detected by provider',
+          reason: csamFlags.includes('csam_check_failed')
+            ? 'CSAM check failed (fail-closed) - upload blocked'
+            : 'CSAM hash match detected by provider',
           classificationResult: csamBlockResult,
         });
 

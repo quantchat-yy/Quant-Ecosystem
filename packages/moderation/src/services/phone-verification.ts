@@ -3,6 +3,7 @@
 // Geographic SMS provider routing with rate limiting
 // ============================================================================
 
+import { randomInt } from 'node:crypto';
 import type { SMSProvider, PhoneVerificationResult } from '../types';
 
 interface PhoneVerificationConfig {
@@ -104,6 +105,10 @@ export class MSG91SMSProvider implements SMSProvider {
  * - +1 (US/CA) -> Twilio
  * - +91 (India) -> MSG91
  * - All others -> Twilio (fallback)
+ *
+ * NOTE: This service stores pending verifications, rate limits, and cooldowns
+ * in memory. For production deployment, inject a persistent store (e.g., Redis)
+ * to survive pod restarts and support horizontal scaling.
  */
 export class PhoneVerificationService {
   private config: PhoneVerificationConfig;
@@ -233,10 +238,9 @@ export class PhoneVerificationService {
   }
 
   private generateCode(): string {
-    const digits = '0123456789';
     let code = '';
     for (let i = 0; i < this.config.codeLength; i++) {
-      code += digits[Math.floor(Math.random() * digits.length)];
+      code += randomInt(0, 10).toString();
     }
     return code;
   }
