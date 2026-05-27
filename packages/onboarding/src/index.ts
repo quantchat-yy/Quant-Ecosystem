@@ -15,6 +15,21 @@ export type {
   NotificationFrequency,
   NotificationPreferences,
   SampleDataSet,
+  ActivationEvent,
+  ActivationMetrics,
+  RetentionMetrics,
+  StreakConfig,
+  GamificationConfig,
+  TutorialStep,
+  TutorialOverlay,
+  AppId,
+  EmptyStateConfig,
+  EmptyStateCTA,
+  ReferralConfig,
+  ReferralReward,
+  ReEngagementDay,
+  ReEngagementSchedule,
+  HabitLoopConfig,
 } from './types.js';
 
 export {
@@ -50,3 +65,19 @@ export {
   getDefaultNotificationCategories,
   validateNotificationSetup,
 } from './notification-setup.js';
+
+export {
+  ActivationTracker,
+  createActivationTracker,
+  getAllActivationEvents,
+} from './activation.js';
+
+export { StreakEngine, createStreakEngine } from './streaks.js';
+
+export { RetentionTracker, createRetentionTracker, getReEngagementDays } from './retention.js';
+
+export { ReferralProgram, createReferralProgram, getRewardTiers } from './referral.js';
+
+export { TutorialEngine, createTutorialEngine, getAppTutorialSteps } from './tutorials.js';
+
+export { EmptyStateManager, createEmptyStateManager, getAppPersonality } from './empty-states.js';
