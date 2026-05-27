@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-23-frontend-wireup",
+  "task_description": "Phase 23: Frontend Wire-up - Replace all mock/hardcoded data in 27 pages across 7 apps with real API calls. Add TanStack Query, create typed hooks per app, rewrite pages to use hooks with loading/error/empty states, add error boundaries, remove all mock data generators from hooks.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}
