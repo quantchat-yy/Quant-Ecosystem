@@ -266,3 +266,156 @@ export interface NotificationServiceConfig {
   enableDigest: boolean;
   enableScheduling: boolean;
 }
+
+// ============================================================================
+// Phase 27 - Enhanced Notification Types
+// ============================================================================
+
+/** Notification urgency levels per category */
+export type NotificationUrgency = 'critical' | 'high' | 'normal' | 'low' | 'background';
+
+/** Notification category for urgency mapping */
+export type NotificationCategory =
+  | 'message'
+  | 'mention'
+  | 'security'
+  | 'billing'
+  | 'social'
+  | 'system'
+  | 'marketing';
+
+/** Default urgency per category */
+export const CATEGORY_URGENCY: Record<NotificationCategory, NotificationUrgency> = {
+  security: 'critical',
+  billing: 'high',
+  mention: 'high',
+  message: 'normal',
+  social: 'low',
+  system: 'normal',
+  marketing: 'background',
+};
+
+/** DND (Do Not Disturb) schedule configuration */
+export interface DndConfig {
+  enabled: boolean;
+  schedule: DndSchedule[];
+  timezone: string;
+  allowCritical: boolean;
+}
+
+/** A single DND schedule block */
+export interface DndSchedule {
+  daysOfWeek: number[]; // 0-6 (Sun-Sat)
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+}
+
+/** Snooze duration presets */
+export type SnoozeDuration = '15min' | '1hr' | 'tomorrow' | 'next_active';
+
+/** Snooze options for a notification */
+export interface SnoozeOptions {
+  duration: SnoozeDuration;
+  customMs?: number;
+}
+
+/** Snoozed notification record */
+export interface SnoozedNotification {
+  notificationId: string;
+  userId: string;
+  snoozedAt: number;
+  resumeAt: number;
+  duration: SnoozeDuration;
+}
+
+/** Notification preview privacy level */
+export type PreviewPrivacy = 'hidden' | 'subject' | 'full';
+
+/** Per-thread mute configuration */
+export interface ThreadMuteConfig {
+  threadId: string;
+  userId: string;
+  mutedAt: number;
+  muteUntil?: number; // undefined = indefinite
+}
+
+/** Inline reply payload */
+export interface InlineReplyPayload {
+  notificationId: string;
+  threadId: string;
+  sourceApp: string;
+  replyText: string;
+  userId: string;
+  timestamp: number;
+}
+
+/** Cross-app deep link schema */
+export interface CrossAppDeepLink {
+  app: string;
+  screen: string;
+  params: Record<string, unknown>;
+  fallbackUrl?: string;
+}
+
+/** Important-only mode filter */
+export interface ImportantOnlyConfig {
+  enabled: boolean;
+  minUrgency: NotificationUrgency;
+}
+
+/** Web Push VAPID subscription */
+export interface WebPushSubscription {
+  userId: string;
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  deviceId: string;
+  registeredAt: number;
+  isActive: boolean;
+}
+
+/** Web Push send options */
+export interface WebPushSendOptions {
+  ttl?: number;
+  urgency?: 'very-low' | 'low' | 'normal' | 'high';
+  topic?: string;
+}
+
+/** Web Push result */
+export interface WebPushResult {
+  success: boolean;
+  endpoint: string;
+  statusCode?: number;
+  error?: string;
+}
+
+/** Batch notification entry */
+export interface BatchEntry {
+  id: string;
+  notification: NotificationPayload;
+  addedAt: number;
+}
+
+/** Batched notification summary */
+export interface BatchedNotification {
+  id: string;
+  type: NotificationType;
+  recipientId: string;
+  title: string;
+  body: string;
+  count: number;
+  notifications: NotificationPayload[];
+  createdAt: number;
+  windowStart: number;
+  windowEnd: number;
+}
+
+/** Dedup record */
+export interface DedupRecord {
+  notificationId: string;
+  userId: string;
+  deliveredToDevices: string[];
+  firstDeliveredAt: number;
+}
