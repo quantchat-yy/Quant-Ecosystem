@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Rewrite all 27 pages listed in .agents/state/mock-debt.csv to replace mock data with real API calls via the hooks created in FEAT-002. Each page uses loading skeletons, error boundaries, and empty states from @quant/shared-ui. Remove all FIXME(phase-23) comments.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "QUANTAI (1 page): Rewrite apps/quantai/src/app/page.tsx - replace mockMessages array with useConversations hook for sidebar + useChat mutation for sending. Add LoadingState while loading, ErrorState on error, EmptyState when no conversations.",
     "QUANTCHAT (2 pages): Rewrite apps/quantchat/src/app/page.tsx - replace mockConversations with useConversations hook. Rewrite apps/quantchat/src/app/chat/[id]/page.tsx - replace mockMessages with useMessages(id) hook and useSendMessage mutation.",

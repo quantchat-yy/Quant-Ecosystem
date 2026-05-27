@@ -1,10 +1,11 @@
-// FIXME(phase-23): replace mock with real API
 // ============================================================================
 // QuantEdits - Timeline Video Editor
 // Toolbar, timeline with multi-track, playback controls, properties, preview
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
+import { useProjectById } from '../hooks/useProjectById';
 
 interface Clip {
   id: string;
@@ -50,13 +51,15 @@ interface HistoryEntry {
 }
 
 interface EditorProps {
-  projectId: string;
+  projectId?: string;
 }
 
 type ToolType = 'select' | 'cut' | 'text' | 'draw' | 'crop';
 type AspectRatio = '16:9' | '9:16' | '1:1' | '4:5' | '4:3';
 
-const TimelineEditor: React.FC<EditorProps> = ({ projectId }) => {
+const TimelineEditor: React.FC<EditorProps> = ({ projectId = 'default' }) => {
+  const { data: projectData, isLoading, error, refetch } = useProjectById(projectId);
+
   const [tracks, setTracks] = useState<Track[]>([]);
   const [selectedClip, setSelectedClip] = useState<Clip | null>(null);
   const [playhead, setPlayhead] = useState(0);
@@ -66,8 +69,6 @@ const TimelineEditor: React.FC<EditorProps> = ({ projectId }) => {
   const [activeTool, setActiveTool] = useState<ToolType>('select');
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('16:9');
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<HistoryEntry[]>([]);
   const [redoStack, setRedoStack] = useState<HistoryEntry[]>([]);
   const [clipboard, setClipboard] = useState<Clip | null>(null);
@@ -81,127 +82,13 @@ const TimelineEditor: React.FC<EditorProps> = ({ projectId }) => {
   const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const loadProject = async () => {
-      setLoading(true);
-      try {
-        const mockTracks: Track[] = [
-          {
-            id: 'track-video-1',
-            name: 'Video 1',
-            type: 'video',
-            locked: false,
-            visible: true,
-            height: 60,
-            clips: [
-              {
-                id: 'clip-1',
-                trackId: 'track-video-1',
-                name: 'Intro.mp4',
-                startTime: 0,
-                duration: 15,
-                trimStart: 0,
-                trimEnd: 0,
-                type: 'video',
-                thumbnail: '/clips/intro.jpg',
-                volume: 1,
-                opacity: 1,
-                filters: { brightness: 0, contrast: 0, saturation: 0, blur: 0, hue: 0 },
-                position: { x: 0, y: 0 },
-                scale: { x: 1, y: 1 },
-                rotation: 0,
-              },
-              {
-                id: 'clip-2',
-                trackId: 'track-video-1',
-                name: 'Main.mp4',
-                startTime: 15,
-                duration: 45,
-                trimStart: 0,
-                trimEnd: 0,
-                type: 'video',
-                thumbnail: '/clips/main.jpg',
-                volume: 1,
-                opacity: 1,
-                filters: { brightness: 0, contrast: 0, saturation: 0, blur: 0, hue: 0 },
-                position: { x: 0, y: 0 },
-                scale: { x: 1, y: 1 },
-                rotation: 0,
-              },
-            ],
-          },
-          {
-            id: 'track-audio-1',
-            name: 'Audio 1',
-            type: 'audio',
-            locked: false,
-            visible: true,
-            height: 40,
-            clips: [
-              {
-                id: 'clip-3',
-                trackId: 'track-audio-1',
-                name: 'BGM.mp3',
-                startTime: 0,
-                duration: 60,
-                trimStart: 0,
-                trimEnd: 0,
-                type: 'audio',
-                thumbnail: '',
-                volume: 0.7,
-                opacity: 1,
-                filters: { brightness: 0, contrast: 0, saturation: 0, blur: 0, hue: 0 },
-                position: { x: 0, y: 0 },
-                scale: { x: 1, y: 1 },
-                rotation: 0,
-              },
-            ],
-          },
-          {
-            id: 'track-text-1',
-            name: 'Text',
-            type: 'text',
-            locked: false,
-            visible: true,
-            height: 40,
-            clips: [
-              {
-                id: 'clip-4',
-                trackId: 'track-text-1',
-                name: 'Title',
-                startTime: 0,
-                duration: 5,
-                trimStart: 0,
-                trimEnd: 0,
-                type: 'text',
-                thumbnail: '',
-                volume: 1,
-                opacity: 1,
-                filters: { brightness: 0, contrast: 0, saturation: 0, blur: 0, hue: 0 },
-                position: { x: 0.5, y: 0.2 },
-                scale: { x: 1, y: 1 },
-                rotation: 0,
-              },
-            ],
-          },
-          {
-            id: 'track-effects',
-            name: 'Effects',
-            type: 'effects',
-            locked: false,
-            visible: true,
-            height: 40,
-            clips: [],
-          },
-        ];
-        setTracks(mockTracks);
-        setLoading(false);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load project');
-        setLoading(false);
+    if (projectData) {
+      const projectTracks = (projectData as { tracks?: Track[] }).tracks;
+      if (projectTracks && Array.isArray(projectTracks)) {
+        setTracks(projectTracks);
       }
-    };
-    loadProject();
-  }, [projectId]);
+    }
+  }, [projectData]);
 
   const saveToHistory = useCallback(
     (action: string) => {
@@ -252,7 +139,6 @@ const TimelineEditor: React.FC<EditorProps> = ({ projectId }) => {
   const handlePlay = useCallback(() => {
     setIsPlaying(true);
   }, []);
-
   const handlePause = useCallback(() => {
     setIsPlaying(false);
     if (playbackRef.current) {
@@ -408,24 +294,10 @@ const TimelineEditor: React.FC<EditorProps> = ({ projectId }) => {
     [selectedClip, saveToHistory],
   );
 
-  if (loading) {
-    return (
-      <div className="editor-loading">
-        <div className="loading-spinner" />
-        <p>Loading project...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="editor-error">
-        <h3>Error loading project</h3>
-        <p>{error}</p>
-        <button onClick={() => window.location.reload()}>Retry</button>
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingState variant="skeleton" text="Loading project..." />;
+  if (error) return <ErrorState message={error.message} onRetry={() => void refetch()} />;
+  if (!projectData)
+    return <EmptyState title="Project not found" description="Could not load the project data" />;
 
   return (
     <div className="timeline-editor">
@@ -577,28 +449,6 @@ const TimelineEditor: React.FC<EditorProps> = ({ projectId }) => {
             <div className="property-group">
               <label>Name</label>
               <span className="property-value">{selectedClip.name}</span>
-            </div>
-            <div className="property-group">
-              <label>Position X</label>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={selectedClip.position.x}
-                onChange={(e) => updateClipProperty('position.x', parseFloat(e.target.value))}
-              />
-            </div>
-            <div className="property-group">
-              <label>Position Y</label>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={selectedClip.position.y}
-                onChange={(e) => updateClipProperty('position.y', parseFloat(e.target.value))}
-              />
             </div>
             <div className="property-group">
               <label>Rotation</label>
