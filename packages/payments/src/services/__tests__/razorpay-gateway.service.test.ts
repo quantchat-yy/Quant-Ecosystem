@@ -2,6 +2,7 @@
 // Payments - Razorpay Gateway Service Tests
 // ============================================================================
 
+import crypto from 'node:crypto';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { RazorpayGateway } from '../razorpay-gateway.service';
 
@@ -118,5 +119,103 @@ describe('RazorpayGateway', () => {
 
       expect(payment).toBeNull();
     });
+  });
+});
+
+describe('RazorpayGateway (live mode)', () => {
+  const testKeyId = 'rzp_test_key123';
+  const testKeySecret = 'test_secret_abc';
+
+  it('should verify HMAC-SHA256 signature correctly', async () => {
+    const mockClient = {
+      orders: {
+        create: async () => ({
+          id: 'order_live_1',
+          amount: 5000,
+          currency: 'INR',
+          status: 'created' as const,
+          created_at: Date.now(),
+          entity: 'order',
+          amount_paid: 0,
+          amount_due: 5000,
+          attempts: 0,
+          description: '',
+          token: {} as never,
+        }),
+      },
+    } as never;
+
+    const gateway = new RazorpayGateway({
+      keyId: testKeyId,
+      keySecret: testKeySecret,
+      client: mockClient,
+    });
+
+    // Create an order first to populate internal state
+    const order = await gateway.createOrder(5000, 'INR');
+    const paymentId = 'pay_live_456';
+
+    // Compute expected HMAC-SHA256 signature
+    const expectedSig = crypto
+      .createHmac('sha256', testKeySecret)
+      .update(`${order.id}|${paymentId}`)
+      .digest('hex');
+
+    const result = await gateway.verifyPayment(order.id, paymentId, expectedSig);
+
+    expect(result.verified).toBe(true);
+    expect(result.payment).toBeDefined();
+    expect(result.payment!.id).toBe(paymentId);
+    expect(result.payment!.status).toBe('captured');
+  });
+
+  it('should reject invalid signature in live mode', async () => {
+    const mockClient = {
+      orders: {
+        create: async () => ({
+          id: 'order_live_2',
+          amount: 3000,
+          currency: 'INR',
+          status: 'created' as const,
+          created_at: Date.now(),
+          entity: 'order',
+          amount_paid: 0,
+          amount_due: 3000,
+          attempts: 0,
+          description: '',
+          token: {} as never,
+        }),
+      },
+    } as never;
+
+    const gateway = new RazorpayGateway({
+      keyId: testKeyId,
+      keySecret: testKeySecret,
+      client: mockClient,
+    });
+
+    const order = await gateway.createOrder(3000, 'INR');
+    const result = await gateway.verifyPayment(order.id, 'pay_bad', 'invalid_signature_hex');
+
+    expect(result.verified).toBe(false);
+    expect(result.payment).toBeUndefined();
+  });
+
+  it('should generate correct HMAC-SHA256 test signature in live mode', () => {
+    const gateway = new RazorpayGateway({
+      keyId: testKeyId,
+      keySecret: testKeySecret,
+    });
+
+    const orderId = 'order_test_123';
+    const paymentId = 'pay_test_456';
+
+    const sig = gateway.generateTestSignature(orderId, paymentId);
+    const expected = crypto
+      .createHmac('sha256', testKeySecret)
+      .update(`${orderId}|${paymentId}`)
+      .digest('hex');
+
+    expect(sig).toBe(expected);
   });
 });

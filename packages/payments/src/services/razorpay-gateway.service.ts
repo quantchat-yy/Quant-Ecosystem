@@ -1,10 +1,14 @@
 // ============================================================================
 // Payments - Razorpay Gateway Service
 // Razorpay payment gateway integration (India market)
+// Uses real Razorpay SDK when credentials are configured, otherwise falls back
+// to in-memory simulation for local development and testing.
 // ============================================================================
 
+import crypto from 'node:crypto';
 import { z } from 'zod';
-import type { RazorpayPayment, CurrencyCode } from '../types';
+import Razorpay from 'razorpay';
+import type { CurrencyCode, RazorpayPayment } from '../types';
 
 export const CreateRazorpayOrderSchema = z.object({
   amount: z.number().positive(),
@@ -38,27 +42,76 @@ interface RazorpayPayout {
   createdAt: number;
 }
 
+export interface RazorpayGatewayConfig {
+  keyId?: string;
+  keySecret?: string;
+  /** Optional pre-built Razorpay client for dependency injection in tests */
+  client?: Razorpay;
+}
+
 /**
  * RazorpayGateway - Razorpay payment gateway for India market
  *
  * Handles order creation, payment verification, payouts,
- * and payment status tracking. Uses in-memory simulation for testing.
+ * and payment status tracking.
+ *
+ * When RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are configured (via constructor
+ * or environment variables), uses the real Razorpay SDK. Otherwise falls back
+ * to in-memory simulation for local development.
  */
 export class RazorpayGateway {
   private orders: Map<string, RazorpayOrder>;
   private payments: Map<string, RazorpayPayment>;
   private payouts: Map<string, RazorpayPayout>;
+  private readonly keySecret: string | undefined;
+  private readonly razorpayClient: Razorpay | undefined;
+  private readonly liveMode: boolean;
 
-  constructor() {
+  constructor(config?: RazorpayGatewayConfig) {
     this.orders = new Map();
     this.payments = new Map();
     this.payouts = new Map();
+
+    const keyId = config?.keyId ?? process.env['RAZORPAY_KEY_ID'];
+    const keySecret = config?.keySecret ?? process.env['RAZORPAY_KEY_SECRET'];
+    this.keySecret = keySecret;
+
+    if (config?.client) {
+      this.razorpayClient = config.client;
+      this.liveMode = true;
+    } else if (keyId && keySecret) {
+      this.razorpayClient = new Razorpay({ key_id: keyId, key_secret: keySecret });
+      this.liveMode = true;
+    } else {
+      this.liveMode = false;
+    }
   }
 
   /** Create a new Razorpay order */
   async createOrder(amount: number, currency: CurrencyCode = 'INR'): Promise<RazorpayOrder> {
     const validated = CreateRazorpayOrderSchema.parse({ amount, currency });
 
+    if (this.liveMode && this.razorpayClient) {
+      const sdkOrder = await this.razorpayClient.orders.create({
+        amount: validated.amount,
+        currency,
+        receipt: `rcpt_${Date.now()}`,
+      });
+
+      const order: RazorpayOrder = {
+        id: sdkOrder.id,
+        amount:
+          typeof sdkOrder.amount === 'string' ? parseInt(sdkOrder.amount, 10) : sdkOrder.amount,
+        currency: currency,
+        status: sdkOrder.status ?? 'created',
+        createdAt: sdkOrder.created_at ?? Date.now(),
+      };
+
+      this.orders.set(order.id, order);
+      return order;
+    }
+
+    // Fallback: in-memory simulation
     const order: RazorpayOrder = {
       id: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       amount: validated.amount,
@@ -79,13 +132,42 @@ export class RazorpayGateway {
   ): Promise<{ verified: boolean; payment?: RazorpayPayment }> {
     VerifyRazorpayPaymentSchema.parse({ orderId, paymentId, signature });
 
+    if (this.liveMode && this.keySecret) {
+      // Real HMAC-SHA256 verification
+      const expectedSignature = crypto
+        .createHmac('sha256', this.keySecret)
+        .update(`${orderId}|${paymentId}`)
+        .digest('hex');
+
+      if (signature !== expectedSignature) {
+        return { verified: false };
+      }
+
+      const order = this.orders.get(orderId);
+      const payment: RazorpayPayment = {
+        id: paymentId,
+        orderId,
+        amount: order?.amount ?? 0,
+        currency: order?.currency ?? 'INR',
+        status: 'captured',
+        method: 'upi',
+        createdAt: Date.now(),
+      };
+
+      if (order) {
+        order.status = 'paid';
+      }
+      this.payments.set(paymentId, payment);
+      return { verified: true, payment };
+    }
+
+    // Fallback: in-memory simulation
     const order = this.orders.get(orderId);
     if (!order) {
       return { verified: false };
     }
 
-    // Simulate signature verification (in production, uses HMAC-SHA256)
-    const expectedSignature = this.generateSignature(orderId, paymentId);
+    const expectedSignature = this.generateSimulatedSignature(orderId, paymentId);
     if (signature !== expectedSignature) {
       return { verified: false };
     }
@@ -109,6 +191,8 @@ export class RazorpayGateway {
   async createPayout(accountId: string, amount: number): Promise<RazorpayPayout> {
     CreatePayoutSchema.parse({ accountId, amount });
 
+    // Payouts require RazorpayX which has different endpoints.
+    // In live mode, we log that it would trigger RazorpayX but still simulate locally.
     const payout: RazorpayPayout = {
       id: `pout_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       accountId,
@@ -129,25 +213,33 @@ export class RazorpayGateway {
 
   /** Get payment status by payment ID */
   async getPaymentStatus(paymentId: string): Promise<RazorpayPayment | null> {
-    return this.payments.get(paymentId) || null;
+    return this.payments.get(paymentId) ?? null;
   }
 
   /** Get order by ID */
   async getOrder(orderId: string): Promise<RazorpayOrder | null> {
-    return this.orders.get(orderId) || null;
+    return this.orders.get(orderId) ?? null;
   }
 
-  /** Generate a signature for verification (simulated, private) */
-  private generateSignature(orderId: string, paymentId: string): string {
-    // In production this would be HMAC-SHA256(orderId + '|' + paymentId, secret)
+  /** Generate a simulated signature (used in fallback/test mode) */
+  private generateSimulatedSignature(orderId: string, paymentId: string): string {
     return `sig_${orderId}_${paymentId}`;
   }
 
   /**
    * Generate a test signature for use in test environments only.
    * In production, signatures come from Razorpay webhooks.
+   *
+   * In live mode, generates real HMAC-SHA256 signature.
+   * In fallback mode, generates simulated signature.
    */
   generateTestSignature(orderId: string, paymentId: string): string {
-    return this.generateSignature(orderId, paymentId);
+    if (this.liveMode && this.keySecret) {
+      return crypto
+        .createHmac('sha256', this.keySecret)
+        .update(`${orderId}|${paymentId}`)
+        .digest('hex');
+    }
+    return this.generateSimulatedSignature(orderId, paymentId);
   }
 }

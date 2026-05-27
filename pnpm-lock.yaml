@@ -1366,6 +1366,9 @@ importers:
       pino:
         specifier: ^9.6.0
         version: 9.14.0
+      razorpay:
+        specifier: ^2.9.6
+        version: 2.9.6
       stripe:
         specifier: ^17.0.0
         version: 17.7.0
@@ -1843,47 +1846,6 @@ importers:
         specifier: ^2
         version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
 
-  services/ads-api:
-    dependencies:
-      '@quant/common':
-        specifier: workspace:*
-        version: link:../../packages/common
-      '@quant/health-server':
-        specifier: workspace:*
-        version: link:../../packages/health-server
-      '@quant/privacy-ads':
-        specifier: workspace:*
-        version: link:../../packages/privacy-ads
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.19
-      typescript:
-        specifier: ~5.5.0
-        version: 5.5.4
-      vitest:
-        specifier: ^2
-        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
-
-  services/ai-api:
-    dependencies:
-      '@quant/common':
-        specifier: workspace:*
-        version: link:../../packages/common
-      '@quant/health-server':
-        specifier: workspace:*
-        version: link:../../packages/health-server
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.19
-      typescript:
-        specifier: ~5.5.0
-        version: 5.5.4
-      vitest:
-        specifier: ^2
-        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
-
   services/cdc-relay:
     dependencies:
       '@prisma/client':
@@ -1918,25 +1880,6 @@ importers:
         specifier: ^2
         version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
 
-  services/chat-api:
-    dependencies:
-      '@quant/common':
-        specifier: workspace:*
-        version: link:../../packages/common
-      '@quant/health-server':
-        specifier: workspace:*
-        version: link:../../packages/health-server
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.19
-      typescript:
-        specifier: ~5.5.0
-        version: 5.5.4
-      vitest:
-        specifier: ^2
-        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
-
   services/ci-runner:
     dependencies:
       '@quant/common':
@@ -1957,25 +1900,6 @@ importers:
       zod:
         specifier: ^3.24.2
         version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.19
-      typescript:
-        specifier: ~5.5.0
-        version: 5.5.4
-      vitest:
-        specifier: ^2
-        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
-
-  services/edits-api:
-    dependencies:
-      '@quant/common':
-        specifier: workspace:*
-        version: link:../../packages/common
-      '@quant/health-server':
-        specifier: workspace:*
-        version: link:../../packages/health-server
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -2018,44 +1942,6 @@ importers:
         specifier: ^2
         version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
 
-  services/identity:
-    dependencies:
-      '@quant/common':
-        specifier: workspace:*
-        version: link:../../packages/common
-      '@quant/health-server':
-        specifier: workspace:*
-        version: link:../../packages/health-server
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.19
-      typescript:
-        specifier: ~5.5.0
-        version: 5.5.4
-      vitest:
-        specifier: ^2
-        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
-
-  services/mail-api:
-    dependencies:
-      '@quant/common':
-        specifier: workspace:*
-        version: link:../../packages/common
-      '@quant/health-server':
-        specifier: workspace:*
-        version: link:../../packages/health-server
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.19
-      typescript:
-        specifier: ~5.5.0
-        version: 5.5.4
-      vitest:
-        specifier: ^2
-        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
-
   services/matchmaking:
     dependencies:
       '@quant/common':
@@ -2079,25 +1965,6 @@ importers:
       zod:
         specifier: ^3.25.23
         version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.19
-      typescript:
-        specifier: ~5.5.0
-        version: 5.5.4
-      vitest:
-        specifier: ^2
-        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
-
-  services/max-api:
-    dependencies:
-      '@quant/common':
-        specifier: workspace:*
-        version: link:../../packages/common
-      '@quant/health-server':
-        specifier: workspace:*
-        version: link:../../packages/health-server
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -2148,25 +2015,6 @@ importers:
       ts-node:
         specifier: ^10.9.0
         version: 10.9.2(@types/node@22.19.19)(typescript@5.5.4)
-      typescript:
-        specifier: ~5.5.0
-        version: 5.5.4
-      vitest:
-        specifier: ^2
-        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
-
-  services/neon-api:
-    dependencies:
-      '@quant/common':
-        specifier: workspace:*
-        version: link:../../packages/common
-      '@quant/health-server':
-        specifier: workspace:*
-        version: link:../../packages/health-server
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.19
       typescript:
         specifier: ~5.5.0
         version: 5.5.4
@@ -2247,44 +2095,6 @@ importers:
       '@types/smtp-server':
         specifier: ^3.5.0
         version: 3.5.13
-      typescript:
-        specifier: ~5.5.0
-        version: 5.5.4
-      vitest:
-        specifier: ^2
-        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
-
-  services/sync-api:
-    dependencies:
-      '@quant/common':
-        specifier: workspace:*
-        version: link:../../packages/common
-      '@quant/health-server':
-        specifier: workspace:*
-        version: link:../../packages/health-server
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.19
-      typescript:
-        specifier: ~5.5.0
-        version: 5.5.4
-      vitest:
-        specifier: ^2
-        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
-
-  services/tube-api:
-    dependencies:
-      '@quant/common':
-        specifier: workspace:*
-        version: link:../../packages/common
-      '@quant/health-server':
-        specifier: workspace:*
-        version: link:../../packages/health-server
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.19
       typescript:
         specifier: ~5.5.0
         version: 5.5.4
@@ -4327,6 +4137,9 @@ packages:
   avvio@9.2.0:
     resolution: {integrity: sha512-2t/sy01ArdHHE0vRH5Hsay+RtCZt3dLPji7W7/MMOCEgze5b7SNDC4j5H6FnVgPkI1MTNFGzHdHrVXDDl7QSSQ==}
 
+  axios@1.16.1:
+    resolution: {integrity: sha512-caYkukvroVPO8KrzuJEb50Hm07KwfBZPEC3VeFHTsqWHvKTsy54hjJz9BS/cdaypROE2rH6xvm9mHX4fgWkr3A==}
+
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
 
@@ -4969,6 +4782,15 @@ packages:
     resolution: {integrity: sha512-Be3narBNt2s6bsaqP6Jzq91heDgOEaDCJAXcE3qcma/EJBSy5FB4cvO31XBInuAuKBx8Kptf8dkhjK0IOru39Q==}
     engines: {node: '>=18'}
     deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+
+  follow-redirects@1.16.0:
+    resolution: {integrity: sha512-y5rN/uOsadFT/JfYwhxRS5R7Qce+g3zG97+JrtFZlC9klX/W5hD7iiLzScI4nZqUS7DNUdhPgw4xI8W2LuXlUw==}
+    engines: {node: '>=4.0'}
+    peerDependencies:
+      debug: '*'
+    peerDependenciesMeta:
+      debug:
+        optional: true
 
   foreground-child@3.3.1:
     resolution: {integrity: sha512-gIXjKqtFuWEgzFRJA9WCQeSJLZDjgJUOMCMzxtvFq/37KojM1BFGufqsCy0r4qSQmYLsZYMeyRqzIWOMup03sw==}
@@ -6034,6 +5856,10 @@ packages:
     resolution: {integrity: sha512-4K0myLaWL5EteuSAro91EGFgcfVgxb64Jx+7oDAY6GOkXD4M69yuSEljNcInGVCA5sOPxmZ/EqDLj2x0Q0+Ygg==}
     engines: {node: '>=12.0.0'}
 
+  proxy-from-env@2.1.0:
+    resolution: {integrity: sha512-cJ+oHTW1VAEa8cJslgmUZrc+sjRKgAKl3Zyse6+PV38hZe/V6Z14TbCuXcan9F9ghlz4QrFr2c92TNF82UkYHA==}
+    engines: {node: '>=10'}
+
   pump@3.0.4:
     resolution: {integrity: sha512-VS7sjc6KR7e1ukRFhQSY5LM2uBWAUPiOPa/A3mkKmiMwSmRFUITt0xuj+/lesgnCv+dPIEYlkzrcyXgquIHMcA==}
 
@@ -6068,6 +5894,9 @@ packages:
   quick-lru@6.1.2:
     resolution: {integrity: sha512-AAFUA5O1d83pIHEhJwWCq/RQcRukCkn/NSm2QsTEMle5f2hP0ChI2+3Xb051PZCkLryI/Ir1MVKviT2FIloaTQ==}
     engines: {node: '>=12'}
+
+  razorpay@2.9.6:
+    resolution: {integrity: sha512-zsHAQzd6e1Cc6BNoCNZQaf65ElL6O6yw0wulxmoG5VQDr363fZC90Mp1V5EktVzG45yPyNomNXWlf4cQ3622gQ==}
 
   rc9@2.1.2:
     resolution: {integrity: sha512-btXCnMmRIBINM2LDZoEmOogIZU7Qe7zn4BpomSKZ/ykbLObuBdvG+mFq11DL6fjH1DRwHhrlgtYWG96bJiC7Cg==}
@@ -8775,6 +8604,14 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 1.2.0
 
+  '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@22.19.19))':
+    dependencies:
+      '@vitest/spy': 2.1.9
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 5.4.21(@types/node@22.19.19)
+
   '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@25.9.1))':
     dependencies:
       '@vitest/spy': 2.1.9
@@ -8840,7 +8677,6 @@ snapshots:
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   agent-base@7.1.4: {}
 
@@ -8963,6 +8799,16 @@ snapshots:
     dependencies:
       '@fastify/error': 4.2.0
       fastq: 1.20.1
+
+  axios@1.16.1:
+    dependencies:
+      follow-redirects: 1.16.0
+      form-data: 4.0.5
+      https-proxy-agent: 5.0.1
+      proxy-from-env: 2.1.0
+    transitivePeerDependencies:
+      - debug
+      - supports-color
 
   balanced-match@1.0.2: {}
 
@@ -9670,6 +9516,8 @@ snapshots:
       async: 0.2.10
       which: 1.3.1
 
+  follow-redirects@1.16.0: {}
+
   foreground-child@3.3.1:
     dependencies:
       cross-spawn: 7.0.6
@@ -9941,7 +9789,6 @@ snapshots:
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   https-proxy-agent@7.0.6:
     dependencies:
@@ -10826,6 +10673,8 @@ snapshots:
       long: 5.3.2
     optional: true
 
+  proxy-from-env@2.1.0: {}
+
   pump@3.0.4:
     dependencies:
       end-of-stream: 1.4.5
@@ -10852,6 +10701,13 @@ snapshots:
   quick-format-unescaped@4.0.4: {}
 
   quick-lru@6.1.2: {}
+
+  razorpay@2.9.6:
+    dependencies:
+      axios: 1.16.1
+    transitivePeerDependencies:
+      - debug
+      - supports-color
 
   rc9@2.1.2:
     dependencies:
@@ -11523,7 +11379,7 @@ snapshots:
   vitest@2.1.9(@types/node@22.19.19)(jsdom@25.0.1):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@25.9.1))
+      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@22.19.19))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9

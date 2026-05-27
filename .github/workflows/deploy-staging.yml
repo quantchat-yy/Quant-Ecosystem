@@ -17,16 +17,6 @@ jobs:
     strategy:
       matrix:
         service:
-          - identity
-          - chat-api
-          - mail-api
-          - ai-api
-          - sync-api
-          - ads-api
-          - tube-api
-          - neon-api
-          - edits-api
-          - max-api
           - ws-gateway
     outputs:
       image-tag: ${{ github.sha }}
@@ -154,7 +144,7 @@ jobs:
 
       - name: Wait for rollout
         run: |
-          for service in identity chat-api mail-api ai-api sync-api ads-api tube-api neon-api edits-api max-api ws-gateway; do
+          for service in ws-gateway; do
             kubectl rollout status deployment/quant-platform-${service} \
               --namespace ${{ env.HELM_NAMESPACE }} \
               --timeout=300s || true
@@ -163,7 +153,7 @@ jobs:
       - name: Run health checks
         run: |
           STAGING_URL="${{ secrets.STAGING_BASE_URL }}"
-          SERVICES=("identity:3000" "chat-api:3002" "mail-api:3001" "ai-api:3020" "sync-api:3004" "ads-api:3005" "tube-api:3006" "neon-api:3007" "edits-api:3008" "max-api:3009")
+          SERVICES=("ws-gateway:8080")
 
           FAILED=0
           for svc in "${SERVICES[@]}"; do

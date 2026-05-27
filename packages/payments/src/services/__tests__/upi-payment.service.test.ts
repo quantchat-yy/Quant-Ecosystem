@@ -2,6 +2,7 @@
 // Payments - UPI Payment Service Tests
 // ============================================================================
 
+import crypto from 'node:crypto';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { UPIPaymentService } from '../upi-payment.service';
 
@@ -116,5 +117,122 @@ describe('UPIPaymentService', () => {
 
       expect(result).toBeNull();
     });
+  });
+});
+
+describe('UPIPaymentService (live mode)', () => {
+  const testKeyId = 'rzp_test_upi_key';
+  const testKeySecret = 'upi_test_secret_xyz';
+
+  it('should create Razorpay order in live mode', async () => {
+    const mockClient = {
+      orders: {
+        create: async (params: Record<string, unknown>) => ({
+          id: 'order_upi_live_1',
+          amount: params.amount,
+          currency: params.currency,
+          status: 'created' as const,
+          created_at: Date.now(),
+          entity: 'order',
+          amount_paid: 0,
+          amount_due: params.amount,
+          attempts: 0,
+          description: '',
+          receipt: params.receipt,
+          method: params.method,
+          token: {} as never,
+        }),
+      },
+    };
+
+    const service = new UPIPaymentService({
+      keyId: testKeyId,
+      keySecret: testKeySecret,
+      merchantVPA: 'test@razorpay',
+      client: mockClient as never,
+    });
+
+    const payment = await service.generatePaymentLink(500, 'user@ybl', 'Test Order');
+
+    expect(payment.transactionRef).toBe('order_upi_live_1');
+    expect(payment.amount).toBe(500);
+    expect(payment.currency).toBe('INR');
+    expect(payment.status).toBe('pending');
+    expect(payment.id).toMatch(/^upay_/);
+  });
+
+  it('should generate UPI deep link with merchant VPA', async () => {
+    const mockClient = {
+      orders: {
+        create: async () => ({
+          id: 'order_upi_vpa_1',
+          amount: 200,
+          currency: 'INR',
+          status: 'created' as const,
+          created_at: Date.now(),
+          entity: 'order',
+          amount_paid: 0,
+          amount_due: 200,
+          attempts: 0,
+          description: '',
+          token: {} as never,
+        }),
+      },
+    };
+
+    const service = new UPIPaymentService({
+      keyId: testKeyId,
+      keySecret: testKeySecret,
+      merchantVPA: 'test@razorpay',
+      client: mockClient as never,
+    });
+
+    const payment = await service.generatePaymentLink(200, 'buyer@upi', 'VPA Test');
+
+    expect(payment.paymentLink).toContain('upi://pay');
+    expect(payment.paymentLink).toContain('test@razorpay');
+    expect(payment.paymentLink).toContain('am=200');
+  });
+
+  it('should verify payment signature via HMAC-SHA256', async () => {
+    const service = new UPIPaymentService({
+      keyId: testKeyId,
+      keySecret: testKeySecret,
+    });
+
+    const orderId = 'order_hmac_test_1';
+    const paymentId = 'pay_hmac_test_1';
+
+    const expectedSignature = crypto
+      .createHmac('sha256', testKeySecret)
+      .update(`${orderId}|${paymentId}`)
+      .digest('hex');
+
+    const result = await service.verifyPaymentSignature(orderId, paymentId, expectedSignature);
+
+    expect(result).toBe(true);
+  });
+
+  it('should reject invalid signature', async () => {
+    const service = new UPIPaymentService({
+      keyId: testKeyId,
+      keySecret: testKeySecret,
+    });
+
+    const result = await service.verifyPaymentSignature(
+      'order_test',
+      'pay_test',
+      'invalid_signature_value',
+    );
+
+    expect(result).toBe(false);
+  });
+
+  it('should return false for signature verification with no credentials', async () => {
+    const service = new UPIPaymentService();
+
+    const result = await service.verifyPaymentSignature('order_test', 'pay_test', 'any_signature');
+
+    expect(result).toBe(false);
   });
 });

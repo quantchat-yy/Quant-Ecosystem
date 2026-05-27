@@ -39,7 +39,7 @@ jobs:
 
       - name: Verify images exist in ECR
         run: |
-          SERVICES="identity chat-api mail-api ai-api sync-api ads-api tube-api neon-api edits-api max-api ws-gateway"
+          SERVICES="ws-gateway"
           TAG="${{ inputs.version_tag }}"
 
           for service in $SERVICES; do
@@ -133,7 +133,7 @@ jobs:
 
       - name: Check canary health
         run: |
-          SERVICES="identity chat-api mail-api ai-api sync-api ads-api tube-api neon-api edits-api max-api ws-gateway"
+          SERVICES="ws-gateway"
           FAILED=0
 
           for service in $SERVICES; do
