@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "feat",
   "description": "Add killer micro-features to quantchat (messaging app). Enhance with: read receipts with animation states, message reactions (emoji picker with frequently used), voice messages with waveform visualization, pinned messages, message scheduling, link preview extraction, and contact sharing. Add these as new service classes and React components in src/.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create apps/quantchat/src/services/reactions.service.ts - MessageReactionsService class with methods: addReaction(messageId, emoji), removeReaction(messageId, emoji), getReactions(messageId). Track reaction counts, user lists, animation state",
     "Create apps/quantchat/src/services/read-receipts.service.ts - ReadReceiptsService with markAsRead, markAsDelivered, getReceiptStatus. Support states: sent, delivered, read with timestamps",
