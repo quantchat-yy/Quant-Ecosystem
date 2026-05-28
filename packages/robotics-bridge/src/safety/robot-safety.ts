@@ -87,7 +87,7 @@ export class RobotSafety {
 
   killAll(): void {
     for (const robot of this.registry.getAll()) {
-      robot.status = 'stopped';
+      this.registry.setStatus(robot.id, 'stopped');
       this.logAction(robot.id, 'killAll', 'killed');
     }
   }

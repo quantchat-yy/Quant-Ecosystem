@@ -21,6 +21,13 @@ export class MessageBus {
   private subscriptions = new Map<string, Map<string, Handler>>();
   private history: MessageBusEvent[] = [];
   private pendingAcks = new Map<string, MessageBusEvent>();
+  private maxHistorySize: number;
+  private maxPendingAcks: number;
+
+  constructor(opts: { maxHistorySize?: number; maxPendingAcks?: number } = {}) {
+    this.maxHistorySize = opts.maxHistorySize ?? 10_000;
+    this.maxPendingAcks = opts.maxPendingAcks ?? 5_000;
+  }
 
   publish(topic: string, payload: unknown, sender: string): MessageBusEvent {
     const event: MessageBusEvent = {
@@ -32,7 +39,17 @@ export class MessageBus {
       acked: false,
     };
     this.history.push(event);
+    if (this.history.length > this.maxHistorySize) {
+      this.history.splice(0, this.history.length - this.maxHistorySize);
+    }
     this.pendingAcks.set(event.id, event);
+    if (this.pendingAcks.size > this.maxPendingAcks) {
+      const iter = this.pendingAcks.keys();
+      const oldest = iter.next().value;
+      if (oldest !== undefined) {
+        this.pendingAcks.delete(oldest);
+      }
+    }
     for (const [pattern, handlers] of this.subscriptions) {
       if (matchTopic(pattern, topic)) {
         for (const handler of handlers.values()) {

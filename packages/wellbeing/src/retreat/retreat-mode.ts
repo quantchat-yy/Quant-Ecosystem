@@ -1,4 +1,5 @@
 import type { RetreatModeConfig } from '../types.js';
+import { CrisisResources } from '../crisis/crisis-resources.js';
 
 export class RetreatMode {
   private config: RetreatModeConfig = {
@@ -10,6 +11,11 @@ export class RetreatMode {
   };
   private startedAt: number | null = null;
   private unlockedApps = new Set<string>();
+  private crisisResources: CrisisResources;
+
+  constructor(crisisResources?: CrisisResources) {
+    this.crisisResources = crisisResources ?? new CrisisResources();
+  }
 
   configure(config: Partial<RetreatModeConfig>): void {
     this.config = { ...this.config, ...config };
@@ -35,6 +41,7 @@ export class RetreatMode {
   isBlocked(appId: string): boolean {
     if (!this.config.enabled) return false;
     if (this.config.whitelist.includes(appId)) return false;
+    if (this.crisisResources.isEmergencyApp(appId)) return false;
     if (this.unlockedApps.has(appId)) return false;
     return true;
   }

@@ -9,6 +9,7 @@ const LIMITS: Record<DeveloperTier, RateLimit> = {
 export class APIKeyManager {
   private keys = new Map<string, APIKey>();
   private rotations = new Map<string, KeyRotation>();
+  private requestTimestamps = new Map<string, number[]>();
 
   create(name: string, tier: DeveloperTier, opts?: { scopes?: string[]; ttlMs?: number }): APIKey {
     const now = Date.now();
@@ -44,15 +45,33 @@ export class APIKeyManager {
       k.revokedAt = Date.now();
       return false;
     }
-    if (k.usageCount >= k.rateLimit.requestsPerMinute) return false;
+    if (this.isWithinRateLimit(id) === false) return false;
     if (endpoint && !this.hasScope(k, endpoint)) return false;
     k.usageCount++;
+    this.recordRequest(id);
     return true;
   }
 
   isRateLimited(id: string): boolean {
     const k = this.keys.get(id);
-    return k ? k.usageCount >= k.rateLimit.requestsPerMinute : false;
+    if (!k) return false;
+    return this.isWithinRateLimit(id) === false;
+  }
+
+  private isWithinRateLimit(id: string): boolean {
+    const k = this.keys.get(id);
+    if (!k) return false;
+    const now = Date.now();
+    const timestamps = this.requestTimestamps.get(id) ?? [];
+    const recent = timestamps.filter((t) => now - t < 60_000);
+    this.requestTimestamps.set(id, recent);
+    return recent.length < k.rateLimit.requestsPerMinute;
+  }
+
+  private recordRequest(id: string): void {
+    const timestamps = this.requestTimestamps.get(id) ?? [];
+    timestamps.push(Date.now());
+    this.requestTimestamps.set(id, timestamps);
   }
 
   hasScope(key: APIKey, endpoint: string): boolean {

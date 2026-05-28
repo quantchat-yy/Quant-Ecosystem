@@ -78,7 +78,7 @@ export class NLQueryEngine {
 
   parse(nl: string): DataQuery {
     const lower = nl.toLowerCase();
-    const metric = METRICS.find((m) => lower.includes(m)) ?? null;
+    const metric = METRICS.find((m) => new RegExp(`\\b${m}\\b`).test(lower)) ?? null;
     const { period, timeRange } = parseTimeExpression(nl);
 
     let intent: QueryIntent = 'count';

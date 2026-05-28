@@ -7,7 +7,7 @@ export class WakeWordStateMachine {
   private timeoutMs = 10000;
   private lastTransition = 0;
   private history: WakeWordTransition[] = [];
-  private falsePositiveCount = 0;
+  private falsePositiveTimestamps: number[] = [];
   private falsePositiveWindow = 60000;
   private maxFalsePositives = 3;
   private recentActivations: number[] = [];
@@ -31,12 +31,15 @@ export class WakeWordStateMachine {
   trigger(confidence: number): boolean {
     const now = Date.now();
 
-    // Suppress if too many false positives recently
+    // Suppress if too many false positives within the window
     this.recentActivations = this.recentActivations.filter(
       (t) => now - t < this.falsePositiveWindow,
     );
+    this.falsePositiveTimestamps = this.falsePositiveTimestamps.filter(
+      (t) => now - t < this.falsePositiveWindow,
+    );
     if (
-      this.falsePositiveCount >= this.maxFalsePositives &&
+      this.falsePositiveTimestamps.length >= this.maxFalsePositives &&
       this.recentActivations.length >= this.maxFalsePositives
     ) {
       return false;
@@ -66,7 +69,7 @@ export class WakeWordStateMachine {
   }
 
   markFalsePositive(): void {
-    this.falsePositiveCount++;
+    this.falsePositiveTimestamps.push(Date.now());
     this.transition('cooldown', 0);
   }
 

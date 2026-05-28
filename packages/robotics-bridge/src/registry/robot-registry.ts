@@ -7,6 +7,12 @@ export class RobotRegistry {
   unregister(id: string): boolean { return this.robots.delete(id); }
   // prettier-ignore
   getStatus(id: string): RobotStatus | null { return this.robots.get(id)?.status ?? null; }
+  setStatus(id: string, status: RobotStatus): boolean {
+    const robot = this.robots.get(id);
+    if (!robot) return false;
+    robot.status = status;
+    return true;
+  }
   listByCapability(cap: RobotCapability): Robot[] {
     return [...this.robots.values()].filter((r) => r.capabilities.includes(cap));
   }
