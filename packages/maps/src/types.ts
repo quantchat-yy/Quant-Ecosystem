@@ -41,3 +41,44 @@ export interface LocationUpdate {
   speed?: number;
 }
 export const INDIA_CENTER: LatLng = { lat: 20.5937, lng: 78.9629 };
+
+export type NavigationState =
+  | 'idle'
+  | 'planning'
+  | 'navigating'
+  | 'rerouting'
+  | 'arrived'
+  | 'cancelled';
+
+export interface VoiceInstruction {
+  text: string;
+  language: string;
+  distanceTrigger: number;
+}
+
+export interface OfflineRoute {
+  id: string;
+  route: Route;
+  cachedAt: number;
+}
+
+export interface ProgressInfo {
+  distanceRemaining: number;
+  timeRemaining: number;
+  currentStepIndex: number;
+  distanceToNextManeuver: number;
+  percentComplete: number;
+}
+
+export type NavigationEventType =
+  | 'stepAdvanced'
+  | 'offRoute'
+  | 'rerouting'
+  | 'arrived'
+  | 'speedAlert'
+  | 'etaUpdated';
+
+export interface NavigationEvent {
+  type: NavigationEventType;
+  payload?: unknown;
+}
