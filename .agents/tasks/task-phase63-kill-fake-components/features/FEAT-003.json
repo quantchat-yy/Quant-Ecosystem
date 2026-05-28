@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "fix",
   "description": "Rewrite 5 fake QuantAI components from object-tree format to real React JSX with Tailwind CSS: ChatInterface, DevicePreview, EcosystemMap, ModelCard, PluginCard.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Read apps/quantai/src/types/index.ts to understand ConversationMessage, AIModel, Device, Plugin, etc.",
     "Rewrite apps/quantai/src/components/ChatInterface.tsx: Convert to JSX chat UI with message list (user/AI avatars, tool call chips, attachment chips, metadata), typing indicator, and input bar with attach/send buttons.",
