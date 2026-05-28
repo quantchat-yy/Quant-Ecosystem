@@ -26,6 +26,14 @@ export type {
   GroundingRequest,
   GroundingResult,
   ContextSource,
+  WakeWordConfig,
+  WakeWordEvent,
+  WakeWordEngine,
+  AudioBufferEntry,
+  PrivacyLampState,
+  PrivacyInputSource,
+  PrivacyAuditEventType,
+  PrivacyAuditEvent,
 } from './types.js';
 
 // Core
@@ -72,3 +80,12 @@ export { ScreenCapture } from './capture/screen-capture.js';
 export { MultimodalGrounding } from './grounding/multimodal-grounding.js';
 export { ContextRetriever } from './grounding/context-retriever.js';
 export type { SearchFunction } from './grounding/context-retriever.js';
+
+// Wake Word
+export { WakeWordDetector } from './wake-word/wake-word-detector.js';
+export { PorcupineProvider, EnergyBasedFallback } from './wake-word/porcupine-provider.js';
+
+// Privacy
+export { AudioBufferLog } from './privacy/audio-buffer-log.js';
+export { PrivacyLampController } from './privacy/privacy-lamp.js';
+export { PrivacyAudit } from './privacy/privacy-audit.js';

@@ -196,3 +196,61 @@ export interface ContextSource {
   snippet: string;
   timestamp: number;
 }
+
+// Wake Word types
+export interface WakeWordConfig {
+  wakePhrase: string;
+  sensitivity: number;
+  engineType: 'porcupine' | 'energy-fallback';
+  fallbackToPushToTalk: boolean;
+  accessKey?: string;
+}
+
+export interface WakeWordEvent {
+  type: 'detected' | 'timeout' | 'error';
+  timestamp: number;
+  confidence: number;
+  phrase: string;
+}
+
+export interface WakeWordEngine {
+  init(config: WakeWordConfig): Promise<void>;
+  feedAudio(samples: Float32Array): void;
+  onDetection(cb: (event: WakeWordEvent) => void): () => void;
+  destroy(): void;
+}
+
+// Audio Buffer types
+export interface AudioBufferEntry {
+  id: string;
+  data: Float32Array;
+  timestamp: number;
+  duration: number;
+  starred: boolean;
+}
+
+// Privacy Lamp types
+export type PrivacyLampState = 'dormant' | 'wake-listening' | 'active-listening' | 'recording';
+
+export interface PrivacyInputSource {
+  type: 'mic' | 'camera' | 'screen' | 'wake-word';
+  active: boolean;
+  startedAt: number | null;
+}
+
+// Privacy Audit types
+export type PrivacyAuditEventType =
+  | 'mic_activated'
+  | 'mic_deactivated'
+  | 'audio_sent_to_server'
+  | 'frame_captured'
+  | 'frame_sent_to_server'
+  | 'buffer_cleared'
+  | 'forget_requested';
+
+export interface PrivacyAuditEvent {
+  id: string;
+  type: PrivacyAuditEventType;
+  timestamp: number;
+  metadata?: Record<string, unknown>;
+}

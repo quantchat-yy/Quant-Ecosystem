@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-41-wake-word-privacy-lamp",
+  "task_description": "Implement wake word detection (Hey Quant) with on-device processing, privacy lamp controller, audio buffer log with forget/star, and privacy audit system for the @quant/quant-live package",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}
