@@ -283,3 +283,27 @@ export type {
   AppToggleItem,
   AIPreferencesStepProps,
 } from './components/Onboarding';
+
+// QuantLive components
+export {
+  QuantLive,
+  QuantLiveOrb,
+  QuantLiveCaptions,
+  QuantLiveActionChip,
+  QuantLivePrivacyIndicator,
+  QuantLiveControls,
+} from './components/quant-live';
+export type {
+  QuantLiveProps,
+  QuantLiveState,
+  OrbColorState,
+  QuantLivePosition,
+  CaptionEntry,
+  ActionChipInfo,
+  PrivacyState,
+  QuantLiveOrbProps,
+  QuantLiveCaptionsProps,
+  QuantLiveActionChipProps,
+  QuantLivePrivacyIndicatorProps,
+  QuantLiveControlsProps,
+} from './components/quant-live';
