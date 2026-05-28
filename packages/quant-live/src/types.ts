@@ -123,3 +123,34 @@ export interface AdaptiveVADConfig extends VADConfig {
   adaptiveThreshold: number;
   noiseFloorSmoothing: number;
 }
+
+// LLM tool definition (local to quant-live)
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  parameters: { name: string; type: string; description: string; required: boolean }[];
+}
+
+// LLM stream chunk
+export interface LLMStreamChunk {
+  type: 'text' | 'tool_call' | 'tool_result' | 'done';
+  text?: string;
+  toolCall?: { id: string; name: string; args: Record<string, unknown> };
+  toolResult?: { id: string; result: unknown };
+}
+
+// Live conversation context
+export interface LiveConversationContext {
+  sessionId: string;
+  transcript: TranscriptSegment[];
+  systemPrompt: string;
+  tools: ToolDefinition[];
+  maxTokens?: number;
+  temperature?: number;
+}
+
+// Live LLM provider interface
+export interface LiveLLMProvider {
+  streamResponse(context: LiveConversationContext): AsyncIterable<LLMStreamChunk>;
+  abort(): void;
+}

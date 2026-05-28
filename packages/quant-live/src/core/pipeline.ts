@@ -2,12 +2,17 @@ import type {
   ASRProvider,
   ASRResult,
   AudioChunk,
+  LiveConversationContext,
+  LiveLLMProvider,
   LiveSession,
+  LLMStreamChunk,
   TTSProvider,
   TranscriptSegment,
 } from '../types.js';
 import { LatencyTracker } from './latency-tracker.js';
 import { PrefetchBuffer } from '../tts/prefetch-buffer.js';
+import { splitSentences } from '../llm/sentence-splitter.js';
+import type { ToolBridge } from '../llm/tool-bridge.js';
 
 type TranscriptCallback = (segments: TranscriptSegment[]) => void;
 type ResponseCallback = (text: string) => void;
@@ -165,5 +170,49 @@ export class LivePipeline {
     for (const cb of this.transcriptCallbacks) {
       cb(result.segments);
     }
+  }
+
+  private async *trackFirstToken(
+    stream: AsyncIterable<LLMStreamChunk>,
+    measureId: string,
+  ): AsyncIterable<LLMStreamChunk> {
+    let first = true;
+    for await (const chunk of stream) {
+      if (first && chunk.type === 'text') {
+        this.latencyTracker.endMeasure('llm', measureId);
+        first = false;
+      }
+      yield chunk;
+    }
+    if (first) {
+      try {
+        this.latencyTracker.endMeasure('llm', measureId);
+      } catch {
+        // Already ended or no pending measurement
+      }
+    }
+  }
+
+  async processLLMResponse(
+    context: LiveConversationContext,
+    llmProvider: LiveLLMProvider,
+    toolBridge?: ToolBridge,
+  ): Promise<void> {
+    const measureId = `llm-${Date.now()}`;
+    this.latencyTracker.startMeasure('llm', measureId);
+
+    const stream = llmProvider.streamResponse(context);
+    const tracked = this.trackFirstToken(stream, measureId);
+    const sentences = splitSentences(tracked);
+
+    for await (const sentence of sentences) {
+      for (const cb of this.responseCallbacks) {
+        cb(sentence);
+      }
+      await this.synthesizeResponse(sentence);
+    }
+
+    // toolBridge is available for future tool_call handling
+    void toolBridge;
   }
 }

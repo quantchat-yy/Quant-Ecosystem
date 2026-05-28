@@ -16,6 +16,10 @@ export type {
   TTSOptions,
   TTSEvent,
   AdaptiveVADConfig,
+  ToolDefinition,
+  LLMStreamChunk,
+  LiveConversationContext,
+  LiveLLMProvider,
 } from './types.js';
 
 // Core
@@ -45,3 +49,11 @@ export { BaseTTSProvider } from './tts/tts-provider.js';
 // Conversation
 export { TurnManager } from './conversation/turn-manager.js';
 export { TranscriptManager } from './conversation/transcript.js';
+
+// LLM
+export { createLLMProvider, MockLLMProvider } from './llm/streaming-llm.js';
+export type { LLMProviderType, LLMProviderConfig } from './llm/streaming-llm.js';
+export { QuantAIProvider } from './llm/quant-ai-provider.js';
+export { ToolBridge } from './llm/tool-bridge.js';
+export type { ToolExecutionResult } from './llm/tool-bridge.js';
+export { splitSentences } from './llm/sentence-splitter.js';
