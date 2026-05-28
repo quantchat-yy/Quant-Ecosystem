@@ -3,6 +3,7 @@
 // Camera capture, gallery, text, drawing, stickers, music, filters, post
 // ============================================================================
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { logger } from '@quant/common';
 
 interface StoryCreatorProps {
   onPost: (story: StoryData) => Promise<void>;
@@ -139,7 +140,7 @@ export const StoryCreator: React.FC<StoryCreatorProps> = ({ onPost, onClose }) =
         videoRef.current.play();
       }
     } catch (err) {
-      console.error('Camera access denied:', err);
+      logger.error('Camera access denied:', err);
     }
   }, []);
 
@@ -251,7 +252,7 @@ export const StoryCreator: React.FC<StoryCreatorProps> = ({ onPost, onClose }) =
       };
       await onPost(storyData);
     } catch (err) {
-      console.error('Post failed:', err);
+      logger.error('Post failed:', err);
     } finally {
       setPosting(false);
     }

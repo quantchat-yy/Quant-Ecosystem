@@ -236,31 +236,26 @@ const ProjectGallery: React.FC = () => {
     return filtered;
   }, [projects, searchQuery, sortBy]);
 
-  const handleCreateProject = useCallback((type: ProjectType) => {
+  const handleCreateProject = useCallback((_type: ProjectType) => {
     setShowCreateModal(false);
-    console.log(`Creating new ${type} project`);
   }, []);
 
-  const handleOpenProject = useCallback((id: string) => {
-    console.log(`Opening project ${id}`);
+  const handleOpenProject = useCallback((_id: string) => {
+    // Navigation would happen here in production
   }, []);
 
-  const handleDuplicateProject = useCallback((id: string) => {
-    console.log(`Duplicating project ${id}`);
+  const handleDuplicateProject = useCallback((_id: string) => {
+    // Duplication would happen here in production
   }, []);
 
-  const handleUseTemplate = useCallback((id: string) => {
-    console.log(`Using template ${id}`);
+  const handleUseTemplate = useCallback((_id: string) => {
+    // Template usage would happen here in production
   }, []);
 
   const handleFileDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDraggingFile(false);
-    const files = Array.from(e.dataTransfer.files);
-    console.log(
-      'Importing files:',
-      files.map((f) => f.name),
-    );
+    // File import would happen here in production
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {

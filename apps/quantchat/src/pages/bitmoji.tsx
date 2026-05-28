@@ -4,6 +4,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { logger } from '@quant/common';
 
 interface AvatarConfig {
   faceShape: string;
@@ -145,7 +146,7 @@ export const BitmojiPage: React.FC<BitmojiPageProps> = ({ userId }) => {
         if (data.config) setConfig(data.config);
       }
     } catch (err) {
-      console.error('Failed to load avatar:', err);
+      logger.error('Failed to load avatar:', err);
     } finally {
       setLoading(false);
     }

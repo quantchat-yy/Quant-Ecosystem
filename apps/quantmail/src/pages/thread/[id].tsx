@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { sanitizeHtmlContent } from '@quant/shared-ui';
+import { logger } from '@quant/common';
 
 interface EmailAddress {
   name?: string;
@@ -192,7 +193,7 @@ export const ThreadPage: React.FC<ThreadPageProps> = ({ threadId }) => {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
     } catch (err) {
-      console.error('Failed to star thread:', err);
+      logger.error('Failed to star thread:', err);
     }
   }, [thread, threadId]);
 
@@ -205,7 +206,7 @@ export const ThreadPage: React.FC<ThreadPageProps> = ({ threadId }) => {
       });
       setThread((prev) => (prev ? { ...prev, isArchived: true } : prev));
     } catch (err) {
-      console.error('Failed to archive:', err);
+      logger.error('Failed to archive:', err);
     }
   }, [thread, threadId]);
 
@@ -218,7 +219,7 @@ export const ThreadPage: React.FC<ThreadPageProps> = ({ threadId }) => {
       });
       setThread((prev) => (prev ? { ...prev, isMuted: !prev.isMuted } : prev));
     } catch (err) {
-      console.error('Failed to mute:', err);
+      logger.error('Failed to mute:', err);
     }
   }, [thread, threadId]);
 

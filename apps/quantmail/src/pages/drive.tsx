@@ -4,6 +4,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { logger } from '@quant/common';
 
 interface DriveFile {
   id: string;
@@ -229,7 +230,7 @@ export const DrivePage: React.FC<DrivePageProps> = ({ userId }) => {
       setSelectedFiles(new Set());
       setContextMenu(null);
     } catch (err) {
-      console.error('Failed to delete:', err);
+      logger.error('Failed to delete:', err);
     }
   }, []);
 
@@ -256,7 +257,7 @@ export const DrivePage: React.FC<DrivePageProps> = ({ userId }) => {
       );
       setShareEmail('');
     } catch (err) {
-      console.error('Failed to share:', err);
+      logger.error('Failed to share:', err);
     }
   }, [showShareModal, shareEmail, sharePermission]);
 
@@ -279,7 +280,7 @@ export const DrivePage: React.FC<DrivePageProps> = ({ userId }) => {
         setRenaming(null);
         setRenameValue('');
       } catch (err) {
-        console.error('Failed to rename:', err);
+        logger.error('Failed to rename:', err);
       }
     },
     [renameValue],
@@ -295,7 +296,7 @@ export const DrivePage: React.FC<DrivePageProps> = ({ userId }) => {
         prev.map((f) => (f.id === fileId ? { ...f, isStarred: !f.isStarred } : f)),
       );
     } catch (err) {
-      console.error('Failed to star:', err);
+      logger.error('Failed to star:', err);
     }
   }, []);
 

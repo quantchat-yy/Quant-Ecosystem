@@ -4,6 +4,7 @@
 // ============================================================================
 
 import type { WSEvent, WSEventType, Message, TypingIndicator } from '../types';
+import { logger } from '@quant/common';
 
 // ============================================================================
 // Types
@@ -119,14 +120,20 @@ export class QuantChatWSClient {
     // Return unsubscribe function
     return () => {
       const current = this.handlers.get(eventType) || [];
-      this.handlers.set(eventType, current.filter(h => h !== handler));
+      this.handlers.set(
+        eventType,
+        current.filter((h) => h !== handler),
+      );
     };
   }
 
   off(eventType: WSEventType, handler?: EventHandler): void {
     if (handler) {
       const current = this.handlers.get(eventType) || [];
-      this.handlers.set(eventType, current.filter(h => h !== handler));
+      this.handlers.set(
+        eventType,
+        current.filter((h) => h !== handler),
+      );
     } else {
       this.handlers.delete(eventType);
     }
@@ -138,7 +145,7 @@ export class QuantChatWSClient {
       try {
         handler(event.payload);
       } catch (error) {
-        console.error(`[WS] Handler error for ${event.type}:`, error);
+        logger.error(`[WS] Handler error for ${event.type}:`, error);
       }
     }
   }
@@ -199,11 +206,15 @@ export class QuantChatWSClient {
     return this.on('message:update', handler as EventHandler);
   }
 
-  onMessageDelete(handler: (data: { messageId: string; conversationId: string }) => void): () => void {
+  onMessageDelete(
+    handler: (data: { messageId: string; conversationId: string }) => void,
+  ): () => void {
     return this.on('message:delete', handler as EventHandler);
   }
 
-  onTyping(handler: (data: { userId: string; conversationId: string; isTyping: boolean }) => void): () => void {
+  onTyping(
+    handler: (data: { userId: string; conversationId: string; isTyping: boolean }) => void,
+  ): () => void {
     const unsub1 = this.on('typing:start', (payload) => {
       const data = payload as { userId: string; conversationId: string };
       handler({ ...data, isTyping: true });
@@ -212,14 +223,19 @@ export class QuantChatWSClient {
       const data = payload as { userId: string; conversationId: string };
       handler({ ...data, isTyping: false });
     });
-    return () => { unsub1(); unsub2(); };
+    return () => {
+      unsub1();
+      unsub2();
+    };
   }
 
   onPresence(handler: (data: { userId: string; status: string }) => void): () => void {
     return this.on('presence:update', handler as EventHandler);
   }
 
-  onIncomingCall(handler: (data: { callId: string; callerId: string; type: string }) => void): () => void {
+  onIncomingCall(
+    handler: (data: { callId: string; callerId: string; type: string }) => void,
+  ): () => void {
     return this.on('call:incoming', handler as EventHandler);
   }
 
@@ -227,11 +243,15 @@ export class QuantChatWSClient {
     return this.on('snap:received', handler as EventHandler);
   }
 
-  onStreakWarning(handler: (data: { friendId: string; count: number; hoursLeft: number }) => void): () => void {
+  onStreakWarning(
+    handler: (data: { friendId: string; count: number; hoursLeft: number }) => void,
+  ): () => void {
     return this.on('streak:warning', handler as EventHandler);
   }
 
-  onNotification(handler: (data: { id: string; type: string; title: string; body: string }) => void): () => void {
+  onNotification(
+    handler: (data: { id: string; type: string; title: string; body: string }) => void,
+  ): () => void {
     return this.on('notification:new', handler as EventHandler);
   }
 

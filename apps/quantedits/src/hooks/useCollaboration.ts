@@ -60,11 +60,16 @@ export function useCollaboration(): UseCollaborationReturn {
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const connect = useCallback((projectId: string, userId: string) => {
-    setState(prev => ({ ...prev, isConnected: true, sessionId: `session-${Date.now()}`, error: null }));
+    setState((prev) => ({
+      ...prev,
+      isConnected: true,
+      sessionId: `session-${Date.now()}`,
+      error: null,
+    }));
     heartbeatRef.current = setInterval(() => {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
-        collaborators: prev.collaborators.map(c => ({
+        collaborators: prev.collaborators.map((c) => ({
           ...c,
           isOnline: Date.now() - c.lastSeen < 30000,
         })),
@@ -75,42 +80,66 @@ export function useCollaboration(): UseCollaborationReturn {
   const disconnect = useCallback(() => {
     if (heartbeatRef.current) clearInterval(heartbeatRef.current);
     if (reconnectRef.current) clearTimeout(reconnectRef.current);
-    setState(prev => ({ ...prev, isConnected: false, sessionId: null }));
+    setState((prev) => ({ ...prev, isConnected: false, sessionId: null }));
   }, []);
 
-  const updateCursor = useCallback((x: number, y: number) => {
-    if (!state.isConnected) return;
-    console.log(`[Collab] Cursor update: ${x}, ${y}`);
-  }, [state.isConnected]);
+  const updateCursor = useCallback(
+    (_x: number, _y: number) => {
+      if (!state.isConnected) return;
+    },
+    [state.isConnected],
+  );
 
-  const updateSelection = useCallback((elementIds: string[]) => {
-    if (!state.isConnected) return;
-    console.log(`[Collab] Selection update:`, elementIds);
-  }, [state.isConnected]);
+  const updateSelection = useCallback(
+    (_elementIds: string[]) => {
+      if (!state.isConnected) return;
+    },
+    [state.isConnected],
+  );
 
-  const sendOperation = useCallback((op: Omit<CollabOperation, 'id' | 'timestamp'>) => {
-    if (!state.isConnected) return;
-    const fullOp: CollabOperation = { ...op, id: `op-${Date.now()}`, timestamp: Date.now() };
-    setState(prev => ({ ...prev, pendingOperations: [...prev.pendingOperations, fullOp] }));
-    setTimeout(() => {
-      setState(prev => ({ ...prev, pendingOperations: prev.pendingOperations.filter(p => p.id !== fullOp.id) }));
-    }, 500);
-  }, [state.isConnected]);
+  const sendOperation = useCallback(
+    (op: Omit<CollabOperation, 'id' | 'timestamp'>) => {
+      if (!state.isConnected) return;
+      const fullOp: CollabOperation = { ...op, id: `op-${Date.now()}`, timestamp: Date.now() };
+      setState((prev) => ({ ...prev, pendingOperations: [...prev.pendingOperations, fullOp] }));
+      setTimeout(() => {
+        setState((prev) => ({
+          ...prev,
+          pendingOperations: prev.pendingOperations.filter((p) => p.id !== fullOp.id),
+        }));
+      }, 500);
+    },
+    [state.isConnected],
+  );
 
   const inviteUser = useCallback((email: string, permission: Collaborator['permission']) => {
     const newCollab: Collaborator = {
-      id: `user-${Date.now()}`, name: email.split('@')[0], email, avatar: '', color: `hsl(${Math.random() * 360}, 70%, 60%)`,
-      cursor: null, selection: [], isOnline: false, lastSeen: 0, permission,
+      id: `user-${Date.now()}`,
+      name: email.split('@')[0],
+      email,
+      avatar: '',
+      color: `hsl(${Math.random() * 360}, 70%, 60%)`,
+      cursor: null,
+      selection: [],
+      isOnline: false,
+      lastSeen: 0,
+      permission,
     };
-    setState(prev => ({ ...prev, collaborators: [...prev.collaborators, newCollab] }));
+    setState((prev) => ({ ...prev, collaborators: [...prev.collaborators, newCollab] }));
   }, []);
 
   const removeUser = useCallback((userId: string) => {
-    setState(prev => ({ ...prev, collaborators: prev.collaborators.filter(c => c.id !== userId) }));
+    setState((prev) => ({
+      ...prev,
+      collaborators: prev.collaborators.filter((c) => c.id !== userId),
+    }));
   }, []);
 
   const changePermission = useCallback((userId: string, permission: Collaborator['permission']) => {
-    setState(prev => ({ ...prev, collaborators: prev.collaborators.map(c => c.id === userId ? { ...c, permission } : c) }));
+    setState((prev) => ({
+      ...prev,
+      collaborators: prev.collaborators.map((c) => (c.id === userId ? { ...c, permission } : c)),
+    }));
   }, []);
 
   useEffect(() => {
@@ -120,7 +149,17 @@ export function useCollaboration(): UseCollaborationReturn {
     };
   }, []);
 
-  return { state, connect, disconnect, updateCursor, updateSelection, sendOperation, inviteUser, removeUser, changePermission };
+  return {
+    state,
+    connect,
+    disconnect,
+    updateCursor,
+    updateSelection,
+    sendOperation,
+    inviteUser,
+    removeUser,
+    changePermission,
+  };
 }
 
 export default useCollaboration;

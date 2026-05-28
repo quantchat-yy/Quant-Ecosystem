@@ -4,6 +4,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { logger } from '@quant/common';
 
 interface TwoFactorSetup {
   secret: string;
@@ -104,7 +105,7 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({ userId }) => {
         setLoginHistory(data.history || []);
       }
     } catch (err) {
-      console.error('Failed to fetch login history:', err);
+      logger.error('Failed to fetch login history:', err);
     }
   }, []);
 
@@ -118,7 +119,7 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({ userId }) => {
         setAppPasswords(data.passwords || []);
       }
     } catch (err) {
-      console.error('Failed to fetch app passwords:', err);
+      logger.error('Failed to fetch app passwords:', err);
     }
   }, []);
 
@@ -180,7 +181,7 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({ userId }) => {
       setTwoFactorSetup(null);
       setSetupStep(0);
     } catch (err) {
-      console.error('Failed to disable 2FA:', err);
+      logger.error('Failed to disable 2FA:', err);
     }
   }, []);
 
@@ -215,7 +216,7 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({ userId }) => {
       });
       setSecurityKeys((prev) => prev.filter((k) => k.id !== keyId));
     } catch (err) {
-      console.error('Failed to remove key:', err);
+      logger.error('Failed to remove key:', err);
     }
   }, []);
 
@@ -227,7 +228,7 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({ userId }) => {
       });
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
     } catch (err) {
-      console.error('Failed to revoke session:', err);
+      logger.error('Failed to revoke session:', err);
     }
   }, []);
 
@@ -239,7 +240,7 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({ userId }) => {
       });
       setSessions((prev) => prev.filter((s) => s.isCurrent));
     } catch (err) {
-      console.error('Failed to revoke sessions:', err);
+      logger.error('Failed to revoke sessions:', err);
     }
   }, []);
 
@@ -260,7 +261,7 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({ userId }) => {
       setAppPasswords((prev) => [...prev, data.entry]);
       setNewAppPasswordName('');
     } catch (err) {
-      console.error('Failed to create app password:', err);
+      logger.error('Failed to create app password:', err);
     }
   }, [newAppPasswordName]);
 
@@ -272,7 +273,7 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({ userId }) => {
       });
       setAppPasswords((prev) => prev.filter((p) => p.id !== passwordId));
     } catch (err) {
-      console.error('Failed to delete app password:', err);
+      logger.error('Failed to delete app password:', err);
     }
   }, []);
 
@@ -289,7 +290,7 @@ export const SecurityPage: React.FC<SecurityPageProps> = ({ userId }) => {
         setShowRecoveryCodes(true);
       }
     } catch (err) {
-      console.error('Failed to regenerate codes:', err);
+      logger.error('Failed to regenerate codes:', err);
     } finally {
       setRegeneratingCodes(false);
     }

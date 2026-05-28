@@ -4,6 +4,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { logger } from '@quant/common';
 
 interface EmailAddress {
   name?: string;
@@ -94,19 +95,52 @@ export const InboxPage: React.FC<InboxPageProps> = ({ userId }) => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [dragOverLabel, setDragOverLabel] = useState<string | null>(null);
   const [availableLabels, setAvailableLabels] = useState<string[]>([
-    'Important', 'Work', 'Personal', 'Finance', 'Travel', 'Shopping'
+    'Important',
+    'Work',
+    'Personal',
+    'Finance',
+    'Travel',
+    'Shopping',
   ]);
   const [batchActionInProgress, setBatchActionInProgress] = useState<boolean>(false);
   const [snoozeMenuOpen, setSnoozeMenuOpen] = useState<string | null>(null);
   const emailListRef = useRef<HTMLDivElement>(null);
 
-  const categoryTabs: CategoryTab[] = useMemo(() => [
-    { id: 'primary', label: 'Primary', icon: 'inbox', unreadCount: emails.filter(e => e.category === 'primary' && !e.isRead).length },
-    { id: 'social', label: 'Social', icon: 'users', unreadCount: emails.filter(e => e.category === 'social' && !e.isRead).length },
-    { id: 'promotions', label: 'Promotions', icon: 'tag', unreadCount: emails.filter(e => e.category === 'promotions' && !e.isRead).length },
-    { id: 'updates', label: 'Updates', icon: 'bell', unreadCount: emails.filter(e => e.category === 'updates' && !e.isRead).length },
-    { id: 'forums', label: 'Forums', icon: 'message-circle', unreadCount: emails.filter(e => e.category === 'forums' && !e.isRead).length },
-  ], [emails]);
+  const categoryTabs: CategoryTab[] = useMemo(
+    () => [
+      {
+        id: 'primary',
+        label: 'Primary',
+        icon: 'inbox',
+        unreadCount: emails.filter((e) => e.category === 'primary' && !e.isRead).length,
+      },
+      {
+        id: 'social',
+        label: 'Social',
+        icon: 'users',
+        unreadCount: emails.filter((e) => e.category === 'social' && !e.isRead).length,
+      },
+      {
+        id: 'promotions',
+        label: 'Promotions',
+        icon: 'tag',
+        unreadCount: emails.filter((e) => e.category === 'promotions' && !e.isRead).length,
+      },
+      {
+        id: 'updates',
+        label: 'Updates',
+        icon: 'bell',
+        unreadCount: emails.filter((e) => e.category === 'updates' && !e.isRead).length,
+      },
+      {
+        id: 'forums',
+        label: 'Forums',
+        icon: 'message-circle',
+        unreadCount: emails.filter((e) => e.category === 'forums' && !e.isRead).length,
+      },
+    ],
+    [emails],
+  );
 
   const fetchEmails = useCallback(async () => {
     setLoading(true);
@@ -125,7 +159,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({ userId }) => {
         ...(searchFilters.label && { label: searchFilters.label }),
       });
       const response = await fetch(`/api/emails?${params.toString()}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       if (!response.ok) throw new Error(`Failed to fetch emails: ${response.statusText}`);
       const data = await response.json();
@@ -151,12 +185,12 @@ export const InboxPage: React.FC<InboxPageProps> = ({ userId }) => {
     if (selectedEmails.size === filteredEmails.length) {
       setSelectedEmails(new Set());
     } else {
-      setSelectedEmails(new Set(filteredEmails.map(e => e.id)));
+      setSelectedEmails(new Set(filteredEmails.map((e) => e.id)));
     }
   }, [selectedEmails]);
 
   const handleSelectEmail = useCallback((emailId: string) => {
-    setSelectedEmails(prev => {
+    setSelectedEmails((prev) => {
       const next = new Set(prev);
       if (next.has(emailId)) next.delete(emailId);
       else next.add(emailId);
@@ -164,20 +198,28 @@ export const InboxPage: React.FC<InboxPageProps> = ({ userId }) => {
     });
   }, []);
 
-  const handleStarEmail = useCallback(async (emailId: string) => {
-    try {
-      const email = emails.find(e => e.id === emailId);
-      if (!email) return;
-      await fetch(`/api/emails/${emailId}/star`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ starred: !email.isStarred })
-      });
-      setEmails(prev => prev.map(e => e.id === emailId ? { ...e, isStarred: !e.isStarred } : e));
-    } catch (err) {
-      console.error('Failed to star email:', err);
-    }
-  }, [emails]);
+  const handleStarEmail = useCallback(
+    async (emailId: string) => {
+      try {
+        const email = emails.find((e) => e.id === emailId);
+        if (!email) return;
+        await fetch(`/api/emails/${emailId}/star`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({ starred: !email.isStarred }),
+        });
+        setEmails((prev) =>
+          prev.map((e) => (e.id === emailId ? { ...e, isStarred: !e.isStarred } : e)),
+        );
+      } catch (err) {
+        logger.error('Failed to star email:', err);
+      }
+    },
+    [emails],
+  );
 
   const handleArchiveBatch = useCallback(async () => {
     if (selectedEmails.size === 0) return;
@@ -185,13 +227,16 @@ export const InboxPage: React.FC<InboxPageProps> = ({ userId }) => {
     try {
       await fetch('/api/emails/batch/archive', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ emailIds: Array.from(selectedEmails) })
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ emailIds: Array.from(selectedEmails) }),
       });
-      setEmails(prev => prev.filter(e => !selectedEmails.has(e.id)));
+      setEmails((prev) => prev.filter((e) => !selectedEmails.has(e.id)));
       setSelectedEmails(new Set());
     } catch (err) {
-      console.error('Failed to archive emails:', err);
+      logger.error('Failed to archive emails:', err);
     } finally {
       setBatchActionInProgress(false);
     }
@@ -203,54 +248,82 @@ export const InboxPage: React.FC<InboxPageProps> = ({ userId }) => {
     try {
       await fetch('/api/emails/batch/delete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ emailIds: Array.from(selectedEmails) })
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ emailIds: Array.from(selectedEmails) }),
       });
-      setEmails(prev => prev.filter(e => !selectedEmails.has(e.id)));
+      setEmails((prev) => prev.filter((e) => !selectedEmails.has(e.id)));
       setSelectedEmails(new Set());
     } catch (err) {
-      console.error('Failed to delete emails:', err);
+      logger.error('Failed to delete emails:', err);
     } finally {
       setBatchActionInProgress(false);
     }
   }, [selectedEmails]);
 
-  const handleMarkReadBatch = useCallback(async (read: boolean) => {
-    if (selectedEmails.size === 0) return;
-    setBatchActionInProgress(true);
-    try {
-      await fetch('/api/emails/batch/read', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ emailIds: Array.from(selectedEmails), read })
-      });
-      setEmails(prev => prev.map(e => selectedEmails.has(e.id) ? { ...e, isRead: read } : e));
-      setSelectedEmails(new Set());
-    } catch (err) {
-      console.error('Failed to mark emails:', err);
-    } finally {
-      setBatchActionInProgress(false);
-    }
-  }, [selectedEmails]);
+  const handleMarkReadBatch = useCallback(
+    async (read: boolean) => {
+      if (selectedEmails.size === 0) return;
+      setBatchActionInProgress(true);
+      try {
+        await fetch('/api/emails/batch/read', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({ emailIds: Array.from(selectedEmails), read }),
+        });
+        setEmails((prev) =>
+          prev.map((e) => (selectedEmails.has(e.id) ? { ...e, isRead: read } : e)),
+        );
+        setSelectedEmails(new Set());
+      } catch (err) {
+        logger.error('Failed to mark emails:', err);
+      } finally {
+        setBatchActionInProgress(false);
+      }
+    },
+    [selectedEmails],
+  );
 
   const handleSnoozeEmail = useCallback(async (emailId: string, duration: string) => {
     const snoozeUntil = new Date();
     switch (duration) {
-      case '1h': snoozeUntil.setHours(snoozeUntil.getHours() + 1); break;
-      case '3h': snoozeUntil.setHours(snoozeUntil.getHours() + 3); break;
-      case 'tomorrow': snoozeUntil.setDate(snoozeUntil.getDate() + 1); snoozeUntil.setHours(9, 0, 0); break;
-      case 'nextweek': snoozeUntil.setDate(snoozeUntil.getDate() + 7); snoozeUntil.setHours(9, 0, 0); break;
+      case '1h':
+        snoozeUntil.setHours(snoozeUntil.getHours() + 1);
+        break;
+      case '3h':
+        snoozeUntil.setHours(snoozeUntil.getHours() + 3);
+        break;
+      case 'tomorrow':
+        snoozeUntil.setDate(snoozeUntil.getDate() + 1);
+        snoozeUntil.setHours(9, 0, 0);
+        break;
+      case 'nextweek':
+        snoozeUntil.setDate(snoozeUntil.getDate() + 7);
+        snoozeUntil.setHours(9, 0, 0);
+        break;
     }
     try {
       await fetch(`/api/emails/${emailId}/snooze`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ snoozeUntil: snoozeUntil.toISOString() })
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ snoozeUntil: snoozeUntil.toISOString() }),
       });
-      setEmails(prev => prev.map(e => e.id === emailId ? { ...e, isSnoozed: true, snoozeUntil: snoozeUntil.toISOString() } : e));
+      setEmails((prev) =>
+        prev.map((e) =>
+          e.id === emailId ? { ...e, isSnoozed: true, snoozeUntil: snoozeUntil.toISOString() } : e,
+        ),
+      );
       setSnoozeMenuOpen(null);
     } catch (err) {
-      console.error('Failed to snooze email:', err);
+      logger.error('Failed to snooze email:', err);
     }
   }, []);
 
@@ -273,41 +346,53 @@ export const InboxPage: React.FC<InboxPageProps> = ({ userId }) => {
     try {
       await fetch(`/api/emails/${emailId}/labels`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ label })
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ label }),
       });
-      setEmails(prev => prev.map(em => em.id === emailId ? { ...em, labels: [...em.labels, label] } : em));
+      setEmails((prev) =>
+        prev.map((em) => (em.id === emailId ? { ...em, labels: [...em.labels, label] } : em)),
+      );
     } catch (err) {
-      console.error('Failed to apply label:', err);
+      logger.error('Failed to apply label:', err);
     }
   }, []);
 
   const filteredEmails = useMemo(() => {
-    let result = emails.filter(e => e.category === activeCategory && !e.isArchived);
+    let result = emails.filter((e) => e.category === activeCategory && !e.isArchived);
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(e =>
-        e.subject.toLowerCase().includes(query) ||
-        e.from.email.toLowerCase().includes(query) ||
-        e.snippet.toLowerCase().includes(query) ||
-        (e.from.name && e.from.name.toLowerCase().includes(query))
+      result = result.filter(
+        (e) =>
+          e.subject.toLowerCase().includes(query) ||
+          e.from.email.toLowerCase().includes(query) ||
+          e.snippet.toLowerCase().includes(query) ||
+          (e.from.name && e.from.name.toLowerCase().includes(query)),
       );
     }
     if (searchFilters.hasAttachment) {
-      result = result.filter(e => e.attachments.length > 0);
+      result = result.filter((e) => e.attachments.length > 0);
     }
     if (searchFilters.isUnread) {
-      result = result.filter(e => !e.isRead);
+      result = result.filter((e) => !e.isRead);
     }
     if (searchFilters.label) {
-      result = result.filter(e => e.labels.includes(searchFilters.label!));
+      result = result.filter((e) => e.labels.includes(searchFilters.label!));
     }
     result.sort((a, b) => {
       let cmp = 0;
       switch (sortBy) {
-        case 'date': cmp = new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(); break;
-        case 'sender': cmp = (a.from.name || a.from.email).localeCompare(b.from.name || b.from.email); break;
-        case 'subject': cmp = a.subject.localeCompare(b.subject); break;
+        case 'date':
+          cmp = new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime();
+          break;
+        case 'sender':
+          cmp = (a.from.name || a.from.email).localeCompare(b.from.name || b.from.email);
+          break;
+        case 'subject':
+          cmp = a.subject.localeCompare(b.subject);
+          break;
       }
       return sortOrder === 'desc' ? cmp : -cmp;
     });
@@ -320,7 +405,9 @@ export const InboxPage: React.FC<InboxPageProps> = ({ userId }) => {
         <div className="error-icon">&#x26A0;</div>
         <h2>Failed to Load Inbox</h2>
         <p>{error}</p>
-        <button onClick={fetchEmails} className="retry-button">Retry</button>
+        <button onClick={fetchEmails} className="retry-button">
+          Retry
+        </button>
       </div>
     );
   }
@@ -336,30 +423,60 @@ export const InboxPage: React.FC<InboxPageProps> = ({ userId }) => {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="search-input"
           />
-          <button onClick={() => setShowFilterPanel(!showFilterPanel)} className="filter-toggle-btn">
+          <button
+            onClick={() => setShowFilterPanel(!showFilterPanel)}
+            className="filter-toggle-btn"
+          >
             Filters {showFilterPanel ? '▲' : '▼'}
           </button>
         </div>
         {showFilterPanel && (
           <div className="filter-panel">
             <label>
-              <input type="checkbox" checked={!!searchFilters.hasAttachment} onChange={(e) => setSearchFilters(prev => ({ ...prev, hasAttachment: e.target.checked || undefined }))} />
+              <input
+                type="checkbox"
+                checked={!!searchFilters.hasAttachment}
+                onChange={(e) =>
+                  setSearchFilters((prev) => ({
+                    ...prev,
+                    hasAttachment: e.target.checked || undefined,
+                  }))
+                }
+              />
               Has attachment
             </label>
             <label>
-              <input type="checkbox" checked={!!searchFilters.isUnread} onChange={(e) => setSearchFilters(prev => ({ ...prev, isUnread: e.target.checked || undefined }))} />
+              <input
+                type="checkbox"
+                checked={!!searchFilters.isUnread}
+                onChange={(e) =>
+                  setSearchFilters((prev) => ({ ...prev, isUnread: e.target.checked || undefined }))
+                }
+              />
               Unread only
             </label>
-            <select value={searchFilters.label || ''} onChange={(e) => setSearchFilters(prev => ({ ...prev, label: e.target.value || undefined }))}>
+            <select
+              value={searchFilters.label || ''}
+              onChange={(e) =>
+                setSearchFilters((prev) => ({ ...prev, label: e.target.value || undefined }))
+              }
+            >
               <option value="">All labels</option>
-              {availableLabels.map(l => <option key={l} value={l}>{l}</option>)}
+              {availableLabels.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
             </select>
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as 'date' | 'sender' | 'subject')}>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'date' | 'sender' | 'subject')}
+            >
               <option value="date">Date</option>
               <option value="sender">Sender</option>
               <option value="subject">Subject</option>
             </select>
-            <button onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}>
+            <button onClick={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}>
               {sortOrder === 'desc' ? '↓ Newest' : '↑ Oldest'}
             </button>
           </div>
@@ -367,11 +484,14 @@ export const InboxPage: React.FC<InboxPageProps> = ({ userId }) => {
       </header>
 
       <nav className="category-tabs">
-        {categoryTabs.map(tab => (
+        {categoryTabs.map((tab) => (
           <button
             key={tab.id}
             className={`category-tab ${activeCategory === tab.id ? 'active' : ''}`}
-            onClick={() => { setActiveCategory(tab.id); setPage(1); }}
+            onClick={() => {
+              setActiveCategory(tab.id);
+              setPage(1);
+            }}
           >
             <span className="tab-label">{tab.label}</span>
             {tab.unreadCount > 0 && <span className="unread-badge">{tab.unreadCount}</span>}
@@ -382,18 +502,28 @@ export const InboxPage: React.FC<InboxPageProps> = ({ userId }) => {
       {selectedEmails.size > 0 && (
         <div className="batch-actions-toolbar">
           <span className="selection-count">{selectedEmails.size} selected</span>
-          <button onClick={handleArchiveBatch} disabled={batchActionInProgress}>Archive</button>
-          <button onClick={handleDeleteBatch} disabled={batchActionInProgress}>Delete</button>
-          <button onClick={() => handleMarkReadBatch(true)} disabled={batchActionInProgress}>Mark Read</button>
-          <button onClick={() => handleMarkReadBatch(false)} disabled={batchActionInProgress}>Mark Unread</button>
-          <button onClick={() => setSelectedEmails(new Set())} className="clear-selection">Clear</button>
+          <button onClick={handleArchiveBatch} disabled={batchActionInProgress}>
+            Archive
+          </button>
+          <button onClick={handleDeleteBatch} disabled={batchActionInProgress}>
+            Delete
+          </button>
+          <button onClick={() => handleMarkReadBatch(true)} disabled={batchActionInProgress}>
+            Mark Read
+          </button>
+          <button onClick={() => handleMarkReadBatch(false)} disabled={batchActionInProgress}>
+            Mark Unread
+          </button>
+          <button onClick={() => setSelectedEmails(new Set())} className="clear-selection">
+            Clear
+          </button>
         </div>
       )}
 
       <div className="inbox-content" ref={emailListRef}>
         <aside className="labels-sidebar">
           <h3>Labels</h3>
-          {availableLabels.map(label => (
+          {availableLabels.map((label) => (
             <div
               key={label}
               className={`label-item ${dragOverLabel === label ? 'drag-over' : ''}`}
@@ -401,7 +531,10 @@ export const InboxPage: React.FC<InboxPageProps> = ({ userId }) => {
               onDragLeave={() => setDragOverLabel(null)}
               onDrop={(e) => handleDrop(e, label)}
             >
-              <span className="label-color" style={{ backgroundColor: `hsl(${label.charCodeAt(0) * 37 % 360}, 70%, 50%)` }}></span>
+              <span
+                className="label-color"
+                style={{ backgroundColor: `hsl(${(label.charCodeAt(0) * 37) % 360}, 70%, 50%)` }}
+              ></span>
               <span className="label-name">{label}</span>
             </div>
           ))}
@@ -432,12 +565,14 @@ export const InboxPage: React.FC<InboxPageProps> = ({ userId }) => {
               <div className="select-all-row">
                 <input
                   type="checkbox"
-                  checked={selectedEmails.size === filteredEmails.length && filteredEmails.length > 0}
+                  checked={
+                    selectedEmails.size === filteredEmails.length && filteredEmails.length > 0
+                  }
                   onChange={handleSelectAll}
                 />
                 <span>Select all ({filteredEmails.length})</span>
               </div>
-              {filteredEmails.map(email => (
+              {filteredEmails.map((email) => (
                 <div
                   key={email.id}
                   className={`email-row ${!email.isRead ? 'unread' : ''} ${selectedEmails.has(email.id) ? 'selected' : ''}`}
@@ -456,24 +591,43 @@ export const InboxPage: React.FC<InboxPageProps> = ({ userId }) => {
                   >
                     {email.isStarred ? '★' : '☆'}
                   </button>
-                  <div className="email-sender">
-                    {email.from.name || email.from.email}
-                  </div>
+                  <div className="email-sender">{email.from.name || email.from.email}</div>
                   <div className="email-content-preview">
                     <span className="email-subject">{email.subject}</span>
                     <span className="email-snippet"> - {email.snippet}</span>
                   </div>
                   <div className="email-meta">
-                    {email.attachments.length > 0 && <span className="attachment-icon" title={`${email.attachments.length} attachment(s)`}>&#128206;</span>}
-                    {email.labels.map(l => (
-                      <span key={l} className="email-label-chip" style={{ backgroundColor: `hsl(${l.charCodeAt(0) * 37 % 360}, 70%, 90%)` }}>{l}</span>
+                    {email.attachments.length > 0 && (
+                      <span
+                        className="attachment-icon"
+                        title={`${email.attachments.length} attachment(s)`}
+                      >
+                        &#128206;
+                      </span>
+                    )}
+                    {email.labels.map((l) => (
+                      <span
+                        key={l}
+                        className="email-label-chip"
+                        style={{
+                          backgroundColor: `hsl(${(l.charCodeAt(0) * 37) % 360}, 70%, 90%)`,
+                        }}
+                      >
+                        {l}
+                      </span>
                     ))}
-                    {email.threadCount > 1 && <span className="thread-count">({email.threadCount})</span>}
+                    {email.threadCount > 1 && (
+                      <span className="thread-count">({email.threadCount})</span>
+                    )}
                     <span className="email-time">{formatRelativeTime(email.receivedAt)}</span>
                   </div>
                   <div className="email-actions">
-                    <button onClick={() => handleSnoozeEmail(email.id, 'tomorrow')} title="Snooze">&#x23F0;</button>
-                    <button onClick={() => handleArchiveBatch()} title="Archive">&#x1F4E6;</button>
+                    <button onClick={() => handleSnoozeEmail(email.id, 'tomorrow')} title="Snooze">
+                      &#x23F0;
+                    </button>
+                    <button onClick={() => handleArchiveBatch()} title="Archive">
+                      &#x1F4E6;
+                    </button>
                   </div>
                 </div>
               ))}
@@ -484,9 +638,15 @@ export const InboxPage: React.FC<InboxPageProps> = ({ userId }) => {
 
       {totalPages > 1 && (
         <div className="pagination">
-          <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</button>
-          <span>Page {page} of {totalPages}</span>
-          <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</button>
+          <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            Previous
+          </button>
+          <span>
+            Page {page} of {totalPages}
+          </span>
+          <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+            Next
+          </button>
         </div>
       )}
     </div>

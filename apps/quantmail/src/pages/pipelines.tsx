@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { sanitizeCodeHighlight } from '@quant/shared-ui';
+import { logger } from '@quant/common';
 
 interface Pipeline {
   id: string;
@@ -120,7 +121,7 @@ export const PipelinesPage: React.FC<PipelinesPageProps> = ({ repoId }) => {
         );
       }
     } catch (err) {
-      console.error('Failed to fetch YAML:', err);
+      logger.error('Failed to fetch YAML:', err);
     }
   }, []);
 
@@ -134,7 +135,7 @@ export const PipelinesPage: React.FC<PipelinesPageProps> = ({ repoId }) => {
         setEnvVars(data.variables || []);
       }
     } catch (err) {
-      console.error('Failed to fetch env vars:', err);
+      logger.error('Failed to fetch env vars:', err);
     }
   }, []);
 
@@ -217,7 +218,7 @@ export const PipelinesPage: React.FC<PipelinesPageProps> = ({ repoId }) => {
         setNewEnvSecret(false);
       }
     } catch (err) {
-      console.error('Failed to add env var:', err);
+      logger.error('Failed to add env var:', err);
     }
   }, [newEnvKey, newEnvValue, newEnvSecret, newEnvEnvironment]);
 
@@ -229,7 +230,7 @@ export const PipelinesPage: React.FC<PipelinesPageProps> = ({ repoId }) => {
       });
       setEnvVars((prev) => prev.filter((v) => v.key !== key));
     } catch (err) {
-      console.error('Failed to delete env var:', err);
+      logger.error('Failed to delete env var:', err);
     }
   }, []);
 
@@ -243,7 +244,7 @@ export const PipelinesPage: React.FC<PipelinesPageProps> = ({ repoId }) => {
         prev.map((p) => (p.id === pipelineId ? { ...p, status: 'cancelled' as const } : p)),
       );
     } catch (err) {
-      console.error('Failed to cancel pipeline:', err);
+      logger.error('Failed to cancel pipeline:', err);
     }
   }, []);
 
@@ -258,7 +259,7 @@ export const PipelinesPage: React.FC<PipelinesPageProps> = ({ repoId }) => {
         setPipelines((prev) => [retried, ...prev]);
       }
     } catch (err) {
-      console.error('Failed to retry pipeline:', err);
+      logger.error('Failed to retry pipeline:', err);
     }
   }, []);
 
