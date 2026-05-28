@@ -1,0 +1,15 @@
+{
+  "task_id": "task-phase63-kill-fake-components",
+  "task_description": "Phase 63: Rewrite all 42 fake components (that return JS object trees instead of JSX) across 7 apps into real React components with proper JSX, Tailwind CSS, and accessibility.",
+  "status": "in_progress",
+  "feature_order": [
+    "FEAT-001",
+    "FEAT-002",
+    "FEAT-003",
+    "FEAT-004",
+    "FEAT-005",
+    "FEAT-006",
+    "FEAT-007"
+  ],
+  "blocked_reason": null
+}

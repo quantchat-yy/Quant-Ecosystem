@@ -4,24 +4,68 @@
 
 import type { Reel } from '../types';
 
-interface ReelPlayerProps { reel: Reel; isActive: boolean; isMuted: boolean; }
+interface ReelPlayerProps {
+  reel: Reel;
+  isActive: boolean;
+  isMuted: boolean;
+}
 
 export function ReelPlayer({ reel, isActive, isMuted }: ReelPlayerProps) {
-  return {
-    type: 'div', props: { className: 'reel-player' }, children: [
-      { type: 'video', props: { src: reel.videoUrl, poster: reel.thumbnailUrl, loop: true, muted: isMuted, 'data-active': isActive, className: 'reel-video' }, children: [] },
-      { type: 'div', props: { className: 'reel-sidebar' }, children: [
-        { type: 'button', props: { className: `like ${reel.isLiked ? 'liked' : ''}` }, children: [String(reel.likes)] },
-        { type: 'button', props: { className: 'comment' }, children: [String(reel.comments)] },
-        { type: 'button', props: { className: 'share' }, children: [String(reel.shares)] },
-        { type: 'div', props: { className: 'audio-disc' }, children: [] },
-      ]},
-      { type: 'div', props: { className: 'reel-footer' }, children: [
-        { type: 'span', props: { className: 'username' }, children: [`@${reel.username}`] },
-        { type: 'p', props: { className: 'caption' }, children: [reel.caption] },
-        { type: 'div', props: { className: 'audio-info' }, children: [{ type: 'span', props: {}, children: [reel.audioName] }] },
-      ]},
-    ],
-  };
+  return (
+    <div className="relative w-full h-full bg-black" aria-label={`Reel by ${reel.username}`}>
+      {/* Video */}
+      <video
+        src={reel.videoUrl}
+        poster={reel.thumbnailUrl}
+        loop
+        muted={isMuted}
+        autoPlay={isActive}
+        className="absolute inset-0 w-full h-full object-cover"
+        aria-label={reel.caption}
+      />
+
+      {/* Sidebar Actions */}
+      <div className="absolute right-3 bottom-32 flex flex-col items-center gap-5">
+        <button
+          className={`flex flex-col items-center gap-1 ${reel.isLiked ? 'text-red-500' : 'text-white'}`}
+          aria-label={`Like, ${reel.likes} likes`}
+        >
+          <span className="text-2xl">{reel.isLiked ? '♥' : '♡'}</span>
+          <span className="text-xs font-medium">{reel.likes}</span>
+        </button>
+        <button
+          className="flex flex-col items-center gap-1 text-white"
+          aria-label={`Comments, ${reel.comments} comments`}
+        >
+          <span className="text-2xl">💬</span>
+          <span className="text-xs font-medium">{reel.comments}</span>
+        </button>
+        <button
+          className="flex flex-col items-center gap-1 text-white"
+          aria-label={`Share, ${reel.shares} shares`}
+        >
+          <span className="text-2xl">↗</span>
+          <span className="text-xs font-medium">{reel.shares}</span>
+        </button>
+        <div
+          className="w-8 h-8 rounded-full border-2 border-white overflow-hidden animate-spin-slow"
+          aria-label="Audio disc"
+        >
+          <img src={reel.userAvatar} alt="" className="w-full h-full object-cover" />
+        </div>
+      </div>
+
+      {/* Footer Info */}
+      <div className="absolute bottom-4 left-3 right-16 text-white">
+        <p className="font-bold text-sm mb-1">@{reel.username}</p>
+        <p className="text-sm leading-snug line-clamp-2">{reel.caption}</p>
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-xs">♪</span>
+          <span className="text-xs truncate">{reel.audioName}</span>
+        </div>
+      </div>
+    </div>
+  );
 }
+
 export default ReelPlayer;
