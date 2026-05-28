@@ -17,6 +17,10 @@ export class LiteMode {
   }
 
   enqueue(message: object): void {
+    const max = this.config.maxQueueSize ?? 100;
+    if (this.queue.length >= max) {
+      this.queue.shift();
+    }
     this.queue.push(message);
   }
 
@@ -30,7 +34,7 @@ export class LiteMode {
     return { ...this.config };
   }
 
-  detectConnectionQuality(): 'good' | 'moderate' | 'poor' {
+  getQualityTier(): 'good' | 'moderate' | 'poor' {
     const threshold = this.config.connectionQualityThreshold;
     if (threshold >= 0.8) return 'good';
     if (threshold >= 0.5) return 'moderate';

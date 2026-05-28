@@ -36,7 +36,7 @@ export class LanguageDetector {
           break;
         }
       }
-      if (code >= 0x0041 && code <= 0x007a) {
+      if ((code >= 0x0041 && code <= 0x005a) || (code >= 0x0061 && code <= 0x007a)) {
         counts.set(ScriptType.Latin, (counts.get(ScriptType.Latin) ?? 0) + 1);
       }
     }
@@ -66,7 +66,7 @@ export class LanguageDetector {
     let hasIndic = false;
     for (const char of text) {
       const code = char.codePointAt(0)!;
-      if (code >= 0x0041 && code <= 0x007a) {
+      if ((code >= 0x0041 && code <= 0x005a) || (code >= 0x0061 && code <= 0x007a)) {
         hasLatin = true;
       }
       for (const range of SCRIPT_RANGES) {

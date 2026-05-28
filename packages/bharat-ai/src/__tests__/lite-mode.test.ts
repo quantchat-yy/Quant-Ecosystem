@@ -56,14 +56,37 @@ describe('LiteMode', () => {
   });
 
   it('should detect connection quality level', () => {
-    expect(
-      new LiteMode(makeConfig({ connectionQualityThreshold: 0.9 })).detectConnectionQuality(),
-    ).toBe('good');
-    expect(
-      new LiteMode(makeConfig({ connectionQualityThreshold: 0.6 })).detectConnectionQuality(),
-    ).toBe('moderate');
-    expect(
-      new LiteMode(makeConfig({ connectionQualityThreshold: 0.3 })).detectConnectionQuality(),
-    ).toBe('poor');
+    expect(new LiteMode(makeConfig({ connectionQualityThreshold: 0.9 })).getQualityTier()).toBe(
+      'good',
+    );
+    expect(new LiteMode(makeConfig({ connectionQualityThreshold: 0.6 })).getQualityTier()).toBe(
+      'moderate',
+    );
+    expect(new LiteMode(makeConfig({ connectionQualityThreshold: 0.3 })).getQualityTier()).toBe(
+      'poor',
+    );
+  });
+
+  it('should evict oldest message when queue reaches maxQueueSize', () => {
+    const lite = new LiteMode(makeConfig({ maxQueueSize: 3 }));
+    lite.enqueue({ id: 1 });
+    lite.enqueue({ id: 2 });
+    lite.enqueue({ id: 3 });
+    lite.enqueue({ id: 4 });
+    const flushed = lite.flush();
+    expect(flushed).toHaveLength(3);
+    expect(flushed[0]).toEqual({ id: 2 });
+    expect(flushed[2]).toEqual({ id: 4 });
+  });
+
+  it('should default maxQueueSize to 100', () => {
+    const lite = new LiteMode(makeConfig());
+    for (let i = 0; i < 110; i++) {
+      lite.enqueue({ i });
+    }
+    const flushed = lite.flush();
+    expect(flushed).toHaveLength(100);
+    expect(flushed[0]).toEqual({ i: 10 });
+    expect(flushed[99]).toEqual({ i: 109 });
   });
 });

@@ -40,6 +40,7 @@ export interface TranslationEntry {
 
 export interface FestivalEvent {
   name: string;
+  /** Month-day in MM-DD format (year-agnostic) */
   date: string;
   languages: QuantLanguage[];
   states: string[];
@@ -52,6 +53,7 @@ export interface LiteConfig {
   offlineFirst: boolean;
   queueBasedSend: boolean;
   connectionQualityThreshold: number;
+  maxQueueSize?: number;
 }
 
 export interface ASRConfig {
