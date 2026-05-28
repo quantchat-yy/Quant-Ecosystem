@@ -1,0 +1,14 @@
+{
+  "task_id": "task-phase-42-twilio-sip",
+  "task_description": "Add Twilio SIP integration for outbound calls to the device-control package. Implements TwilioPhoneProvider (dual-mode: real Twilio SDK when credentials present, mock when absent), CallSessionManager state machine, TwiML builder, NativePhoneProvider fallback, and CallAgent for Quant Live voice intents.",
+  "status": "completed",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "typecheck clean, all 49 tests pass (32 new + 17 existing). Tests exercise real code paths: state machine transitions, TwiML XML generation, dual-mode provider with mocked Twilio client, permission checking in CallAgent."
+  }
+}
