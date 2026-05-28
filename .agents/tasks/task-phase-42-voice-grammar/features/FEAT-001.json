@@ -32,5 +32,5 @@
     "pnpm --filter @quant/device-control run test"
   ],
   "blocked_reason": null,
-  "findings": "Hindi patterns must be ordered before generic English patterns to avoid false matches. Pre-commit hook enforces 100-char line limit on commit message bodies. Prettier ran via lint-staged but no formatting changes needed."
+  "findings": "Hindi patterns must be ordered before generic English patterns to avoid false matches. Pre-commit hook enforces 100-char line limit on commit message bodies. Prettier ran via lint-staged but no formatting changes needed. V2 review fixes applied: pre-compiled regex at module level via compiledPatterns array, error message changed to distinguish unsupported capabilities from misconfigured providers, executeShortcut now accepts optional confirmed parameter."
 }
