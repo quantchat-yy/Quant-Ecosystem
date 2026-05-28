@@ -4,3 +4,8 @@ export * from './geocoding/geocoder.js';
 export * from './routing/router.js';
 export * from './location/location-service.js';
 export * from './search/place-search.js';
+export * from './navigation/navigation-events.js';
+export * from './navigation/progress-tracker.js';
+export * from './navigation/voice-guidance.js';
+export * from './navigation/offline-cache.js';
+export * from './navigation/navigation-session.js';
