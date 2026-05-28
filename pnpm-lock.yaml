@@ -808,6 +808,18 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
 
+  packages/agent-swarm:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
   packages/ai:
     dependencies:
       '@ai-sdk/anthropic':
@@ -1681,6 +1693,18 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
 
+  packages/robotics-bridge:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
   packages/search:
     dependencies:
       '@quant/ai':
@@ -1855,6 +1879,18 @@ importers:
       zod:
         specifier: ^3.24.2
         version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jsdom@25.0.1)
+
+  packages/spatial-ui:
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
