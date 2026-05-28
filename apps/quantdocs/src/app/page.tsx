@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { AppShell, Sidebar, Button } from '@quant/shared-ui';
+import { AnimatedPage, AppShell, Sidebar, SpringButton } from '@quant/shared-ui';
 import type { SidebarItem } from '@quant/shared-ui';
 import { DocList } from '../components/DocList';
 
@@ -31,9 +31,9 @@ export default function DocsPage() {
           header={
             <div className="space-y-3">
               <h1 className="text-lg font-bold">QuantDocs</h1>
-              <Button variant="primary" size="sm">
+              <SpringButton variant="primary" size="sm">
                 New Document
-              </Button>
+              </SpringButton>
             </div>
           }
           aria-label="Document navigation"
@@ -41,7 +41,9 @@ export default function DocsPage() {
       }
       aria-label="QuantDocs application"
     >
-      <DocList filter={activeFilter} />
+      <AnimatedPage>
+        <DocList filter={activeFilter} />
+      </AnimatedPage>
     </AppShell>
   );
 }

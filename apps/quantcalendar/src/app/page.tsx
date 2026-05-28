@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { AppShell, Button, LoadingState, ErrorState } from '@quant/shared-ui';
+import { AnimatedPage, AppShell, Button, LoadingState, ErrorState } from '@quant/shared-ui';
 import { useEvents } from '../hooks/useEvents';
 import { useCalendars } from '../hooks/useCalendars';
 import { CalendarSidebar } from '../components/CalendarSidebar';
@@ -127,51 +127,53 @@ export default function CalendarPage() {
       }
       aria-label="QuantCalendar application"
     >
-      <div className="flex flex-col h-full">
-        <header className="flex flex-wrap items-center gap-2 p-3 border-b border-[var(--quant-border)]">
-          <Button variant="secondary" size="sm" onClick={handleToday}>
-            Today
-          </Button>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={handlePrev} aria-label="Previous">
-              &#9664;
+      <AnimatedPage>
+        <div className="flex flex-col h-full">
+          <header className="flex flex-wrap items-center gap-2 p-3 border-b border-[var(--quant-border)]">
+            <Button variant="secondary" size="sm" onClick={handleToday}>
+              Today
             </Button>
-            <Button variant="ghost" size="sm" onClick={handleNext} aria-label="Next">
-              &#9654;
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={handlePrev} aria-label="Previous">
+                &#9664;
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleNext} aria-label="Next">
+                &#9654;
+              </Button>
+            </div>
+            <h1 className="text-lg font-semibold flex-1 min-w-0">{getDateRangeLabel()}</h1>
+            <nav
+              className="flex rounded-lg border border-[var(--quant-border)] overflow-hidden"
+              role="tablist"
+              aria-label="Calendar view"
+            >
+              {VIEW_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  role="tab"
+                  aria-selected={currentView === tab.id}
+                  onClick={() => setCurrentView(tab.id)}
+                  className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                    currentView === tab.id
+                      ? 'bg-quant-primary text-white'
+                      : 'hover:bg-[var(--quant-muted)]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+          </header>
+          <div className="flex-1 overflow-hidden">
+            <CalendarGrid
+              view={currentView}
+              events={events ?? []}
+              currentDate={currentDate}
+              onEventClick={handleEventClick}
+            />
           </div>
-          <h1 className="text-lg font-semibold flex-1 min-w-0">{getDateRangeLabel()}</h1>
-          <nav
-            className="flex rounded-lg border border-[var(--quant-border)] overflow-hidden"
-            role="tablist"
-            aria-label="Calendar view"
-          >
-            {VIEW_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                role="tab"
-                aria-selected={currentView === tab.id}
-                onClick={() => setCurrentView(tab.id)}
-                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                  currentView === tab.id
-                    ? 'bg-quant-primary text-white'
-                    : 'hover:bg-[var(--quant-muted)]'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        </header>
-        <div className="flex-1 overflow-hidden">
-          <CalendarGrid
-            view={currentView}
-            events={events ?? []}
-            currentDate={currentDate}
-            onEventClick={handleEventClick}
-          />
         </div>
-      </div>
+      </AnimatedPage>
 
       <EventForm
         open={isEventFormOpen}

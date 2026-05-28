@@ -186,6 +186,9 @@ importers:
       fastify:
         specifier: ^5.3.3
         version: 5.8.5
+      framer-motion:
+        specifier: ^11.0.0
+        version: 11.18.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       ioredis:
         specifier: ^5.6.1
         version: 5.10.1
@@ -250,6 +253,9 @@ importers:
       fastify:
         specifier: ^5.3.3
         version: 5.8.5
+      framer-motion:
+        specifier: ^11.0.0
+        version: 11.18.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       ioredis:
         specifier: ^5.6.1
         version: 5.10.1
@@ -320,6 +326,9 @@ importers:
       fastify:
         specifier: ^5.3.3
         version: 5.8.5
+      framer-motion:
+        specifier: ^11.0.0
+        version: 11.18.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       ioredis:
         specifier: ^5.6.1
         version: 5.10.1
@@ -387,6 +396,9 @@ importers:
       fastify:
         specifier: ^5.3.3
         version: 5.8.5
+      framer-motion:
+        specifier: ^11.0.0
+        version: 11.18.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       ioredis:
         specifier: ^5.6.1
         version: 5.10.1
@@ -460,6 +472,9 @@ importers:
       fastify:
         specifier: ^5.3.3
         version: 5.8.5
+      framer-motion:
+        specifier: ^11.0.0
+        version: 11.18.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       ioredis:
         specifier: ^5.6.1
         version: 5.10.1
@@ -582,6 +597,9 @@ importers:
       fastify:
         specifier: ^5.2.1
         version: 5.8.5
+      framer-motion:
+        specifier: ^11.0.0
+        version: 11.18.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       ioredis:
         specifier: ^5.6.1
         version: 5.10.1
@@ -701,6 +719,9 @@ importers:
       fastify:
         specifier: ^5.3.3
         version: 5.8.5
+      framer-motion:
+        specifier: ^11.0.0
+        version: 11.18.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       ioredis:
         specifier: ^5.6.1
         version: 5.10.1
