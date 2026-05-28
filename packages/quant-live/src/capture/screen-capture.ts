@@ -2,11 +2,14 @@ import type { CaptureFrame, ScreenCaptureConfig } from '../types.js';
 
 type FrameCallback = (frame: CaptureFrame) => void;
 type PrivacyCallback = (active: boolean) => void;
+type ErrorCallback = (error: Error) => void;
+type Unsubscribe = () => void;
 
 export class ScreenCapture {
   private config: Required<ScreenCaptureConfig>;
   private frameCallbacks: FrameCallback[] = [];
   private privacyCallbacks: PrivacyCallback[] = [];
+  private errorCallbacks: ErrorCallback[] = [];
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private stream: MediaStream | null = null;
   private video: HTMLVideoElement | null = null;
@@ -15,7 +18,7 @@ export class ScreenCapture {
 
   constructor(config: ScreenCaptureConfig = {}) {
     this.config = {
-      fps: config.fps ?? 0.5,
+      fps: Math.min(config.fps ?? 0.5, 5),
       captureType: config.captureType ?? 'screen',
     };
   }
@@ -36,8 +39,12 @@ export class ScreenCapture {
       this.notifyPrivacy(true);
       const intervalMs = 1000 / this.config.fps;
       this.intervalId = setInterval(() => this.captureFrame(), intervalMs);
-    } catch {
+    } catch (err: unknown) {
       this.running = false;
+      const error = err instanceof Error ? err : new Error(String(err));
+      for (const cb of this.errorCallbacks) {
+        cb(error);
+      }
     }
   }
 
@@ -55,12 +62,28 @@ export class ScreenCapture {
     this.notifyPrivacy(false);
   }
 
-  onFrame(cb: FrameCallback): void {
+  onFrame(cb: FrameCallback): Unsubscribe {
     this.frameCallbacks.push(cb);
+    return () => {
+      const idx = this.frameCallbacks.indexOf(cb);
+      if (idx >= 0) this.frameCallbacks.splice(idx, 1);
+    };
   }
 
-  onPrivacy(cb: PrivacyCallback): void {
+  onPrivacy(cb: PrivacyCallback): Unsubscribe {
     this.privacyCallbacks.push(cb);
+    return () => {
+      const idx = this.privacyCallbacks.indexOf(cb);
+      if (idx >= 0) this.privacyCallbacks.splice(idx, 1);
+    };
+  }
+
+  onError(cb: ErrorCallback): Unsubscribe {
+    this.errorCallbacks.push(cb);
+    return () => {
+      const idx = this.errorCallbacks.indexOf(cb);
+      if (idx >= 0) this.errorCallbacks.splice(idx, 1);
+    };
   }
 
   isRunning(): boolean {

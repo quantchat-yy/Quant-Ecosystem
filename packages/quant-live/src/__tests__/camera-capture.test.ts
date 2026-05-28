@@ -75,12 +75,52 @@ describe('CameraCapture', () => {
     expect(privacyCb).toHaveBeenCalledWith(false);
   });
 
-  it('handles getUserMedia failure as no-op', async () => {
+  it('invokes error callback on getUserMedia failure', async () => {
     (navigator.mediaDevices.getUserMedia as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('NotAllowed'),
     );
     const camera = new CameraCapture();
+    const errorCb = vi.fn();
+    camera.onError(errorCb);
     await camera.start();
     expect(camera.isRunning()).toBe(false);
+    expect(errorCb).toHaveBeenCalledTimes(1);
+    expect(errorCb).toHaveBeenCalledWith(expect.any(Error));
+    expect((errorCb.mock.calls[0] as [Error])[0].message).toBe('NotAllowed');
+  });
+
+  it('returns unsubscribe function from onFrame', async () => {
+    const camera = new CameraCapture({ fps: 1 });
+    const frameCb = vi.fn();
+    const unsub = camera.onFrame(frameCb);
+    await camera.start();
+    vi.advanceTimersByTime(1000);
+    expect(frameCb).toHaveBeenCalledTimes(1);
+    unsub();
+    vi.advanceTimersByTime(1000);
+    expect(frameCb).toHaveBeenCalledTimes(1);
+    camera.stop();
+  });
+
+  it('returns unsubscribe function from onPrivacy', async () => {
+    const camera = new CameraCapture();
+    const privacyCb = vi.fn();
+    const unsub = camera.onPrivacy(privacyCb);
+    unsub();
+    await camera.start();
+    expect(privacyCb).not.toHaveBeenCalled();
+    camera.stop();
+  });
+
+  it('returns unsubscribe function from onError', async () => {
+    (navigator.mediaDevices.getUserMedia as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('NotAllowed'),
+    );
+    const camera = new CameraCapture();
+    const errorCb = vi.fn();
+    const unsub = camera.onError(errorCb);
+    unsub();
+    await camera.start();
+    expect(errorCb).not.toHaveBeenCalled();
   });
 });

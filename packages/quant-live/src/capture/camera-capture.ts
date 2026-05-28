@@ -2,11 +2,14 @@ import type { CameraConfig, CaptureFrame } from '../types.js';
 
 type FrameCallback = (frame: CaptureFrame) => void;
 type PrivacyCallback = (active: boolean) => void;
+type ErrorCallback = (error: Error) => void;
+type Unsubscribe = () => void;
 
 export class CameraCapture {
   private config: Required<CameraConfig>;
   private frameCallbacks: FrameCallback[] = [];
   private privacyCallbacks: PrivacyCallback[] = [];
+  private errorCallbacks: ErrorCallback[] = [];
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private stream: MediaStream | null = null;
   private video: HTMLVideoElement | null = null;
@@ -17,7 +20,6 @@ export class CameraCapture {
     this.config = {
       fps: Math.min(config.fps ?? 1, 5),
       resolution: config.resolution ?? { width: 640, height: 480 },
-      autoStart: config.autoStart ?? false,
     };
   }
 
@@ -37,9 +39,12 @@ export class CameraCapture {
       this.notifyPrivacy(true);
       const intervalMs = 1000 / this.config.fps;
       this.intervalId = setInterval(() => this.captureFrame(), intervalMs);
-    } catch {
-      // No-op fallback when camera unavailable
+    } catch (err: unknown) {
       this.running = false;
+      const error = err instanceof Error ? err : new Error(String(err));
+      for (const cb of this.errorCallbacks) {
+        cb(error);
+      }
     }
   }
 
@@ -57,12 +62,28 @@ export class CameraCapture {
     this.notifyPrivacy(false);
   }
 
-  onFrame(cb: FrameCallback): void {
+  onFrame(cb: FrameCallback): Unsubscribe {
     this.frameCallbacks.push(cb);
+    return () => {
+      const idx = this.frameCallbacks.indexOf(cb);
+      if (idx >= 0) this.frameCallbacks.splice(idx, 1);
+    };
   }
 
-  onPrivacy(cb: PrivacyCallback): void {
+  onPrivacy(cb: PrivacyCallback): Unsubscribe {
     this.privacyCallbacks.push(cb);
+    return () => {
+      const idx = this.privacyCallbacks.indexOf(cb);
+      if (idx >= 0) this.privacyCallbacks.splice(idx, 1);
+    };
+  }
+
+  onError(cb: ErrorCallback): Unsubscribe {
+    this.errorCallbacks.push(cb);
+    return () => {
+      const idx = this.errorCallbacks.indexOf(cb);
+      if (idx >= 0) this.errorCallbacks.splice(idx, 1);
+    };
   }
 
   isRunning(): boolean {

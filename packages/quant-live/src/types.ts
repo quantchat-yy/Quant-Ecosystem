@@ -166,7 +166,6 @@ export interface CaptureFrame {
 export interface CameraConfig {
   fps?: number;
   resolution?: { width: number; height: number };
-  autoStart?: boolean;
 }
 
 // Screen capture configuration

@@ -68,6 +68,7 @@ export class LivePipeline {
     this.running = false;
     this.asrProvider = null;
     this.segmentMeasureActive = false;
+    this.latestFrame = null;
   }
 
   setTTSProvider(provider: TTSProvider): void {
