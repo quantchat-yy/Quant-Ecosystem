@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-44-photo-editors",
+  "task_description": "Implement AI photo editor pipelines (Magic Eraser, Unblur, Cinematic, Best Take) with inference runtime abstraction and edit history for @quant/photos package. Privacy-first, local-first design with mock implementations for testing.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}
