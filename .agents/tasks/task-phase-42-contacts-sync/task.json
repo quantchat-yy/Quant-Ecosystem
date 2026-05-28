@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-42-contacts-sync",
+  "task_description": "Implement unified contacts capability for Phase 42 FEAT-004: contact types, in-memory store, Capacitor bridge, CardDAV sync, and contact resolver with full test suite.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}
