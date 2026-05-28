@@ -25,10 +25,10 @@ export function EffectsPanel({
   onApplyEffect,
   onRemoveEffect,
   onToggleEffect,
+  // TODO: wire up handler
   onUpdateParams: _onUpdateParams,
   onUpdateIntensity,
 }: EffectsPanelProps) {
-  void _onUpdateParams;
   const filtered = selectedCategory
     ? availableEffects.filter((e) => e.category === selectedCategory)
     : availableEffects;

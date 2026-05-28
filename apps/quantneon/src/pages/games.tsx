@@ -62,6 +62,7 @@ export function GamesPage({ games, featured, rewards }: GamesPageProps) {
                 <div className="flex items-center justify-between mt-2">
                   <span className="text-yellow-400 text-xs font-medium">★ {g.rating}/5</span>
                   <button
+                    type="button"
                     className="min-h-[44px] min-w-[44px] px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg text-xs font-bold transition-colors"
                     aria-label={`Play ${g.title}`}
                   >

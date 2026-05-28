@@ -35,9 +35,9 @@ const TOOLS: Tool[] = [
 export function ToolPanel({
   activeTool,
   onSelectTool,
+  // TODO: wire up handler
   onToolAction: _onToolAction,
 }: ToolPanelProps) {
-  void _onToolAction;
   const groups = [...new Set(TOOLS.map((t) => t.group))];
 
   return (

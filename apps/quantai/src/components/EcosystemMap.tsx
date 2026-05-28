@@ -14,6 +14,8 @@ interface EcosystemMapProps {
 
 export function EcosystemMap({ apps, centralAI, onSelectApp }: EcosystemMapProps) {
   const radius = 200;
+  const containerSize = 500;
+  const center = containerSize / 2;
 
   const appPositions = useMemo(() => {
     const angleStep = (2 * Math.PI) / (apps.length || 1);
@@ -29,7 +31,7 @@ export function EcosystemMap({ apps, centralAI, onSelectApp }: EcosystemMapProps
     <div
       className="relative w-full min-h-[500px] bg-gray-900 rounded-xl border border-gray-700 overflow-hidden"
       aria-label="Ecosystem map showing AI connections between apps"
-      role="img"
+      role="region"
     >
       {/* Central AI Hub Node */}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
@@ -40,14 +42,19 @@ export function EcosystemMap({ apps, centralAI, onSelectApp }: EcosystemMapProps
       </div>
 
       {/* Connection Lines (SVG overlay) */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
+      <svg
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        viewBox={`0 0 ${containerSize} ${containerSize}`}
+        preserveAspectRatio="xMidYMid meet"
+        aria-hidden="true"
+      >
         {appPositions.map(({ app, x, y }) => (
           <line
             key={`line-${app.id}`}
-            x1="50%"
-            y1="50%"
-            x2={`calc(50% + ${x}px)`}
-            y2={`calc(50% + ${y}px)`}
+            x1={center}
+            y1={center}
+            x2={center + x}
+            y2={center + y}
             className={app.aiEnabled ? 'stroke-purple-500/50' : 'stroke-gray-600/30'}
             strokeWidth={app.aiEnabled ? 2 : 1}
             strokeDasharray={app.aiEnabled ? undefined : '4 4'}

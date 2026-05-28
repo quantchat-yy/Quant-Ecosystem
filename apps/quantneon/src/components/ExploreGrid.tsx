@@ -21,6 +21,7 @@ export function ExploreGrid({ items, onItemClick }: ExploreGridProps) {
         const isLarge = i % 9 === 0 || i % 9 === 4;
         return (
           <button
+            type="button"
             key={item.id}
             className={`relative overflow-hidden bg-gray-900 ${
               isLarge ? 'col-span-2 row-span-2' : ''

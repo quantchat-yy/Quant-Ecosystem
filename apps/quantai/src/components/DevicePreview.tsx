@@ -18,6 +18,7 @@ export function DevicePreview({
   screenCapture,
   onTap,
   onSwipe,
+  // TODO: wire up handler
   onType: _onType,
 }: DevicePreviewProps) {
   return (

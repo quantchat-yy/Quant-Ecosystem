@@ -25,9 +25,15 @@ export function VoteButtons({
   orientation = 'vertical',
 }: VoteButtonsProps) {
   const sizeClasses = {
-    small: 'h-7 w-7 text-xs',
-    medium: 'h-9 w-9 text-sm',
+    small: 'h-11 w-11 text-xs',
+    medium: 'h-11 w-11 text-sm',
     large: 'h-11 w-11 text-base',
+  };
+
+  const iconScale = {
+    small: 'text-sm',
+    medium: 'text-lg',
+    large: 'text-xl',
   };
 
   const containerClasses =
@@ -36,7 +42,8 @@ export function VoteButtons({
   return (
     <div className={containerClasses} role="group" aria-label="Vote buttons">
       <button
-        className={`${sizeClasses[size]} flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md transition-colors ${
+        type="button"
+        className={`${sizeClasses[size]} flex items-center justify-center rounded-md transition-colors ${
           userVote === 'up'
             ? 'bg-orange-100 text-orange-600'
             : 'text-gray-400 hover:bg-gray-100 hover:text-orange-500'
@@ -45,7 +52,7 @@ export function VoteButtons({
         aria-label="Upvote"
         aria-pressed={userVote === 'up'}
       >
-        <span className="text-lg" aria-hidden="true">
+        <span className={iconScale[size]} aria-hidden="true">
           &#9650;
         </span>
       </button>
@@ -58,7 +65,8 @@ export function VoteButtons({
         {formatScore(score)}
       </span>
       <button
-        className={`${sizeClasses[size]} flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md transition-colors ${
+        type="button"
+        className={`${sizeClasses[size]} flex items-center justify-center rounded-md transition-colors ${
           userVote === 'down'
             ? 'bg-blue-100 text-blue-600'
             : 'text-gray-400 hover:bg-gray-100 hover:text-blue-500'
@@ -67,7 +75,7 @@ export function VoteButtons({
         aria-label="Downvote"
         aria-pressed={userVote === 'down'}
       >
-        <span className="text-lg" aria-hidden="true">
+        <span className={iconScale[size]} aria-hidden="true">
           &#9660;
         </span>
       </button>

@@ -16,6 +16,7 @@ interface VideoFeedProps {
 export function VideoFeed({
   videos,
   activeIndex,
+  // TODO: wire up handler
   onScroll: _onScroll,
   onDoubleTap,
   onLongPress,

@@ -51,15 +51,12 @@ function GridItem({
   onItemClick?: (id: string) => void;
 }) {
   return (
-    <div
+    <button
+      type="button"
       role="listitem"
-      className="flex flex-col rounded-lg overflow-hidden bg-gray-900 hover:bg-gray-800 transition-colors cursor-pointer"
+      className="flex flex-col rounded-lg overflow-hidden bg-gray-900 hover:bg-gray-800 transition-colors cursor-pointer text-left"
       data-id={item.id}
       onClick={() => onItemClick?.(item.id)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onItemClick?.(item.id);
-      }}
-      tabIndex={0}
       aria-label={`${item.title} - ${item.channelName || item.artistName || ''}`}
     >
       <div className="relative aspect-video">
@@ -87,7 +84,7 @@ function GridItem({
           <p className="text-xs text-gray-500">{formatViews(item.views)} views</p>
         )}
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -99,15 +96,12 @@ function ListItem({
   onItemClick?: (id: string) => void;
 }) {
   return (
-    <div
+    <button
+      type="button"
       role="listitem"
-      className="flex items-center gap-3 p-2 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors cursor-pointer"
+      className="flex items-center gap-3 p-2 rounded-lg bg-gray-900 hover:bg-gray-800 transition-colors cursor-pointer text-left"
       data-id={item.id}
       onClick={() => onItemClick?.(item.id)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onItemClick?.(item.id);
-      }}
-      tabIndex={0}
       aria-label={`${item.title} - ${item.channelName || item.artistName || ''}`}
     >
       <img
@@ -125,7 +119,7 @@ function ListItem({
       {item.duration != null && (
         <span className="text-xs text-gray-400 flex-shrink-0">{formatDuration(item.duration)}</span>
       )}
-    </div>
+    </button>
   );
 }
 

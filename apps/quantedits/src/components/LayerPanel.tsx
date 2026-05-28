@@ -40,6 +40,7 @@ export function LayerPanel({
   onSelect,
   onToggleVisibility,
   onToggleLock,
+  // TODO: wire up handlers
   onReorder: _onReorder,
   onDelete,
   onDuplicate,
@@ -47,8 +48,6 @@ export function LayerPanel({
   onOpacityChange,
   onBlendModeChange,
 }: LayerPanelProps) {
-  void _onReorder;
-  void _onRename;
   const sortedLayers = [...layers].sort((a, b) => b.position.z - a.position.z);
   const selectedLayer = layers.find((l) => l.id === selectedLayerId);
 

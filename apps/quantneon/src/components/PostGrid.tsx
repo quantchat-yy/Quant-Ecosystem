@@ -20,6 +20,7 @@ export function PostGrid({ posts, columns = 3, onPostClick }: PostGridProps) {
     >
       {posts.map((post) => (
         <button
+          type="button"
           key={post.id}
           className="relative aspect-square overflow-hidden bg-gray-900 group"
           onClick={() => onPostClick?.(post.id)}

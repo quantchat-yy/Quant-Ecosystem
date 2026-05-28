@@ -17,6 +17,7 @@ interface LiveChatProps {
 
 export function LiveChat({
   messages,
+  // TODO: wire up handler
   streamId: _streamId,
   isConnected,
   viewerCount,
@@ -95,6 +96,7 @@ export function LiveChat({
           aria-label="Chat message input"
         />
         <button
+          type="button"
           onClick={handleSend}
           className="px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors min-w-[44px] min-h-[44px]"
           aria-label="Send message"
@@ -102,6 +104,7 @@ export function LiveChat({
           Send
         </button>
         <button
+          type="button"
           onClick={handleSuperChat}
           className="px-3 py-2 text-sm font-medium text-white bg-yellow-600 rounded hover:bg-yellow-700 transition-colors min-w-[44px] min-h-[44px]"
           aria-label="Send super chat"
