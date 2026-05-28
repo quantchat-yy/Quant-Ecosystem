@@ -77,6 +77,7 @@ export interface ScaffoldResult {
   projectId: string;
   filesCreated: string[];
   templateUsed: string;
+  files?: TemplateFile[];
 }
 
 export interface CodexCommand {

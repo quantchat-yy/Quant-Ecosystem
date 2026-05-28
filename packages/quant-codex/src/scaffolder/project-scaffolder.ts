@@ -1,4 +1,4 @@
-import type { ProjectTemplate, ScaffoldResult } from '../types.js';
+import type { ProjectTemplate, ScaffoldResult, TemplateFile } from '../types.js';
 import { builtinTemplates } from './templates.js';
 
 export class ProjectScaffolder {
@@ -35,10 +35,12 @@ export class ProjectScaffolder {
 
     const projectId = `proj_${projectName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}`;
     const filesCreated: string[] = [];
+    const files: TemplateFile[] = [];
 
     for (const file of template.files) {
       const filePath = `${projectName}/${file.path}`;
       filesCreated.push(filePath);
+      files.push({ path: filePath, content: file.content });
     }
 
     // Generate package.json for the project
@@ -50,14 +52,17 @@ export class ProjectScaffolder {
       dependencies: template.dependencies,
     };
     filesCreated.push(`${projectName}/package.json`);
-
-    void packageJson;
+    files.push({
+      path: `${projectName}/package.json`,
+      content: JSON.stringify(packageJson, null, 2),
+    });
 
     return {
       success: true,
       projectId,
       filesCreated,
       templateUsed: template.id,
+      files,
     };
   }
 }

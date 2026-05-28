@@ -17,6 +17,7 @@ export class ErrorBoundary {
   private state: ErrorBoundaryState;
   private capture: ErrorCapture;
   private maxRecoveryAttempts: number;
+  private globalHandler: ((event: { error?: Error; reason?: unknown }) => void) | null = null;
 
   constructor(options: ErrorBoundaryOptions, capture?: ErrorCapture) {
     this.options = options;
@@ -110,10 +111,15 @@ export class ErrorBoundary {
       this.handleError(error, 'fatal');
     };
 
+    this.globalHandler = handler;
+
     return () => {
-      // Return cleanup function
-      void handler;
+      this.globalHandler = null;
     };
+  }
+
+  getGlobalHandler(): ((event: { error?: Error; reason?: unknown }) => void) | null {
+    return this.globalHandler;
   }
 
   captureUnhandled(error: Error): ErrorEvent {

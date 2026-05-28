@@ -143,8 +143,7 @@ describe('ErrorCapture', () => {
     capture.addTransport(transport);
     capture.captureException(new Error('Transport test'));
 
-    // Wait for async send
-    await new Promise((r) => setTimeout(r, 10));
+    await capture.flush();
     expect(sendFn).toHaveBeenCalledTimes(1);
   });
 

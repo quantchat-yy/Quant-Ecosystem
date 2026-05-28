@@ -145,14 +145,5 @@ export class ErrorCapture {
     } else {
       this.eventQueue.push(event);
     }
-
-    // Auto-send for immediate transports
-    if (this.transports.length > 0) {
-      for (const transport of this.transports) {
-        transport.send(event).catch(() => {
-          // Silently fail - error monitoring should not throw
-        });
-      }
-    }
   }
 }

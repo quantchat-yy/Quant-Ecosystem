@@ -52,6 +52,7 @@ export default tseslint.config(
       'no-console': 'warn',
       'no-eval': 'error',
       'no-implied-eval': 'error',
+      'no-new-func': 'error',
     },
   },
 );
