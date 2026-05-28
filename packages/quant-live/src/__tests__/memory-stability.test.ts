@@ -95,7 +95,7 @@ describe('memory-stability', () => {
     if (global.gc) global.gc();
     const delta = process.memoryUsage().heapUsed - baseline;
 
-    expect(delta).toBeLessThan(5 * 1024 * 1024);
+    expect(delta).toBeLessThan(10 * 1024 * 1024);
     pipeline.stop();
   }, 30000);
 

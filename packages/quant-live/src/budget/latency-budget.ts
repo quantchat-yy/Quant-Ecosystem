@@ -37,14 +37,16 @@ export interface BudgetResult {
 export function checkBudget(
   metrics: Record<BudgetStage, number>,
   profile: LatencyProfile,
+  tolerance = 0,
 ): BudgetResult {
   const budgets = LATENCY_BUDGETS[profile];
   const violations: BudgetViolation[] = [];
 
   for (const stage of Object.keys(budgets) as BudgetStage[]) {
     const budget = budgets[stage];
+    const threshold = budget * (1 + tolerance);
     const actual = metrics[stage];
-    if (actual > budget) {
+    if (actual > threshold) {
       violations.push({ stage, budget, actual, overBy: actual - budget });
     }
   }
