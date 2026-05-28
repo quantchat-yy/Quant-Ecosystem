@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Create Next.js API route handlers for all 7 Next.js apps that proxy requests to their respective Fastify backends. Each route handler supports the HTTP methods that the hooks require (GET, POST, PUT, DELETE), uses an environment variable for the backend URL, and forwards Authorization headers.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create apps/quantcalendar/src/app/api/events/route.ts with GET (list/filter events) and POST (create event) handlers proxying to QUANTCALENDAR_BACKEND_URL (default http://localhost:3104). Events endpoint uses searchParams for calendarId, start, end.",
     "Create apps/quantcalendar/src/app/api/calendars/route.ts with GET handler proxying to backend /calendars endpoint.",
@@ -57,5 +57,5 @@
   ],
   "verification": ["pnpm typecheck", "pnpm build"],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 51 API route files created across 7 apps. pnpm typecheck passes 109/109, pnpm build passes 87/87. Pre-commit hook (prettier) ran and formatted files successfully. The turbo warnings about no output files for next build tasks are pre-existing and not caused by this change."
 }
