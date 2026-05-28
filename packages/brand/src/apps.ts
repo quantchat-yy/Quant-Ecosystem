@@ -120,8 +120,8 @@ export const quantedits: AppBrandConfig = {
 export const quantads: AppBrandConfig = {
   id: 'quantads',
   name: 'QuantAds',
-  color: '#10B981',
-  hue: 160,
+  color: '#059669',
+  hue: 162,
   description: 'Advertising and marketing campaigns',
   iconRef: 'quantads',
 };

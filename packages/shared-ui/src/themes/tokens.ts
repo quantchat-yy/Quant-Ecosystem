@@ -151,10 +151,10 @@ export const lightTokens: DesignTokens = {
 
 export const darkTokens: DesignTokens = {
   colors: {
-    '--color-primary': '#60A5FA',
-    '--color-primary-hover': '#93C5FD',
+    '--color-primary': primary[400],
+    '--color-primary-hover': primary[300],
     '--color-secondary': '#9CA3AF',
-    '--color-accent': '#A78BFA',
+    '--color-accent': accent[400],
     '--color-background': surface.dark,
     '--color-surface': surface.darkElevated,
     '--color-text': '#F9FAFB',
