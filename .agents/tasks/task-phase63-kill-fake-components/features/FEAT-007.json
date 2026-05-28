@@ -2,7 +2,7 @@
   "id": "FEAT-007",
   "type": "fix",
   "description": "Rewrite 4 fake QuantEdits components from object-tree format to real React JSX with Tailwind CSS: EffectsPanel, ExportDialog, LayerPanel, ToolPanel.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Read apps/quantedits/src/types/index.ts to understand Layer, BlendMode, Effect, AppliedEffect, EffectCategory, etc.",
     "Rewrite apps/quantedits/src/components/EffectsPanel.tsx: Convert to JSX effects browser with applied effects list (toggle/intensity/remove), category tabs, and effects grid. Keep all handler props.",
@@ -24,5 +24,5 @@
     "grep -rn \"type: 'div'\" apps/quantedits/src --include='*.tsx' | wc -l (must be 0)"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 4 QuantEdits components (EffectsPanel, ExportDialog, LayerPanel, ToolPanel) converted from object-tree to real JSX. Used destructuring rename pattern (onProp: _onProp) for unused handler props. Pre-existing TS errors in other quantedits files (Canvas, GreenScreen, hooks, pages) remain untouched."
 }
