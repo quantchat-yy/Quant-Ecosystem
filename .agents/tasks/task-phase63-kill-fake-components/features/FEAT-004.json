@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "fix",
   "description": "Rewrite 5 fake QuantMax components from object-tree format to real React JSX with Tailwind CSS: MatchProfile, SafetyOverlay, SwipeCard, VideoChatRoom, VideoFeed.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Read apps/quantmax/src/types/index.ts to understand UserProfile, MatchAction, VideoChat, VerificationStatus, etc.",
     "Rewrite apps/quantmax/src/components/MatchProfile.tsx: Convert to JSX profile card with compatibility score, photo, name/age, bio, and message/unmatch action buttons.",
