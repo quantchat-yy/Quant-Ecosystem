@@ -44,7 +44,7 @@ function HighlightedText({ text, indices }: { text: string; indices: number[] })
     <>
       {chars.map((char, i) =>
         set.has(i) ? (
-          <span key={i} className="command-palette-highlight">
+          <span key={i} style={{ color: 'var(--brand-primary, #4F46E5)', fontWeight: 600 }}>
             {char}
           </span>
         ) : (
@@ -55,6 +55,12 @@ function HighlightedText({ text, indices }: { text: string; indices: number[] })
   );
 }
 
+/**
+ * Command palette modal with fuzzy search and keyboard navigation.
+ *
+ * This component only handles closing (Escape key). The parent is responsible
+ * for opening the palette (e.g. via a Cmd+K listener in AppProviders).
+ */
 export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
   isOpen,
   onClose,
@@ -65,15 +71,9 @@ export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Register global Cmd+K / Ctrl+K shortcut
+  // Handle Escape to close (Cmd+K open is owned by the app-level provider)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        if (isOpen) {
-          onClose();
-        }
-      }
       if (e.key === 'Escape' && isOpen) {
         e.preventDefault();
         onClose();
@@ -140,13 +140,26 @@ export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
     <AnimatePresence>
       {isOpen && (
         <div
-          className="command-palette-overlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            paddingTop: '20vh',
+          }}
           role="dialog"
           aria-modal="true"
           aria-label="Command palette"
         >
           <motion.div
-            className="command-palette-backdrop"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              backdropFilter: 'blur(4px)',
+            }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -154,15 +167,33 @@ export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
             aria-hidden="true"
           />
           <motion.div
-            className="command-palette-container"
+            style={{
+              position: 'relative',
+              width: '100%',
+              maxWidth: '560px',
+              margin: '0 16px',
+              backgroundColor: 'var(--quant-card, #ffffff)',
+              borderRadius: 'var(--quant-radius, 0.5rem)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              border: '1px solid var(--quant-border, #e2e8f0)',
+              overflow: 'hidden',
+            }}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={transition}
           >
-            <div className="command-palette-input-wrapper">
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '12px 16px',
+                borderBottom: '1px solid var(--quant-border, #e2e8f0)',
+              }}
+            >
               <svg
-                className="command-palette-search-icon"
+                style={{ flexShrink: 0, color: 'var(--quant-muted-foreground, #64748b)' }}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -186,13 +217,33 @@ export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder}
-                className="command-palette-input"
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  fontSize: '16px',
+                  color: 'var(--quant-foreground, #0f172a)',
+                }}
                 aria-label="Command search"
               />
             </div>
-            <div className="command-palette-results" role="listbox" aria-label="Command results">
+            <div
+              style={{ maxHeight: '320px', overflowY: 'auto', padding: '8px' }}
+              role="listbox"
+              aria-label="Command results"
+            >
               {filteredCommands.length === 0 ? (
-                <div className="command-palette-empty">No results found</div>
+                <div
+                  style={{
+                    padding: '24px 16px',
+                    textAlign: 'center',
+                    color: 'var(--quant-muted-foreground, #64748b)',
+                    fontSize: '14px',
+                  }}
+                >
+                  No results found
+                </div>
               ) : (
                 Object.entries(groups).map(([group, items]) => {
                   let itemIndex = -1;
@@ -203,8 +254,19 @@ export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
                     groupOffset += gItems.length;
                   }
                   return (
-                    <div key={group} className="command-palette-group">
-                      <div className="command-palette-group-label">{group}</div>
+                    <div key={group} style={{ marginBottom: '8px' }}>
+                      <div
+                        style={{
+                          padding: '4px 12px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          color: 'var(--quant-muted-foreground, #64748b)',
+                        }}
+                      >
+                        {group}
+                      </div>
                       {items.map((item) => {
                         itemIndex++;
                         const globalIndex = groupOffset + itemIndex;
@@ -216,20 +278,52 @@ export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
                               item.cmd.action();
                               onClose();
                             }}
-                            className={`command-palette-item ${isActive ? 'command-palette-item--active' : ''}`}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              width: '100%',
+                              padding: '8px 12px',
+                              borderRadius: 'calc(var(--quant-radius, 0.5rem) - 2px)',
+                              border: 'none',
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              fontSize: '14px',
+                              color: 'var(--quant-foreground, #0f172a)',
+                              backgroundColor: isActive
+                                ? 'var(--quant-muted, #f1f5f9)'
+                                : 'transparent',
+                            }}
                             role="option"
                             aria-selected={isActive}
                           >
                             {item.cmd.icon && (
-                              <span className="command-palette-item-icon" aria-hidden="true">
+                              <span
+                                style={{
+                                  flexShrink: 0,
+                                  display: 'flex',
+                                  color: 'var(--quant-muted-foreground, #64748b)',
+                                }}
+                                aria-hidden="true"
+                              >
                                 {item.cmd.icon}
                               </span>
                             )}
-                            <span className="command-palette-item-label">
+                            <span style={{ flex: 1 }}>
                               <HighlightedText text={item.cmd.label} indices={item.indices} />
                             </span>
                             {item.cmd.shortcut && (
-                              <kbd className="command-palette-item-shortcut">
+                              <kbd
+                                style={{
+                                  fontSize: '12px',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  backgroundColor: 'var(--quant-muted, #f1f5f9)',
+                                  border: '1px solid var(--quant-border, #e2e8f0)',
+                                  color: 'var(--quant-muted-foreground, #64748b)',
+                                  fontFamily: 'inherit',
+                                }}
+                              >
                                 {item.cmd.shortcut}
                               </kbd>
                             )}
@@ -241,12 +335,21 @@ export const CommandPaletteUI: React.FC<CommandPaletteUIProps> = ({
                 })
               )}
             </div>
-            <div className="command-palette-footer">
+            <div
+              style={{
+                display: 'flex',
+                gap: '16px',
+                padding: '8px 16px',
+                borderTop: '1px solid var(--quant-border, #e2e8f0)',
+                fontSize: '12px',
+                color: 'var(--quant-muted-foreground, #64748b)',
+              }}
+            >
               <span>
-                <kbd>↑↓</kbd> Navigate
+                <kbd>&#x2191;&#x2193;</kbd> Navigate
               </span>
               <span>
-                <kbd>↵</kbd> Select
+                <kbd>&#x23CE;</kbd> Select
               </span>
               <span>
                 <kbd>Esc</kbd> Close

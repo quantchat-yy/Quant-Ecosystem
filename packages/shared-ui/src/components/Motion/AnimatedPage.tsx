@@ -5,6 +5,7 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { spring } from '@quant/brand';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 export type PageTransitionVariant = 'slide-left' | 'slide-right' | 'fade' | 'scale';
 
@@ -12,6 +13,14 @@ export interface AnimatedPageProps {
   children: React.ReactNode;
   variant?: PageTransitionVariant;
   className?: string;
+  /**
+   * Key used by AnimatePresence to detect page changes.
+   * For exit animations to fire, `pageKey` must change while this component
+   * remains mounted. If AnimatedPage itself unmounts on navigation (e.g. in a
+   * Next.js page component), exit animations will not run because
+   * AnimatePresence lives inside this component. For route-level exit
+   * animations, place AnimatePresence in the layout above the route slot.
+   */
   pageKey?: string;
 }
 
@@ -44,18 +53,26 @@ export const AnimatedPage: React.FC<AnimatedPageProps> = ({
   className = '',
   pageKey,
 }) => {
-  const transition = {
-    type: 'spring' as const,
-    ...spring.gentle,
-  };
+  const prefersReducedMotion = useReducedMotion();
+
+  const transition = prefersReducedMotion
+    ? { duration: 0 }
+    : {
+        type: 'spring' as const,
+        ...spring.gentle,
+      };
+
+  const initial = prefersReducedMotion ? { opacity: 1 } : variants[variant].initial;
+  const animate = prefersReducedMotion ? { opacity: 1 } : variants[variant].animate;
+  const exit = prefersReducedMotion ? { opacity: 1 } : variants[variant].exit;
 
   return (
     <AnimatePresence mode="wait">
       <motion.div
         key={pageKey}
-        initial={variants[variant].initial}
-        animate={variants[variant].animate}
-        exit={variants[variant].exit}
+        initial={initial}
+        animate={animate}
+        exit={exit}
         transition={transition}
         className={className}
       >

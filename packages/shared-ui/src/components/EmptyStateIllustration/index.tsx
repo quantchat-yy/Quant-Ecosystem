@@ -187,14 +187,58 @@ export const EmptyStateIllustration: React.FC<EmptyStateIllustrationProps> = ({
   const displayDescription = description || copy.description;
 
   return (
-    <div className="empty-state-illustration" role="status">
-      <div className="empty-state-illustration__svg">
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        padding: '48px 24px',
+        gap: '16px',
+      }}
+      role="status"
+    >
+      <div style={{ color: 'var(--quant-muted-foreground, #64748b)' }}>
         <Illustration />
       </div>
-      <h3 className="empty-state-illustration__title">{displayTitle}</h3>
-      <p className="empty-state-illustration__description">{displayDescription}</p>
+      <h3
+        style={{
+          fontSize: '18px',
+          fontWeight: 600,
+          color: 'var(--quant-foreground, #0f172a)',
+          margin: 0,
+        }}
+      >
+        {displayTitle}
+      </h3>
+      <p
+        style={{
+          fontSize: '14px',
+          color: 'var(--quant-muted-foreground, #64748b)',
+          maxWidth: '320px',
+          margin: 0,
+          lineHeight: 1.5,
+        }}
+      >
+        {displayDescription}
+      </p>
       {actionLabel && onAction && (
-        <button className="empty-state-illustration__action" onClick={onAction} type="button">
+        <button
+          onClick={onAction}
+          type="button"
+          style={{
+            marginTop: '8px',
+            padding: '8px 16px',
+            fontSize: '14px',
+            fontWeight: 500,
+            borderRadius: 'var(--quant-radius, 0.5rem)',
+            border: 'none',
+            backgroundColor: 'var(--brand-primary, #4F46E5)',
+            color: '#ffffff',
+            cursor: 'pointer',
+          }}
+        >
           {actionLabel}
         </button>
       )}
