@@ -1,6 +1,9 @@
+'use client';
+
 import React from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { spring } from '@quant/brand';
+import { useMotionConfig } from './MotionConfig';
 
 export interface SlidePanelProps {
   isOpen: boolean;
@@ -19,7 +22,9 @@ export function SlidePanel({
   children,
   className,
 }: SlidePanelProps) {
+  const { shouldAnimate: contextAnimate } = useMotionConfig();
   const prefersReducedMotion = useReducedMotion();
+  const shouldAnimate = contextAnimate && !prefersReducedMotion;
 
   const xOffset = side === 'right' ? '100%' : '-100%';
 
@@ -32,7 +37,7 @@ export function SlidePanel({
     zIndex: 50,
   };
 
-  if (prefersReducedMotion) {
+  if (!shouldAnimate) {
     if (!isOpen) return null;
     return (
       <div className={className} style={panelStyle}>

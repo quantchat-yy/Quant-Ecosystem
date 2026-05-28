@@ -1,9 +1,12 @@
+'use client';
+
 // ============================================================================
 // Shared UI - Empty State Component
 // ============================================================================
 
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
+import { useMotionConfig } from '../Motion/MotionConfig';
 
 export interface EmptyStateProps {
   icon?: React.ReactNode;
@@ -11,6 +14,7 @@ export interface EmptyStateProps {
   description: string;
   actionLabel?: string;
   onAction?: () => void;
+  animated?: boolean;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
@@ -19,8 +23,11 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   description,
   actionLabel,
   onAction,
+  animated = true,
 }) => {
+  const { shouldAnimate: contextAnimate } = useMotionConfig();
   const prefersReducedMotion = useReducedMotion();
+  const shouldAnimate = animated && contextAnimate && !prefersReducedMotion;
 
   const content = (
     <>
@@ -54,7 +61,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     </>
   );
 
-  if (prefersReducedMotion) {
+  if (!shouldAnimate) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center" role="status">
         {content}

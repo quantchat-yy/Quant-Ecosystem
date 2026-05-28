@@ -1,6 +1,9 @@
+'use client';
+
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { duration } from '@quant/brand';
+import { useMotionConfig } from './MotionConfig';
 
 export interface FadeInProps {
   direction?: 'up' | 'down' | 'left' | 'right';
@@ -24,12 +27,14 @@ export function FadeIn({
   className,
   children,
 }: FadeInProps) {
+  const { shouldAnimate: contextAnimate } = useMotionConfig();
   const prefersReducedMotion = useReducedMotion();
+  const shouldAnimate = contextAnimate && !prefersReducedMotion;
 
   const durationSec = durationOverride ?? duration.normal / 1000;
   const offset = direction ? directionOffsets[direction] : {};
 
-  if (prefersReducedMotion) {
+  if (!shouldAnimate) {
     return <div className={className}>{children}</div>;
   }
 

@@ -1,15 +1,19 @@
+'use client';
+
 // ============================================================================
 // Shared UI - Success State Component
 // ============================================================================
 
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
+import { useMotionConfig } from '../Motion/MotionConfig';
 
 export interface SuccessStateProps {
   title?: string;
   message: string;
   actionLabel?: string;
   onAction?: () => void;
+  animated?: boolean;
 }
 
 export const SuccessState: React.FC<SuccessStateProps> = ({
@@ -17,8 +21,11 @@ export const SuccessState: React.FC<SuccessStateProps> = ({
   message,
   actionLabel,
   onAction,
+  animated = true,
 }) => {
+  const { shouldAnimate: contextAnimate } = useMotionConfig();
   const prefersReducedMotion = useReducedMotion();
+  const shouldAnimate = animated && contextAnimate && !prefersReducedMotion;
 
   const textContent = (
     <>
@@ -35,7 +42,7 @@ export const SuccessState: React.FC<SuccessStateProps> = ({
     </>
   );
 
-  if (prefersReducedMotion) {
+  if (!shouldAnimate) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center" role="status">
         <svg

@@ -1,6 +1,9 @@
+'use client';
+
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { spring } from '@quant/brand';
+import { useMotionConfig } from './MotionConfig';
 
 export interface SpringButtonProps {
   scale?: number;
@@ -25,9 +28,11 @@ export function SpringButton({
   onBlur,
   'aria-label': ariaLabel,
 }: SpringButtonProps) {
+  const { shouldAnimate: contextAnimate } = useMotionConfig();
   const prefersReducedMotion = useReducedMotion();
+  const shouldAnimate = contextAnimate && !prefersReducedMotion;
 
-  if (prefersReducedMotion) {
+  if (!shouldAnimate) {
     return (
       <button
         className={className}

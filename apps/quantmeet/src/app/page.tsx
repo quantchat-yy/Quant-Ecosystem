@@ -106,31 +106,28 @@ export default function MeetHomePage() {
               >
                 Recent Meetings
               </h2>
-              <StaggerList>
-                <ul
-                  className="divide-y divide-[var(--quant-border)] rounded-lg border border-[var(--quant-border)]"
-                  role="list"
-                >
-                  {recentMeetings.map((meeting) => (
-                    <li key={meeting.id}>
-                      <button
-                        className="w-full text-left px-4 py-3 hover:bg-[var(--quant-muted)] transition-colors"
-                        onClick={() => router.push(`/meeting/${meeting.id}`)}
-                        aria-label={`Rejoin ${meeting.title}`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium truncate">{meeting.title}</span>
-                          <span className="text-xs text-[var(--quant-muted-foreground)]">
-                            {meeting.participantCount} participants
-                          </span>
-                        </div>
-                        <span className="text-xs text-[var(--quant-muted-foreground)]">
-                          {meeting.date}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+              <StaggerList
+                as="ul"
+                className="divide-y divide-[var(--quant-border)] rounded-lg border border-[var(--quant-border)]"
+              >
+                {recentMeetings.map((meeting) => (
+                  <button
+                    key={meeting.id}
+                    className="w-full text-left px-4 py-3 hover:bg-[var(--quant-muted)] transition-colors"
+                    onClick={() => router.push(`/meeting/${meeting.id}`)}
+                    aria-label={`Rejoin ${meeting.title}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium truncate">{meeting.title}</span>
+                      <span className="text-xs text-[var(--quant-muted-foreground)]">
+                        {meeting.participantCount} participants
+                      </span>
+                    </div>
+                    <span className="text-xs text-[var(--quant-muted-foreground)]">
+                      {meeting.date}
+                    </span>
+                  </button>
+                ))}
               </StaggerList>
             </section>
           )}

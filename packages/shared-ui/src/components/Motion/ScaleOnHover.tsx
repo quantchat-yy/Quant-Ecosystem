@@ -1,6 +1,9 @@
+'use client';
+
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { spring } from '@quant/brand';
+import { useMotionConfig } from './MotionConfig';
 
 export interface ScaleOnHoverProps {
   scale?: number;
@@ -9,9 +12,11 @@ export interface ScaleOnHoverProps {
 }
 
 export function ScaleOnHover({ scale = 1.02, className, children }: ScaleOnHoverProps) {
+  const { shouldAnimate: contextAnimate } = useMotionConfig();
   const prefersReducedMotion = useReducedMotion();
+  const shouldAnimate = contextAnimate && !prefersReducedMotion;
 
-  if (prefersReducedMotion) {
+  if (!shouldAnimate) {
     return <div className={className}>{children}</div>;
   }
 

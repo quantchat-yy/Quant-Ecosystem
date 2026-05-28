@@ -1,3 +1,5 @@
+'use client';
+
 // ============================================================================
 // Shared UI - Error State Component
 // ============================================================================
@@ -5,12 +7,14 @@
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { spring } from '@quant/brand';
+import { useMotionConfig } from '../Motion/MotionConfig';
 
 export interface ErrorStateProps {
   title?: string;
   message: string;
   onRetry?: () => void;
   retryLabel?: string;
+  animated?: boolean;
 }
 
 export const ErrorState: React.FC<ErrorStateProps> = ({
@@ -18,8 +22,11 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   message,
   onRetry,
   retryLabel = 'Try again',
+  animated = true,
 }) => {
+  const { shouldAnimate: contextAnimate } = useMotionConfig();
   const prefersReducedMotion = useReducedMotion();
+  const shouldAnimate = animated && contextAnimate && !prefersReducedMotion;
 
   const icon = (
     <svg
@@ -52,7 +59,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
     </>
   );
 
-  if (prefersReducedMotion) {
+  if (!shouldAnimate) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center" role="alert">
         {icon}

@@ -1,5 +1,8 @@
+'use client';
+
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
+import { useMotionConfig } from './MotionConfig';
 
 export interface AnimatedSkeletonProps {
   variant?: 'text' | 'circle' | 'rect';
@@ -20,7 +23,9 @@ export function AnimatedSkeleton({
   height,
   className,
 }: AnimatedSkeletonProps) {
+  const { shouldAnimate: contextAnimate } = useMotionConfig();
   const prefersReducedMotion = useReducedMotion();
+  const shouldAnimate = contextAnimate && !prefersReducedMotion;
   const baseStyle = variantStyles[variant];
 
   const style: React.CSSProperties = {
@@ -30,7 +35,7 @@ export function AnimatedSkeleton({
     ...(height ? { height } : {}),
   };
 
-  if (prefersReducedMotion) {
+  if (!shouldAnimate) {
     return (
       <div
         className={className}

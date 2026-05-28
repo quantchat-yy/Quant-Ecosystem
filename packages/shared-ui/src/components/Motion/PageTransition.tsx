@@ -1,6 +1,9 @@
+'use client';
+
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { duration } from '@quant/brand';
+import { useMotionConfig } from './MotionConfig';
 
 export interface PageTransitionProps {
   className?: string;
@@ -8,9 +11,11 @@ export interface PageTransitionProps {
 }
 
 export function PageTransition({ className, children }: PageTransitionProps) {
+  const { shouldAnimate: contextAnimate } = useMotionConfig();
   const prefersReducedMotion = useReducedMotion();
+  const shouldAnimate = contextAnimate && !prefersReducedMotion;
 
-  if (prefersReducedMotion) {
+  if (!shouldAnimate) {
     return <div className={className}>{children}</div>;
   }
 

@@ -1,3 +1,5 @@
+'use client';
+
 import React, { createContext, useContext } from 'react';
 import { useReducedMotion } from 'framer-motion';
 
@@ -5,9 +7,7 @@ export interface MotionConfigContextValue {
   shouldAnimate: boolean;
 }
 
-const MotionConfigContext = createContext<MotionConfigContextValue>({
-  shouldAnimate: true,
-});
+const MotionConfigContext = createContext<MotionConfigContextValue | null>(null);
 
 export interface MotionProviderProps {
   children: React.ReactNode;
@@ -25,5 +25,10 @@ export function MotionProvider({ children }: MotionProviderProps) {
 }
 
 export function useMotionConfig(): MotionConfigContextValue {
-  return useContext(MotionConfigContext);
+  const context = useContext(MotionConfigContext);
+  if (context !== null) {
+    return context;
+  }
+  // Fallback: no provider in tree, default to animating
+  return { shouldAnimate: true };
 }
