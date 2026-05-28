@@ -38,7 +38,7 @@ export const QuantLiveControls: React.FC<QuantLiveControlsProps> = ({
           className={`${buttonBase} ${cameraActive ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-red-100 text-red-600'}`}
           aria-label={cameraActive ? 'Turn off camera' : 'Turn on camera'}
         >
-          <span aria-hidden="true">{cameraActive ? '\u{1F4F7}' : '\u{1F4F7}'}</span>
+          <span aria-hidden="true">{cameraActive ? '\u{1F4F9}' : '\u{1F4F7}'}</span>
         </button>
       )}
 

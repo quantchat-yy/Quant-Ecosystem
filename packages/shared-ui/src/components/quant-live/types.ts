@@ -33,6 +33,9 @@ export interface QuantLiveProps {
   onDeactivate?: () => void;
   className?: string;
   position?: QuantLivePosition;
+  captions?: CaptionEntry[];
+  currentAction?: ActionChipInfo | null;
+  orbColorState?: OrbColorState;
 }
 
 export interface QuantLiveOrbProps {

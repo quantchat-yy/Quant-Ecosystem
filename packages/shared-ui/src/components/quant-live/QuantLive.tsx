@@ -3,6 +3,7 @@
 // ============================================================================
 
 import React, { useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import type {
   QuantLiveProps,
   QuantLiveState,
@@ -27,34 +28,36 @@ export const QuantLive: React.FC<QuantLiveProps> = ({
   onDeactivate,
   className = '',
   position = 'bottom-right',
+  captions: captionsProp,
+  currentAction: currentActionProp,
+  orbColorState: orbColorProp,
 }) => {
   const [state, setState] = useState<QuantLiveState>('idle');
-  const [orbColor, setOrbColor] = useState<OrbColorState>('idle');
+  const [orbColorInternal, setOrbColorInternal] = useState<OrbColorState>('idle');
   const [micMuted, setMicMuted] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [screenSharing, setScreenSharing] = useState(false);
-  const [captions, setCaptions] = useState<CaptionEntry[]>([]);
-  const [currentAction, setCurrentAction] = useState<ActionChipInfo | null>(null);
+  const [captionsInternal, setCaptionsInternal] = useState<CaptionEntry[]>([]);
+  const [currentActionInternal, setCurrentActionInternal] = useState<ActionChipInfo | null>(null);
 
-  // Suppress unused setter warnings - these are internal state for external control
-  void setOrbColor;
-  void setCaptions;
-  void setCurrentAction;
+  const orbColor = orbColorProp ?? orbColorInternal;
+  const captions = captionsProp ?? captionsInternal;
+  const currentAction = currentActionProp !== undefined ? currentActionProp : currentActionInternal;
 
   const handleActivate = useCallback(() => {
     setState('active');
-    setOrbColor('listening');
+    setOrbColorInternal('listening');
     onActivate?.();
   }, [onActivate]);
 
   const handleDeactivate = useCallback(() => {
     setState('idle');
-    setOrbColor('idle');
+    setOrbColorInternal('idle');
     setMicMuted(false);
     setCameraActive(false);
     setScreenSharing(false);
-    setCaptions([]);
-    setCurrentAction(null);
+    setCaptionsInternal([]);
+    setCurrentActionInternal(null);
     onDeactivate?.();
   }, [onDeactivate]);
 
@@ -80,7 +83,7 @@ export const QuantLive: React.FC<QuantLiveProps> = ({
 
   if (state === 'idle') {
     return (
-      <div className={`${positionStyles[position]} ${className}`}>
+      <div className={`${positionStyles[position] || positionStyles['bottom-right']} ${className}`}>
         <QuantLiveOrb colorState={orbColor} onClick={handleActivate} size="sm" />
       </div>
     );
@@ -88,7 +91,7 @@ export const QuantLive: React.FC<QuantLiveProps> = ({
 
   if (state === 'minimized') {
     return (
-      <div className={`${positionStyles[position]} ${className}`}>
+      <div className={`${positionStyles[position] || positionStyles['bottom-right']} ${className}`}>
         <QuantLiveOrb colorState={orbColor} onClick={handleMaximize} size="sm" />
         <QuantLivePrivacyIndicator
           micActive={!micMuted}
@@ -99,9 +102,17 @@ export const QuantLive: React.FC<QuantLiveProps> = ({
     );
   }
 
+  const privacyIndicator = (
+    <QuantLivePrivacyIndicator
+      micActive={!micMuted}
+      cameraActive={cameraActive}
+      screenSharing={screenSharing}
+    />
+  );
+
   return (
     <div
-      className={`${positionStyles[position]} transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none ${position === 'fullscreen' ? 'flex flex-col' : 'w-80'} bg-white rounded-xl shadow-2xl overflow-hidden ${className}`}
+      className={`${positionStyles[position] || positionStyles['bottom-right']} transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] motion-reduce:transition-none ${position === 'fullscreen' ? 'flex flex-col' : 'w-80'} bg-white rounded-xl shadow-2xl overflow-hidden ${className}`}
     >
       <div className="flex items-center justify-between p-3 border-b border-gray-100">
         <QuantLiveOrb colorState={orbColor} size="sm" />
@@ -127,11 +138,9 @@ export const QuantLive: React.FC<QuantLiveProps> = ({
         />
       </div>
 
-      <QuantLivePrivacyIndicator
-        micActive={!micMuted}
-        cameraActive={cameraActive}
-        screenSharing={screenSharing}
-      />
+      {typeof document !== 'undefined'
+        ? createPortal(privacyIndicator, document.body)
+        : privacyIndicator}
     </div>
   );
 };
