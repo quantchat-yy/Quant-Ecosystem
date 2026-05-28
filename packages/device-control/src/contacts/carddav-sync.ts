@@ -8,7 +8,9 @@ export interface CardDAVClient {
 }
 
 export function parseVCard(vcf: string): UnifiedContact {
-  const lines = vcf.split(/\r?\n/);
+  // RFC 6350 3.2: Unfold continuation lines (lines starting with space or tab)
+  const unfolded = vcf.replace(/\r?\n[ \t]/g, '');
+  const lines = unfolded.split(/\r?\n/);
   const c: UnifiedContact = {
     id: '',
     firstName: '',
@@ -22,30 +24,32 @@ export function parseVCard(vcf: string): UnifiedContact {
     nicknames: [],
     relationships: [],
   };
-  for (const raw of lines) {
-    const line = raw.replace(/^\s+/, '');
-    if (line.startsWith('FN:') || line.startsWith('FN;'))
-      c.displayName = line.split(':').slice(1).join(':');
-    else if (line.startsWith('N:') || line.startsWith('N;')) {
-      const parts = line.split(':').slice(1).join(':').split(';');
+  for (const line of lines) {
+    // Split on first colon only to avoid breaking values that contain colons
+    const colonIdx = line.indexOf(':');
+    if (colonIdx < 0) continue;
+    const propPart = line.substring(0, colonIdx);
+    const valuePart = line.substring(colonIdx + 1);
+    const propUpper = propPart.toUpperCase();
+
+    if (propUpper === 'FN' || propUpper.startsWith('FN;')) c.displayName = valuePart;
+    else if (propUpper === 'N' || propUpper.startsWith('N;')) {
+      const parts = valuePart.split(';');
       c.lastName = parts[0] ?? '';
       c.firstName = parts[1] ?? '';
-    } else if (line.startsWith('TEL')) {
-      const val = line.split(':').slice(1).join(':');
-      const typeLower = line.toLowerCase();
+    } else if (propUpper.startsWith('TEL')) {
+      const typeLower = propPart.toLowerCase();
       const type = typeLower.includes('work')
         ? 'work'
         : typeLower.includes('home')
           ? 'home'
           : 'mobile';
-      c.phones.push({ number: val, type });
-    } else if (line.startsWith('EMAIL')) {
-      const val = line.split(':').slice(1).join(':');
-      const type = line.toLowerCase().includes('work') ? 'work' : 'personal';
-      c.emails.push({ address: val, type });
-    } else if (line.startsWith('ADR')) {
-      const val = line.split(':').slice(1).join(':');
-      const parts = val.split(';');
+      c.phones.push({ number: valuePart, type });
+    } else if (propUpper.startsWith('EMAIL')) {
+      const type = propPart.toLowerCase().includes('work') ? 'work' : 'personal';
+      c.emails.push({ address: valuePart, type });
+    } else if (propUpper.startsWith('ADR')) {
+      const parts = valuePart.split(';');
       c.addresses.push({
         street: parts[2],
         city: parts[3],
@@ -54,10 +58,10 @@ export function parseVCard(vcf: string): UnifiedContact {
         country: parts[6],
         type: 'home',
       });
-    } else if (line.startsWith('BDAY:')) c.birthday = line.slice(5);
-    else if (line.startsWith('NOTE:')) c.notes = line.slice(5);
-    else if (line.startsWith('NICKNAME:')) c.nicknames = line.slice(9).split(',');
-    else if (line.startsWith('UID:')) c.id = line.slice(4);
+    } else if (propUpper === 'BDAY') c.birthday = valuePart;
+    else if (propUpper === 'NOTE') c.notes = valuePart;
+    else if (propUpper === 'NICKNAME') c.nicknames = valuePart.split(',');
+    else if (propUpper === 'UID') c.id = valuePart;
   }
   if (!c.id) c.id = crypto.randomUUID();
   return c;
@@ -93,6 +97,10 @@ export class CardDAVSync {
         store.addContact(parsed);
         continue;
       }
+      // "Local wins" conflict strategy: parsed vCards don't carry lastContacted,
+      // so existing locally-modified entries are always preserved. Server contacts
+      // are only added on first sync (new contacts). This prevents overwriting
+      // local edits or data enriched via Capacitor/user interaction.
       if ((parsed.lastContacted ?? 0) >= (existing.lastContacted ?? 0))
         store.updateContact(parsed.id, parsed);
     }

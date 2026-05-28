@@ -58,11 +58,14 @@ export class ContactStore {
         byPhone.set(norm, arr);
       }
     }
+    const merged_ids = new Set<string>();
     for (const [, dupes] of byPhone) {
       if (dupes.length < 2) continue;
-      const merged: UnifiedContact = { ...dupes[0]! };
-      for (let i = 1; i < dupes.length; i++) {
-        const d = dupes[i]!;
+      const unprocessed = dupes.filter((d) => !merged_ids.has(d.id));
+      if (unprocessed.length < 2) continue;
+      const merged: UnifiedContact = { ...unprocessed[0]! };
+      for (let i = 1; i < unprocessed.length; i++) {
+        const d = unprocessed[i]!;
         merged.emails = [
           ...merged.emails,
           ...d.emails.filter((e) => !merged.emails.some((me) => me.address === e.address)),
@@ -70,8 +73,10 @@ export class ContactStore {
         merged.nicknames = [...new Set([...merged.nicknames, ...d.nicknames])];
         if (d.lastContacted && (!merged.lastContacted || d.lastContacted > merged.lastContacted))
           merged.lastContacted = d.lastContacted;
+        merged_ids.add(d.id);
         this.contacts.delete(d.id);
       }
+      merged_ids.add(merged.id);
       this.contacts.set(merged.id, merged);
     }
   }

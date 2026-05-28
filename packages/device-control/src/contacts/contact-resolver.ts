@@ -18,7 +18,8 @@ function levenshtein(a: string, b: string): number {
 
 export type ResolveResult =
   | { match: UnifiedContact }
-  | { ambiguous: true; options: UnifiedContact[] };
+  | { ambiguous: true; options: UnifiedContact[] }
+  | { notFound: true };
 
 export class ContactResolver {
   constructor(private store: ContactStore) {}
@@ -47,7 +48,7 @@ export class ContactResolver {
     const fuzzy = all.filter((c) => levenshtein(c.displayName.toLowerCase(), q) <= 2);
 
     const candidates = fuzzy.length > 0 ? fuzzy : starts.length > 0 ? starts : exact;
-    if (candidates.length === 0) return { ambiguous: true, options: [] };
+    if (candidates.length === 0) return { notFound: true };
     if (candidates.length === 1) return { match: candidates[0]! };
 
     // recency bias

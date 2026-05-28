@@ -16,6 +16,11 @@ export interface ContactAddress {
   country?: string;
   type: 'home' | 'work';
 }
+/**
+ * ContactGroup represents a named group for group management operations.
+ * UnifiedContact.groups stores group IDs (string[]) for lightweight references;
+ * consumers can use ContactGroup for full group metadata when needed.
+ */
 export interface ContactGroup {
   id: string;
   name: string;

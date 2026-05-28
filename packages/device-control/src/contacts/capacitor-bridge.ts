@@ -65,8 +65,21 @@ export class CapacitorContactsBridge {
     const deviceContacts = await this.importFromDevice();
     for (const dc of deviceContacts) {
       const existing = store.getContact(dc.id);
-      if (!existing) store.addContact(dc);
-      else store.updateContact(dc.id, dc);
+      if (!existing) {
+        store.addContact(dc);
+      } else {
+        // Only update fields from device data that are non-empty/non-default
+        // to avoid overwriting richer store data with sparse Capacitor data.
+        const updates: Partial<UnifiedContact> = {};
+        if (dc.displayName) updates.displayName = dc.displayName;
+        if (dc.firstName) updates.firstName = dc.firstName;
+        if (dc.lastName) updates.lastName = dc.lastName;
+        if (dc.phones.length > 0) updates.phones = dc.phones;
+        if (dc.emails.length > 0) updates.emails = dc.emails;
+        if (dc.nicknames.length > 0) updates.nicknames = dc.nicknames;
+        if (dc.relationships.length > 0) updates.relationships = dc.relationships;
+        store.updateContact(dc.id, updates);
+      }
     }
   }
 }
