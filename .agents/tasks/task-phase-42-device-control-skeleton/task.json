@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-42-device-control-skeleton",
+  "task_description": "Phase 42 FEAT-001: Create the @quant/device-control package skeleton with Capacitor plugin scaffolding, capability interfaces, registry, permission model, and action audit",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}
