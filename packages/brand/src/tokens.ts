@@ -1,9 +1,9 @@
 /** CSS custom property generation for the Quant brand system */
 
-import { primary, accent, neutral, semantic, surface } from './colors.js';
-import { fontFamily, fontSize, lineHeight, fontWeight } from './typography.js';
-import { easing, duration } from './motion.js';
-import { apps } from './apps.js';
+import { primary, accent, neutral, semantic, surface } from './colors';
+import { fontFamily, fontSize, lineHeight, fontWeight } from './typography';
+import { easing, duration } from './motion';
+import { apps } from './apps';
 
 function colorVars(prefix: string, shades: Record<string, string>): string {
   return Object.entries(shades)

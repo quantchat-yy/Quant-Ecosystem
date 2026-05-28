@@ -1,4 +1,4 @@
-export { colors, primary, accent, neutral, semantic, surface } from './colors.js';
+export { colors, primary, accent, neutral, semantic, surface } from './colors';
 export {
   typography,
   fontFamily,
@@ -6,8 +6,8 @@ export {
   lineHeight,
   fontWeight,
   letterSpacing,
-} from './typography.js';
-export { motion, spring, easing, duration } from './motion.js';
+} from './typography';
+export { motion, spring, easing, duration } from './motion';
 export {
   apps,
   quantmail,
@@ -24,10 +24,10 @@ export {
   quantedits,
   quantads,
   marketing,
-} from './apps.js';
-export type { AppBrandConfig } from './apps.js';
-export { quantWordmarkLight, quantWordmarkDark } from './logos/quant-wordmark.js';
-export { quantSymbolLight, quantSymbolDark } from './logos/quant-symbol.js';
+} from './apps';
+export type { AppBrandConfig } from './apps';
+export { quantWordmarkLight, quantWordmarkDark } from './logos/quant-wordmark';
+export { quantSymbolLight, quantSymbolDark } from './logos/quant-symbol';
 export {
   quantmailIcon,
   quantchatIcon,
@@ -43,5 +43,5 @@ export {
   quanteditsIcon,
   quantadsIcon,
   marketingIcon,
-} from './icons/index.js';
-export { generateBrandCSS, generateAppCSS } from './tokens.js';
+} from './icons/index';
+export { generateBrandCSS, generateAppCSS } from './tokens';

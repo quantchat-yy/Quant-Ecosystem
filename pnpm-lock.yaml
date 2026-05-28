@@ -2011,6 +2011,9 @@ importers:
 
   packages/shared-ui:
     dependencies:
+      '@quant/brand':
+        specifier: workspace:*
+        version: link:../brand
       '@quant/common':
         specifier: workspace:*
         version: link:../common

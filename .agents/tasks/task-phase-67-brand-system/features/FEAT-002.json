@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Integrate brand system across all apps: update globals.css with brand CSS variables, update Tailwind configs to use brand colors, add brand favicon/metadata to Next.js layouts, and bridge shared-ui tokens to reference brand colors",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Update packages/shared-ui/package.json to add @quant/brand as a workspace dependency.",
     "Update packages/shared-ui/tsconfig.json references array to include { path: '../brand' }.",
