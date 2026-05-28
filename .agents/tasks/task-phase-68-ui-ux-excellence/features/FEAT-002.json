@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Create a shared CommandPaletteUI React component (the visual overlay, distinct from the existing command-palette logic package) with dark mode support, and a ThemeProvider that handles animated theme transitions. Also create an EmptyStateIllustration component with per-app branded illustrations, and an OptimisticAction hook for optimistic UI with rollback. These are the remaining shared primitives needed for Phase 68's experience polish.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create packages/shared-ui/src/components/CommandPaletteUI/index.tsx - A visually polished command palette overlay component using framer-motion for enter/exit animations (scale+fade with spring.stiff). Integrates with the existing CommandMenu pattern but adds: grouped results with icons, keyboard navigation highlighting, fuzzy match highlighting, footer showing keyboard shortcuts. Uses brand system colors.",
     "Create packages/shared-ui/src/components/CommandPaletteUI/CommandPaletteUI.test.tsx - tests for open/close, keyboard navigation, search filtering",

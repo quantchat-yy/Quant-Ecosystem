@@ -315,6 +315,29 @@ export type { BreakpointName } from './hooks/useBreakpoint';
 export { useOrientation } from './hooks/useOrientation';
 export type { Orientation } from './hooks/useOrientation';
 
+// CommandPaletteUI component
+export { CommandPaletteUI } from './components/CommandPaletteUI';
+export type { CommandPaletteUIProps, CommandPaletteItem } from './components/CommandPaletteUI';
+
+// ThemeProvider component
+export { ThemeProvider, useThemeMode } from './components/ThemeProvider';
+export type {
+  ThemeProviderProps,
+  ThemeModeValue,
+  ThemeContextValue,
+} from './components/ThemeProvider';
+
+// EmptyStateIllustration component
+export { EmptyStateIllustration } from './components/EmptyStateIllustration';
+export type {
+  EmptyStateIllustrationProps,
+  EmptyStateVariant,
+} from './components/EmptyStateIllustration';
+
+// useOptimisticAction hook
+export { useOptimisticAction } from './hooks/useOptimisticAction';
+export type { UseOptimisticActionReturn } from './hooks/useOptimisticAction';
+
 // QuantLive components
 export {
   QuantLive,
