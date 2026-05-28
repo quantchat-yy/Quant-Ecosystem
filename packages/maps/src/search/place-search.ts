@@ -1,5 +1,6 @@
 import { type LatLng, type PlaceResult, INDIA_CENTER } from '../types.js';
 import { type GeocodingProvider } from '../geocoding/geocoder.js';
+import { haversine } from '../utils/geo.js';
 
 const INDIA_CATEGORIES: Record<string, string[]> = {
   'chai stall': ['chai', 'tea stall', '\u091A\u093E\u092F'],
@@ -35,19 +36,7 @@ export class PlaceSearch {
       name: r.displayName,
       category: cat ?? r.type,
       position: r.position,
-      distance: this.haversine(near, r.position),
+      distance: haversine(near, r.position),
     }));
-  }
-
-  private haversine(a: LatLng, b: LatLng): number {
-    const R = 6371000,
-      dLat = ((b.lat - a.lat) * Math.PI) / 180,
-      dLng = ((b.lng - a.lng) * Math.PI) / 180;
-    const x =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos((a.lat * Math.PI) / 180) *
-        Math.cos((b.lat * Math.PI) / 180) *
-        Math.sin(dLng / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
   }
 }

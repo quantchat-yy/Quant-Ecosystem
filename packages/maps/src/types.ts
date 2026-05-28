@@ -82,3 +82,83 @@ export interface NavigationEvent {
   type: NavigationEventType;
   payload?: unknown;
 }
+
+// Transit types
+export type TransitMode = 'metro' | 'bus' | 'auto';
+export interface TransitStop {
+  id: string;
+  name: string;
+  position: LatLng;
+  routes: string[];
+}
+export interface TransitLeg {
+  from: TransitStop;
+  to: TransitStop;
+  mode: TransitMode | 'walking';
+  routeName: string;
+  duration: number;
+  departureTime: number;
+  arrivalTime: number;
+}
+export interface TransitRoute {
+  legs: TransitLeg[];
+  totalDuration: number;
+  totalDistance: number;
+  walkingDistance: number;
+}
+
+// Sharing types
+export interface ShareSession {
+  id: string;
+  userId: string;
+  sharedWith: string[];
+  position: LatLng;
+  accuracy: number;
+  expiresAt: number;
+  eta?: number;
+}
+export interface ShareConfig {
+  duration: number;
+  accuracy: 'high' | 'low';
+  shareEta: boolean;
+}
+
+// AI types
+export interface MapQuery {
+  text: string;
+  userLocation: LatLng;
+  timeOfDay?: string;
+  preferences?: string[];
+}
+export interface MapQueryResult {
+  type: 'places' | 'route' | 'suggestions';
+  places?: PlaceResult[];
+  avoidanceZones?: AvoidanceZone[];
+  suggestions?: string[];
+}
+export interface AvoidanceZone {
+  center: LatLng;
+  radius: number;
+  reason: string;
+}
+export interface TripPlan {
+  destination: string;
+  days: TripDay[];
+  preferences?: TripPreferences;
+}
+export interface TripDay {
+  dayNumber: number;
+  places: TripDayStop[];
+  notes?: string;
+}
+export interface TripDayStop {
+  place: PlaceResult;
+  arrivalTime: string;
+  departureTime: string;
+  notes?: string;
+}
+export interface TripPreferences {
+  budget: 'budget' | 'mid' | 'luxury';
+  interests: string[];
+  monsoonAware: boolean;
+}

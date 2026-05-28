@@ -1,4 +1,5 @@
 export * from './types.js';
+export * from './utils/geo.js';
 export * from './tiles/tile-config.js';
 export * from './geocoding/geocoder.js';
 export * from './routing/router.js';
@@ -9,3 +10,7 @@ export * from './navigation/progress-tracker.js';
 export * from './navigation/voice-guidance.js';
 export * from './navigation/offline-cache.js';
 export * from './navigation/navigation-session.js';
+export * from './transit/transit-service.js';
+export * from './sharing/location-sharing.js';
+export * from './ai/map-ai.js';
+export * from './ai/trip-planner.js';
