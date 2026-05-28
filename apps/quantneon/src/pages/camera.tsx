@@ -25,7 +25,7 @@ const CameraPage: React.FC = () => {
     if (currentMode === 'Video' || currentMode === 'Hands-Free') {
       setIsRecording(!isRecording);
     } else {
-      console.log('Capture photo');
+      // Photo capture would happen here
     }
   }, [currentMode, isRecording]);
 

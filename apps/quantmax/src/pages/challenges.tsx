@@ -84,10 +84,7 @@ const ChallengesPage: React.FC = () => {
             ))}
           </ul>
         </div>
-        <button
-          className="participate-btn large"
-          onClick={() => console.log('Participate in:', activeChallenge.hashtag)}
-        >
+        <button className="participate-btn large" onClick={() => {}}>
           Participate Now
         </button>
 

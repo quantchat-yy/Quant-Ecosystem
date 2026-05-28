@@ -41,13 +41,7 @@ export default function ChatListPage() {
           }}
         />
       </div>
-      <BottomNav
-        items={navItems}
-        activeId="chats"
-        onChange={(id) => {
-          console.log('Navigate to:', id);
-        }}
-      />
+      <BottomNav items={navItems} activeId="chats" onChange={() => {}} />
     </AppShell>
   );
 }

@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { useState, useCallback, useRef } from 'react';
+import { logger } from '@quant/common';
 
 interface DriveFile {
   id: string;
@@ -72,7 +73,11 @@ const apiRequest = async (url: string, options: RequestInit = {}): Promise<Respo
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
   return fetch(url, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...(token && { 'Authorization': `Bearer ${token}` }), ...(options.headers as Record<string, string> || {}) }
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...((options.headers as Record<string, string>) || {}),
+    },
   });
 };
 
@@ -83,132 +88,239 @@ export function useDrive(): UseDriveReturn {
   const [uploads, setUploads] = useState<UploadProgress[]>([]);
   const [quota, setQuota] = useState<StorageQuota>({ used: 0, total: 15 * 1024 * 1024 * 1024 });
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
-  const [breadcrumbs, setBreadcrumbs] = useState<{ id: string | null; name: string }[]>([{ id: null, name: 'My Drive' }]);
+  const [breadcrumbs, setBreadcrumbs] = useState<{ id: string | null; name: string }[]>([
+    { id: null, name: 'My Drive' },
+  ]);
   const abortControllers = useRef<Map<string, AbortController>>(new Map());
 
-  const fetchFiles = useCallback(async (folderId?: string | null) => {
-    setLoading(true); setError(null);
-    const targetFolder = folderId !== undefined ? folderId : currentFolderId;
-    try {
-      const params = new URLSearchParams();
-      if (targetFolder) params.set('folderId', targetFolder);
-      const response = await apiRequest(`/api/drive/files?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch files');
-      const data = await response.json();
-      setFiles(data.files || []);
-      if (data.quota) setQuota(data.quota);
-    } catch (err) { setError(err instanceof Error ? err.message : 'Failed to load files'); }
-    finally { setLoading(false); }
-  }, [currentFolderId]);
-
-  const uploadFiles = useCallback(async (fileList: File[]) => {
-    const newUploads: UploadProgress[] = fileList.map((file, i) => ({
-      fileId: `upload-${Date.now()}-${i}`, fileName: file.name, progress: 0, status: 'pending' as const
-    }));
-    setUploads(prev => [...prev, ...newUploads]);
-
-    for (let i = 0; i < fileList.length; i++) {
-      const file = fileList[i];
-      const uploadId = newUploads[i].fileId;
-      const controller = new AbortController();
-      abortControllers.current.set(uploadId, controller);
-
-      setUploads(prev => prev.map(u => u.fileId === uploadId ? { ...u, status: 'uploading' as const } : u));
-
+  const fetchFiles = useCallback(
+    async (folderId?: string | null) => {
+      setLoading(true);
+      setError(null);
+      const targetFolder = folderId !== undefined ? folderId : currentFolderId;
       try {
-        const formData = new FormData();
-        formData.append('file', file);
-        if (currentFolderId) formData.append('folderId', currentFolderId);
-
-        const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
-        const xhr = new XMLHttpRequest();
-        await new Promise<void>((resolve, reject) => {
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              const progress = Math.round((e.loaded / e.total) * 100);
-              setUploads(prev => prev.map(u => u.fileId === uploadId ? { ...u, progress } : u));
-            }
-          };
-          xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(xhr.statusText));
-          xhr.onerror = () => reject(new Error('Upload failed'));
-          xhr.onabort = () => reject(new Error('Upload cancelled'));
-          xhr.open('POST', '/api/drive/upload');
-          if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-          xhr.send(formData);
-        });
-
-        setUploads(prev => prev.map(u => u.fileId === uploadId ? { ...u, progress: 100, status: 'complete' as const } : u));
+        const params = new URLSearchParams();
+        if (targetFolder) params.set('folderId', targetFolder);
+        const response = await apiRequest(`/api/drive/files?${params}`);
+        if (!response.ok) throw new Error('Failed to fetch files');
+        const data = await response.json();
+        setFiles(data.files || []);
+        if (data.quota) setQuota(data.quota);
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Upload failed';
-        setUploads(prev => prev.map(u => u.fileId === uploadId ? { ...u, status: 'error' as const, error: errorMsg } : u));
+        setError(err instanceof Error ? err.message : 'Failed to load files');
       } finally {
-        abortControllers.current.delete(uploadId);
+        setLoading(false);
       }
-    }
-    await fetchFiles();
-  }, [currentFolderId, fetchFiles]);
+    },
+    [currentFolderId],
+  );
 
-  const createFolder = useCallback(async (name: string, parentId?: string | null): Promise<DriveFile | null> => {
-    try {
-      const response = await apiRequest('/api/drive/folders', { method: 'POST', body: JSON.stringify({ name, parentId: parentId !== undefined ? parentId : currentFolderId }) });
-      if (!response.ok) throw new Error('Create folder failed');
-      const folder = await response.json();
-      setFiles(prev => [folder, ...prev]);
-      return folder;
-    } catch (err) { setError(err instanceof Error ? err.message : 'Create failed'); return null; }
-  }, [currentFolderId]);
+  const uploadFiles = useCallback(
+    async (fileList: File[]) => {
+      const newUploads: UploadProgress[] = fileList.map((file, i) => ({
+        fileId: `upload-${Date.now()}-${i}`,
+        fileName: file.name,
+        progress: 0,
+        status: 'pending' as const,
+      }));
+      setUploads((prev) => [...prev, ...newUploads]);
 
-  const deleteFiles = useCallback(async (fileIds: string[]) => {
-    setFiles(prev => prev.filter(f => !fileIds.includes(f.id)));
-    try {
-      await apiRequest('/api/drive/files/trash', { method: 'POST', body: JSON.stringify({ fileIds }) });
-    } catch (err) { fetchFiles(); }
-  }, [fetchFiles]);
+      for (let i = 0; i < fileList.length; i++) {
+        const file = fileList[i];
+        const uploadId = newUploads[i].fileId;
+        const controller = new AbortController();
+        abortControllers.current.set(uploadId, controller);
 
-  const renameFile = useCallback(async (fileId: string, newName: string) => {
-    setFiles(prev => prev.map(f => f.id === fileId ? { ...f, name: newName } : f));
-    try {
-      await apiRequest(`/api/drive/files/${fileId}`, { method: 'PUT', body: JSON.stringify({ name: newName }) });
-    } catch (err) { fetchFiles(); }
-  }, [fetchFiles]);
+        setUploads((prev) =>
+          prev.map((u) => (u.fileId === uploadId ? { ...u, status: 'uploading' as const } : u)),
+        );
 
-  const moveFiles = useCallback(async (fileIds: string[], targetFolderId: string) => {
-    setFiles(prev => prev.filter(f => !fileIds.includes(f.id)));
-    try {
-      await apiRequest('/api/drive/files/move', { method: 'POST', body: JSON.stringify({ fileIds, targetFolderId }) });
-    } catch (err) { fetchFiles(); }
-  }, [fetchFiles]);
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          if (currentFolderId) formData.append('folderId', currentFolderId);
 
-  const copyFile = useCallback(async (fileId: string, targetFolderId: string): Promise<DriveFile | null> => {
-    try {
-      const response = await apiRequest(`/api/drive/files/${fileId}/copy`, { method: 'POST', body: JSON.stringify({ targetFolderId }) });
-      if (!response.ok) throw new Error('Copy failed');
-      return await response.json();
-    } catch (err) { setError(err instanceof Error ? err.message : 'Copy failed'); return null; }
-  }, []);
+          const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+          const xhr = new XMLHttpRequest();
+          await new Promise<void>((resolve, reject) => {
+            xhr.upload.onprogress = (e) => {
+              if (e.lengthComputable) {
+                const progress = Math.round((e.loaded / e.total) * 100);
+                setUploads((prev) =>
+                  prev.map((u) => (u.fileId === uploadId ? { ...u, progress } : u)),
+                );
+              }
+            };
+            xhr.onload = () =>
+              xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(xhr.statusText));
+            xhr.onerror = () => reject(new Error('Upload failed'));
+            xhr.onabort = () => reject(new Error('Upload cancelled'));
+            xhr.open('POST', '/api/drive/upload');
+            if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            xhr.send(formData);
+          });
+
+          setUploads((prev) =>
+            prev.map((u) =>
+              u.fileId === uploadId ? { ...u, progress: 100, status: 'complete' as const } : u,
+            ),
+          );
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : 'Upload failed';
+          setUploads((prev) =>
+            prev.map((u) =>
+              u.fileId === uploadId ? { ...u, status: 'error' as const, error: errorMsg } : u,
+            ),
+          );
+        } finally {
+          abortControllers.current.delete(uploadId);
+        }
+      }
+      await fetchFiles();
+    },
+    [currentFolderId, fetchFiles],
+  );
+
+  const createFolder = useCallback(
+    async (name: string, parentId?: string | null): Promise<DriveFile | null> => {
+      try {
+        const response = await apiRequest('/api/drive/folders', {
+          method: 'POST',
+          body: JSON.stringify({
+            name,
+            parentId: parentId !== undefined ? parentId : currentFolderId,
+          }),
+        });
+        if (!response.ok) throw new Error('Create folder failed');
+        const folder = await response.json();
+        setFiles((prev) => [folder, ...prev]);
+        return folder;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Create failed');
+        return null;
+      }
+    },
+    [currentFolderId],
+  );
+
+  const deleteFiles = useCallback(
+    async (fileIds: string[]) => {
+      setFiles((prev) => prev.filter((f) => !fileIds.includes(f.id)));
+      try {
+        await apiRequest('/api/drive/files/trash', {
+          method: 'POST',
+          body: JSON.stringify({ fileIds }),
+        });
+      } catch (err) {
+        fetchFiles();
+      }
+    },
+    [fetchFiles],
+  );
+
+  const renameFile = useCallback(
+    async (fileId: string, newName: string) => {
+      setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, name: newName } : f)));
+      try {
+        await apiRequest(`/api/drive/files/${fileId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ name: newName }),
+        });
+      } catch (err) {
+        fetchFiles();
+      }
+    },
+    [fetchFiles],
+  );
+
+  const moveFiles = useCallback(
+    async (fileIds: string[], targetFolderId: string) => {
+      setFiles((prev) => prev.filter((f) => !fileIds.includes(f.id)));
+      try {
+        await apiRequest('/api/drive/files/move', {
+          method: 'POST',
+          body: JSON.stringify({ fileIds, targetFolderId }),
+        });
+      } catch (err) {
+        fetchFiles();
+      }
+    },
+    [fetchFiles],
+  );
+
+  const copyFile = useCallback(
+    async (fileId: string, targetFolderId: string): Promise<DriveFile | null> => {
+      try {
+        const response = await apiRequest(`/api/drive/files/${fileId}/copy`, {
+          method: 'POST',
+          body: JSON.stringify({ targetFolderId }),
+        });
+        if (!response.ok) throw new Error('Copy failed');
+        return await response.json();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Copy failed');
+        return null;
+      }
+    },
+    [],
+  );
 
   const shareFile = useCallback(async (params: ShareParams) => {
     try {
-      await apiRequest(`/api/drive/files/${params.fileId}/share`, { method: 'POST', body: JSON.stringify({ email: params.email, permission: params.permission }) });
-      setFiles(prev => prev.map(f => f.id === params.fileId ? { ...f, sharedWith: [...f.sharedWith, { email: params.email, permission: params.permission }] } : f));
-    } catch (err) { console.error('Share failed:', err); }
+      await apiRequest(`/api/drive/files/${params.fileId}/share`, {
+        method: 'POST',
+        body: JSON.stringify({ email: params.email, permission: params.permission }),
+      });
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === params.fileId
+            ? {
+                ...f,
+                sharedWith: [
+                  ...f.sharedWith,
+                  { email: params.email, permission: params.permission },
+                ],
+              }
+            : f,
+        ),
+      );
+    } catch (err) {
+      logger.error('Share failed:', err);
+    }
   }, []);
 
   const unshareFile = useCallback(async (fileId: string, email: string) => {
     try {
-      await apiRequest(`/api/drive/files/${fileId}/share`, { method: 'DELETE', body: JSON.stringify({ email }) });
-      setFiles(prev => prev.map(f => f.id === fileId ? { ...f, sharedWith: f.sharedWith.filter(s => s.email !== email) } : f));
-    } catch (err) { console.error('Unshare failed:', err); }
+      await apiRequest(`/api/drive/files/${fileId}/share`, {
+        method: 'DELETE',
+        body: JSON.stringify({ email }),
+      });
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileId ? { ...f, sharedWith: f.sharedWith.filter((s) => s.email !== email) } : f,
+        ),
+      );
+    } catch (err) {
+      logger.error('Unshare failed:', err);
+    }
   }, []);
 
   const starFile = useCallback(async (fileId: string) => {
-    setFiles(prev => prev.map(f => f.id === fileId ? { ...f, isStarred: true } : f));
-    try { await apiRequest(`/api/drive/files/${fileId}/star`, { method: 'PUT' }); } catch { /* optimistic */ }
+    setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, isStarred: true } : f)));
+    try {
+      await apiRequest(`/api/drive/files/${fileId}/star`, { method: 'PUT' });
+    } catch {
+      /* optimistic */
+    }
   }, []);
 
   const unstarFile = useCallback(async (fileId: string) => {
-    setFiles(prev => prev.map(f => f.id === fileId ? { ...f, isStarred: false } : f));
-    try { await apiRequest(`/api/drive/files/${fileId}/star`, { method: 'DELETE' }); } catch { /* optimistic */ }
+    setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, isStarred: false } : f)));
+    try {
+      await apiRequest(`/api/drive/files/${fileId}/star`, { method: 'DELETE' });
+    } catch {
+      /* optimistic */
+    }
   }, []);
 
   const getVersionHistory = useCallback(async (fileId: string) => {
@@ -216,58 +328,107 @@ export function useDrive(): UseDriveReturn {
       const response = await apiRequest(`/api/drive/files/${fileId}/versions`);
       if (response.ok) {
         const data = await response.json();
-        setFiles(prev => prev.map(f => f.id === fileId ? { ...f, versions: data.versions } : f));
+        setFiles((prev) =>
+          prev.map((f) => (f.id === fileId ? { ...f, versions: data.versions } : f)),
+        );
       }
-    } catch (err) { console.error('Version fetch failed:', err); }
+    } catch (err) {
+      logger.error('Version fetch failed:', err);
+    }
   }, []);
 
-  const restoreVersion = useCallback(async (fileId: string, versionId: string) => {
-    try {
-      await apiRequest(`/api/drive/files/${fileId}/versions/${versionId}/restore`, { method: 'POST' });
-      await fetchFiles();
-    } catch (err) { setError(err instanceof Error ? err.message : 'Restore failed'); }
-  }, [fetchFiles]);
+  const restoreVersion = useCallback(
+    async (fileId: string, versionId: string) => {
+      try {
+        await apiRequest(`/api/drive/files/${fileId}/versions/${versionId}/restore`, {
+          method: 'POST',
+        });
+        await fetchFiles();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Restore failed');
+      }
+    },
+    [fetchFiles],
+  );
 
-  const navigateToFolder = useCallback((folderId: string | null, folderName?: string) => {
-    setCurrentFolderId(folderId);
-    if (folderId === null) {
-      setBreadcrumbs([{ id: null, name: 'My Drive' }]);
-    } else {
-      setBreadcrumbs(prev => [...prev, { id: folderId, name: folderName || 'Folder' }]);
-    }
-    fetchFiles(folderId);
-  }, [fetchFiles]);
+  const navigateToFolder = useCallback(
+    (folderId: string | null, folderName?: string) => {
+      setCurrentFolderId(folderId);
+      if (folderId === null) {
+        setBreadcrumbs([{ id: null, name: 'My Drive' }]);
+      } else {
+        setBreadcrumbs((prev) => [...prev, { id: folderId, name: folderName || 'Folder' }]);
+      }
+      fetchFiles(folderId);
+    },
+    [fetchFiles],
+  );
 
-  const navigateToBreadcrumb = useCallback((index: number) => {
-    setBreadcrumbs(prev => prev.slice(0, index + 1));
-    const targetId = breadcrumbs[index]?.id || null;
-    setCurrentFolderId(targetId);
-    fetchFiles(targetId);
-  }, [breadcrumbs, fetchFiles]);
+  const navigateToBreadcrumb = useCallback(
+    (index: number) => {
+      setBreadcrumbs((prev) => prev.slice(0, index + 1));
+      const targetId = breadcrumbs[index]?.id || null;
+      setCurrentFolderId(targetId);
+      fetchFiles(targetId);
+    },
+    [breadcrumbs, fetchFiles],
+  );
 
   const searchFiles = useCallback(async (query: string) => {
     setLoading(true);
     try {
       const response = await apiRequest(`/api/drive/search?q=${encodeURIComponent(query)}`);
-      if (response.ok) { const data = await response.json(); setFiles(data.files || []); }
-    } catch (err) { setError(err instanceof Error ? err.message : 'Search failed'); }
-    finally { setLoading(false); }
+      if (response.ok) {
+        const data = await response.json();
+        setFiles(data.files || []);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Search failed');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const getDownloadUrl = useCallback((fileId: string): string => `/api/drive/files/${fileId}/download`, []);
+  const getDownloadUrl = useCallback(
+    (fileId: string): string => `/api/drive/files/${fileId}/download`,
+    [],
+  );
 
   const cancelUpload = useCallback((uploadId: string) => {
     const controller = abortControllers.current.get(uploadId);
-    if (controller) { controller.abort(); abortControllers.current.delete(uploadId); }
-    setUploads(prev => prev.filter(u => u.fileId !== uploadId));
+    if (controller) {
+      controller.abort();
+      abortControllers.current.delete(uploadId);
+    }
+    setUploads((prev) => prev.filter((u) => u.fileId !== uploadId));
   }, []);
 
   return {
-    files, loading, error, uploads, quota, currentFolderId, breadcrumbs,
-    fetchFiles, uploadFiles, createFolder, deleteFiles, renameFile, moveFiles,
-    copyFile, shareFile, unshareFile, starFile, unstarFile, getVersionHistory,
-    restoreVersion, navigateToFolder, navigateToBreadcrumb, searchFiles,
-    getDownloadUrl, cancelUpload,
+    files,
+    loading,
+    error,
+    uploads,
+    quota,
+    currentFolderId,
+    breadcrumbs,
+    fetchFiles,
+    uploadFiles,
+    createFolder,
+    deleteFiles,
+    renameFile,
+    moveFiles,
+    copyFile,
+    shareFile,
+    unshareFile,
+    starFile,
+    unstarFile,
+    getVersionHistory,
+    restoreVersion,
+    navigateToFolder,
+    navigateToBreadcrumb,
+    searchFiles,
+    getDownloadUrl,
+    cancelUpload,
   };
 }
 

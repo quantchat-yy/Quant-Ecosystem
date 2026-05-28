@@ -13,15 +13,9 @@ export default function VoicePage() {
       </div>
       <div className="mb-8">
         <VoiceInput
-          onTranscript={(text) => {
-            console.log('Transcript:', text);
-          }}
-          onRecordingStart={() => {
-            console.log('Recording started');
-          }}
-          onRecordingStop={() => {
-            console.log('Recording stopped');
-          }}
+          onTranscript={() => {}}
+          onRecordingStart={() => {}}
+          onRecordingStop={() => {}}
         />
       </div>
       <div className="w-full max-w-md space-y-4">

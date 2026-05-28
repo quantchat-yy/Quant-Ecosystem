@@ -132,8 +132,8 @@ const TemplateBrowser: React.FC = () => {
     return result;
   }, [templates, selectedRatio, selectedDuration, sortBy]);
 
-  const handleUseTemplate = useCallback((id: string) => {
-    console.log(`Using template: ${id}`);
+  const handleUseTemplate = useCallback((_id: string) => {
+    // Template usage would be triggered here in production
   }, []);
   const handlePreview = useCallback((template: Template) => {
     setPreviewTemplate(template);

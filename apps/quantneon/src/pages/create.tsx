@@ -16,7 +16,6 @@ const CreatePostPage: React.FC = () => {
   const handlePublish = useCallback(async () => {
     setIsPublishing(true);
     // Would call apiClient.createPost here
-    console.log('Publishing post:', { caption, location, images: selectedImages });
     setTimeout(() => setIsPublishing(false), 1000);
   }, [caption, location, selectedImages]);
 

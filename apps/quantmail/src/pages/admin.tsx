@@ -4,6 +4,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { logger } from '@quant/common';
 
 interface AdminUser {
   id: string;
@@ -68,13 +69,27 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showInviteModal, setShowInviteModal] = useState<boolean>(false);
-  const [inviteForm, setInviteForm] = useState<InviteForm>({ email: '', role: 'member', department: '', message: '' });
+  const [inviteForm, setInviteForm] = useState<InviteForm>({
+    email: '',
+    role: 'member',
+    department: '',
+    message: '',
+  });
   const [inviting, setInviting] = useState<boolean>(false);
   const [orgSettings, setOrgSettings] = useState<OrgSettings>({
-    name: '', domain: '', defaultRole: 'member', allowSignup: true,
-    requireTwoFactor: false, sessionTimeout: 480, passwordMinLength: 8,
-    passwordRequireSpecial: true, passwordRequireNumbers: true,
-    passwordExpiryDays: 90, maxLoginAttempts: 5, ipWhitelist: [], allowedDomains: []
+    name: '',
+    domain: '',
+    defaultRole: 'member',
+    allowSignup: true,
+    requireTwoFactor: false,
+    sessionTimeout: 480,
+    passwordMinLength: 8,
+    passwordRequireSpecial: true,
+    passwordRequireNumbers: true,
+    passwordExpiryDays: 90,
+    maxLoginAttempts: 5,
+    ipWhitelist: [],
+    allowedDomains: [],
   });
   const [savingSettings, setSavingSettings] = useState<boolean>(false);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
@@ -91,7 +106,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
       if (roleFilter !== 'all') params.set('role', roleFilter);
       if (statusFilter !== 'all') params.set('status', statusFilter);
       const response = await fetch(`/api/admin/users?${params}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       if (!response.ok) throw new Error('Failed to fetch users');
       const data = await response.json();
@@ -106,21 +121,21 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
   const fetchOrgSettings = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/settings', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       if (response.ok) {
         const data = await response.json();
         setOrgSettings(data);
       }
     } catch (err) {
-      console.error('Failed to fetch settings:', err);
+      logger.error('Failed to fetch settings:', err);
     }
   }, []);
 
   const fetchAuditLogs = useCallback(async () => {
     try {
       const response = await fetch(`/api/admin/audit-logs?page=${auditPage}&limit=50`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -128,7 +143,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
         setAuditTotal(data.total || 0);
       }
     } catch (err) {
-      console.error('Failed to fetch audit logs:', err);
+      logger.error('Failed to fetch audit logs:', err);
     }
   }, [auditPage]);
 
@@ -144,12 +159,15 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
     try {
       const response = await fetch('/api/admin/users/invite', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify(inviteForm)
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify(inviteForm),
       });
       if (!response.ok) throw new Error('Failed to invite user');
       const newUser = await response.json();
-      setUsers(prev => [...prev, newUser]);
+      setUsers((prev) => [...prev, newUser]);
       setShowInviteModal(false);
       setInviteForm({ email: '', role: 'member', department: '', message: '' });
     } catch (err) {
@@ -163,13 +181,18 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
     try {
       await fetch(`/api/admin/users/${userId}/role`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ role: newRole })
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ role: newRole }),
       });
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole as AdminUser['role'] } : u));
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, role: newRole as AdminUser['role'] } : u)),
+      );
       setEditingRole(null);
     } catch (err) {
-      console.error('Failed to update role:', err);
+      logger.error('Failed to update role:', err);
     }
   }, []);
 
@@ -177,11 +200,17 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
     try {
       await fetch(`/api/admin/users/${userId}/${suspend ? 'suspend' : 'activate'}`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: suspend ? 'suspended' as const : 'active' as const } : u));
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId
+            ? { ...u, status: suspend ? ('suspended' as const) : ('active' as const) }
+            : u,
+        ),
+      );
     } catch (err) {
-      console.error('Failed to update user status:', err);
+      logger.error('Failed to update user status:', err);
     }
   }, []);
 
@@ -189,12 +218,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
     try {
       await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
-      setUsers(prev => prev.filter(u => u.id !== userId));
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
       setSelectedUser(null);
     } catch (err) {
-      console.error('Failed to delete user:', err);
+      logger.error('Failed to delete user:', err);
     }
   }, []);
 
@@ -203,8 +232,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
     try {
       const response = await fetch('/api/admin/settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify(orgSettings)
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify(orgSettings),
       });
       if (!response.ok) throw new Error('Failed to save settings');
     } catch (err) {
@@ -217,7 +249,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
   const filteredUsers = useMemo(() => users, [users]);
 
   if (error && users.length === 0 && activeTab === 'users') {
-    return (<div className="admin-error"><h2>Admin Panel Error</h2><p>{error}</p><button onClick={fetchUsers}>Retry</button></div>);
+    return (
+      <div className="admin-error">
+        <h2>Admin Panel Error</h2>
+        <p>{error}</p>
+        <button onClick={fetchUsers}>Retry</button>
+      </div>
+    );
   }
 
   return (
@@ -225,55 +263,135 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
       <header className="admin-header">
         <h1>Admin Panel</h1>
         <nav className="admin-tabs">
-          <button onClick={() => setActiveTab('users')} className={activeTab === 'users' ? 'active' : ''}>Users</button>
-          <button onClick={() => setActiveTab('settings')} className={activeTab === 'settings' ? 'active' : ''}>Organization</button>
-          <button onClick={() => setActiveTab('security')} className={activeTab === 'security' ? 'active' : ''}>Security</button>
-          <button onClick={() => setActiveTab('audit')} className={activeTab === 'audit' ? 'active' : ''}>Audit Log</button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={activeTab === 'users' ? 'active' : ''}
+          >
+            Users
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={activeTab === 'settings' ? 'active' : ''}
+          >
+            Organization
+          </button>
+          <button
+            onClick={() => setActiveTab('security')}
+            className={activeTab === 'security' ? 'active' : ''}
+          >
+            Security
+          </button>
+          <button
+            onClick={() => setActiveTab('audit')}
+            className={activeTab === 'audit' ? 'active' : ''}
+          >
+            Audit Log
+          </button>
         </nav>
       </header>
 
       {activeTab === 'users' && (
         <div className="users-section">
           <div className="users-toolbar">
-            <input type="text" placeholder="Search users..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            <input
+              type="text"
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
             <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
-              <option value="all">All Roles</option><option value="admin">Admin</option><option value="moderator">Moderator</option><option value="member">Member</option><option value="viewer">Viewer</option>
+              <option value="all">All Roles</option>
+              <option value="admin">Admin</option>
+              <option value="moderator">Moderator</option>
+              <option value="member">Member</option>
+              <option value="viewer">Viewer</option>
             </select>
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="all">All Status</option><option value="active">Active</option><option value="suspended">Suspended</option><option value="pending">Pending</option>
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="suspended">Suspended</option>
+              <option value="pending">Pending</option>
             </select>
-            <button onClick={() => setShowInviteModal(true)} className="invite-btn">+ Invite User</button>
+            <button onClick={() => setShowInviteModal(true)} className="invite-btn">
+              + Invite User
+            </button>
           </div>
 
           {loading ? (
-            <div className="loading-state">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="user-skeleton"></div>)}</div>
+            <div className="loading-state">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="user-skeleton"></div>
+              ))}
+            </div>
           ) : filteredUsers.length === 0 ? (
-            <div className="empty-state"><h3>No users found</h3></div>
+            <div className="empty-state">
+              <h3>No users found</h3>
+            </div>
           ) : (
             <table className="users-table">
-              <thead><tr><th>User</th><th>Role</th><th>Status</th><th>2FA</th><th>Last Login</th><th>Actions</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>2FA</th>
+                  <th>Last Login</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
               <tbody>
-                {filteredUsers.map(user => (
+                {filteredUsers.map((user) => (
                   <tr key={user.id} className={user.status === 'suspended' ? 'suspended' : ''}>
                     <td className="user-cell">
-                      <div className="user-avatar">{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <span>{user.name.charAt(0)}</span>}</div>
-                      <div className="user-info"><span className="user-name">{user.name}</span><span className="user-email">{user.email}</span></div>
+                      <div className="user-avatar">
+                        {user.avatarUrl ? (
+                          <img src={user.avatarUrl} alt="" />
+                        ) : (
+                          <span>{user.name.charAt(0)}</span>
+                        )}
+                      </div>
+                      <div className="user-info">
+                        <span className="user-name">{user.name}</span>
+                        <span className="user-email">{user.email}</span>
+                      </div>
                     </td>
                     <td>
                       {editingRole === user.id ? (
-                        <select value={user.role} onChange={(e) => handleUpdateRole(user.id, e.target.value)} onBlur={() => setEditingRole(null)}>
-                          <option value="admin">Admin</option><option value="moderator">Moderator</option><option value="member">Member</option><option value="viewer">Viewer</option>
+                        <select
+                          value={user.role}
+                          onChange={(e) => handleUpdateRole(user.id, e.target.value)}
+                          onBlur={() => setEditingRole(null)}
+                        >
+                          <option value="admin">Admin</option>
+                          <option value="moderator">Moderator</option>
+                          <option value="member">Member</option>
+                          <option value="viewer">Viewer</option>
                         </select>
                       ) : (
-                        <span className={`role-badge ${user.role}`} onClick={() => setEditingRole(user.id)}>{user.role}</span>
+                        <span
+                          className={`role-badge ${user.role}`}
+                          onClick={() => setEditingRole(user.id)}
+                        >
+                          {user.role}
+                        </span>
                       )}
                     </td>
-                    <td><span className={`status-badge ${user.status}`}>{user.status}</span></td>
+                    <td>
+                      <span className={`status-badge ${user.status}`}>{user.status}</span>
+                    </td>
                     <td>{user.twoFactorEnabled ? '\u2705' : '\u274C'}</td>
-                    <td>{user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}</td>
+                    <td>
+                      {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
+                    </td>
                     <td className="actions-cell">
-                      <button onClick={() => handleSuspendUser(user.id, user.status !== 'suspended')}>{user.status === 'suspended' ? 'Activate' : 'Suspend'}</button>
-                      <button onClick={() => handleDeleteUser(user.id)} className="delete-btn">Delete</button>
+                      <button
+                        onClick={() => handleSuspendUser(user.id, user.status !== 'suspended')}
+                      >
+                        {user.status === 'suspended' ? 'Activate' : 'Suspend'}
+                      </button>
+                      <button onClick={() => handleDeleteUser(user.id)} className="delete-btn">
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -287,18 +405,62 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
         <div className="settings-section">
           <h2>Organization Settings</h2>
           <div className="settings-form">
-            <div className="form-group"><label>Organization Name</label><input type="text" value={orgSettings.name} onChange={(e) => setOrgSettings(p => ({ ...p, name: e.target.value }))} /></div>
-            <div className="form-group"><label>Domain</label><input type="text" value={orgSettings.domain} onChange={(e) => setOrgSettings(p => ({ ...p, domain: e.target.value }))} /></div>
-            <div className="form-group"><label>Default Role for New Members</label>
-              <select value={orgSettings.defaultRole} onChange={(e) => setOrgSettings(p => ({ ...p, defaultRole: e.target.value }))}>
-                <option value="member">Member</option><option value="viewer">Viewer</option>
+            <div className="form-group">
+              <label>Organization Name</label>
+              <input
+                type="text"
+                value={orgSettings.name}
+                onChange={(e) => setOrgSettings((p) => ({ ...p, name: e.target.value }))}
+              />
+            </div>
+            <div className="form-group">
+              <label>Domain</label>
+              <input
+                type="text"
+                value={orgSettings.domain}
+                onChange={(e) => setOrgSettings((p) => ({ ...p, domain: e.target.value }))}
+              />
+            </div>
+            <div className="form-group">
+              <label>Default Role for New Members</label>
+              <select
+                value={orgSettings.defaultRole}
+                onChange={(e) => setOrgSettings((p) => ({ ...p, defaultRole: e.target.value }))}
+              >
+                <option value="member">Member</option>
+                <option value="viewer">Viewer</option>
               </select>
             </div>
             <div className="form-group">
-              <label><input type="checkbox" checked={orgSettings.allowSignup} onChange={(e) => setOrgSettings(p => ({ ...p, allowSignup: e.target.checked }))} /> Allow public signup</label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={orgSettings.allowSignup}
+                  onChange={(e) => setOrgSettings((p) => ({ ...p, allowSignup: e.target.checked }))}
+                />{' '}
+                Allow public signup
+              </label>
             </div>
-            <div className="form-group"><label>Allowed Email Domains (comma-separated)</label><input type="text" value={orgSettings.allowedDomains.join(', ')} onChange={(e) => setOrgSettings(p => ({ ...p, allowedDomains: e.target.value.split(',').map(d => d.trim()).filter(Boolean) }))} placeholder="example.com, company.org" /></div>
-            <button onClick={handleSaveSettings} disabled={savingSettings} className="save-btn">{savingSettings ? 'Saving...' : 'Save Settings'}</button>
+            <div className="form-group">
+              <label>Allowed Email Domains (comma-separated)</label>
+              <input
+                type="text"
+                value={orgSettings.allowedDomains.join(', ')}
+                onChange={(e) =>
+                  setOrgSettings((p) => ({
+                    ...p,
+                    allowedDomains: e.target.value
+                      .split(',')
+                      .map((d) => d.trim())
+                      .filter(Boolean),
+                  }))
+                }
+                placeholder="example.com, company.org"
+              />
+            </div>
+            <button onClick={handleSaveSettings} disabled={savingSettings} className="save-btn">
+              {savingSettings ? 'Saving...' : 'Save Settings'}
+            </button>
           </div>
         </div>
       )}
@@ -308,22 +470,108 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
           <h2>Security Policies</h2>
           <div className="policy-group">
             <h3>Authentication</h3>
-            <label><input type="checkbox" checked={orgSettings.requireTwoFactor} onChange={(e) => setOrgSettings(p => ({ ...p, requireTwoFactor: e.target.checked }))} /> Require Two-Factor Authentication for all users</label>
-            <div className="form-group"><label>Session Timeout (minutes)</label><input type="number" value={orgSettings.sessionTimeout} onChange={(e) => setOrgSettings(p => ({ ...p, sessionTimeout: Number(e.target.value) }))} min={5} max={1440} /></div>
-            <div className="form-group"><label>Max Login Attempts</label><input type="number" value={orgSettings.maxLoginAttempts} onChange={(e) => setOrgSettings(p => ({ ...p, maxLoginAttempts: Number(e.target.value) }))} min={3} max={10} /></div>
+            <label>
+              <input
+                type="checkbox"
+                checked={orgSettings.requireTwoFactor}
+                onChange={(e) =>
+                  setOrgSettings((p) => ({ ...p, requireTwoFactor: e.target.checked }))
+                }
+              />{' '}
+              Require Two-Factor Authentication for all users
+            </label>
+            <div className="form-group">
+              <label>Session Timeout (minutes)</label>
+              <input
+                type="number"
+                value={orgSettings.sessionTimeout}
+                onChange={(e) =>
+                  setOrgSettings((p) => ({ ...p, sessionTimeout: Number(e.target.value) }))
+                }
+                min={5}
+                max={1440}
+              />
+            </div>
+            <div className="form-group">
+              <label>Max Login Attempts</label>
+              <input
+                type="number"
+                value={orgSettings.maxLoginAttempts}
+                onChange={(e) =>
+                  setOrgSettings((p) => ({ ...p, maxLoginAttempts: Number(e.target.value) }))
+                }
+                min={3}
+                max={10}
+              />
+            </div>
           </div>
           <div className="policy-group">
             <h3>Password Policy</h3>
-            <div className="form-group"><label>Minimum Length</label><input type="number" value={orgSettings.passwordMinLength} onChange={(e) => setOrgSettings(p => ({ ...p, passwordMinLength: Number(e.target.value) }))} min={6} max={32} /></div>
-            <label><input type="checkbox" checked={orgSettings.passwordRequireSpecial} onChange={(e) => setOrgSettings(p => ({ ...p, passwordRequireSpecial: e.target.checked }))} /> Require special characters</label>
-            <label><input type="checkbox" checked={orgSettings.passwordRequireNumbers} onChange={(e) => setOrgSettings(p => ({ ...p, passwordRequireNumbers: e.target.checked }))} /> Require numbers</label>
-            <div className="form-group"><label>Password Expiry (days, 0 = never)</label><input type="number" value={orgSettings.passwordExpiryDays} onChange={(e) => setOrgSettings(p => ({ ...p, passwordExpiryDays: Number(e.target.value) }))} min={0} max={365} /></div>
+            <div className="form-group">
+              <label>Minimum Length</label>
+              <input
+                type="number"
+                value={orgSettings.passwordMinLength}
+                onChange={(e) =>
+                  setOrgSettings((p) => ({ ...p, passwordMinLength: Number(e.target.value) }))
+                }
+                min={6}
+                max={32}
+              />
+            </div>
+            <label>
+              <input
+                type="checkbox"
+                checked={orgSettings.passwordRequireSpecial}
+                onChange={(e) =>
+                  setOrgSettings((p) => ({ ...p, passwordRequireSpecial: e.target.checked }))
+                }
+              />{' '}
+              Require special characters
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={orgSettings.passwordRequireNumbers}
+                onChange={(e) =>
+                  setOrgSettings((p) => ({ ...p, passwordRequireNumbers: e.target.checked }))
+                }
+              />{' '}
+              Require numbers
+            </label>
+            <div className="form-group">
+              <label>Password Expiry (days, 0 = never)</label>
+              <input
+                type="number"
+                value={orgSettings.passwordExpiryDays}
+                onChange={(e) =>
+                  setOrgSettings((p) => ({ ...p, passwordExpiryDays: Number(e.target.value) }))
+                }
+                min={0}
+                max={365}
+              />
+            </div>
           </div>
           <div className="policy-group">
             <h3>IP Whitelist</h3>
-            <div className="form-group"><label>Allowed IPs (one per line)</label><textarea value={orgSettings.ipWhitelist.join('\n')} onChange={(e) => setOrgSettings(p => ({ ...p, ipWhitelist: e.target.value.split('\n').filter(Boolean) }))} rows={4} placeholder="192.168.1.0/24" /></div>
+            <div className="form-group">
+              <label>Allowed IPs (one per line)</label>
+              <textarea
+                value={orgSettings.ipWhitelist.join('\n')}
+                onChange={(e) =>
+                  setOrgSettings((p) => ({
+                    ...p,
+                    ipWhitelist: e.target.value.split('\n').filter(Boolean),
+                  }))
+                }
+                rows={4}
+                placeholder="192.168.1.0/24"
+              />
+            </div>
           </div>
-          <button onClick={handleSaveSettings} disabled={savingSettings} className="save-btn">{savingSettings ? 'Saving...' : 'Save Security Policies'}</button>
+          <button onClick={handleSaveSettings} disabled={savingSettings} className="save-btn">
+            {savingSettings ? 'Saving...' : 'Save Security Policies'}
+          </button>
         </div>
       )}
 
@@ -331,26 +579,49 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
         <div className="audit-section">
           <h2>Audit Log ({auditTotal} entries)</h2>
           <table className="audit-table">
-            <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Target</th><th>Details</th><th>IP</th><th>Severity</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Action</th>
+                <th>Actor</th>
+                <th>Target</th>
+                <th>Details</th>
+                <th>IP</th>
+                <th>Severity</th>
+              </tr>
+            </thead>
             <tbody>
-              {auditLogs.map(log => (
+              {auditLogs.map((log) => (
                 <tr key={log.id} className={`severity-${log.severity}`}>
                   <td>{new Date(log.timestamp).toLocaleString()}</td>
                   <td className="action-cell">{log.action}</td>
                   <td>{log.actor.name}</td>
                   <td>{log.target || '-'}</td>
                   <td className="details-cell">{log.details}</td>
-                  <td><code>{log.ipAddress}</code></td>
-                  <td><span className={`severity-badge ${log.severity}`}>{log.severity}</span></td>
+                  <td>
+                    <code>{log.ipAddress}</code>
+                  </td>
+                  <td>
+                    <span className={`severity-badge ${log.severity}`}>{log.severity}</span>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
           {auditTotal > 50 && (
             <div className="pagination">
-              <button disabled={auditPage <= 1} onClick={() => setAuditPage(p => p - 1)}>Previous</button>
-              <span>Page {auditPage} of {Math.ceil(auditTotal / 50)}</span>
-              <button disabled={auditPage >= Math.ceil(auditTotal / 50)} onClick={() => setAuditPage(p => p + 1)}>Next</button>
+              <button disabled={auditPage <= 1} onClick={() => setAuditPage((p) => p - 1)}>
+                Previous
+              </button>
+              <span>
+                Page {auditPage} of {Math.ceil(auditTotal / 50)}
+              </span>
+              <button
+                disabled={auditPage >= Math.ceil(auditTotal / 50)}
+                onClick={() => setAuditPage((p) => p + 1)}
+              >
+                Next
+              </button>
             </div>
           )}
         </div>
@@ -360,13 +631,48 @@ export const AdminPage: React.FC<AdminPageProps> = ({ currentUser }) => {
         <div className="modal-overlay" onClick={() => setShowInviteModal(false)}>
           <div className="invite-modal" onClick={(e) => e.stopPropagation()}>
             <h2>Invite User</h2>
-            <div className="form-group"><label>Email *</label><input type="email" value={inviteForm.email} onChange={(e) => setInviteForm(p => ({ ...p, email: e.target.value }))} placeholder="user@example.com" /></div>
-            <div className="form-group"><label>Role</label><select value={inviteForm.role} onChange={(e) => setInviteForm(p => ({ ...p, role: e.target.value }))}><option value="admin">Admin</option><option value="moderator">Moderator</option><option value="member">Member</option><option value="viewer">Viewer</option></select></div>
-            <div className="form-group"><label>Department</label><input type="text" value={inviteForm.department} onChange={(e) => setInviteForm(p => ({ ...p, department: e.target.value }))} /></div>
-            <div className="form-group"><label>Personal Message</label><textarea value={inviteForm.message} onChange={(e) => setInviteForm(p => ({ ...p, message: e.target.value }))} rows={3} /></div>
+            <div className="form-group">
+              <label>Email *</label>
+              <input
+                type="email"
+                value={inviteForm.email}
+                onChange={(e) => setInviteForm((p) => ({ ...p, email: e.target.value }))}
+                placeholder="user@example.com"
+              />
+            </div>
+            <div className="form-group">
+              <label>Role</label>
+              <select
+                value={inviteForm.role}
+                onChange={(e) => setInviteForm((p) => ({ ...p, role: e.target.value }))}
+              >
+                <option value="admin">Admin</option>
+                <option value="moderator">Moderator</option>
+                <option value="member">Member</option>
+                <option value="viewer">Viewer</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Department</label>
+              <input
+                type="text"
+                value={inviteForm.department}
+                onChange={(e) => setInviteForm((p) => ({ ...p, department: e.target.value }))}
+              />
+            </div>
+            <div className="form-group">
+              <label>Personal Message</label>
+              <textarea
+                value={inviteForm.message}
+                onChange={(e) => setInviteForm((p) => ({ ...p, message: e.target.value }))}
+                rows={3}
+              />
+            </div>
             <div className="modal-actions">
               <button onClick={() => setShowInviteModal(false)}>Cancel</button>
-              <button onClick={handleInviteUser} disabled={inviting || !inviteForm.email.trim()}>{inviting ? 'Sending...' : 'Send Invite'}</button>
+              <button onClick={handleInviteUser} disabled={inviting || !inviteForm.email.trim()}>
+                {inviting ? 'Sending...' : 'Send Invite'}
+              </button>
             </div>
           </div>
         </div>

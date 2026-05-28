@@ -28,12 +28,7 @@ export default function InboxPage() {
     >
       <div className="flex flex-col h-full">
         <div className="p-4 border-b border-[var(--quant-border)]">
-          <SearchInput
-            placeholder="Search emails..."
-            onChange={(value) => {
-              console.log('Search:', value);
-            }}
-          />
+          <SearchInput placeholder="Search emails..." onChange={() => {}} />
         </div>
         <div className="flex-1 overflow-y-auto">
           {isLoading && (

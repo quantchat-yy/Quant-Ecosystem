@@ -130,9 +130,8 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
     }
   }, [draggedAsset, onDragToTimeline]);
 
-  const handleToggleFavorite = useCallback((id: string) => {
+  const handleToggleFavorite = useCallback((_id: string) => {
     // Optimistic toggle - would need mutation in production
-    console.log('Toggle favorite:', id);
   }, []);
 
   const handleCreateFolder = useCallback(() => {
@@ -146,8 +145,8 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
     }
   }, [newFolderName]);
 
-  const handleDeleteAsset = useCallback((id: string) => {
-    console.log('Delete asset:', id);
+  const handleDeleteAsset = useCallback((_id: string) => {
+    // Delete operation would be triggered here in production
   }, []);
 
   const formatSize = useCallback((bytes: number): string => {
