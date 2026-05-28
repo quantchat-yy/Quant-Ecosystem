@@ -27,15 +27,24 @@ export class FlightSearchEngine implements FlightSearchProvider {
     travelClass: string,
   ): Promise<FlightResult[]> {
     const all: FlightResult[] = [];
-    for (const p of this.providers)
-      all.push(...(await p.searchFlights(from, to, date, passengers, travelClass)));
+    for (const p of this.providers) {
+      try {
+        all.push(...(await p.searchFlights(from, to, date, passengers, travelClass)));
+      } catch {
+        /* skip */
+      }
+    }
     return this.prioritizeIndiaRoutes(all);
   }
 
   async getFlightDetails(id: string): Promise<FlightResult | null> {
     for (const p of this.providers) {
-      const r = await p.getFlightDetails(id);
-      if (r) return r;
+      try {
+        const r = await p.getFlightDetails(id);
+        if (r) return r;
+      } catch {
+        /* skip */
+      }
     }
     return null;
   }
@@ -57,25 +66,15 @@ export class FlightSearchEngine implements FlightSearchProvider {
 
 export class MockFlightProvider implements FlightSearchProvider {
   private flights: FlightResult[] = [];
-
   setFlights(flights: FlightResult[]): void {
     this.flights = flights;
   }
-
-  async searchFlights(
-    _f: string,
-    _t: string,
-    _d: string,
-    _p: number,
-    _c: string,
-  ): Promise<FlightResult[]> {
+  async searchFlights(): Promise<FlightResult[]> {
     return this.flights;
   }
-
   async getFlightDetails(id: string): Promise<FlightResult | null> {
     return this.flights.find((f) => f.id === id) ?? null;
   }
-
   compareFlights(flights: FlightResult[]): FlightResult[] {
     return [...flights].sort((a, b) => a.price - b.price);
   }

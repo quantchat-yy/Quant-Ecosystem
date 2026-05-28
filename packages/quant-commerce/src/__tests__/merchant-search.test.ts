@@ -85,4 +85,31 @@ describe('MerchantAggregator', () => {
     const result = await aggregator.search({ query: 'headphones' });
     expect(result.bestRating!.id).toBe('a2');
   });
+
+  it('should sort results by rating when sortBy is rating', async () => {
+    provider1.setItems([
+      makeShoppingItem({ id: 'a1', rating: 3.0, price: 1000 }),
+      makeShoppingItem({ id: 'a2', rating: 4.9, price: 5000 }),
+      makeShoppingItem({ id: 'a3', rating: 4.2, price: 3000 }),
+    ]);
+
+    const result = await aggregator.search({ query: 'headphones', sortBy: SortBy.rating });
+    expect(result.results[0]!.id).toBe('a2');
+    expect(result.results[1]!.id).toBe('a3');
+    expect(result.results[2]!.id).toBe('a1');
+  });
+
+  it('should return partial results when a provider throws', async () => {
+    provider1.setItems([makeShoppingItem({ id: 'a1', price: 2000 })]);
+    const failingProvider = {
+      search: () => Promise.reject(new Error('service unavailable')),
+      getProductDetails: () => Promise.resolve(null),
+      checkStock: () => Promise.resolve(false),
+    };
+    aggregator.addProvider(failingProvider);
+
+    const result = await aggregator.search({ query: 'headphones', sortBy: SortBy.price });
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0]!.id).toBe('a1');
+  });
 });

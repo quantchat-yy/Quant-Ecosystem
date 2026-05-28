@@ -14,7 +14,13 @@ export interface AlertNotification {
 export class PriceAlertManager {
   private alerts: PriceAlert[] = [];
 
-  addAlert(itemId: string, targetPrice: number, currentPrice: number, autoBuy = false): PriceAlert {
+  addAlert(
+    itemId: string,
+    targetPrice: number,
+    currentPrice: number,
+    autoBuy = false,
+    maxAutoBuyAmount?: number,
+  ): PriceAlert {
     const alert: PriceAlert = {
       id: `alert-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       itemId,
@@ -25,6 +31,7 @@ export class PriceAlertManager {
       lastChecked: Date.now(),
       notified: false,
       autoBuy,
+      maxAutoBuyAmount,
     };
     this.alerts.push(alert);
     return alert;
@@ -66,6 +73,11 @@ export class PriceAlertManager {
     if (!alert) return { confirmed: false, message: 'Alert not found' };
     if (!alert.autoBuy) return { confirmed: false, message: 'Auto-buy not enabled for this alert' };
     if (!alert.notified) return { confirmed: false, message: 'Price target not yet reached' };
+    if (alert.autoBuyConfirmed) return { confirmed: false, message: 'Auto-buy already confirmed' };
+    if (alert.maxAutoBuyAmount !== undefined && alert.currentPrice > alert.maxAutoBuyAmount) {
+      return { confirmed: false, message: 'Current price exceeds spending cap' };
+    }
+    alert.autoBuyConfirmed = true;
     return { confirmed: true, message: 'Auto-buy confirmed for item ' + alert.itemId };
   }
 }

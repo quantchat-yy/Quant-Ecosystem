@@ -15,22 +15,36 @@ export class TrainSearchEngine implements IRCTCProvider {
 
   async searchTrains(from: string, to: string, date: string): Promise<TrainResult[]> {
     const all: TrainResult[] = [];
-    for (const p of this.providers) all.push(...(await p.searchTrains(from, to, date)));
+    for (const p of this.providers) {
+      try {
+        all.push(...(await p.searchTrains(from, to, date)));
+      } catch {
+        /* skip */
+      }
+    }
     return all;
   }
 
   async checkAvailability(trainId: string, trainClass: string, date: string): Promise<number> {
     for (const p of this.providers) {
-      const a = await p.checkAvailability(trainId, trainClass, date);
-      if (a >= 0) return a;
+      try {
+        const a = await p.checkAvailability(trainId, trainClass, date);
+        if (a >= 0) return a;
+      } catch {
+        /* skip */
+      }
     }
     return -1;
   }
 
   async getSeatMap(trainId: string, trainClass: string): Promise<string[]> {
     for (const p of this.providers) {
-      const m = await p.getSeatMap(trainId, trainClass);
-      if (m.length > 0) return m;
+      try {
+        const m = await p.getSeatMap(trainId, trainClass);
+        if (m.length > 0) return m;
+      } catch {
+        /* skip */
+      }
     }
     return [];
   }
@@ -38,11 +52,8 @@ export class TrainSearchEngine implements IRCTCProvider {
   supportsTatkal(currentTime: Date): { ac: boolean; sleeper: boolean } {
     const h = currentTime.getUTCHours();
     const m = currentTime.getUTCMinutes();
-    const istMin = h * 60 + m + 330; // UTC + 5:30
-    return {
-      ac: istMin >= 600 && istMin < 720,
-      sleeper: istMin >= 660 && istMin < 720,
-    };
+    const istMin = h * 60 + m + 330;
+    return { ac: istMin >= 600 && istMin < 720, sleeper: istMin >= 660 && istMin < 720 };
   }
 
   bookTatkal(
@@ -63,13 +74,13 @@ export class MockTrainProvider implements IRCTCProvider {
   setTrains(trains: TrainResult[]): void {
     this.trains = trains;
   }
-  async searchTrains(_f: string, _t: string, _d: string): Promise<TrainResult[]> {
+  async searchTrains(): Promise<TrainResult[]> {
     return this.trains;
   }
-  async checkAvailability(_id: string, _c: string, _d: string): Promise<number> {
+  async checkAvailability(): Promise<number> {
     return 42;
   }
-  async getSeatMap(_id: string, _c: string): Promise<string[]> {
+  async getSeatMap(): Promise<string[]> {
     return ['A1', 'A2', 'A3', 'B1', 'B2'];
   }
 }

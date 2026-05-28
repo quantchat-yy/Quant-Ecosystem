@@ -16,21 +16,37 @@ export class VisualSearchEngine implements VisualSearchProvider {
     imageData: string,
   ): Promise<{ name: string; category: string; confidence: number }> {
     for (const p of this.providers) {
-      const r = await p.identifyItem(imageData);
-      if (r.confidence > 0) return r;
+      try {
+        const r = await p.identifyItem(imageData);
+        if (r.confidence > 0) return r;
+      } catch {
+        /* skip */
+      }
     }
     return { name: 'unknown', category: 'unknown', confidence: 0 };
   }
 
   async findSimilar(imageData: string): Promise<ShoppingItem[]> {
     const all: ShoppingItem[] = [];
-    for (const p of this.providers) all.push(...(await p.findSimilar(imageData)));
+    for (const p of this.providers) {
+      try {
+        all.push(...(await p.findSimilar(imageData)));
+      } catch {
+        /* skip */
+      }
+    }
     return all;
   }
 
   async findOnline(item: { name: string; category: string }): Promise<ShoppingItem[]> {
     const all: ShoppingItem[] = [];
-    for (const p of this.providers) all.push(...(await p.findSimilar(item.name)));
+    for (const p of this.providers) {
+      try {
+        all.push(...(await p.findSimilar(item.name)));
+      } catch {
+        /* skip */
+      }
+    }
     return all;
   }
 

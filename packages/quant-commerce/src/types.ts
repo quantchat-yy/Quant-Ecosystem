@@ -103,6 +103,8 @@ export interface PriceAlert {
   lastChecked: number;
   notified: boolean;
   autoBuy: boolean;
+  autoBuyConfirmed?: boolean;
+  maxAutoBuyAmount?: number;
 }
 
 export interface Order {

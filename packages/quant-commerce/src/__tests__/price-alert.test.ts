@@ -81,4 +81,32 @@ describe('PriceAlertManager', () => {
     expect(result.confirmed).toBe(false);
     expect(result.message).toContain('not yet reached');
   });
+
+  it('should reject auto-buy on second call (idempotency)', async () => {
+    const alert = manager.addAlert('item-1', 2000, 2999, true);
+    const checker = makeMockChecker({ 'item-1': 1500 });
+    await manager.checkAlerts(checker);
+    const first = manager.confirmAutoBuy(alert.id);
+    expect(first.confirmed).toBe(true);
+    const second = manager.confirmAutoBuy(alert.id);
+    expect(second.confirmed).toBe(false);
+    expect(second.message).toContain('already confirmed');
+  });
+
+  it('should reject auto-buy when currentPrice exceeds maxAutoBuyAmount', async () => {
+    const alert = manager.addAlert('item-1', 2000, 2999, true, 1000);
+    const checker = makeMockChecker({ 'item-1': 1800 });
+    await manager.checkAlerts(checker);
+    const result = manager.confirmAutoBuy(alert.id);
+    expect(result.confirmed).toBe(false);
+    expect(result.message).toContain('spending cap');
+  });
+
+  it('should allow auto-buy when currentPrice is within maxAutoBuyAmount', async () => {
+    const alert = manager.addAlert('item-1', 2000, 2999, true, 2000);
+    const checker = makeMockChecker({ 'item-1': 1800 });
+    await manager.checkAlerts(checker);
+    const result = manager.confirmAutoBuy(alert.id);
+    expect(result.confirmed).toBe(true);
+  });
 });
