@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-41-latency-budget-ci",
+  "task_description": "Add latency budget enforcement tests, memory stability tests, and cost budget tests for Phase 41 hard gates in the quant-live package CI pipeline.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}

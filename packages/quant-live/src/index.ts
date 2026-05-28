@@ -103,3 +103,14 @@ export { ArtifactLinker } from './persistence/artifact-linker.js';
 export { SessionSearch } from './persistence/session-search.js';
 export { SessionResume } from './persistence/session-resume.js';
 export { SessionAudit } from './persistence/session-audit.js';
+
+// Budget
+export { checkBudget, LATENCY_BUDGETS } from './budget/latency-budget.js';
+export { assertBudget, generateReport } from './budget/budget-assertions.js';
+export type {
+  LatencyProfile,
+  BudgetStage,
+  BudgetResult,
+  BudgetViolation,
+} from './budget/latency-budget.js';
+export type { BudgetReport } from './budget/budget-assertions.js';
