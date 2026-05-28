@@ -2,7 +2,7 @@
   "id": "FEAT-006",
   "type": "fix",
   "description": "Rewrite 5 fake QuantTube components from object-tree format to real React JSX with Tailwind CSS: ContentGrid, LiveChat, MiniPlayer, Recommendations, VideoPlayer.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Read apps/quantube/src/types/index.ts to understand Video, ChatMessage, Chapter, Subtitle, PlayerState, etc.",
     "Rewrite apps/quantube/src/components/ContentGrid.tsx: Convert to JSX content/video grid layout.",
