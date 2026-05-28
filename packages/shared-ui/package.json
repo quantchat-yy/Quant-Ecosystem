@@ -14,6 +14,7 @@
   "dependencies": {
     "@quant/brand": "workspace:*",
     "@quant/common": "workspace:*",
+    "framer-motion": "^11.0.0",
     "livekit-client": "^2.9.1"
   },
   "peerDependencies": {

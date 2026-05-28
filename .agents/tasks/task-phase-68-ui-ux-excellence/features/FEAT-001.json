@@ -1,0 +1,39 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Add framer-motion to shared-ui and create reusable animated component primitives: AnimatedPage (page transitions with spring physics), AnimatedList (stagger-in children), SpringButton (press scale with spring), BottomSheet (spring-physics bottom sheet), SkeletonFade (skeleton-to-content crossfade), PullToRefresh (branded pull-to-refresh), and a useReducedMotion hook. Also create a responsive layout system: ResponsiveShell (breakpoint-aware app shell wrapper with sidebar collapse, safe-area insets, foldable-aware), useBreakpoint/useOrientation hooks. Export all from shared-ui index.",
+  "status": "in_progress",
+  "steps": [
+    "Add framer-motion ^11 as a dependency to packages/shared-ui/package.json",
+    "Create packages/shared-ui/src/components/Motion/index.ts barrel exporting all motion components",
+    "Create packages/shared-ui/src/components/Motion/AnimatedPage.tsx - wraps children in framer-motion AnimatePresence + motion.div with spring transition from @quant/brand spring.gentle. Props: children, transition variant (slide-left, slide-right, fade, scale)",
+    "Create packages/shared-ui/src/components/Motion/AnimatedList.tsx - maps children with stagger delay (0.05s) using framer-motion. Each child fades+slides up with spring.snappy",
+    "Create packages/shared-ui/src/components/Motion/SpringButton.tsx - extends existing Button component with whileTap={{scale:0.95}} and whileHover={{scale:1.02}} using spring.snappy transition",
+    "Create packages/shared-ui/src/components/Motion/BottomSheet.tsx - drag-to-dismiss bottom sheet with spring physics (spring.gentle), backdrop, snap points (25%/50%/90%). Uses motion.div with dragConstraints",
+    "Create packages/shared-ui/src/components/Motion/SkeletonFade.tsx - wraps content in AnimatePresence, shows Skeleton while loading=true, crossfades to children when loading=false",
+    "Create packages/shared-ui/src/components/Motion/PullToRefresh.tsx - branded pull-to-refresh with spring animation on the indicator",
+    "Create packages/shared-ui/src/hooks/useReducedMotion.ts - wraps framer-motion useReducedMotion for accessibility",
+    "Create packages/shared-ui/src/components/Responsive/index.ts barrel",
+    "Create packages/shared-ui/src/components/Responsive/ResponsiveShell.tsx - wraps AppShell with responsive behavior: sidebar collapses to bottom nav below md breakpoint, safe-area padding via env(safe-area-inset-*), landscape detection",
+    "Create packages/shared-ui/src/hooks/useBreakpoint.ts - returns current breakpoint name (xs/sm/md/lg/xl/2xl) using window.matchMedia and shared-ui breakpoints",
+    "Create packages/shared-ui/src/hooks/useOrientation.ts - returns 'portrait' | 'landscape' using matchMedia",
+    "Export all new components and hooks from packages/shared-ui/src/index.ts",
+    "Create packages/shared-ui/src/components/Motion/__tests__/Motion.test.tsx with tests for AnimatedPage, AnimatedList, SpringButton, BottomSheet, SkeletonFade rendering correctly",
+    "Create packages/shared-ui/src/components/Responsive/__tests__/Responsive.test.tsx with tests for ResponsiveShell rendering with/without sidebar",
+    "Run pnpm typecheck --filter=@quant/shared-ui and pnpm test --filter=@quant/shared-ui to verify"
+  ],
+  "acceptance_criteria": [
+    "framer-motion is listed in shared-ui package.json dependencies",
+    "All 7 motion components (AnimatedPage, AnimatedList, SpringButton, BottomSheet, SkeletonFade, PullToRefresh, useReducedMotion) are exported from @quant/shared-ui",
+    "ResponsiveShell, useBreakpoint, useOrientation are exported from @quant/shared-ui",
+    "All motion components use @quant/brand spring constants (not hardcoded values)",
+    "pnpm typecheck --filter=@quant/shared-ui passes",
+    "pnpm test --filter=@quant/shared-ui passes"
+  ],
+  "verification": [
+    "pnpm typecheck --filter=@quant/shared-ui",
+    "pnpm test --filter=@quant/shared-ui"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

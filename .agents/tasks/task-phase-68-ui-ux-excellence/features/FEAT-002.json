@@ -1,0 +1,32 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Create a shared CommandPaletteUI React component (the visual overlay, distinct from the existing command-palette logic package) with dark mode support, and a ThemeProvider that handles animated theme transitions. Also create an EmptyStateIllustration component with per-app branded illustrations, and an OptimisticAction hook for optimistic UI with rollback. These are the remaining shared primitives needed for Phase 68's experience polish.",
+  "status": "pending",
+  "steps": [
+    "Create packages/shared-ui/src/components/CommandPaletteUI/index.tsx - A visually polished command palette overlay component using framer-motion for enter/exit animations (scale+fade with spring.stiff). Integrates with the existing CommandMenu pattern but adds: grouped results with icons, keyboard navigation highlighting, fuzzy match highlighting, footer showing keyboard shortcuts. Uses brand system colors.",
+    "Create packages/shared-ui/src/components/CommandPaletteUI/CommandPaletteUI.test.tsx - tests for open/close, keyboard navigation, search filtering",
+    "Create packages/shared-ui/src/components/ThemeProvider/index.tsx - React context provider that: manages light/dark/system theme state, persists to localStorage, provides useThemeMode hook, wraps theme transitions in a CSS class-based animated transition (not a flash). Sets data-theme attribute on documentElement.",
+    "Create packages/shared-ui/src/components/ThemeProvider/ThemeProvider.test.tsx - tests for theme switching, localStorage persistence",
+    "Create packages/shared-ui/src/components/EmptyStateIllustration/index.tsx - Enhanced empty state with SVG illustrations that use the current app's brand color (from CSS var --app-color). Variants: no-data, no-results, no-connection, first-time. Each has warm, human copy.",
+    "Create packages/shared-ui/src/hooks/useOptimisticAction.ts - hook that: takes an async action, immediately applies optimistic state, rolls back with a shake animation CSS class on failure, shows success feedback on completion. Returns {execute, isPending, isSuccess, isError}.",
+    "Create packages/shared-ui/src/hooks/useOptimisticAction.test.ts - tests for optimistic state, rollback on error, success state",
+    "Export all new components and hooks from packages/shared-ui/src/index.ts: CommandPaletteUI, ThemeProvider, useThemeMode, EmptyStateIllustration, useOptimisticAction",
+    "Run pnpm typecheck --filter=@quant/shared-ui and pnpm test --filter=@quant/shared-ui to verify"
+  ],
+  "acceptance_criteria": [
+    "CommandPaletteUI renders as a modal overlay with framer-motion animations",
+    "ThemeProvider manages light/dark mode with animated transitions (no flash)",
+    "EmptyStateIllustration has at least 4 variants using app brand color",
+    "useOptimisticAction hook handles success and rollback scenarios",
+    "All new components/hooks exported from @quant/shared-ui",
+    "pnpm typecheck --filter=@quant/shared-ui passes",
+    "pnpm test --filter=@quant/shared-ui passes"
+  ],
+  "verification": [
+    "pnpm typecheck --filter=@quant/shared-ui",
+    "pnpm test --filter=@quant/shared-ui"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

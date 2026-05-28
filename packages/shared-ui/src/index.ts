@@ -284,6 +284,37 @@ export type {
   AIPreferencesStepProps,
 } from './components/Onboarding';
 
+// Motion components
+export {
+  AnimatedPage,
+  AnimatedList,
+  SpringButton,
+  BottomSheet,
+  SkeletonFade,
+  PullToRefresh,
+} from './components/Motion';
+export type {
+  AnimatedPageProps,
+  PageTransitionVariant,
+  AnimatedListProps,
+  SpringButtonProps,
+  BottomSheetProps,
+  SnapPoint,
+  SkeletonFadeProps,
+  PullToRefreshProps,
+} from './components/Motion';
+
+// Responsive components
+export { ResponsiveShell } from './components/Responsive';
+export type { ResponsiveShellProps } from './components/Responsive';
+
+// Motion/Responsive hooks
+export { useReducedMotion } from './hooks/useReducedMotion';
+export { useBreakpoint } from './hooks/useBreakpoint';
+export type { BreakpointName } from './hooks/useBreakpoint';
+export { useOrientation } from './hooks/useOrientation';
+export type { Orientation } from './hooks/useOrientation';
+
 // QuantLive components
 export {
   QuantLive,

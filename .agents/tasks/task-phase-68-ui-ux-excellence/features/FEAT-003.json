@@ -1,0 +1,39 @@
+{
+  "id": "FEAT-003",
+  "type": "feat",
+  "description": "Apply UI/UX excellence to all 7 Next.js app frontends: integrate framer-motion animations, responsive shell, command palette, dark mode, and branded empty states across quantmail, quantchat, quantai, quantcalendar, quantdocs, quantdrive, and quantmeet. Each app gets: (1) ResponsiveShell wrapper in layout, (2) ThemeProvider in layout, (3) page transition animations via AnimatedPage, (4) SpringButton replacing Button in key CTAs, (5) CommandPaletteUI wired with Cmd+K, (6) globals.css updated with responsive breakpoints and dark mode variables. Add framer-motion as a dependency to each app's package.json.",
+  "status": "pending",
+  "steps": [
+    "Add framer-motion ^11 as a dependency to all 7 Next.js app package.json files (quantmail, quantchat, quantai, quantcalendar, quantdocs, quantdrive, quantmeet)",
+    "Update apps/quantmail/src/app/layout.tsx: wrap children in ThemeProvider and add CommandPaletteUI with app-specific commands (compose email, search, go to inbox/sent/drafts). Import from @quant/shared-ui.",
+    "Update apps/quantmail/src/app/page.tsx: wrap main content in AnimatedPage for page transitions. Use AnimatedList for email list rendering. Replace key buttons with SpringButton.",
+    "Update apps/quantmail/src/app/globals.css: add responsive media queries for 360/414/768/1024/1440px, safe-area-inset padding, and ensure dark mode variables are comprehensive.",
+    "Update apps/quantchat/src/app/layout.tsx: wrap in ThemeProvider, add CommandPaletteUI with chat-specific commands (new chat, search conversations, settings).",
+    "Update apps/quantchat/src/app/page.tsx: wrap in AnimatedPage, use AnimatedList for conversation list.",
+    "Update apps/quantai/src/app/layout.tsx: wrap in ThemeProvider, add CommandPaletteUI with AI commands (new conversation, change model, history).",
+    "Update apps/quantai/src/app/page.tsx: wrap in AnimatedPage.",
+    "Update apps/quantcalendar/src/app/layout.tsx: wrap in ThemeProvider, add CommandPaletteUI with calendar commands (new event, today, switch view).",
+    "Update apps/quantcalendar/src/app/page.tsx: wrap calendar content in AnimatedPage.",
+    "Update apps/quantdocs/src/app/layout.tsx: wrap in ThemeProvider, add CommandPaletteUI with docs commands (new doc, search, templates).",
+    "Update apps/quantdocs/src/app/page.tsx: wrap in AnimatedPage.",
+    "Update apps/quantdrive/src/app/layout.tsx: wrap in ThemeProvider, add CommandPaletteUI with drive commands (upload, new folder, search files).",
+    "Update apps/quantdrive/src/app/page.tsx: wrap in AnimatedPage.",
+    "Update apps/quantmeet/src/app/layout.tsx: wrap in ThemeProvider, add CommandPaletteUI with meet commands (new meeting, join meeting).",
+    "Update apps/quantmeet/src/app/page.tsx: wrap main content in AnimatedPage, use SpringButton for 'New Meeting' CTA.",
+    "Ensure all 7 apps have consistent globals.css with responsive breakpoints (360/414/768/1024/1440px), dark mode .dark class, safe-area insets, and app-specific accent via --app-color CSS var.",
+    "Run pnpm typecheck to verify all apps pass typecheck",
+    "Run pnpm build to verify all apps build successfully"
+  ],
+  "acceptance_criteria": [
+    "All 7 Next.js apps have framer-motion in their dependencies",
+    "All 7 apps have ThemeProvider wrapping children in layout.tsx",
+    "All 7 apps have CommandPaletteUI with app-specific commands in layout.tsx",
+    "All 7 apps page.tsx uses AnimatedPage for page transitions",
+    "All 7 apps globals.css has responsive breakpoints and dark mode",
+    "pnpm typecheck passes for all apps",
+    "pnpm build passes for all apps"
+  ],
+  "verification": ["pnpm typecheck", "pnpm build"],
+  "blocked_reason": null,
+  "findings": ""
+}
