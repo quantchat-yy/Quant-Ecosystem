@@ -1,4 +1,4 @@
-import { AppListing, SearchFilters, Pagination, SortOptions } from '../types.js';
+import { AppListing, AppListingSchema, SearchFilters, Pagination, SortOptions } from '../types.js';
 import { AppSearchEngine } from './search-engine.js';
 
 export class CatalogService {
@@ -10,6 +10,7 @@ export class CatalogService {
   }
 
   publish(listing: AppListing): AppListing {
+    AppListingSchema.parse(listing);
     const published: AppListing = { ...listing, status: 'published' };
     this.listings.set(published.id, published);
     this.searchEngine.index(published);

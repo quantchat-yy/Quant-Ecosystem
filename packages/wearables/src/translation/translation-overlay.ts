@@ -2,11 +2,10 @@ import type { TranslationOverlay, TranslationSegment, HUDPosition } from '../typ
 
 export class TranslationOverlayService {
   private activeSession: TranslationOverlay | null = null;
-  private idCounter = 0;
 
   startSession(sourceLang: string, targetLang: string): TranslationOverlay {
     const overlay: TranslationOverlay = {
-      id: `translation-${++this.idCounter}`,
+      id: `translation-${crypto.randomUUID()}`,
       sourceLang,
       targetLang,
       segments: [],

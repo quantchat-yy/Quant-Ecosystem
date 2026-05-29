@@ -49,7 +49,8 @@ export class HeadsetAdapter {
     return this.connected;
   }
 
-  getTrackingData(): TrackingData {
+  getTrackingData(): TrackingData | null {
+    if (!this.connected) return null;
     return {
       position: { x: 0, y: 1.6, z: 0 },
       rotation: { pitch: 0, yaw: 0, roll: 0 },

@@ -1,15 +1,22 @@
+import { z } from 'zod';
 import type { HandoffSession } from '../types.js';
+
+const InitiateHandoffInputSchema = z.object({
+  fromDevice: z.string().min(1),
+  toDevice: z.string().min(1),
+  context: z.record(z.unknown()),
+});
 
 export class HandoffManager {
   private sessions: Map<string, HandoffSession> = new Map();
-  private idCounter = 0;
 
   initiateHandoff(
     fromDevice: string,
     toDevice: string,
     context: Record<string, unknown>,
   ): HandoffSession {
-    const id = `handoff-${++this.idCounter}`;
+    InitiateHandoffInputSchema.parse({ fromDevice, toDevice, context });
+    const id = `handoff-${crypto.randomUUID()}`;
     const session: HandoffSession = {
       id,
       sourceDevice: fromDevice,

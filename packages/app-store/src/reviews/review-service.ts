@@ -1,11 +1,20 @@
+import { z } from 'zod';
 import { AppReview, Pagination, SortOptions } from '../types.js';
+
+const SubmitReviewInputSchema = z.object({
+  appId: z.string().min(1),
+  userId: z.string().min(1),
+  rating: z.number(),
+  text: z.string().min(1),
+});
 
 export class ReviewService {
   private reviews: Map<string, AppReview> = new Map();
   private purchases: Map<string, Set<string>> = new Map(); // userId -> appIds
 
   submit(appId: string, userId: string, rating: number, text: string): AppReview {
-    const id = `review-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    SubmitReviewInputSchema.parse({ appId, userId, rating, text });
+    const id = `review-${crypto.randomUUID()}`;
     const verifiedPurchase = this.verifyPurchase(userId, appId);
 
     const review: AppReview = {

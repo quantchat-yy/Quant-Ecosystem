@@ -46,7 +46,8 @@ export class WatchAdapter {
     return this.connected;
   }
 
-  getHealthMetrics(): HealthMetrics {
+  getHealthMetrics(): HealthMetrics | null {
+    if (!this.connected) return null;
     return {
       heartRate: 72,
       steps: 5000,

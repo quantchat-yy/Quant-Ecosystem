@@ -1,17 +1,30 @@
+import { z } from 'zod';
 import type { PayoutRequest, PayoutMethod, PayoutStatus } from '../types.js';
+import { PayoutMethodSchema } from '../types.js';
+
+const RequestPayoutInputSchema = z.object({
+  creatorId: z.string().min(1),
+  amount: z.number().positive(),
+  method: PayoutMethodSchema,
+});
 
 export class PayoutService {
   private payouts: PayoutRequest[] = [];
   private balances = new Map<string, number>();
 
   requestPayout(creatorId: string, amount: number, method: PayoutMethod): PayoutRequest {
+    RequestPayoutInputSchema.parse({ creatorId, amount, method });
     const available = this.calculateAvailableBalance(creatorId);
     if (amount > available) {
       throw new Error(`Insufficient balance: requested ${amount}, available ${available}`);
     }
 
+    // Atomic: compute new balance and set in one step
+    const newBalance = available - amount;
+    this.balances.set(creatorId, newBalance);
+
     const payout: PayoutRequest = {
-      id: `payout-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `payout-${crypto.randomUUID()}`,
       creatorId,
       amount,
       method,
@@ -20,7 +33,6 @@ export class PayoutService {
     };
 
     this.payouts.push(payout);
-    this.deductBalance(creatorId, amount);
     return payout;
   }
 
@@ -61,10 +73,5 @@ export class PayoutService {
   addBalance(creatorId: string, amount: number): void {
     const current = this.balances.get(creatorId) ?? 0;
     this.balances.set(creatorId, current + amount);
-  }
-
-  private deductBalance(creatorId: string, amount: number): void {
-    const current = this.balances.get(creatorId) ?? 0;
-    this.balances.set(creatorId, current - amount);
   }
 }

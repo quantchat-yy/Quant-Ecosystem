@@ -45,10 +45,24 @@ export class SSOService {
     return ssoConfig;
   }
 
+  /**
+   * WARNING: STUB ONLY - NOT IMPLEMENTED
+   * This method accepts ANY non-empty string as a valid assertion.
+   * It does NOT perform real SAML/OIDC signature verification,
+   * certificate validation, expiry checking, or audience restriction.
+   * DO NOT use this in production without replacing with real IdP validation.
+   *
+   * TODO: Replace with real SAML/OIDC signature verification before production use.
+   */
   async validateAssertion(
     orgId: string,
     assertion: string,
   ): Promise<{ valid: boolean; userId?: string }> {
+    console.warn(
+      'NOT_IMPLEMENTED: Real SAML/OIDC signature verification required for production. ' +
+        'This stub accepts any non-empty string as valid.',
+    );
+
     const config = this.configs.get(orgId);
     if (!config) return { valid: false };
     if (!assertion || assertion.length === 0) return { valid: false };

@@ -17,7 +17,7 @@ export class QuantCreditsService {
     this.balances.set(userId, current + amount);
 
     const transaction: CreditTransaction = {
-      id: `credit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `credit-${crypto.randomUUID()}`,
       userId,
       amount,
       type: 'earn',
@@ -41,7 +41,7 @@ export class QuantCreditsService {
     this.balances.set(userId, current - amount);
 
     const transaction: CreditTransaction = {
-      id: `credit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `credit-${crypto.randomUUID()}`,
       userId,
       amount,
       type: 'spend',
@@ -57,17 +57,21 @@ export class QuantCreditsService {
       throw new Error('Amount must be positive');
     }
 
+    // Validate both balances before any mutation
     const fromBalance = this.getBalance(fromUser);
     if (fromBalance < amount) {
       throw new Error(`Insufficient credits: has ${fromBalance}, needs ${amount}`);
     }
-
-    this.balances.set(fromUser, fromBalance - amount);
     const toBalance = this.getBalance(toUser);
-    this.balances.set(toUser, toBalance + amount);
+
+    // Apply both mutations together after validation
+    const newFromBalance = fromBalance - amount;
+    const newToBalance = toBalance + amount;
+    this.balances.set(fromUser, newFromBalance);
+    this.balances.set(toUser, newToBalance);
 
     const outTransaction: CreditTransaction = {
-      id: `credit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `credit-${crypto.randomUUID()}`,
       userId: fromUser,
       amount,
       type: 'transfer_out',
@@ -76,7 +80,7 @@ export class QuantCreditsService {
     };
 
     const inTransaction: CreditTransaction = {
-      id: `credit-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      id: `credit-${crypto.randomUUID()}`,
       userId: toUser,
       amount,
       type: 'transfer_in',

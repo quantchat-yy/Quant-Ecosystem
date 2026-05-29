@@ -1,11 +1,19 @@
+import { z } from 'zod';
 import type { MonetizationEvent, EarningsBreakdown } from '../types.js';
+
+const RecordTipInputSchema = z.object({
+  fromUser: z.string().min(1),
+  toCreator: z.string().min(1),
+  amount: z.number().min(0),
+});
 
 export class MonetizationEngine {
   private events: MonetizationEvent[] = [];
 
   recordTip(fromUser: string, toCreator: string, amount: number): MonetizationEvent {
+    RecordTipInputSchema.parse({ fromUser, toCreator, amount });
     const event: MonetizationEvent = {
-      id: `tip-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `tip-${crypto.randomUUID()}`,
       type: 'tip',
       amount,
       currency: 'USD',
@@ -21,7 +29,7 @@ export class MonetizationEngine {
     const platformFee = price * 0.3;
     const creatorAmount = price - platformFee;
     const event: MonetizationEvent = {
-      id: `iap-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `iap-${crypto.randomUUID()}`,
       type: 'iap',
       amount: creatorAmount,
       currency: 'USD',
@@ -42,7 +50,7 @@ export class MonetizationEngine {
     const totalRevenue = (impressions / 1000) * cpm;
     const creatorShare = totalRevenue * 0.55;
     const event: MonetizationEvent = {
-      id: `ad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `ad-${crypto.randomUUID()}`,
       type: 'ad_revenue',
       amount: creatorShare,
       currency: 'USD',
@@ -61,7 +69,7 @@ export class MonetizationEngine {
     amount: number,
   ): MonetizationEvent {
     const event: MonetizationEvent = {
-      id: `royalty-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `royalty-${crypto.randomUUID()}`,
       type: 'remix_royalty',
       amount,
       currency: 'USD',
