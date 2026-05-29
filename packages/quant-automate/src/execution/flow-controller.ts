@@ -80,7 +80,8 @@ export class FlowController {
 
   private evaluateSimpleCondition(condition: string, context: Record<string, unknown>): boolean {
     // Simple condition evaluation: "key == value" or "key > value"
-    const match = condition.match(/^(\w+)\s*(==|!=|>|<)\s*(.+)$/);
+    const trimmed = condition.trim();
+    const match = trimmed.match(/^(\w+)\s*(==|!=|>|<)\s*(\S.*)$/);
     if (!match) return false;
 
     const [, key, operator, valueStr] = match;
