@@ -37,12 +37,8 @@ jobs:
 
       - name: Run cold build
         run: |
+          set -o pipefail
           pnpm turbo build --concurrency=3 2>&1 | tee build-output.log
-          echo "Build exit code: ${PIPESTATUS[0]}"
-          if [ "${PIPESTATUS[0]}" -ne 0 ]; then
-            echo "::error::Build failed"
-            exit 1
-          fi
 
       - name: Fail if turbo reports missing outputs
         run: |
@@ -59,12 +55,8 @@ jobs:
 
       - name: Run cold typecheck
         run: |
+          set -o pipefail
           pnpm turbo typecheck 2>&1 | tee typecheck-output.log
-          echo "Typecheck exit code: ${PIPESTATUS[0]}"
-          if [ "${PIPESTATUS[0]}" -ne 0 ]; then
-            echo "::error::Typecheck failed"
-            exit 1
-          fi
 
       - name: Fail if typecheck reports missing outputs
         run: |
