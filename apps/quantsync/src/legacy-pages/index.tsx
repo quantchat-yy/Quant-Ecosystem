@@ -4,6 +4,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { sanitizeMediaUrl } from '@quant/common';
 
 interface Post {
   id: string;
@@ -316,7 +317,7 @@ const FeedPage: React.FC = () => {
           >
             <div className="flex gap-3">
               <img
-                src={post.authorAvatar}
+                src={sanitizeMediaUrl(post.authorAvatar)}
                 alt={post.authorName}
                 className="w-12 h-12 rounded-full object-cover flex-shrink-0"
               />
