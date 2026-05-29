@@ -1,0 +1,7 @@
+{
+  "task_id": "task-wave1-quantchat-quantai",
+  "task_description": "Wave 1 continuation: QuantChat real WebSocket wiring + Snapchat screen migration + brand restyle, and QuantAI model selector + tool-call cards + voice toggle + agentic layer foundation",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}
