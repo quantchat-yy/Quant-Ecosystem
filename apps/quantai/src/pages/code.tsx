@@ -195,6 +195,14 @@ const KEYWORD_CLASSES: Record<string, string[]> = {
   ],
 };
 
+function escapeHtmlForHighlight(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 export default function CodePage(): JSX.Element {
   const [code, setCode] = useState<string>(LANGUAGES[0].placeholder);
   const [language, setLanguage] = useState<string>('javascript');
@@ -226,7 +234,7 @@ export default function CodePage(): JSX.Element {
     const keywords = KEYWORD_CLASSES[language] || [];
     const lines = code.split('\n');
     return lines.map((line) => {
-      let highlighted = line;
+      let highlighted = escapeHtmlForHighlight(line);
       keywords.forEach((kw) => {
         const regex = new RegExp(`\\b${kw}\\b`, 'g');
         highlighted = highlighted.replace(regex, `<span class="keyword">${kw}</span>`);

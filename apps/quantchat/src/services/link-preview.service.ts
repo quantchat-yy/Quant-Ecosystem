@@ -26,8 +26,8 @@ export class LinkPreviewService {
     if (!matches) {
       return [];
     }
-    // Deduplicate
-    return [...new Set(matches)];
+    // Deduplicate and trim trailing sentence punctuation
+    return [...new Set(matches)].map((url) => url.replace(/[.,;!?\]]+$/, ''));
   }
 
   generatePreview(url: string): LinkPreview {

@@ -33,6 +33,9 @@ export class VoiceToolBridge {
   }
 
   async handleVoiceCommand(transcript: string, _userId: string): Promise<VoiceToolResult | null> {
+    if (!transcript || transcript.length > 500) {
+      return null;
+    }
     const lower = transcript.toLowerCase().trim();
     const route = this.routes.find((r) => r.keywords.some((kw) => lower.includes(kw)));
 

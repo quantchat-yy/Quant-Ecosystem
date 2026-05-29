@@ -75,8 +75,10 @@ export class SMTPBridge {
 
   verify(address: string): boolean {
     if (!this.connected) return false;
-    // Basic email validation
-    return /^[^\s@]+@[^\s@.]+\.[^\s@]+$/.test(address);
+    // Stricter email validation: proper domain labels and TLD of 2+ letters
+    return /^[^\s@]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/.test(
+      address,
+    );
   }
 
   getRelayStatus(): RelayStatus {

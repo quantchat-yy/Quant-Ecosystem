@@ -236,15 +236,17 @@ export class FormManager {
       case 'max':
         return typeof value === 'number' && value <= (rule.value as number);
 
-      case 'pattern':
+      case 'pattern': {
         if (typeof value !== 'string') return false;
         const regex = rule.value instanceof RegExp ? rule.value : new RegExp(rule.value as string);
         return regex.test(value);
+      }
 
-      case 'email':
+      case 'email': {
         if (typeof value !== 'string') return false;
         const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
         return emailRegex.test(value);
+      }
 
       case 'custom':
         if (!rule.validator) return true;

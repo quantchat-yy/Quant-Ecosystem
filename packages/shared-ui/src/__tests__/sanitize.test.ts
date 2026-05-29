@@ -58,11 +58,12 @@ describe('sanitizeHtmlContent', () => {
     expect(sanitizeHtmlContent('')).toBe('');
   });
 
-  it('returns input unchanged when window is undefined (SSR)', () => {
+  it('sanitizes content even when window is undefined (SSR)', () => {
     vi.stubGlobal('window', undefined);
     const input = '<script>alert("xss")</script><p>Safe</p>';
     const result = sanitizeHtmlContent(input);
-    expect(result).toBe(input);
+    expect(result).not.toContain('<script>');
+    expect(result).toContain('<p>Safe</p>');
   });
 });
 
@@ -106,10 +107,11 @@ describe('sanitizeCodeHighlight', () => {
     expect(result).toContain('code');
   });
 
-  it('returns input unchanged when window is undefined (SSR)', () => {
+  it('sanitizes content even when window is undefined (SSR)', () => {
     vi.stubGlobal('window', undefined);
     const input = '<script>evil</script><span class="x">safe</span>';
     const result = sanitizeCodeHighlight(input);
-    expect(result).toBe(input);
+    expect(result).not.toContain('<script>');
+    expect(result).toContain('<span class="x">safe</span>');
   });
 });
