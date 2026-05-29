@@ -130,6 +130,8 @@ export class WAFRuleEngine {
 
       try {
         if (rule.pattern.length > 500) continue;
+        // Reject patterns with nested quantifiers that could cause catastrophic backtracking
+        if (/(\+|\*|\{)\s*\)(\+|\*|\{|\?)/.test(rule.pattern)) continue;
         const regex = new RegExp(rule.pattern, 'i');
         if (regex.test(content)) {
           const decision: WAFDecision = {

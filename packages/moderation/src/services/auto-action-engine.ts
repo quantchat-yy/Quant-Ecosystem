@@ -279,6 +279,8 @@ export class AutoActionEngine {
         try {
           const patternStr = String(targetValue);
           if (patternStr.length > 1000) return false;
+          // Reject patterns with obvious nested quantifiers that could cause ReDoS
+          if (/(\+|\*|\{)\s*\)(\+|\*|\{|\?)/.test(patternStr)) return false;
           const regex = new RegExp(patternStr);
           return regex.test(String(fieldValue).slice(0, 10000));
         } catch {

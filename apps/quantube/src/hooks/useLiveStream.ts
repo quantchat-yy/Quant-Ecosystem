@@ -249,7 +249,13 @@ export function useLiveStream(): [LiveStreamState, LiveStreamActions] {
   const createClip = useCallback(async (): Promise<string | null> => {
     setState((prev) => ({ ...prev, clipCreating: true }));
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    const clipId = 'clip_' + Math.random().toString(36).substring(2, 10);
+    const clipBytes = new Uint8Array(5);
+    globalThis.crypto.getRandomValues(clipBytes);
+    const clipId =
+      'clip_' +
+      Array.from(clipBytes)
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
     setState((prev) => ({ ...prev, clipCreating: false }));
     return clipId;
   }, []);
