@@ -11,6 +11,9 @@
 > - `.agents/ECOSYSTEM_FRONTEND_UNIFY_AND_AGENTIC.md` — all 13 apps: single-router/auth, missing
 >   `/api` routes, brand/restyle, real-time WS, real AI streaming, and the AI-agentic control layer
 >   (Phases 66.2–66.7 + 70.2). Backends are largely real; the frontends need wiring + brand + agentic.
+> - `.agents/MASTER_BUILD_ORDER_AND_UIUX_BAR.md` — **the execution bible**: exact sequenced order
+>   (Waves 0–4, one app per PR) + the per-screen premium UI/UX target for every screen of every app.
+>   Start here to know what to build next and how good each screen must be.
 
 > 21 phases (41-61) shipped breadth. Phases 62-68 then shipped real fixes (fake components killed, 4 frontends built, brand system, mocks wired). Now we close the declared-done-but-not debt (BLOCK 0), earn true depth, and build the agentic-internet moat (BLOCK 8).
 > Every existing screen becomes beautiful, smooth, vibey, bug-free. Every half-built package gets finished. Every missing frontend gets built. Then — and only then — the remaining big features and the agentic-internet layer.
