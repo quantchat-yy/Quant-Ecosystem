@@ -43,6 +43,9 @@ export function createRouteTarget(
   if (!target) {
     throw new Error(`Unknown target app: ${appKey}`);
   }
+  if (!target.supportedActions.includes(action)) {
+    throw new Error(`Unsupported action "${action}" for target app: ${appKey}`);
+  }
 
   return {
     app: target.app,

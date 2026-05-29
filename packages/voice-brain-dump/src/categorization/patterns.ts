@@ -57,15 +57,28 @@ export const CATEGORY_PATTERNS: CategoryPattern[] = [
   },
 ];
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export function detectCategory(text: string): { category: ContentCategory; confidence: number } {
-  const lower = text.toLowerCase();
+  // Match triggers on letter boundaries so short triggers (e.g. "cc") don't
+  // match inside unrelated words (e.g. "account"), while still allowing triggers
+  // that end in punctuation (e.g. "note:"). Prefer the longest (most specific)
+  // matching trigger across all categories.
+  let best: { category: ContentCategory; triggerLength: number } | null = null;
 
   for (const pattern of CATEGORY_PATTERNS) {
     for (const trigger of pattern.triggers) {
-      if (lower.includes(trigger)) {
-        return { category: pattern.category, confidence: 0.85 };
+      const regex = new RegExp(`(?<![A-Za-z])${escapeRegExp(trigger)}(?![A-Za-z])`, 'i');
+      if (regex.test(text) && (!best || trigger.length > best.triggerLength)) {
+        best = { category: pattern.category, triggerLength: trigger.length };
       }
     }
+  }
+
+  if (best) {
+    return { category: best.category, confidence: 0.85 };
   }
 
   return { category: 'note', confidence: 0.5 };

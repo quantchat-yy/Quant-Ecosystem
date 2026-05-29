@@ -51,6 +51,13 @@ describe('ContentCategorizer', () => {
       expect(result.category).toBe('note');
       expect(result.confidence).toBe(0.5);
     });
+
+    it('does not match short triggers inside unrelated words', () => {
+      // "cc" must not match inside "account"; no other trigger present -> note.
+      const result = categorizer.categorize(makeSegment('Check the account balance'));
+      expect(result.category).toBe('note');
+      expect(result.confidence).toBe(0.5);
+    });
   });
 
   describe('categorizeBatch', () => {

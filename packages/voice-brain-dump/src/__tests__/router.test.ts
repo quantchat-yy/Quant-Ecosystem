@@ -1,4 +1,5 @@
 import { ContentRouter } from '../routing/router.js';
+import { createRouteTarget } from '../routing/targets.js';
 import type { CategorizedItem } from '../types.js';
 
 function makeItem(category: CategorizedItem['category'], content: string): CategorizedItem {
@@ -92,6 +93,18 @@ describe('ContentRouter', () => {
       expect(routes[0]!.app).toBe('QuantMail');
       expect(routes[1]!.app).toBe('QuantTasks');
       expect(routes[2]!.app).toBe('QuantDocs');
+    });
+  });
+
+  describe('createRouteTarget', () => {
+    it('rejects an action not supported by the target app', () => {
+      expect(() => createRouteTarget('quantmail', 'delete-everything')).toThrow(
+        /Unsupported action/,
+      );
+    });
+
+    it('rejects an unknown target app', () => {
+      expect(() => createRouteTarget('nonexistent', 'draft')).toThrow(/Unknown target app/);
     });
   });
 });
