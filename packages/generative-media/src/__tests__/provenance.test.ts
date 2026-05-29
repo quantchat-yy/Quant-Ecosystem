@@ -56,11 +56,15 @@ describe('ProvenanceManager', () => {
   });
 
   it('creates a manifest with all fields', () => {
-    const manifest = manager.createManifest('asset-001', {
-      model: 'flux',
-      prompt: 'sunset over mountains',
-      userId: 'creator-1',
-    });
+    const manifest = manager.createManifest(
+      'asset-001',
+      {
+        model: 'flux',
+        prompt: 'sunset over mountains',
+        userId: 'creator-1',
+      },
+      { data: Buffer.from('fake-image-data'), mediaType: 'image' },
+    );
 
     expect(manifest.assetId).toBe('asset-001');
     expect(manifest.generationModel).toBe('flux');
@@ -70,6 +74,19 @@ describe('ProvenanceManager', () => {
     expect(manifest.synthIdEmbedded).toBe(true);
     expect(manifest.parentAssets).toEqual([]);
     expect(manifest.editHistory).toEqual([]);
+  });
+
+  it('reports synthIdEmbedded=false when no asset data is provided', () => {
+    const manifest = manager.createManifest('asset-no-wm', {
+      model: 'flux',
+      prompt: 'no watermark',
+      userId: 'creator-1',
+    });
+    expect(manifest.synthIdEmbedded).toBe(false);
+
+    // Without SynthID evidence, verification must not report "verified".
+    const result = manager.verifyAsset('asset-no-wm');
+    expect(result.status).toBe('unverified');
   });
 
   it('creates manifest with parent assets and edit history', () => {
@@ -86,11 +103,15 @@ describe('ProvenanceManager', () => {
   });
 
   it('verifies a previously created asset', () => {
-    manager.createManifest('asset-003', {
-      model: 'flux',
-      prompt: 'a dog',
-      userId: 'user-1',
-    });
+    manager.createManifest(
+      'asset-003',
+      {
+        model: 'flux',
+        prompt: 'a dog',
+        userId: 'user-1',
+      },
+      { data: Buffer.from('fake-image-data'), mediaType: 'image' },
+    );
 
     const result = manager.verifyAsset('asset-003');
     expect(result.status).toBe('verified');

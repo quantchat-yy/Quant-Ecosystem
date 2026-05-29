@@ -26,7 +26,10 @@ export class ObjectLevelEditor {
   async removeObject(imageUri: string, segmentId: string): Promise<EditResult> {
     const segments = await this.segmentation.segment(imageUri);
     const target = segments.find((s) => s.id === segmentId);
-    return this.makeEditResult('remove', imageUri, target ? [target] : [], { segmentId });
+    if (!target) {
+      throw new Error(`Segment not found: ${segmentId}`);
+    }
+    return this.makeEditResult('remove', imageUri, [target], { segmentId });
   }
 
   async applyStyleToObject(
@@ -36,7 +39,10 @@ export class ObjectLevelEditor {
   ): Promise<EditResult> {
     const segments = await this.segmentation.segment(imageUri);
     const target = segments.find((s) => s.id === segmentId);
-    return this.makeEditResult('style-transfer', imageUri, target ? [target] : [], {
+    if (!target) {
+      throw new Error(`Segment not found: ${segmentId}`);
+    }
+    return this.makeEditResult('style-transfer', imageUri, [target], {
       segmentId,
       style,
     });

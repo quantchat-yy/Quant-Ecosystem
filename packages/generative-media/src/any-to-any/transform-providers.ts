@@ -113,7 +113,7 @@ export class ImageCaptionTransform implements ModalityTransformProvider {
   async transform(input: string): Promise<GenerationResult> {
     return {
       uri: `data:text/plain;base64,${Buffer.from('A detailed description of the image').toString('base64')}`,
-      mediaType: 'image',
+      mediaType: 'text',
       provider: this.id,
       cost: 0.01,
       provenance: {
@@ -136,7 +136,7 @@ export class VideoSummaryTransform implements ModalityTransformProvider {
   async transform(input: string): Promise<GenerationResult> {
     return {
       uri: `data:text/plain;base64,${Buffer.from('Video summary content').toString('base64')}`,
-      mediaType: 'video',
+      mediaType: 'text',
       provider: this.id,
       cost: 0.05,
       provenance: {
@@ -159,7 +159,7 @@ export class AudioTranscriptionTransform implements ModalityTransformProvider {
   async transform(input: string): Promise<GenerationResult> {
     return {
       uri: `data:text/plain;base64,${Buffer.from('Transcribed audio content').toString('base64')}`,
-      mediaType: 'voice',
+      mediaType: 'text',
       provider: this.id,
       cost: 0.01,
       provenance: {

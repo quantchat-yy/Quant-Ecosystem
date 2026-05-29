@@ -37,7 +37,10 @@ export class SynthIDWatermarker {
   }
 
   embedImage(imageBuffer: Buffer, metadata: WatermarkMetadata): Buffer {
-    const marker = Buffer.from(JSON.stringify({ __synthid: true, ...metadata }));
+    const payload = this.config.includeMetadata
+      ? { __synthid: true, ...metadata }
+      : { __synthid: true };
+    const marker = Buffer.from(JSON.stringify(payload));
     const result = Buffer.concat([imageBuffer, marker]);
     const key = result.toString('hex').slice(0, 32);
     this.watermarked.set(key, metadata);
@@ -45,7 +48,10 @@ export class SynthIDWatermarker {
   }
 
   embedAudio(audioBuffer: Buffer, metadata: WatermarkMetadata): Buffer {
-    const marker = Buffer.from(JSON.stringify({ __synthid_audio: true, ...metadata }));
+    const payload = this.config.includeMetadata
+      ? { __synthid_audio: true, ...metadata }
+      : { __synthid_audio: true };
+    const marker = Buffer.from(JSON.stringify(payload));
     const result = Buffer.concat([audioBuffer, marker]);
     const key = result.toString('hex').slice(0, 32);
     this.watermarked.set(key, metadata);
@@ -62,14 +68,23 @@ export class SynthIDWatermarker {
     const markerStart = content.lastIndexOf('{');
     try {
       const parsed = JSON.parse(content.slice(markerStart));
+      const hasMetadata =
+        parsed.model !== undefined &&
+        parsed.timestamp !== undefined &&
+        parsed.userId !== undefined;
       return {
         isWatermarked: true,
         confidence: this.config.strength,
-        metadata: {
-          model: parsed.model,
-          timestamp: parsed.timestamp,
-          userId: parsed.userId,
-        },
+        // Minimal (metadata-stripped) markers are still valid watermarks.
+        ...(hasMetadata
+          ? {
+              metadata: {
+                model: parsed.model,
+                timestamp: parsed.timestamp,
+                userId: parsed.userId,
+              },
+            }
+          : {}),
       };
     } catch {
       return { isWatermarked: true, confidence: 0.5 };

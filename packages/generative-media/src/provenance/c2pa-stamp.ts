@@ -30,6 +30,9 @@ export class ProvenanceManager {
   private stamper: C2PAStamper;
   private watermarker: SynthIDWatermarker;
   private manifests = new Map<string, ProvenanceManifest>();
+  // Tracks the SynthID-watermarked payload per asset so verification can
+  // re-detect the watermark rather than trusting a hardcoded flag.
+  private watermarks = new Map<string, { buffer: Buffer; mediaType: 'image' | 'audio' }>();
 
   constructor(stamper?: C2PAStamper, watermarker?: SynthIDWatermarker) {
     this.stamper = stamper ?? new C2PAStamper();
@@ -45,12 +48,29 @@ export class ProvenanceManager {
       parentAssets?: string[];
       editHistory?: string[];
     },
+    asset?: { data: Buffer; mediaType: 'image' | 'audio' },
   ): ProvenanceManifest {
     const credential = this.stamper.stamp(assetId, {
       model: generationMeta.model,
       prompt: generationMeta.prompt,
       userId: generationMeta.userId,
     });
+
+    // SynthID is only "embedded" when we actually watermark asset data.
+    let synthIdEmbedded = false;
+    if (asset) {
+      const watermarkMeta = {
+        model: generationMeta.model,
+        timestamp: credential.timestamp,
+        userId: generationMeta.userId,
+      };
+      const buffer =
+        asset.mediaType === 'audio'
+          ? this.watermarker.embedAudio(asset.data, watermarkMeta)
+          : this.watermarker.embedImage(asset.data, watermarkMeta);
+      this.watermarks.set(assetId, { buffer, mediaType: asset.mediaType });
+      synthIdEmbedded = true;
+    }
 
     const manifest: ProvenanceManifest = {
       assetId,
@@ -59,7 +79,7 @@ export class ProvenanceManager {
       timestamp: credential.timestamp,
       userId: generationMeta.userId,
       c2paSignature: credential.signature,
-      synthIdEmbedded: true,
+      synthIdEmbedded,
       parentAssets: generationMeta.parentAssets ?? [],
       editHistory: generationMeta.editHistory ?? [],
     };
@@ -79,6 +99,17 @@ export class ProvenanceManager {
     const signatureValid = c2paCredential.signature === manifest.c2paSignature;
     if (!signatureValid) {
       return { assetId, status: 'tampered', confidence: 0.9, manifest };
+    }
+
+    // Require SynthID evidence in addition to a valid C2PA signature: detect the
+    // watermark from the stored payload rather than trusting manifest.synthIdEmbedded.
+    const watermark = this.watermarks.get(assetId);
+    const synthIdValid =
+      manifest.synthIdEmbedded &&
+      watermark !== undefined &&
+      this.watermarker.detect(watermark.buffer, watermark.mediaType).isWatermarked;
+    if (!synthIdValid) {
+      return { assetId, status: 'unverified', confidence: 0.5, manifest };
     }
 
     return { assetId, status: 'verified', confidence: 0.98, manifest };

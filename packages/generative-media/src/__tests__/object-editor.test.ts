@@ -72,9 +72,12 @@ describe('ObjectLevelEditor', () => {
     expect(result.segments[0]!.id).toBe('seg-001');
   });
 
-  it('handles unknown segment gracefully', async () => {
-    const result = await editor.removeObject(testImage, 'non-existent');
-    expect(result.operation).toBe('remove');
-    expect(result.segments).toEqual([]);
+  it('throws for an unknown segment id', async () => {
+    await expect(editor.removeObject(testImage, 'non-existent')).rejects.toThrow(
+      /Segment not found: non-existent/,
+    );
+    await expect(editor.applyStyleToObject(testImage, 'non-existent', 'watercolor')).rejects.toThrow(
+      /Segment not found: non-existent/,
+    );
   });
 });
