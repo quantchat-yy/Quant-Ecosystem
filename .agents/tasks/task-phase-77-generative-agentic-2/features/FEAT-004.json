@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "feat",
   "description": "Create packages/voice-brain-dump - real-time transcription with auto-categorization and cross-app routing. Stream of consciousness input gets structured into actionable items routed to the appropriate app (tasks, calendar, docs, notifications).",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "1. Create packages/voice-brain-dump/package.json (name: @quant/voice-brain-dump, same pattern as generative-media devDependencies + scripts).",
     "2. Create packages/voice-brain-dump/tsconfig.json (composite, ES2022, outDir dist, rootDir src, vitest/globals types).",
