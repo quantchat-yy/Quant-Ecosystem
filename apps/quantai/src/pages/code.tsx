@@ -7,6 +7,16 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { sanitizeCodeHighlight } from '@quant/shared-ui';
 
+/** Escape HTML metacharacters to prevent XSS before regex-based highlighting. */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 interface CodeSuggestion {
   id: string;
   text: string;
@@ -226,13 +236,16 @@ export default function CodePage(): JSX.Element {
     const keywords = KEYWORD_CLASSES[language] || [];
     const lines = code.split('\n');
     return lines.map((line) => {
-      let highlighted = line;
+      let highlighted = escapeHtml(line);
       keywords.forEach((kw) => {
         const regex = new RegExp(`\\b${kw}\\b`, 'g');
         highlighted = highlighted.replace(regex, `<span class="keyword">${kw}</span>`);
       });
       highlighted = highlighted.replace(/(\/\/.*$)/gm, '<span class="comment">$1</span>');
-      highlighted = highlighted.replace(/(["'`])(.*?)\1/g, '<span class="string">$1$2$1</span>');
+      highlighted = highlighted.replace(
+        /(&quot;|&#039;|`)(.*?)\1/g,
+        '<span class="string">$1$2$1</span>',
+      );
       highlighted = highlighted.replace(/\b(\d+)\b/g, '<span class="number">$1</span>');
       return highlighted;
     });
