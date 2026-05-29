@@ -60,15 +60,20 @@ function setupGlobalHandlers(capture: ErrorCapture): void {
       addEventListener: (type: string, handler: (event: unknown) => void) => void;
     };
 
+    const previousOnerror = win.onerror;
+
     win.onerror = (
-      _message: string | Event,
-      _source?: string,
-      _lineno?: number,
-      _colno?: number,
+      message: string | Event,
+      source?: string,
+      lineno?: number,
+      colno?: number,
       error?: Error,
     ) => {
       if (error) {
         capture.captureException(error, 'error');
+      }
+      if (previousOnerror) {
+        previousOnerror(message, source, lineno, colno, error);
       }
     };
 

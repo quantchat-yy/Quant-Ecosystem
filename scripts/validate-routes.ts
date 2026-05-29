@@ -4,6 +4,12 @@ import * as path from 'node:path';
 const ROOT = path.resolve(import.meta.dirname, '..');
 const APPS_DIR = path.join(ROOT, 'apps');
 
+// Apps that legitimately have no standard Next.js app-router routes.
+// - marketing: uses pages/ directory pattern
+// - quant-mobile: React Native app (no web routes)
+// - status: standalone status service (no frontend routes)
+const EXCLUDED_APPS = new Set(['marketing', 'quant-mobile', 'status']);
+
 function findFilesRecursive(dir: string, pattern: RegExp): string[] {
   const results: string[] = [];
   if (!fs.existsSync(dir)) return results;
@@ -65,7 +71,9 @@ function main() {
     totalApiRoutes += apiRoutes.length;
 
     const routeCount = frontendRoutes.length + apiRoutes.length;
-    if (routeCount === 0) {
+    if (routeCount === 0 && EXCLUDED_APPS.has(appName)) {
+      process.stdout.write(`[SKIP] ${appName}: excluded (no standard routes expected)\n`);
+    } else if (routeCount === 0) {
       process.stdout.write(`[WARN] ${appName}: 0 routes detected (potential misconfiguration)\n`);
       hasError = true;
     } else {
