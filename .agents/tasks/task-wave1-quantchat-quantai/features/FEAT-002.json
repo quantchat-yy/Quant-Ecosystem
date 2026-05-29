@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "QuantAI - Model Selector, Tool-Call Cards, Voice Toggle, Agentic Layer Foundation (Phase 66.7 + 70.2)",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Step 1: Create apps/quantai/src/types/models.ts with model definitions: interface AIModel { id: string; name: string; provider: 'openai'|'anthropic'|'meta'|'google'; contextWindow: number; capabilities: string[]; icon: string; }. Export a AVAILABLE_MODELS constant array with GPT-4, GPT-4o, Claude 3.5 Sonnet, Claude 3 Opus, Llama 3 70B, Gemini Pro entries.",
     "Step 2: Create apps/quantai/src/hooks/useModelSelector.ts that manages model state: currentModel, available models list, switch model function, persist selection to localStorage. Also create apps/quantai/src/hooks/useModels.ts that fetches /api/models and falls back to AVAILABLE_MODELS if backend unavailable.",
@@ -34,5 +34,5 @@
     "pnpm turbo test --filter=@quant/quantai"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "lint-staged + prettier auto-formats on commit. The framer-motion layout prop causes a React SSR warning in tests but all tests pass. Vitest config needed to be created (was missing). React-dom/server renderToStaticMarkup pattern used for component tests without jsdom."
 }
