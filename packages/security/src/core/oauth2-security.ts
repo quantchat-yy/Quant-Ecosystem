@@ -378,7 +378,9 @@ export class OAuth2Security {
     try {
       // Remove trailing slashes, lowercase scheme and host
       let normalized = uri.trim();
-      normalized = normalized.replace(/\/+$/, '');
+      while (normalized.endsWith('/')) {
+        normalized = normalized.slice(0, -1);
+      }
       const parts = normalized.match(/^(https?:\/\/)([^/]+)(.*)/i);
       if (parts) {
         return parts[1]!.toLowerCase() + parts[2]!.toLowerCase() + parts[3]!;
