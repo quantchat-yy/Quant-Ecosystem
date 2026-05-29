@@ -30,15 +30,26 @@ describe('SSOService', () => {
     expect(config.mappings.email).toBe('preferred_username');
   });
 
-  it('validates a valid assertion', async () => {
+  it('accepts assertions only when insecure stub is explicitly enabled', async () => {
+    await service.configureSAML('org-1', {
+      entityId: 'https://idp.example.com',
+      metadataUrl: 'https://idp.example.com/metadata',
+      certificate: 'cert-data',
+      allowInsecureAssertion: true,
+    });
+    const result = await service.validateAssertion('org-1', 'valid-assertion-token');
+    expect(result.valid).toBe(true);
+    expect(result.userId).toBeDefined();
+  });
+
+  it('fails closed when real verification is not implemented (default)', async () => {
     await service.configureSAML('org-1', {
       entityId: 'https://idp.example.com',
       metadataUrl: 'https://idp.example.com/metadata',
       certificate: 'cert-data',
     });
     const result = await service.validateAssertion('org-1', 'valid-assertion-token');
-    expect(result.valid).toBe(true);
-    expect(result.userId).toBeDefined();
+    expect(result.valid).toBe(false);
   });
 
   it('rejects assertion for unconfigured org', async () => {

@@ -60,14 +60,23 @@ export class RemixRoyaltyTracker {
   }
 
   getChain(contentId: string): string[] {
-    const chain: string[] = [contentId];
-    const remixesOfContent = this.remixes.filter((r) => r.originalContentId === contentId);
-    for (const remix of remixesOfContent) {
-      chain.push(remix.remixId);
-      const subChain = this.getChain(remix.remixId);
-      chain.push(...subChain.slice(1));
-    }
-    return chain;
+    // Guard against self-loops / cyclic remix graphs which would otherwise
+    // recurse forever and crash the process.
+    const walk = (id: string, visited: Set<string>): string[] => {
+      if (visited.has(id)) return [id];
+      visited.add(id);
+
+      const chain: string[] = [id];
+      const remixesOfContent = this.remixes.filter((r) => r.originalContentId === id);
+      for (const remix of remixesOfContent) {
+        if (visited.has(remix.remixId)) continue;
+        chain.push(remix.remixId);
+        chain.push(...walk(remix.remixId, visited).slice(1));
+      }
+      return chain;
+    };
+
+    return walk(contentId, new Set<string>());
   }
 
   getOriginal(contentId: string): OriginalContent | undefined {

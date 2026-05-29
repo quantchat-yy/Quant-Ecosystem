@@ -5,6 +5,7 @@ export interface SAMLConfigInput {
   metadataUrl: string;
   certificate: string;
   mappings?: Record<string, string>;
+  allowInsecureAssertion?: boolean;
 }
 
 export interface OIDCConfigInput {
@@ -12,6 +13,7 @@ export interface OIDCConfigInput {
   metadataUrl: string;
   certificate: string;
   mappings?: Record<string, string>;
+  allowInsecureAssertion?: boolean;
 }
 
 export class SSOService {
@@ -26,6 +28,7 @@ export class SSOService {
       metadataUrl: config.metadataUrl,
       certificate: config.certificate,
       mappings: config.mappings ?? {},
+      allowInsecureAssertion: config.allowInsecureAssertion ?? false,
     };
     this.configs.set(orgId, ssoConfig);
     return ssoConfig;
@@ -40,32 +43,44 @@ export class SSOService {
       metadataUrl: config.metadataUrl,
       certificate: config.certificate,
       mappings: config.mappings ?? {},
+      allowInsecureAssertion: config.allowInsecureAssertion ?? false,
     };
     this.configs.set(orgId, ssoConfig);
     return ssoConfig;
   }
 
   /**
-   * WARNING: STUB ONLY - NOT IMPLEMENTED
-   * This method accepts ANY non-empty string as a valid assertion.
-   * It does NOT perform real SAML/OIDC signature verification,
-   * certificate validation, expiry checking, or audience restriction.
-   * DO NOT use this in production without replacing with real IdP validation.
+   * Validates an SSO assertion.
    *
-   * TODO: Replace with real SAML/OIDC signature verification before production use.
+   * Real SAML/OIDC signature verification is NOT yet implemented. To avoid an
+   * authentication bypass, this method FAILS CLOSED (returns { valid: false })
+   * unless the org config explicitly opts into the insecure stub via
+   * `allowInsecureAssertion: true` — intended only for dev/test environments.
+   *
+   * TODO: Replace with real SAML/OIDC signature verification (certificate
+   * validation, expiry checking, audience restriction) and drop the escape hatch.
    */
   async validateAssertion(
     orgId: string,
     assertion: string,
   ): Promise<{ valid: boolean; userId?: string }> {
-    console.warn(
-      'NOT_IMPLEMENTED: Real SAML/OIDC signature verification required for production. ' +
-        'This stub accepts any non-empty string as valid.',
-    );
-
     const config = this.configs.get(orgId);
     if (!config) return { valid: false };
     if (!assertion || assertion.length === 0) return { valid: false };
+
+    if (!config.allowInsecureAssertion) {
+      // Fail closed until real signature verification exists.
+      console.warn(
+        'SSO_VERIFICATION_NOT_IMPLEMENTED: rejecting assertion. Real SAML/OIDC ' +
+          'signature verification is required before assertions can be accepted.',
+      );
+      return { valid: false };
+    }
+
+    console.warn(
+      'INSECURE_SSO_STUB: accepting assertion without signature verification ' +
+        '(allowInsecureAssertion=true). Do NOT enable this in production.',
+    );
     return { valid: true, userId: `user-${orgId}-${assertion.slice(0, 8)}` };
   }
 

@@ -73,6 +73,9 @@ export interface SSOConfig {
   metadataUrl: string;
   certificate: string;
   mappings: Record<string, string>;
+  // Dev/test escape hatch ONLY: when true, validateAssertion accepts assertions
+  // without real signature verification. Defaults to false (fail closed).
+  allowInsecureAssertion?: boolean;
 }
 
 export interface SCIMConfig {
