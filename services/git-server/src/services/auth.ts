@@ -1,4 +1,4 @@
-import { randomBytes, createHash } from 'node:crypto';
+import { randomBytes, scryptSync } from 'node:crypto';
 import { z } from 'zod';
 
 const TokenPayloadSchema = z.object({
@@ -8,11 +8,18 @@ const TokenPayloadSchema = z.object({
 
 export type TokenPayload = z.infer<typeof TokenPayloadSchema>;
 
+const SCRYPT_KEYLEN = 64;
+const SCRYPT_COST = 16384;
+const SCRYPT_BLOCK_SIZE = 8;
+const SCRYPT_PARALLELIZATION = 1;
+
 export class GitAuthService {
   private tokens: Map<string, TokenPayload>;
+  private salt: string;
 
-  constructor(tokens?: Map<string, TokenPayload>) {
+  constructor(tokens?: Map<string, TokenPayload>, salt?: string) {
     this.tokens = tokens ?? new Map();
+    this.salt = salt ?? randomBytes(16).toString('hex');
   }
 
   async validateToken(token: string): Promise<{ userId: string; scopes: string[] } | null> {
@@ -36,6 +43,10 @@ export class GitAuthService {
   }
 
   private hashToken(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
+    return scryptSync(token, this.salt, SCRYPT_KEYLEN, {
+      N: SCRYPT_COST,
+      r: SCRYPT_BLOCK_SIZE,
+      p: SCRYPT_PARALLELIZATION,
+    }).toString('hex');
   }
 }
