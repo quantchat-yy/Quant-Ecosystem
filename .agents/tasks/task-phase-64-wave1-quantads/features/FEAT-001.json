@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Convert QuantAds from plain TS pages to Next.js App Router with shared-ui adoption, following the exact pattern established in QuantSync. This includes: adding Next.js dependencies, creating next.config.mjs, converting the frontend to use App Router (src/app/layout.tsx + page.tsx), wiring @quant/shared-ui components, adding TanStack React Query provider, ThemeProvider, CommandPaletteUI, and creating proper campaign management dashboard page.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Step 1: Update apps/quantads/package.json - Add Next.js 15, @tanstack/react-query, framer-motion, @quant/brand to dependencies. Add tailwindcss, postcss, autoprefixer, @types/node to devDependencies. Change scripts: dev -> 'next dev -p 3004', build -> 'next build', start -> 'next start -p 3004', typecheck stays 'tsc --noEmit', test stays 'vitest run'. Keep existing backend scripts as dev:backend.",
     "Step 2: Create apps/quantads/next.config.mjs following the pattern from apps/quantsync/next.config.mjs. transpilePackages must include @quant/shared-ui, @quant/brand, @quant/common, @quant/auth, @quant/realtime, @quant/privacy-ads.",
@@ -30,5 +30,5 @@
   ],
   "verification": ["pnpm --filter @quant/quantads typecheck", "pnpm --filter @quant/quantads test"],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Typecheck passes clean. All 102 existing backend tests pass unmodified. Prettier auto-formatted files via lint-staged pre-commit hook. React upgraded from 18 to 19 to match QuantSync. The quantsync pattern has no postcss.config.js or tailwind.config.ts at app level (uses root-level config), but we added them explicitly per feature requirements."
 }
