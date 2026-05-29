@@ -1,16 +1,19 @@
+'use client';
+
 // ============================================================================
 // Shared UI - AnimatedList Component
 // ============================================================================
 
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { spring } from '@quant/brand';
-import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { useMotionConfig } from './MotionConfig';
 
 export interface AnimatedListProps {
   children: React.ReactNode;
   staggerDelay?: number;
   className?: string;
+  animated?: boolean;
 }
 
 const containerVariants = {
@@ -49,10 +52,13 @@ export const AnimatedList: React.FC<AnimatedListProps> = ({
   children,
   staggerDelay = 0.05,
   className = '',
+  animated = true,
 }) => {
+  const { shouldAnimate: contextAnimate } = useMotionConfig();
   const prefersReducedMotion = useReducedMotion();
+  const shouldAnimate = animated && contextAnimate && !prefersReducedMotion;
 
-  if (prefersReducedMotion) {
+  if (!shouldAnimate) {
     return (
       <motion.div
         variants={reducedContainerVariants}

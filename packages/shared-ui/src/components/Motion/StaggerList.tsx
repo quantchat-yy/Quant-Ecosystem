@@ -11,6 +11,7 @@ export interface StaggerListProps {
   children: React.ReactNode;
   as?: 'div' | 'ul' | 'ol';
   childAs?: 'div' | 'li';
+  animated?: boolean;
 }
 
 const containerVariants = (staggerDelay: number) => ({
@@ -43,10 +44,11 @@ export function StaggerList({
   children,
   as = 'div',
   childAs,
+  animated = true,
 }: StaggerListProps) {
   const { shouldAnimate: contextAnimate } = useMotionConfig();
   const prefersReducedMotion = useReducedMotion();
-  const shouldAnimate = contextAnimate && !prefersReducedMotion;
+  const shouldAnimate = animated && contextAnimate && !prefersReducedMotion;
 
   const resolvedChildAs = childAs ?? (as === 'ul' || as === 'ol' ? 'li' : 'div');
 
@@ -65,9 +67,27 @@ export function StaggerList({
       initial="hidden"
       animate="visible"
     >
-      {React.Children.map(children, (child) => (
-        <MotionChild variants={itemVariants}>{child}</MotionChild>
-      ))}
+      {React.Children.map(children, (child) => {
+        if (
+          React.isValidElement(child) &&
+          (child.type === resolvedChildAs ||
+            (typeof child.type === 'string' && child.type === resolvedChildAs))
+        ) {
+          // Child is already the same element type as the wrapper would be.
+          // Clone its props onto the motion element to avoid nesting (e.g. li > li).
+          const childProps = child.props as Record<string, any>;
+          return (
+            <MotionChild
+              variants={itemVariants}
+              className={childProps.className}
+              style={childProps.style}
+            >
+              {childProps.children}
+            </MotionChild>
+          );
+        }
+        return <MotionChild variants={itemVariants}>{child}</MotionChild>;
+      })}
     </MotionContainer>
   );
 }

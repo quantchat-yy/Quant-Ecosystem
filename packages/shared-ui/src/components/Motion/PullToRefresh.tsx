@@ -1,16 +1,20 @@
+'use client';
+
 // ============================================================================
 // Shared UI - PullToRefresh Component
 // ============================================================================
 
 import React, { useCallback, useState } from 'react';
-import { motion, useMotionValue, useTransform } from 'framer-motion';
+import { motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion';
 import { spring } from '@quant/brand';
+import { useMotionConfig } from './MotionConfig';
 
 export interface PullToRefreshProps {
   children: React.ReactNode;
   onRefresh: () => Promise<void>;
   threshold?: number;
   className?: string;
+  animated?: boolean;
 }
 
 export const PullToRefresh: React.FC<PullToRefreshProps> = ({
@@ -18,7 +22,11 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
   onRefresh,
   threshold = 80,
   className = '',
+  animated = true,
 }) => {
+  const { shouldAnimate: contextAnimate } = useMotionConfig();
+  const prefersReducedMotion = useReducedMotion();
+  const shouldAnimate = animated && contextAnimate && !prefersReducedMotion;
   const [refreshing, setRefreshing] = useState(false);
   const y = useMotionValue(0);
   const indicatorOpacity = useTransform(y, [0, threshold], [0, 1]);
@@ -39,6 +47,10 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
       }
     }
   }, [onRefresh, threshold, refreshing, y]);
+
+  if (!shouldAnimate) {
+    return <div className={`relative overflow-hidden ${className}`}>{children}</div>;
+  }
 
   return (
     <div className={`relative overflow-hidden ${className}`}>
