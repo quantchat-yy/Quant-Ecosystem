@@ -4,8 +4,6 @@
 // ============================================================================
 
 import { useState, useCallback, useRef, useMemo } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { apiClient } from '../services/api-client';
 
 interface ChatMessage {
   id: string;
@@ -53,6 +51,8 @@ interface UseAIChatReturn {
   stopStreaming: () => void;
 }
 
+const API_BASE = '/api';
+
 export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
   const { defaultModel = 'gpt-4', maxContextTokens = 128000, streamingEnabled = true } = options;
 
@@ -63,23 +63,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
   const [error, setError] = useState<string | null>(null);
   const [currentModel, setCurrentModel] = useState<string>(defaultModel);
 
-  const streamIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const chatMutation = useMutation({
-    mutationFn: async ({
-      message,
-      conversationId,
-    }: {
-      message: string;
-      conversationId?: string;
-    }) => {
-      const response = await apiClient.chat(message, conversationId);
-      if (!response.success) {
-        throw new Error(response.error?.message || 'Failed to send message');
-      }
-      return response.data;
-    },
-  });
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const activeConversation = useMemo(() => {
     if (!activeConversationId) return null;
@@ -163,6 +147,61 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
     [activeConversationId],
   );
 
+  const processSSEStream = useCallback(
+    async (response: Response, signal: AbortSignal) => {
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let accumulated = '';
+
+      try {
+        while (true) {
+          if (signal.aborted) break;
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') break;
+              try {
+                const parsed = JSON.parse(data);
+                const token = parsed.content || parsed.token || parsed.delta?.content || '';
+                if (token) {
+                  accumulated += token;
+                  updateLastAssistantMessage(accumulated, false);
+                }
+              } catch {
+                // skip non-JSON lines
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      updateLastAssistantMessage(accumulated || '', true);
+      return accumulated;
+    },
+    [updateLastAssistantMessage],
+  );
+
+  const processJSONResponse = useCallback(
+    async (response: Response) => {
+      const data = await response.json();
+      const content =
+        data?.data?.response?.content || data?.response?.content || data?.content || '';
+      updateLastAssistantMessage(content || 'I received your message.', true);
+      return content;
+    },
+    [updateLastAssistantMessage],
+  );
+
   const sendMessage = useCallback(
     (content: string, attachments?: string[]) => {
       if (!content.trim() || isStreaming) return;
@@ -193,36 +232,54 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
       setTimeout(() => {
         addMessageToConversation(assistantMessage);
 
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
         setIsStreaming(true);
-        chatMutation.mutate(
-          { message: content.trim(), conversationId: activeConversationId || undefined },
-          {
-            onSuccess: (data) => {
-              const fullResponse = data?.response?.content || 'I received your message.';
-              if (streamingEnabled) {
-                let charIndex = 0;
-                streamIntervalRef.current = setInterval(() => {
-                  charIndex += Math.floor(Math.random() * 5) + 2;
-                  if (charIndex >= fullResponse.length) {
-                    updateLastAssistantMessage(fullResponse, true);
-                    setIsStreaming(false);
-                    if (streamIntervalRef.current) clearInterval(streamIntervalRef.current);
-                  } else {
-                    updateLastAssistantMessage(fullResponse.slice(0, charIndex), false);
-                  }
-                }, 25);
-              } else {
-                updateLastAssistantMessage(fullResponse, true);
-                setIsStreaming(false);
-              }
-            },
-            onError: (err) => {
-              setError(err instanceof Error ? err.message : 'Failed to get response');
-              setIsStreaming(false);
-              updateLastAssistantMessage('Sorry, I encountered an error.', true);
-            },
-          },
-        );
+        setError(null);
+
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        fetch(`${API_BASE}/assistant/chat`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            message: content.trim(),
+            conversationId: activeConversationId || undefined,
+            attachments,
+            stream: streamingEnabled,
+          }),
+          signal: controller.signal,
+        })
+          .then(async (response) => {
+            if (!response.ok) {
+              throw new Error(`Server error: ${response.status}`);
+            }
+
+            const contentType = response.headers.get('Content-Type') || '';
+            const isSSE = contentType.includes('text/event-stream');
+            const isNDJSON = contentType.includes('application/x-ndjson');
+
+            if ((isSSE || isNDJSON) && response.body && streamingEnabled) {
+              await processSSEStream(response, controller.signal);
+            } else {
+              await processJSONResponse(response);
+            }
+          })
+          .catch((err) => {
+            if (err instanceof Error && err.name === 'AbortError') {
+              // User cancelled - mark as complete with current content
+              return;
+            }
+            const message = err instanceof Error ? err.message : 'Failed to get response';
+            setError(message);
+            updateLastAssistantMessage('Sorry, I encountered an error.', true);
+          })
+          .finally(() => {
+            setIsStreaming(false);
+            abortControllerRef.current = null;
+          });
       }, 200);
     },
     [
@@ -233,7 +290,8 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
       createConversation,
       addMessageToConversation,
       updateLastAssistantMessage,
-      chatMutation,
+      processSSEStream,
+      processJSONResponse,
     ],
   );
 
@@ -264,9 +322,9 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
   }, [activeConversation, activeConversationId, sendMessage]);
 
   const stopStreaming = useCallback(() => {
-    if (streamIntervalRef.current) {
-      clearInterval(streamIntervalRef.current);
-      streamIntervalRef.current = null;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
     setIsStreaming(false);
     updateLastAssistantMessage(messages[messages.length - 1]?.content || '', true);
