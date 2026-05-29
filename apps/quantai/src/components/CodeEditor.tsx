@@ -6,6 +6,16 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { sanitizeCodeHighlight } from '@quant/shared-ui';
 
+/** Escape HTML metacharacters to prevent XSS before regex-based highlighting. */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 interface EditorError {
   line: number;
   column: number;
@@ -212,15 +222,14 @@ export default function CodeEditor({
   const highlightLine = useCallback(
     (line: string): string => {
       const keywords = LANGUAGE_KEYWORDS[language] || [];
-      let result = line;
-      result = result.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      let result = escapeHtml(line);
       keywords.forEach((kw) => {
         const regex = new RegExp(`\\b(${kw})\\b`, 'g');
         result = result.replace(regex, '<span class="kw">$1</span>');
       });
       result = result.replace(/(\/\/.*$)/g, '<span class="comment">$1</span>');
       result = result.replace(/(#.*$)/g, '<span class="comment">$1</span>');
-      result = result.replace(/(&quot;|"|'|`)([^"'`]*?)(\1)/g, '<span class="str">$1$2$3</span>');
+      result = result.replace(/(&quot;|&#039;|`)(.*?)\1/g, '<span class="str">$1$2$1</span>');
       result = result.replace(/\b(\d+\.?\d*)\b/g, '<span class="num">$1</span>');
       return result;
     },
