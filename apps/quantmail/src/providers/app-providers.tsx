@@ -1,19 +1,58 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ThemeProvider, CommandPaletteUI } from '@quant/shared-ui';
 import type { CommandPaletteItem } from '@quant/shared-ui';
 
-const commands: CommandPaletteItem[] = [
-  { id: 'compose', label: 'Compose Email', shortcut: 'C', action: () => {} },
-  { id: 'search', label: 'Search Emails', shortcut: '/', action: () => {} },
-  { id: 'inbox', label: 'Go to Inbox', action: () => {} },
-  { id: 'sent', label: 'Go to Sent', action: () => {} },
-  { id: 'drafts', label: 'Go to Drafts', action: () => {} },
-];
-
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const router = useRouter();
+
+  const commands: CommandPaletteItem[] = [
+    {
+      id: 'compose',
+      label: 'Compose Email',
+      shortcut: 'C',
+      action: () => {
+        router.push('/compose');
+        setCommandPaletteOpen(false);
+      },
+    },
+    {
+      id: 'search',
+      label: 'Search Emails',
+      shortcut: '/',
+      action: () => {
+        router.push('/?search=true');
+        setCommandPaletteOpen(false);
+      },
+    },
+    {
+      id: 'inbox',
+      label: 'Go to Inbox',
+      action: () => {
+        router.push('/');
+        setCommandPaletteOpen(false);
+      },
+    },
+    {
+      id: 'sent',
+      label: 'Go to Sent',
+      action: () => {
+        router.push('/?folder=sent');
+        setCommandPaletteOpen(false);
+      },
+    },
+    {
+      id: 'drafts',
+      label: 'Go to Drafts',
+      action: () => {
+        router.push('/?folder=drafts');
+        setCommandPaletteOpen(false);
+      },
+    },
+  ];
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

@@ -1,0 +1,7 @@
+{
+  "task_id": "task-wave1-quantmail-wireup",
+  "task_description": "QuantMail Phase 66.1 Wire-up & Unify: Fix api-client, add real auth, build unified App Router shell with navigation, create API proxy routes, migrate all 13 Pages Router screens into App Router with proper styling/data/types, wire compose with real EmailComposer, remove dead handlers and src/pages/. Make QuantMail a cohesive, branded, fully-wired app.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}

@@ -59,7 +59,7 @@ export class QuantMailApiClient {
   private onTokenRefresh?: (tokens: { accessToken: string; refreshToken: string }) => void;
   private onAuthError?: () => void;
 
-  constructor(baseUrl: string = 'http://localhost:3001') {
+  constructor(baseUrl: string = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3010') {
     this.baseUrl = baseUrl;
   }
 

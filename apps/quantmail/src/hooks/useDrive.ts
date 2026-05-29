@@ -70,7 +70,16 @@ interface UseDriveReturn {
 }
 
 const apiRequest = async (url: string, options: RequestInit = {}): Promise<Response> => {
-  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+  let token: string | null = null;
+  try {
+    const stored =
+      typeof localStorage !== 'undefined' ? localStorage.getItem('quant_auth_tokens') : null;
+    if (stored) {
+      token = JSON.parse(stored).accessToken || null;
+    }
+  } catch {
+    /* ignore parse errors */
+  }
   return fetch(url, {
     ...options,
     headers: {
@@ -140,7 +149,18 @@ export function useDrive(): UseDriveReturn {
           formData.append('file', file);
           if (currentFolderId) formData.append('folderId', currentFolderId);
 
-          const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+          let token: string | null = null;
+          try {
+            const stored =
+              typeof localStorage !== 'undefined'
+                ? localStorage.getItem('quant_auth_tokens')
+                : null;
+            if (stored) {
+              token = JSON.parse(stored).accessToken || null;
+            }
+          } catch {
+            /* ignore parse errors */
+          }
           const xhr = new XMLHttpRequest();
           await new Promise<void>((resolve, reject) => {
             xhr.upload.onprogress = (e) => {

@@ -76,11 +76,20 @@ interface UseEmailReturn {
 }
 
 const apiRequest = async (url: string, options: RequestInit = {}): Promise<Response> => {
-  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+  let token: string | null = null;
+  try {
+    const stored =
+      typeof localStorage !== 'undefined' ? localStorage.getItem('quant_auth_tokens') : null;
+    if (stored) {
+      token = JSON.parse(stored).accessToken || null;
+    }
+  } catch {
+    /* ignore parse errors */
+  }
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` }),
-    ...(options.headers as Record<string, string> || {}),
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...((options.headers as Record<string, string>) || {}),
   };
   return fetch(url, { ...options, headers });
 };
@@ -128,127 +137,188 @@ export function useEmail(options: UseEmailOptions = {}): UseEmailReturn {
     }
   }, [category, page, pageSize, label]);
 
-  useEffect(() => { fetchEmails(); }, [fetchEmails]);
+  useEffect(() => {
+    fetchEmails();
+  }, [fetchEmails]);
 
   useEffect(() => {
     if (autoRefresh) {
       refreshTimerRef.current = setInterval(fetchEmails, refreshInterval);
-      return () => { if (refreshTimerRef.current) clearInterval(refreshTimerRef.current); };
+      return () => {
+        if (refreshTimerRef.current) clearInterval(refreshTimerRef.current);
+      };
     }
   }, [autoRefresh, refreshInterval, fetchEmails]);
 
-  const sendEmail = useCallback(async (params: SendEmailParams): Promise<{ success: boolean; messageId?: string }> => {
-    try {
-      const response = await apiRequest('/api/emails/send', {
-        method: 'POST',
-        body: JSON.stringify(params),
-      });
-      if (!response.ok) throw new Error('Failed to send email');
-      const data = await response.json();
-      return { success: true, messageId: data.messageId };
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Send failed');
-      return { success: false };
-    }
-  }, []);
+  const sendEmail = useCallback(
+    async (params: SendEmailParams): Promise<{ success: boolean; messageId?: string }> => {
+      try {
+        const response = await apiRequest('/api/emails/send', {
+          method: 'POST',
+          body: JSON.stringify(params),
+        });
+        if (!response.ok) throw new Error('Failed to send email');
+        const data = await response.json();
+        return { success: true, messageId: data.messageId };
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Send failed');
+        return { success: false };
+      }
+    },
+    [],
+  );
 
-  const archiveEmail = useCallback(async (emailId: string) => {
-    setEmails(prev => prev.filter(e => e.id !== emailId));
-    try {
-      const response = await apiRequest(`/api/emails/${emailId}/archive`, { method: 'POST' });
-      if (!response.ok) throw new Error('Archive failed');
-    } catch (err) {
-      fetchEmails();
-      setError(err instanceof Error ? err.message : 'Archive failed');
-    }
-  }, [fetchEmails]);
+  const archiveEmail = useCallback(
+    async (emailId: string) => {
+      setEmails((prev) => prev.filter((e) => e.id !== emailId));
+      try {
+        const response = await apiRequest(`/api/emails/${emailId}/archive`, { method: 'POST' });
+        if (!response.ok) throw new Error('Archive failed');
+      } catch (err) {
+        fetchEmails();
+        setError(err instanceof Error ? err.message : 'Archive failed');
+      }
+    },
+    [fetchEmails],
+  );
 
-  const archiveEmails = useCallback(async (emailIds: string[]) => {
-    setEmails(prev => prev.filter(e => !emailIds.includes(e.id)));
-    try {
-      const response = await apiRequest('/api/emails/batch/archive', { method: 'POST', body: JSON.stringify({ emailIds }) });
-      if (!response.ok) throw new Error('Batch archive failed');
-    } catch (err) {
-      fetchEmails();
-    }
-  }, [fetchEmails]);
+  const archiveEmails = useCallback(
+    async (emailIds: string[]) => {
+      setEmails((prev) => prev.filter((e) => !emailIds.includes(e.id)));
+      try {
+        const response = await apiRequest('/api/emails/batch/archive', {
+          method: 'POST',
+          body: JSON.stringify({ emailIds }),
+        });
+        if (!response.ok) throw new Error('Batch archive failed');
+      } catch (err) {
+        fetchEmails();
+      }
+    },
+    [fetchEmails],
+  );
 
-  const deleteEmail = useCallback(async (emailId: string) => {
-    setEmails(prev => prev.filter(e => e.id !== emailId));
-    try {
-      await apiRequest(`/api/emails/${emailId}`, { method: 'DELETE' });
-    } catch (err) {
-      fetchEmails();
-    }
-  }, [fetchEmails]);
+  const deleteEmail = useCallback(
+    async (emailId: string) => {
+      setEmails((prev) => prev.filter((e) => e.id !== emailId));
+      try {
+        await apiRequest(`/api/emails/${emailId}`, { method: 'DELETE' });
+      } catch (err) {
+        fetchEmails();
+      }
+    },
+    [fetchEmails],
+  );
 
-  const deleteEmails = useCallback(async (emailIds: string[]) => {
-    setEmails(prev => prev.filter(e => !emailIds.includes(e.id)));
-    try {
-      await apiRequest('/api/emails/batch/delete', { method: 'POST', body: JSON.stringify({ emailIds }) });
-    } catch (err) {
-      fetchEmails();
-    }
-  }, [fetchEmails]);
+  const deleteEmails = useCallback(
+    async (emailIds: string[]) => {
+      setEmails((prev) => prev.filter((e) => !emailIds.includes(e.id)));
+      try {
+        await apiRequest('/api/emails/batch/delete', {
+          method: 'POST',
+          body: JSON.stringify({ emailIds }),
+        });
+      } catch (err) {
+        fetchEmails();
+      }
+    },
+    [fetchEmails],
+  );
 
   const starEmail = useCallback(async (emailId: string) => {
-    setEmails(prev => prev.map(e => e.id === emailId ? { ...e, isStarred: true } : e));
+    setEmails((prev) => prev.map((e) => (e.id === emailId ? { ...e, isStarred: true } : e)));
     try {
-      await apiRequest(`/api/emails/${emailId}/star`, { method: 'PUT', body: JSON.stringify({ starred: true }) });
+      await apiRequest(`/api/emails/${emailId}/star`, {
+        method: 'PUT',
+        body: JSON.stringify({ starred: true }),
+      });
     } catch (err) {
-      setEmails(prev => prev.map(e => e.id === emailId ? { ...e, isStarred: false } : e));
+      setEmails((prev) => prev.map((e) => (e.id === emailId ? { ...e, isStarred: false } : e)));
     }
   }, []);
 
   const unstarEmail = useCallback(async (emailId: string) => {
-    setEmails(prev => prev.map(e => e.id === emailId ? { ...e, isStarred: false } : e));
+    setEmails((prev) => prev.map((e) => (e.id === emailId ? { ...e, isStarred: false } : e)));
     try {
-      await apiRequest(`/api/emails/${emailId}/star`, { method: 'PUT', body: JSON.stringify({ starred: false }) });
+      await apiRequest(`/api/emails/${emailId}/star`, {
+        method: 'PUT',
+        body: JSON.stringify({ starred: false }),
+      });
     } catch (err) {
-      setEmails(prev => prev.map(e => e.id === emailId ? { ...e, isStarred: true } : e));
+      setEmails((prev) => prev.map((e) => (e.id === emailId ? { ...e, isStarred: true } : e)));
     }
   }, []);
 
   const markRead = useCallback(async (emailId: string) => {
-    setEmails(prev => prev.map(e => e.id === emailId ? { ...e, isRead: true } : e));
-    setUnreadCount(prev => Math.max(0, prev - 1));
+    setEmails((prev) => prev.map((e) => (e.id === emailId ? { ...e, isRead: true } : e)));
+    setUnreadCount((prev) => Math.max(0, prev - 1));
     try {
-      await apiRequest(`/api/emails/${emailId}/read`, { method: 'PUT', body: JSON.stringify({ read: true }) });
-    } catch (err) { /* optimistic update stays */ }
+      await apiRequest(`/api/emails/${emailId}/read`, {
+        method: 'PUT',
+        body: JSON.stringify({ read: true }),
+      });
+    } catch (err) {
+      /* optimistic update stays */
+    }
   }, []);
 
   const markUnread = useCallback(async (emailId: string) => {
-    setEmails(prev => prev.map(e => e.id === emailId ? { ...e, isRead: false } : e));
-    setUnreadCount(prev => prev + 1);
+    setEmails((prev) => prev.map((e) => (e.id === emailId ? { ...e, isRead: false } : e)));
+    setUnreadCount((prev) => prev + 1);
     try {
-      await apiRequest(`/api/emails/${emailId}/read`, { method: 'PUT', body: JSON.stringify({ read: false }) });
-    } catch (err) { /* optimistic update stays */ }
+      await apiRequest(`/api/emails/${emailId}/read`, {
+        method: 'PUT',
+        body: JSON.stringify({ read: false }),
+      });
+    } catch (err) {
+      /* optimistic update stays */
+    }
   }, []);
 
   const addLabel = useCallback(async (emailId: string, labelName: string) => {
-    setEmails(prev => prev.map(e => e.id === emailId ? { ...e, labels: [...e.labels, labelName] } : e));
+    setEmails((prev) =>
+      prev.map((e) => (e.id === emailId ? { ...e, labels: [...e.labels, labelName] } : e)),
+    );
     try {
-      await apiRequest(`/api/emails/${emailId}/labels`, { method: 'POST', body: JSON.stringify({ label: labelName }) });
+      await apiRequest(`/api/emails/${emailId}/labels`, {
+        method: 'POST',
+        body: JSON.stringify({ label: labelName }),
+      });
     } catch (err) {
-      setEmails(prev => prev.map(e => e.id === emailId ? { ...e, labels: e.labels.filter(l => l !== labelName) } : e));
+      setEmails((prev) =>
+        prev.map((e) =>
+          e.id === emailId ? { ...e, labels: e.labels.filter((l) => l !== labelName) } : e,
+        ),
+      );
     }
   }, []);
 
   const removeLabel = useCallback(async (emailId: string, labelName: string) => {
-    setEmails(prev => prev.map(e => e.id === emailId ? { ...e, labels: e.labels.filter(l => l !== labelName) } : e));
+    setEmails((prev) =>
+      prev.map((e) =>
+        e.id === emailId ? { ...e, labels: e.labels.filter((l) => l !== labelName) } : e,
+      ),
+    );
     try {
-      await apiRequest(`/api/emails/${emailId}/labels/${encodeURIComponent(labelName)}`, { method: 'DELETE' });
+      await apiRequest(`/api/emails/${emailId}/labels/${encodeURIComponent(labelName)}`, {
+        method: 'DELETE',
+      });
     } catch (err) {
-      setEmails(prev => prev.map(e => e.id === emailId ? { ...e, labels: [...e.labels, labelName] } : e));
+      setEmails((prev) =>
+        prev.map((e) => (e.id === emailId ? { ...e, labels: [...e.labels, labelName] } : e)),
+      );
     }
   }, []);
 
   const snoozeEmail = useCallback(async (emailId: string, until: Date) => {
-    setEmails(prev => prev.map(e => e.id === emailId ? { ...e, isSnoozed: true } : e));
+    setEmails((prev) => prev.map((e) => (e.id === emailId ? { ...e, isSnoozed: true } : e)));
     try {
-      await apiRequest(`/api/emails/${emailId}/snooze`, { method: 'POST', body: JSON.stringify({ snoozeUntil: until.toISOString() }) });
+      await apiRequest(`/api/emails/${emailId}/snooze`, {
+        method: 'POST',
+        body: JSON.stringify({ snoozeUntil: until.toISOString() }),
+      });
     } catch (err) {
-      setEmails(prev => prev.map(e => e.id === emailId ? { ...e, isSnoozed: false } : e));
+      setEmails((prev) => prev.map((e) => (e.id === emailId ? { ...e, isSnoozed: false } : e)));
     }
   }, []);
 
@@ -261,24 +331,50 @@ export function useEmail(options: UseEmailOptions = {}): UseEmailReturn {
     }
   }, []);
 
-  const moveToCategory = useCallback(async (emailId: string, newCategory: string) => {
-    setEmails(prev => prev.filter(e => e.id !== emailId));
-    try {
-      await apiRequest(`/api/emails/${emailId}/category`, { method: 'PUT', body: JSON.stringify({ category: newCategory }) });
-    } catch (err) {
-      fetchEmails();
-    }
-  }, [fetchEmails]);
+  const moveToCategory = useCallback(
+    async (emailId: string, newCategory: string) => {
+      setEmails((prev) => prev.filter((e) => e.id !== emailId));
+      try {
+        await apiRequest(`/api/emails/${emailId}/category`, {
+          method: 'PUT',
+          body: JSON.stringify({ category: newCategory }),
+        });
+      } catch (err) {
+        fetchEmails();
+      }
+    },
+    [fetchEmails],
+  );
 
   const refresh = useCallback(async () => {
     await fetchEmails();
   }, [fetchEmails]);
 
   return {
-    emails, loading, error, page, totalPages, totalCount, unreadCount,
-    fetchEmails, sendEmail, archiveEmail, archiveEmails, deleteEmail, deleteEmails,
-    starEmail, unstarEmail, markRead, markUnread, addLabel, removeLabel,
-    snoozeEmail, undoSend, moveToCategory, setPage, refresh,
+    emails,
+    loading,
+    error,
+    page,
+    totalPages,
+    totalCount,
+    unreadCount,
+    fetchEmails,
+    sendEmail,
+    archiveEmail,
+    archiveEmails,
+    deleteEmail,
+    deleteEmails,
+    starEmail,
+    unstarEmail,
+    markRead,
+    markUnread,
+    addLabel,
+    removeLabel,
+    snoozeEmail,
+    undoSend,
+    moveToCategory,
+    setPage,
+    refresh,
   };
 }
 
