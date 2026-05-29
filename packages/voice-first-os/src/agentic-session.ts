@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 import { PhoneFreeController } from './phone-free/phone-free-controller.js';
 import {
   IntentRouter,
@@ -17,7 +19,7 @@ export class AgenticSession {
     this.router = new IntentRouter(tools);
     this.executor = new ToolExecutor();
     this.phoneFreeController = new PhoneFreeController();
-    this.sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    this.sessionId = `session-${crypto.randomUUID()}`;
   }
 
   startSession(config?: { voiceOnly?: boolean }): void {
