@@ -120,7 +120,16 @@ export function useLiveStream(): [LiveStreamState, LiveStreamActions] {
     config: INITIAL_CONFIG,
     stats: INITIAL_STATS,
     health: INITIAL_HEALTH,
-    streamKey: 'sk_live_' + Math.random().toString(36).substring(2, 18),
+    streamKey: (() => {
+      const bytes = new Uint8Array(12);
+      globalThis.crypto.getRandomValues(bytes);
+      return (
+        'sk_live_' +
+        Array.from(bytes)
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('')
+      );
+    })(),
     rtmpUrl: 'rtmp://stream.quantube.app/live',
     donations: [],
     startedAt: null,
@@ -136,14 +145,14 @@ export function useLiveStream(): [LiveStreamState, LiveStreamActions] {
   useEffect(() => {
     if (state.status === 'live') {
       durationTimerRef.current = setInterval(() => {
-        setState(prev => ({
+        setState((prev) => ({
           ...prev,
           stats: { ...prev.stats, duration: prev.stats.duration + 1 },
         }));
       }, 1000);
 
       viewerSimRef.current = setInterval(() => {
-        setState(prev => {
+        setState((prev) => {
           const change = Math.floor(Math.random() * 20) - 8;
           const newViewers = Math.max(0, prev.stats.viewerCount + change);
           return {
@@ -174,82 +183,111 @@ export function useLiveStream(): [LiveStreamState, LiveStreamActions] {
   }, [state.status]);
 
   const goLive = useCallback(async () => {
-    setState(prev => ({ ...prev, status: 'connecting', loading: true, error: null }));
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setState(prev => ({
+    setState((prev) => ({ ...prev, status: 'connecting', loading: true, error: null }));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setState((prev) => ({
       ...prev,
       status: 'live',
       loading: false,
       startedAt: new Date().toISOString(),
       stats: { ...INITIAL_STATS, viewerCount: 1 },
-      health: { bitrate: 4500, fps: 60, resolution: '1920x1080', dropFrames: 0, latency: 230, status: 'excellent' },
+      health: {
+        bitrate: 4500,
+        fps: 60,
+        resolution: '1920x1080',
+        dropFrames: 0,
+        latency: 230,
+        status: 'excellent',
+      },
     }));
   }, []);
 
   const endStream = useCallback(() => {
-    setState(prev => ({ ...prev, status: 'ending' }));
+    setState((prev) => ({ ...prev, status: 'ending' }));
     setTimeout(() => {
-      setState(prev => ({ ...prev, status: 'offline' }));
+      setState((prev) => ({ ...prev, status: 'offline' }));
     }, 1000);
   }, []);
 
   const updateConfig = useCallback((updates: Partial<StreamConfig>) => {
-    setState(prev => ({ ...prev, config: { ...prev.config, ...updates } }));
+    setState((prev) => ({ ...prev, config: { ...prev.config, ...updates } }));
   }, []);
 
   const toggleChat = useCallback(() => {
-    setState(prev => ({ ...prev, config: { ...prev.config, chatEnabled: !prev.config.chatEnabled } }));
+    setState((prev) => ({
+      ...prev,
+      config: { ...prev.config, chatEnabled: !prev.config.chatEnabled },
+    }));
   }, []);
 
   const toggleDonations = useCallback(() => {
-    setState(prev => ({ ...prev, config: { ...prev.config, donationsEnabled: !prev.config.donationsEnabled } }));
+    setState((prev) => ({
+      ...prev,
+      config: { ...prev.config, donationsEnabled: !prev.config.donationsEnabled },
+    }));
   }, []);
 
   const toggleSlowMode = useCallback(() => {
-    setState(prev => ({ ...prev, config: { ...prev.config, slowMode: !prev.config.slowMode } }));
+    setState((prev) => ({ ...prev, config: { ...prev.config, slowMode: !prev.config.slowMode } }));
   }, []);
 
   const setSlowModeDelay = useCallback((seconds: number) => {
-    setState(prev => ({ ...prev, config: { ...prev.config, slowModeDelay: seconds } }));
+    setState((prev) => ({ ...prev, config: { ...prev.config, slowModeDelay: seconds } }));
   }, []);
 
   const raidChannel = useCallback((channelId: string) => {
-    setState(prev => ({ ...prev, raidTarget: channelId }));
+    setState((prev) => ({ ...prev, raidTarget: channelId }));
     setTimeout(() => {
-      setState(prev => ({ ...prev, raidTarget: null, status: 'offline' }));
+      setState((prev) => ({ ...prev, raidTarget: null, status: 'offline' }));
     }, 10000);
   }, []);
 
   const cancelRaid = useCallback(() => {
-    setState(prev => ({ ...prev, raidTarget: null }));
+    setState((prev) => ({ ...prev, raidTarget: null }));
   }, []);
 
   const createClip = useCallback(async (): Promise<string | null> => {
-    setState(prev => ({ ...prev, clipCreating: true }));
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    setState((prev) => ({ ...prev, clipCreating: true }));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     const clipId = 'clip_' + Math.random().toString(36).substring(2, 10);
-    setState(prev => ({ ...prev, clipCreating: false }));
+    setState((prev) => ({ ...prev, clipCreating: false }));
     return clipId;
   }, []);
 
   const regenerateStreamKey = useCallback(() => {
-    setState(prev => ({
+    const bytes = new Uint8Array(12);
+    globalThis.crypto.getRandomValues(bytes);
+    const newKey =
+      'sk_live_' +
+      Array.from(bytes)
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+    setState((prev) => ({
       ...prev,
-      streamKey: 'sk_live_' + Math.random().toString(36).substring(2, 18),
+      streamKey: newKey,
     }));
   }, []);
 
   const acknowledgeDonation = useCallback((donationId: string) => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
-      donations: prev.donations.filter(d => d.id !== donationId),
+      donations: prev.donations.filter((d) => d.id !== donationId),
     }));
   }, []);
 
   const actions: LiveStreamActions = {
-    goLive, endStream, updateConfig, toggleChat, toggleDonations,
-    toggleSlowMode, setSlowModeDelay, raidChannel, cancelRaid,
-    createClip, regenerateStreamKey, acknowledgeDonation,
+    goLive,
+    endStream,
+    updateConfig,
+    toggleChat,
+    toggleDonations,
+    toggleSlowMode,
+    setSlowModeDelay,
+    raidChannel,
+    cancelRaid,
+    createClip,
+    regenerateStreamKey,
+    acknowledgeDonation,
   };
 
   return [state, actions];

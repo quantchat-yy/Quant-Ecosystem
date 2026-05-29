@@ -44,7 +44,14 @@ interface UseMediaReturn {
   hasPermission: (type: 'camera' | 'microphone') => Promise<boolean>;
 }
 
-const generateId = (): string => `media_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+const generateId = (): string => {
+  const bytes = new Uint8Array(4);
+  globalThis.crypto.getRandomValues(bytes);
+  const hex = Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+  return `media_${Date.now()}_${hex}`;
+};
 
 export function useMedia(): UseMediaReturn {
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);

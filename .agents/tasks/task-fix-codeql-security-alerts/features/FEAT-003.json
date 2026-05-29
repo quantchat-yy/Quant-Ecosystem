@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "fix",
   "description": "Fix insecure randomness (Math.random()) used in security-sensitive contexts. CodeQL flags Math.random() usage for generating IDs, tokens, and keys that should use cryptographically secure random values. Fix the main offenders: packages/common/src/utils.ts (generateId/generateUUID), apps/quantube/src/hooks/useLiveStream.ts (stream keys), apps/quantchat/src/hooks/useMedia.ts (media IDs), packages/agent-runtime/src/intelligent-agent.ts (plan/step IDs), and packages/moderation/src/services/video-moderator.ts (moderation result IDs).",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Fix packages/common/src/utils.ts - generateId() function (line 11-15): Replace Math.random().toString(36) with crypto.getRandomValues() or crypto.randomUUID(). Since this is a shared package used in both browser and Node, use globalThis.crypto.getRandomValues(new Uint8Array(N)) which is available in both environments (Node 19+ and all modern browsers). Convert to hex string.",
     "Fix packages/common/src/utils.ts - generateUUID() function (line 21-35): Replace the manual Math.random()-based UUID generation with crypto.randomUUID() which is available in both Node 19+ and modern browsers. Add a fallback using crypto.getRandomValues() for older environments.",

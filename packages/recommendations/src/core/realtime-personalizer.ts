@@ -146,11 +146,18 @@ export class RealtimePersonalizer {
     }
   }
 
+  /** Generate a cryptographically secure random float in [0, 1) */
+  private getSecureRandom(): number {
+    const bytes = new Uint8Array(4);
+    globalThis.crypto.getRandomValues(bytes);
+    return (bytes[0]! * 16777216 + bytes[1]! * 65536 + bytes[2]! * 256 + bytes[3]!) / 4294967296;
+  }
+
   /** Select item using epsilon-greedy strategy */
   private selectEpsilonGreedy(candidates: string[]): string {
-    if (Math.random() < this.config.explorationRate) {
+    if (this.getSecureRandom() < this.config.explorationRate) {
       // Explore: random item
-      return candidates[Math.floor(Math.random() * candidates.length)]!;
+      return candidates[Math.floor(this.getSecureRandom() * candidates.length)]!;
     }
     // Exploit: best arm
     let bestItem = candidates[0]!;
@@ -224,7 +231,7 @@ export class RealtimePersonalizer {
   /** Sample from Gamma distribution using Marsaglia method */
   private sampleGamma(shape: number): number {
     if (shape < 1) {
-      return this.sampleGamma(shape + 1) * Math.pow(Math.random(), 1 / shape);
+      return this.sampleGamma(shape + 1) * Math.pow(this.getSecureRandom(), 1 / shape);
     }
 
     const d = shape - 1 / 3;
@@ -239,7 +246,7 @@ export class RealtimePersonalizer {
       } while (v <= 0);
 
       v = v * v * v;
-      const u = Math.random();
+      const u = this.getSecureRandom();
 
       if (u < 1 - 0.0331 * (x * x) * (x * x)) return d * v;
       if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
@@ -248,8 +255,8 @@ export class RealtimePersonalizer {
 
   /** Sample from standard normal distribution (Box-Muller) */
   private sampleNormal(): number {
-    const u1 = Math.random();
-    const u2 = Math.random();
+    const u1 = this.getSecureRandom();
+    const u2 = this.getSecureRandom();
     return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
   }
 

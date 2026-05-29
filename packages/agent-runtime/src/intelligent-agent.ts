@@ -60,7 +60,12 @@ const TIER_COST: Record<number, number> = {
 };
 
 function generateId(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const bytes = new Uint8Array(4);
+  globalThis.crypto.getRandomValues(bytes);
+  const hex = Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+  return `${prefix}-${Date.now()}-${hex}`;
 }
 
 // ============================================================================

@@ -116,8 +116,15 @@ export class VideoModerator {
     const overallScore = Math.max(...categories.map((c) => c.score), 0);
     const action = this.determineAction(overallScore, categories);
 
+    const idBytes = new Uint8Array(5);
+    globalThis.crypto.getRandomValues(idBytes);
+    const idSuffix = Array.from(idBytes)
+      .map((b) => b.toString(36).padStart(2, '0'))
+      .join('')
+      .slice(0, 9);
+
     const result: ModerationResult = {
-      id: `vidmod_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `vidmod_${Date.now()}_${idSuffix}`,
       contentId: videoId,
       contentType: 'video',
       categories,

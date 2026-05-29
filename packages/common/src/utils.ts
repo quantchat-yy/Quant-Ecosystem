@@ -10,29 +10,20 @@ import type { PaginatedResult, PaginationParams } from './types';
  */
 export function generateId(prefix: string = 'id'): string {
   const timestamp = Date.now().toString(36);
-  const randomPart = Math.random().toString(36).substring(2, 10);
-  const randomPart2 = Math.random().toString(36).substring(2, 6);
-  return `${prefix}_${timestamp}_${randomPart}${randomPart2}`;
+  const bytes = new Uint8Array(10);
+  globalThis.crypto.getRandomValues(bytes);
+  const randomPart = Array.from(bytes)
+    .map((b) => b.toString(36).padStart(2, '0'))
+    .join('')
+    .slice(0, 14);
+  return `${prefix}_${timestamp}_${randomPart}`;
 }
 
 /**
  * Generate a UUID v4 compatible string
  */
 export function generateUUID(): string {
-  const hex = '0123456789abcdef';
-  let uuid = '';
-  for (let i = 0; i < 36; i++) {
-    if (i === 8 || i === 13 || i === 18 || i === 23) {
-      uuid += '-';
-    } else if (i === 14) {
-      uuid += '4';
-    } else if (i === 19) {
-      uuid += hex[(Math.random() * 4) | 8];
-    } else {
-      uuid += hex[(Math.random() * 16) | 0];
-    }
-  }
-  return uuid;
+  return globalThis.crypto.randomUUID();
 }
 
 /**
@@ -83,7 +74,7 @@ export function formatDate(date: Date, format: 'iso' | 'short' | 'long' = 'iso')
  */
 export function debounce<T extends (...args: unknown[]) => unknown>(
   fn: T,
-  waitMs: number
+  waitMs: number,
 ): (...args: Parameters<T>) => void {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -103,7 +94,7 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
  */
 export function throttle<T extends (...args: unknown[]) => unknown>(
   fn: T,
-  intervalMs: number
+  intervalMs: number,
 ): (...args: Parameters<T>) => void {
   let lastCallTime = 0;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -152,7 +143,7 @@ export function sleep(ms: number): Promise<void> {
  */
 export async function retry<T>(
   fn: () => Promise<T>,
-  options: { maxAttempts?: number; baseDelayMs?: number; maxDelayMs?: number } = {}
+  options: { maxAttempts?: number; baseDelayMs?: number; maxDelayMs?: number } = {},
 ): Promise<T> {
   const { maxAttempts = 3, baseDelayMs = 1000, maxDelayMs = 30000 } = options;
 
@@ -164,7 +155,9 @@ export async function retry<T>(
       lastError = error instanceof Error ? error : new Error(String(error));
       if (attempt === maxAttempts) break;
       const delay = Math.min(baseDelayMs * Math.pow(2, attempt - 1), maxDelayMs);
-      const jitter = delay * 0.1 * Math.random();
+      const jitterBytes = new Uint8Array(1);
+      globalThis.crypto.getRandomValues(jitterBytes);
+      const jitter = delay * 0.1 * (jitterBytes[0]! / 256);
       await sleep(delay + jitter);
     }
   }
@@ -174,10 +167,7 @@ export async function retry<T>(
 /**
  * Create a paginated result from an array
  */
-export function paginate<T>(
-  items: T[],
-  params: PaginationParams
-): PaginatedResult<T> {
+export function paginate<T>(items: T[], params: PaginationParams): PaginatedResult<T> {
   const { page, pageSize } = params;
   const total = items.length;
   const totalPages = Math.ceil(total / pageSize);
@@ -247,7 +237,7 @@ export function hashString(str: string): string {
  */
 export function pick<T extends Record<string, unknown>, K extends keyof T>(
   obj: T,
-  keys: K[]
+  keys: K[],
 ): Pick<T, K> {
   const result = {} as Pick<T, K>;
   for (const key of keys) {
@@ -263,7 +253,7 @@ export function pick<T extends Record<string, unknown>, K extends keyof T>(
  */
 export function omit<T extends Record<string, unknown>, K extends keyof T>(
   obj: T,
-  keys: K[]
+  keys: K[],
 ): Omit<T, K> {
   const result = { ...obj };
   for (const key of keys) {
