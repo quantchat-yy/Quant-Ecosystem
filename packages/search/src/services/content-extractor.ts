@@ -27,7 +27,7 @@ export class ContentExtractor {
 
       // Look for text between BT (Begin Text) and ET (End Text) markers
       const textSegments: string[] = [];
-      const btEtRegex = /BT\s*([\s\S]*?)\s*ET/g;
+      const btEtRegex = /BT([\s\S]*?)ET/g;
       let match: RegExpExecArray | null;
 
       while ((match = btEtRegex.exec(raw)) !== null) {
