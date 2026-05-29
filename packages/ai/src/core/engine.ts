@@ -173,10 +173,10 @@ export class AIEngine {
             messages.push({ role: 'user', content: enrichedPrompt });
 
             const result = await generateText({
-              model: providerModel as any,
+              model: providerModel,
               messages,
               temperature: request.temperature ?? 0.7,
-              maxOutputTokens: request.maxTokens ?? model.maxOutputTokens,
+              maxTokens: request.maxTokens ?? model.maxOutputTokens,
             });
 
             return result;
@@ -189,10 +189,10 @@ export class AIEngine {
 
       // Calculate usage
       const usage: TokenUsage = {
-        promptTokens: response.usage?.inputTokens ?? Math.ceil(enrichedPrompt.length / 4),
+        promptTokens: response.usage?.promptTokens ?? Math.ceil(enrichedPrompt.length / 4),
         completionTokens:
-          response.usage?.outputTokens ?? Math.ceil((response.text || '').length / 4),
-        totalTokens: (response.usage?.inputTokens ?? 0) + (response.usage?.outputTokens ?? 0),
+          response.usage?.completionTokens ?? Math.ceil((response.text || '').length / 4),
+        totalTokens: (response.usage?.promptTokens ?? 0) + (response.usage?.completionTokens ?? 0),
         estimatedCost: 0,
       };
       usage.totalTokens = usage.promptTokens + usage.completionTokens;
@@ -279,10 +279,10 @@ export class AIEngine {
     try {
       result = await breaker.execute(async () => {
         return streamText({
-          model: providerModel as any,
+          model: providerModel,
           messages,
           temperature: request.temperature ?? 0.7,
-          maxOutputTokens: request.maxTokens ?? model.maxOutputTokens,
+          maxTokens: request.maxTokens ?? model.maxOutputTokens,
         });
       });
     } catch (error) {
