@@ -15,6 +15,12 @@ interface ClassificationResult {
   features: { name: string; weight: number }[];
 }
 
+/**
+ * @simulated This implementation is a simulation/prototype.
+ * Classification: NAIVE
+ * Reason: Naive Bayes in pure JS
+ * Production path: Use trained ML model via inference service
+ */
 export class SpamClassifier {
   private classes: Map<string, ClassStats> = new Map();
   private vocabulary: Set<string> = new Set();
@@ -41,7 +47,10 @@ export class SpamClassifier {
     const features: Map<string, number> = new Map();
     const lower = text.toLowerCase();
     // Word tokens
-    const words = lower.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 0);
+    const words = lower
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length > 0);
     for (const word of words) {
       features.set(`w:${word}`, (features.get(`w:${word}`) ?? 0) + 1);
     }
@@ -53,11 +62,11 @@ export class SpamClassifier {
     // Meta features
     const specialCharRatio = (text.match(/[!@#$%^&*()]/g)?.length ?? 0) / Math.max(text.length, 1);
     features.set('meta:special_ratio', specialCharRatio * 10);
-    const urlCount = (text.match(/https?:\/\/|www\./g)?.length ?? 0);
+    const urlCount = text.match(/https?:\/\/|www\./g)?.length ?? 0;
     features.set('meta:url_count', urlCount);
     const capsRatio = (text.match(/[A-Z]/g)?.length ?? 0) / Math.max(text.length, 1);
     features.set('meta:caps_ratio', capsRatio * 10);
-    const exclamCount = (text.match(/!/g)?.length ?? 0);
+    const exclamCount = text.match(/!/g)?.length ?? 0;
     features.set('meta:exclam_count', exclamCount);
     const digitRatio = (text.match(/\d/g)?.length ?? 0) / Math.max(text.length, 1);
     features.set('meta:digit_ratio', digitRatio * 10);
@@ -137,7 +146,7 @@ export class SpamClassifier {
 
   // Batch classification
   classifyBatch(texts: string[]): ClassificationResult[] {
-    return texts.map(text => this.predict(text));
+    return texts.map((text) => this.predict(text));
   }
 
   private getPrior(label: string): number {
@@ -188,7 +197,8 @@ export class SpamClassifier {
   }
 
   getAccuracy(): number {
-    const total = this.truePositives + this.falsePositives + this.trueNegatives + this.falseNegatives;
+    const total =
+      this.truePositives + this.falsePositives + this.trueNegatives + this.falseNegatives;
     if (total === 0) return 0;
     return (this.truePositives + this.trueNegatives) / total;
   }
@@ -209,7 +219,7 @@ export class SpamClassifier {
     const p = this.getPrecision();
     const r = this.getRecall();
     if (p + r === 0) return 0;
-    return 2 * p * r / (p + r);
+    return (2 * p * r) / (p + r);
   }
 
   getFalsePositiveRate(): number {
@@ -236,7 +246,7 @@ export class SpamClassifier {
     }
     allCounts.sort((a, b) => b.count - a.count);
     const keepSize = Math.floor(this.maxVocabSize * 0.8);
-    const toKeep = new Set(allCounts.slice(0, keepSize).map(x => x.feature));
+    const toKeep = new Set(allCounts.slice(0, keepSize).map((x) => x.feature));
     for (const feature of this.vocabulary) {
       if (!toKeep.has(feature)) {
         this.vocabulary.delete(feature);

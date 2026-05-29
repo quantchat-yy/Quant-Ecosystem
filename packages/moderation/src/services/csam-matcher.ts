@@ -7,6 +7,12 @@
 import type { CSAMMatcherInterface, CSAMHashProvider, CSAMReport } from '../types';
 
 /**
+ * @simulated This implementation is a simulation/prototype.
+ * Classification: FAKE
+ * Reason: Returns hardcoded {matched: false} with no real CSAM detection
+ * Production path: Integrate PhotoDNA or Thorn Safer API
+ */
+/**
  * CSAMGuardLegacy - Original guard implementation preserved for backward compat.
  *
  * If UGC_MEDIA_ENABLED is not set to 'true', all hash checks will throw,

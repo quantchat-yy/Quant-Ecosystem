@@ -2,6 +2,13 @@
 // ML Runtime Package - Barrel Export
 // ============================================================================
 
+/**
+ * @simulated This implementation is a simulation/prototype.
+ * Classification: NAIVE
+ * Reason: Re-exports ONNX runtime interfaces that rely on simulated backends
+ * Production path: Ensure all exported modules bind to real ONNX runtime
+ */
+
 export { OnnxServerRuntime, ServerRuntimeConfigSchema } from './onnx-server';
 
 export type {
