@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-70-72-agentic-wiring",
+  "task_description": "Wire Phase 70-72 packages together with integration tests proving each gate: Universal Tool Layer multi-app execution (Phase 70), Voice-to-deploy + durable automation (Phase 71), and Phone-free agentic living across 5+ apps (Phase 72).",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}
