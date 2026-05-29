@@ -1,0 +1,31 @@
+{
+  "id": "FEAT-003",
+  "type": "fix",
+  "description": "Fix insecure randomness (Math.random()) used in security-sensitive contexts. CodeQL flags Math.random() usage for generating IDs, tokens, and keys that should use cryptographically secure random values. Fix the main offenders: packages/common/src/utils.ts (generateId/generateUUID), apps/quantube/src/hooks/useLiveStream.ts (stream keys), apps/quantchat/src/hooks/useMedia.ts (media IDs), packages/agent-runtime/src/intelligent-agent.ts (plan/step IDs), and packages/moderation/src/services/video-moderator.ts (moderation result IDs).",
+  "status": "pending",
+  "steps": [
+    "Fix packages/common/src/utils.ts - generateId() function (line 11-15): Replace Math.random().toString(36) with crypto.getRandomValues() or crypto.randomUUID(). Since this is a shared package used in both browser and Node, use globalThis.crypto.getRandomValues(new Uint8Array(N)) which is available in both environments (Node 19+ and all modern browsers). Convert to hex string.",
+    "Fix packages/common/src/utils.ts - generateUUID() function (line 21-35): Replace the manual Math.random()-based UUID generation with crypto.randomUUID() which is available in both Node 19+ and modern browsers. Add a fallback using crypto.getRandomValues() for older environments.",
+    "Fix packages/common/src/utils.ts - retry() function (line 167): The jitter in retry is not security-sensitive (just adds randomness to backoff timing), but to be thorough and avoid CodeQL flags, use crypto.getRandomValues() for the jitter calculation too.",
+    "Fix apps/quantube/src/hooks/useLiveStream.ts (lines 123, 238): Replace Math.random() for stream key generation with crypto.getRandomValues(). Stream keys are security-sensitive credentials. Keep Math.random() for viewer count simulation and quality fluctuation (those are UI-only non-security values).",
+    "Fix apps/quantchat/src/hooks/useMedia.ts (line 47): Replace the local generateId function that uses Math.random() with crypto.randomUUID() or crypto.getRandomValues().",
+    "Fix packages/agent-runtime/src/intelligent-agent.ts (line 62-63): Replace the local generateId function that uses Math.random() with crypto.randomUUID() based approach.",
+    "Fix packages/moderation/src/services/video-moderator.ts (line 120): Replace Math.random().toString(36) for moderation result ID with crypto.randomUUID() or crypto.getRandomValues(). Leave Math.random() for the simulation values (brightness, colorVariance, motionScore etc.) since those are mock/simulation data, not security-sensitive.",
+    "Verify: Run tests for affected packages."
+  ],
+  "acceptance_criteria": [
+    "generateId() in packages/common/src/utils.ts uses cryptographically secure random",
+    "generateUUID() in packages/common/src/utils.ts uses crypto.randomUUID() with fallback",
+    "Stream key generation uses secure random",
+    "Media IDs use secure random",
+    "Agent runtime IDs use secure random",
+    "Moderation result IDs use secure random",
+    "Non-security Math.random() usage (UI simulations, jitter for backoff, mock data) is acceptable and left as-is OR replaced depending on CodeQL flags",
+    "All existing tests pass"
+  ],
+  "verification": [
+    "Run: cd /projects/sandbox/Quant-Ecosystem && pnpm --filter @quant/common test && pnpm --filter @quant/moderation test"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

@@ -1,0 +1,24 @@
+{
+  "id": "FEAT-001",
+  "type": "fix",
+  "description": "Fix XSS vulnerabilities: The sanitize.ts functions (sanitizeHtmlContent and sanitizeCodeHighlight) return unsanitized HTML when typeof window === 'undefined' (SSR). CodeQL flags dangerouslySetInnerHTML usage because DOMPurify is bypassed during SSR. Fix by using a server-safe sanitization approach (e.g., isomorphic-dompurify or a regex-based server-side strip for dangerous patterns).",
+  "status": "in_progress",
+  "steps": [
+    "In packages/shared-ui/src/utils/sanitize.ts, replace the SSR bypass (returning raw html) with server-safe sanitization. Use the 'isomorphic-dompurify' package OR implement server-side sanitization that strips script tags, event handlers, and dangerous protocols when window is undefined. The key issue is the `if (typeof window === 'undefined') return html;` pattern which returns unsanitized content.",
+    "Install isomorphic-dompurify in the shared-ui package (pnpm add isomorphic-dompurify --filter @quant/shared-ui). Replace the DOMPurify import with isomorphic-dompurify. This makes DOMPurify work in both Node.js and browser contexts, eliminating the need for the SSR bypass.",
+    "Remove the `if (typeof window === 'undefined') return html;` check from both functions since isomorphic-dompurify handles both environments.",
+    "Update the test file packages/shared-ui/src/__tests__/sanitize.test.ts to verify that sanitization works in both environments (no longer returning raw input when window is undefined).",
+    "Verify: run pnpm --filter @quant/shared-ui test to ensure sanitize tests pass."
+  ],
+  "acceptance_criteria": [
+    "sanitizeHtmlContent strips <script> tags and event handlers regardless of environment (SSR or client)",
+    "sanitizeCodeHighlight only allows <span> with class and <br> tags regardless of environment",
+    "No code path exists that returns unsanitized HTML",
+    "Existing tests in packages/shared-ui pass"
+  ],
+  "verification": [
+    "Run: cd /projects/sandbox/Quant-Ecosystem && pnpm --filter @quant/shared-ui test"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

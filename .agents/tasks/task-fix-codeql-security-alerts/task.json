@@ -1,0 +1,7 @@
+{
+  "task_id": "task-fix-codeql-security-alerts",
+  "task_description": "Fix all 73 CodeQL security scanning alerts in the Quant-Ecosystem repository. Primary categories: XSS via SSR sanitization bypass (dangerouslySetInnerHTML with unsanitized content during server-side rendering), ReDoS from polynomial regex patterns in email/URL validation, and insecure randomness (Math.random()) for security-sensitive ID/token/key generation.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003"],
+  "blocked_reason": null
+}
