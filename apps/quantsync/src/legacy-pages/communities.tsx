@@ -28,9 +28,28 @@ interface CreateCommunityForm {
   rules: string[];
 }
 
-type Category = 'All' | 'Technology' | 'Gaming' | 'Science' | 'Art' | 'Sports' | 'Music' | 'Finance' | 'Health';
+type Category =
+  | 'All'
+  | 'Technology'
+  | 'Gaming'
+  | 'Science'
+  | 'Art'
+  | 'Sports'
+  | 'Music'
+  | 'Finance'
+  | 'Health';
 
-const CATEGORIES: Category[] = ['All', 'Technology', 'Gaming', 'Science', 'Art', 'Sports', 'Music', 'Finance', 'Health'];
+const CATEGORIES: Category[] = [
+  'All',
+  'Technology',
+  'Gaming',
+  'Science',
+  'Art',
+  'Sports',
+  'Music',
+  'Finance',
+  'Health',
+];
 
 const CommunitiesPage: React.FC = () => {
   const [communities, setCommunities] = useState<Community[]>([]);
@@ -42,7 +61,11 @@ const CommunitiesPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [createForm, setCreateForm] = useState<CreateCommunityForm>({
-    name: '', description: '', category: 'Technology', isPrivate: false, rules: [''],
+    name: '',
+    description: '',
+    category: 'Technology',
+    isPrivate: false,
+    rules: [''],
   });
   const [creating, setCreating] = useState<boolean>(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -81,25 +104,47 @@ const CommunitiesPage: React.FC = () => {
     fetchJoined();
   }, [fetchCommunities, fetchJoined]);
 
-  const handleJoin = useCallback(async (communityId: string) => {
-    setCommunities(prev => prev.map(c => c.id === communityId ? { ...c, isJoined: true, memberCount: c.memberCount + 1 } : c));
-    try {
-      await fetch(`/api/communities/${communityId}/join`, { method: 'POST' });
-      fetchJoined();
-    } catch {
-      setCommunities(prev => prev.map(c => c.id === communityId ? { ...c, isJoined: false, memberCount: c.memberCount - 1 } : c));
-    }
-  }, [fetchJoined]);
+  const handleJoin = useCallback(
+    async (communityId: string) => {
+      setCommunities((prev) =>
+        prev.map((c) =>
+          c.id === communityId ? { ...c, isJoined: true, memberCount: c.memberCount + 1 } : c,
+        ),
+      );
+      try {
+        await fetch(`/api/communities/${communityId}/join`, { method: 'POST' });
+        fetchJoined();
+      } catch {
+        setCommunities((prev) =>
+          prev.map((c) =>
+            c.id === communityId ? { ...c, isJoined: false, memberCount: c.memberCount - 1 } : c,
+          ),
+        );
+      }
+    },
+    [fetchJoined],
+  );
 
-  const handleLeave = useCallback(async (communityId: string) => {
-    setCommunities(prev => prev.map(c => c.id === communityId ? { ...c, isJoined: false, memberCount: c.memberCount - 1 } : c));
-    try {
-      await fetch(`/api/communities/${communityId}/leave`, { method: 'POST' });
-      fetchJoined();
-    } catch {
-      setCommunities(prev => prev.map(c => c.id === communityId ? { ...c, isJoined: true, memberCount: c.memberCount + 1 } : c));
-    }
-  }, [fetchJoined]);
+  const handleLeave = useCallback(
+    async (communityId: string) => {
+      setCommunities((prev) =>
+        prev.map((c) =>
+          c.id === communityId ? { ...c, isJoined: false, memberCount: c.memberCount - 1 } : c,
+        ),
+      );
+      try {
+        await fetch(`/api/communities/${communityId}/leave`, { method: 'POST' });
+        fetchJoined();
+      } catch {
+        setCommunities((prev) =>
+          prev.map((c) =>
+            c.id === communityId ? { ...c, isJoined: true, memberCount: c.memberCount + 1 } : c,
+          ),
+        );
+      }
+    },
+    [fetchJoined],
+  );
 
   const handleCreateCommunity = useCallback(async () => {
     if (!createForm.name.trim() || !createForm.description.trim()) {
@@ -116,7 +161,13 @@ const CommunitiesPage: React.FC = () => {
       });
       if (!res.ok) throw new Error('Failed to create community');
       setShowCreateModal(false);
-      setCreateForm({ name: '', description: '', category: 'Technology', isPrivate: false, rules: [''] });
+      setCreateForm({
+        name: '',
+        description: '',
+        category: 'Technology',
+        isPrivate: false,
+        rules: [''],
+      });
       fetchCommunities();
       fetchJoined();
     } catch (err: any) {
@@ -127,15 +178,18 @@ const CommunitiesPage: React.FC = () => {
   }, [createForm, fetchCommunities, fetchJoined]);
 
   const addRule = useCallback(() => {
-    setCreateForm(prev => ({ ...prev, rules: [...prev.rules, ''] }));
+    setCreateForm((prev) => ({ ...prev, rules: [...prev.rules, ''] }));
   }, []);
 
   const updateRule = useCallback((index: number, value: string) => {
-    setCreateForm(prev => ({ ...prev, rules: prev.rules.map((r, i) => i === index ? value : r) }));
+    setCreateForm((prev) => ({
+      ...prev,
+      rules: prev.rules.map((r, i) => (i === index ? value : r)),
+    }));
   }, []);
 
   const removeRule = useCallback((index: number) => {
-    setCreateForm(prev => ({ ...prev, rules: prev.rules.filter((_, i) => i !== index) }));
+    setCreateForm((prev) => ({ ...prev, rules: prev.rules.filter((_, i) => i !== index) }));
   }, []);
 
   if (loading && communities.length === 0) {
@@ -152,7 +206,12 @@ const CommunitiesPage: React.FC = () => {
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <div className="text-red-500 text-xl mb-4">Failed to load communities</div>
         <p className="text-gray-600 mb-4">{error}</p>
-        <button onClick={fetchCommunities} className="px-6 py-2 bg-purple-500 text-white rounded-full">Retry</button>
+        <button
+          onClick={fetchCommunities}
+          className="px-6 py-2 bg-purple-500 text-white rounded-full"
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -165,12 +224,18 @@ const CommunitiesPage: React.FC = () => {
           <p className="text-sm text-gray-500">You haven't joined any communities yet.</p>
         ) : (
           <div className="space-y-2">
-            {joinedCommunities.map(c => (
-              <a key={c.id} href={`/community/${c.id}`} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50">
+            {joinedCommunities.map((c) => (
+              <a
+                key={c.id}
+                href={`/community/${c.id}`}
+                className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50"
+              >
                 <img src={c.icon} alt="" className="w-8 h-8 rounded-full" />
                 <div className="min-w-0">
                   <div className="text-sm font-medium truncate">{c.name}</div>
-                  <div className="text-xs text-gray-500">{c.memberCount.toLocaleString()} members</div>
+                  <div className="text-xs text-gray-500">
+                    {c.memberCount.toLocaleString()} members
+                  </div>
                 </div>
               </a>
             ))}
@@ -182,7 +247,10 @@ const CommunitiesPage: React.FC = () => {
         <header className="sticky top-0 bg-white/90 backdrop-blur border-b z-10 px-4 py-3">
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-xl font-bold">Communities</h1>
-            <button onClick={() => setShowCreateModal(true)} className="px-4 py-2 bg-purple-500 text-white rounded-full text-sm font-medium hover:bg-purple-600">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-4 py-2 bg-purple-500 text-white rounded-full text-sm font-medium hover:bg-purple-600"
+            >
               + Create
             </button>
           </div>
@@ -197,12 +265,14 @@ const CommunitiesPage: React.FC = () => {
             <span className="absolute left-3 top-2.5 text-gray-400">🔍</span>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2">
-            {CATEGORIES.map(cat => (
+            {CATEGORIES.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-3 py-1 rounded-full text-sm whitespace-nowrap ${
-                  selectedCategory === cat ? 'bg-purple-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  selectedCategory === cat
+                    ? 'bg-purple-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
                 {cat}
@@ -215,20 +285,24 @@ const CommunitiesPage: React.FC = () => {
           <section className="px-4 py-4 border-b">
             <h2 className="font-bold text-lg mb-3">Trending Communities</h2>
             <div className="flex gap-3 overflow-x-auto pb-2">
-              {trending.map(c => (
+              {trending.map((c) => (
                 <div key={c.id} className="min-w-[200px] border rounded-xl p-3 flex-shrink-0">
                   <div className="flex items-center gap-2 mb-2">
                     <img src={c.icon} alt="" className="w-10 h-10 rounded-full" />
                     <div>
                       <div className="font-medium text-sm">{c.name}</div>
-                      <div className="text-xs text-gray-500">{c.memberCount.toLocaleString()} members</div>
+                      <div className="text-xs text-gray-500">
+                        {c.memberCount.toLocaleString()} members
+                      </div>
                     </div>
                   </div>
                   <p className="text-xs text-gray-600 line-clamp-2 mb-2">{c.description}</p>
                   <button
-                    onClick={() => c.isJoined ? handleLeave(c.id) : handleJoin(c.id)}
+                    onClick={() => (c.isJoined ? handleLeave(c.id) : handleJoin(c.id))}
                     className={`w-full py-1 rounded-full text-xs font-medium ${
-                      c.isJoined ? 'border border-gray-300 text-gray-700 hover:border-red-300 hover:text-red-600' : 'bg-purple-500 text-white hover:bg-purple-600'
+                      c.isJoined
+                        ? 'border border-gray-300 text-gray-700 hover:border-red-300 hover:text-red-600'
+                        : 'bg-purple-500 text-white hover:bg-purple-600'
                     }`}
                   >
                     {c.isJoined ? 'Joined' : 'Join'}
@@ -248,28 +322,41 @@ const CommunitiesPage: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {communities.map(community => (
-                <div key={community.id} className="border rounded-xl p-4 hover:shadow-sm transition-shadow">
+              {communities.map((community) => (
+                <div
+                  key={community.id}
+                  className="border rounded-xl p-4 hover:shadow-sm transition-shadow"
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <img src={community.icon} alt="" className="w-12 h-12 rounded-full" />
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold">{community.name}</h3>
-                          {community.isPrivate && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">Private</span>}
+                          {community.isPrivate && (
+                            <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">Private</span>
+                          )}
                         </div>
-                        <p className="text-sm text-gray-600 line-clamp-2">{community.description}</p>
+                        <p className="text-sm text-gray-600 line-clamp-2">
+                          {community.description}
+                        </p>
                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                           <span>{community.memberCount.toLocaleString()} members</span>
                           <span>{community.postsToday} posts today</span>
-                          <span className="bg-gray-100 px-2 py-0.5 rounded">{community.category}</span>
+                          <span className="bg-gray-100 px-2 py-0.5 rounded">
+                            {community.category}
+                          </span>
                         </div>
                       </div>
                     </div>
                     <button
-                      onClick={() => community.isJoined ? handleLeave(community.id) : handleJoin(community.id)}
+                      onClick={() =>
+                        community.isJoined ? handleLeave(community.id) : handleJoin(community.id)
+                      }
                       className={`px-4 py-1.5 rounded-full text-sm font-medium flex-shrink-0 ${
-                        community.isJoined ? 'border border-gray-300 hover:border-red-300 hover:text-red-600' : 'bg-purple-500 text-white hover:bg-purple-600'
+                        community.isJoined
+                          ? 'border border-gray-300 hover:border-red-300 hover:text-red-600'
+                          : 'bg-purple-500 text-white hover:bg-purple-600'
                       }`}
                     >
                       {community.isJoined ? 'Joined' : 'Join'}
@@ -288,42 +375,102 @@ const CommunitiesPage: React.FC = () => {
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold">Create Community</h2>
-                <button onClick={() => setShowCreateModal(false)} className="text-gray-500 hover:text-gray-700 text-xl">✕</button>
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="text-gray-500 hover:text-gray-700 text-xl"
+                >
+                  ✕
+                </button>
               </div>
-              {createError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{createError}</div>}
+              {createError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  {createError}
+                </div>
+              )}
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                  <input type="text" value={createForm.name} onChange={(e) => setCreateForm(f => ({ ...f, name: e.target.value }))} className="w-full border rounded-lg px-3 py-2" placeholder="Community name" maxLength={50} />
+                  <input
+                    type="text"
+                    value={createForm.name}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                    className="w-full border rounded-lg px-3 py-2"
+                    placeholder="Community name"
+                    maxLength={50}
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                  <textarea value={createForm.description} onChange={(e) => setCreateForm(f => ({ ...f, description: e.target.value }))} className="w-full border rounded-lg px-3 py-2 min-h-[80px]" placeholder="What's this community about?" maxLength={500} />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={createForm.description}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
+                    className="w-full border rounded-lg px-3 py-2 min-h-[80px]"
+                    placeholder="What's this community about?"
+                    maxLength={500}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <select value={createForm.category} onChange={(e) => setCreateForm(f => ({ ...f, category: e.target.value }))} className="w-full border rounded-lg px-3 py-2">
-                    {CATEGORIES.filter(c => c !== 'All').map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                  <select
+                    value={createForm.category}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, category: e.target.value }))}
+                    className="w-full border rounded-lg px-3 py-2"
+                  >
+                    {CATEGORIES.filter((c) => c !== 'All').map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="flex items-center gap-2">
-                  <input type="checkbox" id="private" checked={createForm.isPrivate} onChange={(e) => setCreateForm(f => ({ ...f, isPrivate: e.target.checked }))} />
-                  <label htmlFor="private" className="text-sm">Private community (invite only)</label>
+                  <input
+                    type="checkbox"
+                    id="private"
+                    checked={createForm.isPrivate}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, isPrivate: e.target.checked }))}
+                  />
+                  <label htmlFor="private" className="text-sm">
+                    Private community (invite only)
+                  </label>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Rules</label>
                   {createForm.rules.map((rule, idx) => (
                     <div key={idx} className="flex gap-2 mb-2">
-                      <input type="text" value={rule} onChange={(e) => updateRule(idx, e.target.value)} className="flex-1 border rounded-lg px-3 py-2 text-sm" placeholder={`Rule ${idx + 1}`} />
-                      {createForm.rules.length > 1 && <button onClick={() => removeRule(idx)} className="text-red-500">✕</button>}
+                      <input
+                        type="text"
+                        value={rule}
+                        onChange={(e) => updateRule(idx, e.target.value)}
+                        className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                        placeholder={`Rule ${idx + 1}`}
+                      />
+                      {createForm.rules.length > 1 && (
+                        <button onClick={() => removeRule(idx)} className="text-red-500">
+                          ✕
+                        </button>
+                      )}
                     </div>
                   ))}
-                  <button onClick={addRule} className="text-purple-500 text-sm font-medium">+ Add rule</button>
+                  <button onClick={addRule} className="text-purple-500 text-sm font-medium">
+                    + Add rule
+                  </button>
                 </div>
               </div>
               <div className="mt-6 flex gap-3">
-                <button onClick={() => setShowCreateModal(false)} className="flex-1 py-2 border rounded-full font-medium">Cancel</button>
-                <button onClick={handleCreateCommunity} disabled={creating} className="flex-1 py-2 bg-purple-500 text-white rounded-full font-medium hover:bg-purple-600 disabled:opacity-50">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 py-2 border rounded-full font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateCommunity}
+                  disabled={creating}
+                  className="flex-1 py-2 bg-purple-500 text-white rounded-full font-medium hover:bg-purple-600 disabled:opacity-50"
+                >
                   {creating ? 'Creating...' : 'Create'}
                 </button>
               </div>

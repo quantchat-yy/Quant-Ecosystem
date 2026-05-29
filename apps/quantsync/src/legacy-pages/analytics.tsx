@@ -99,7 +99,7 @@ const AnalyticsPage: React.FC = () => {
   };
 
   const getMaxValue = (metrics: DailyMetric[], key: keyof DailyMetric): number => {
-    return Math.max(...metrics.map(m => Number(m[key]) || 0), 1);
+    return Math.max(...metrics.map((m) => Number(m[key]) || 0), 1);
   };
 
   if (loading) {
@@ -115,7 +115,9 @@ const AnalyticsPage: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <div className="text-red-500 text-xl mb-4">Failed to load analytics</div>
-        <button onClick={fetchAnalytics} className="px-6 py-2 bg-blue-500 text-white rounded-full">Retry</button>
+        <button onClick={fetchAnalytics} className="px-6 py-2 bg-blue-500 text-white rounded-full">
+          Retry
+        </button>
       </div>
     );
   }
@@ -125,8 +127,12 @@ const AnalyticsPage: React.FC = () => {
       <header className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Analytics</h1>
         <div className="flex gap-2">
-          {(['7d', '14d', '30d', '90d'] as DateRange[]).map(range => (
-            <button key={range} onClick={() => setDateRange(range)} className={`px-3 py-1 rounded-full text-sm ${dateRange === range ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
+          {(['7d', '14d', '30d', '90d'] as DateRange[]).map((range) => (
+            <button
+              key={range}
+              onClick={() => setDateRange(range)}
+              className={`px-3 py-1 rounded-full text-sm ${dateRange === range ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'}`}
+            >
               {range}
             </button>
           ))}
@@ -134,8 +140,12 @@ const AnalyticsPage: React.FC = () => {
       </header>
 
       <div className="flex gap-2 mb-6">
-        {(['overview', 'posts', 'audience'] as const).map(section => (
-          <button key={section} onClick={() => setActiveSection(section)} className={`px-4 py-2 rounded-lg text-sm capitalize ${activeSection === section ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}>
+        {(['overview', 'posts', 'audience'] as const).map((section) => (
+          <button
+            key={section}
+            onClick={() => setActiveSection(section)}
+            className={`px-4 py-2 rounded-lg text-sm capitalize ${activeSection === section ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+          >
             {section}
           </button>
         ))}
@@ -148,28 +158,32 @@ const AnalyticsPage: React.FC = () => {
               <p className="text-sm text-gray-500">Impressions</p>
               <p className="text-2xl font-bold">{formatNumber(overview.impressions)}</p>
               <p className={`text-xs ${getChangeColor(overview.impressionsChange)}`}>
-                {overview.impressionsChange > 0 ? '+' : ''}{overview.impressionsChange}%
+                {overview.impressionsChange > 0 ? '+' : ''}
+                {overview.impressionsChange}%
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 border">
               <p className="text-sm text-gray-500">Engagement Rate</p>
               <p className="text-2xl font-bold">{overview.engagementRate.toFixed(1)}%</p>
               <p className={`text-xs ${getChangeColor(overview.engagementChange)}`}>
-                {overview.engagementChange > 0 ? '+' : ''}{overview.engagementChange}%
+                {overview.engagementChange > 0 ? '+' : ''}
+                {overview.engagementChange}%
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 border">
               <p className="text-sm text-gray-500">Followers</p>
               <p className="text-2xl font-bold">{formatNumber(overview.followers)}</p>
               <p className={`text-xs ${getChangeColor(overview.followersChange)}`}>
-                {overview.followersChange > 0 ? '+' : ''}{overview.followersChange}
+                {overview.followersChange > 0 ? '+' : ''}
+                {overview.followersChange}
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 border">
               <p className="text-sm text-gray-500">Profile Visits</p>
               <p className="text-2xl font-bold">{formatNumber(overview.profileVisits)}</p>
               <p className={`text-xs ${getChangeColor(overview.profileVisitsChange)}`}>
-                {overview.profileVisitsChange > 0 ? '+' : ''}{overview.profileVisitsChange}%
+                {overview.profileVisitsChange > 0 ? '+' : ''}
+                {overview.profileVisitsChange}%
               </p>
             </div>
           </div>
@@ -185,7 +199,10 @@ const AnalyticsPage: React.FC = () => {
                     <div className="absolute -top-8 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap">
                       {metric.impressions.toLocaleString()} on {metric.date}
                     </div>
-                    <div className="w-full bg-blue-400 rounded-t hover:bg-blue-500 transition-colors" style={{ height: `${height}%`, minHeight: '2px' }} />
+                    <div
+                      className="w-full bg-blue-400 rounded-t hover:bg-blue-500 transition-colors"
+                      style={{ height: `${height}%`, minHeight: '2px' }}
+                    />
                   </div>
                 );
               })}
@@ -203,7 +220,11 @@ const AnalyticsPage: React.FC = () => {
                 const maxFollowers = getMaxValue(dailyMetrics, 'followers');
                 const height = (metric.followers / maxFollowers) * 100;
                 return (
-                  <div key={idx} className="flex-1 bg-green-400 rounded-t hover:bg-green-500" style={{ height: `${height}%`, minHeight: '2px' }} />
+                  <div
+                    key={idx}
+                    className="flex-1 bg-green-400 rounded-t hover:bg-green-500"
+                    style={{ height: `${height}%`, minHeight: '2px' }}
+                  />
                 );
               })}
             </div>
@@ -215,15 +236,22 @@ const AnalyticsPage: React.FC = () => {
               <div className="grid grid-cols-25 gap-0.5">
                 <div className="col-span-1" />
                 {Array.from({ length: 24 }, (_, i) => (
-                  <div key={i} className="text-center text-xs text-gray-400">{i}</div>
+                  <div key={i} className="text-center text-xs text-gray-400">
+                    {i}
+                  </div>
                 ))}
-                {heatmap.map(day => (
+                {heatmap.map((day) => (
                   <React.Fragment key={day.day}>
                     <div className="text-xs text-gray-500 pr-1">{day.day.slice(0, 3)}</div>
-                    {day.hours.map(h => {
+                    {day.hours.map((h) => {
                       const intensity = Math.min(h.engagement / 100, 1);
                       return (
-                        <div key={h.hour} className="w-full aspect-square rounded-sm" style={{ backgroundColor: `rgba(59, 130, 246, ${intensity})` }} title={`${day.day} ${h.hour}:00 - ${h.engagement} engagements`} />
+                        <div
+                          key={h.hour}
+                          className="w-full aspect-square rounded-sm"
+                          style={{ backgroundColor: `rgba(59, 130, 246, ${intensity})` }}
+                          title={`${day.day} ${h.hour}:00 - ${h.engagement} engagements`}
+                        />
                       );
                     })}
                   </React.Fragment>
@@ -238,19 +266,38 @@ const AnalyticsPage: React.FC = () => {
         <div className="space-y-3">
           <h3 className="font-bold text-lg">Top Posts</h3>
           {topPosts.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">No post data available for this period.</div>
+            <div className="text-center py-12 text-gray-500">
+              No post data available for this period.
+            </div>
           ) : (
-            topPosts.map(post => (
+            topPosts.map((post) => (
               <div key={post.id} className="bg-white rounded-xl p-4 border">
                 <p className="text-sm text-gray-900 mb-3 line-clamp-2">{post.content}</p>
                 <div className="grid grid-cols-5 gap-2 text-center">
-                  <div><p className="text-lg font-bold">{formatNumber(post.impressions)}</p><p className="text-xs text-gray-500">Views</p></div>
-                  <div><p className="text-lg font-bold">{formatNumber(post.engagements)}</p><p className="text-xs text-gray-500">Engagements</p></div>
-                  <div><p className="text-lg font-bold">{formatNumber(post.likes)}</p><p className="text-xs text-gray-500">Likes</p></div>
-                  <div><p className="text-lg font-bold">{formatNumber(post.reposts)}</p><p className="text-xs text-gray-500">Reposts</p></div>
-                  <div><p className="text-lg font-bold">{formatNumber(post.replies)}</p><p className="text-xs text-gray-500">Replies</p></div>
+                  <div>
+                    <p className="text-lg font-bold">{formatNumber(post.impressions)}</p>
+                    <p className="text-xs text-gray-500">Views</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold">{formatNumber(post.engagements)}</p>
+                    <p className="text-xs text-gray-500">Engagements</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold">{formatNumber(post.likes)}</p>
+                    <p className="text-xs text-gray-500">Likes</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold">{formatNumber(post.reposts)}</p>
+                    <p className="text-xs text-gray-500">Reposts</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold">{formatNumber(post.replies)}</p>
+                    <p className="text-xs text-gray-500">Replies</p>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-2">{new Date(post.createdAt).toLocaleDateString()}</p>
+                <p className="text-xs text-gray-400 mt-2">
+                  {new Date(post.createdAt).toLocaleDateString()}
+                </p>
               </div>
             ))
           )}
@@ -261,11 +308,14 @@ const AnalyticsPage: React.FC = () => {
         <div className="space-y-6">
           <div className="bg-white rounded-xl p-4 border">
             <h3 className="font-bold mb-4">Age Distribution</h3>
-            {demographics.ageGroups.map(group => (
+            {demographics.ageGroups.map((group) => (
               <div key={group.range} className="flex items-center gap-3 mb-2">
                 <span className="text-sm w-16">{group.range}</span>
                 <div className="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
-                  <div className="bg-blue-500 h-full rounded-full flex items-center px-2" style={{ width: `${group.percentage}%` }}>
+                  <div
+                    className="bg-blue-500 h-full rounded-full flex items-center px-2"
+                    style={{ width: `${group.percentage}%` }}
+                  >
                     <span className="text-xs text-white font-medium">{group.percentage}%</span>
                   </div>
                 </div>
@@ -274,8 +324,11 @@ const AnalyticsPage: React.FC = () => {
           </div>
           <div className="bg-white rounded-xl p-4 border">
             <h3 className="font-bold mb-4">Top Locations</h3>
-            {demographics.locations.map(loc => (
-              <div key={loc.country} className="flex items-center justify-between py-2 border-b last:border-0">
+            {demographics.locations.map((loc) => (
+              <div
+                key={loc.country}
+                className="flex items-center justify-between py-2 border-b last:border-0"
+              >
                 <span className="text-sm">{loc.country}</span>
                 <span className="text-sm font-medium">{loc.percentage}%</span>
               </div>
@@ -284,7 +337,7 @@ const AnalyticsPage: React.FC = () => {
           <div className="bg-white rounded-xl p-4 border">
             <h3 className="font-bold mb-4">Gender</h3>
             <div className="flex gap-4">
-              {demographics.genders.map(g => (
+              {demographics.genders.map((g) => (
                 <div key={g.type} className="flex-1 text-center p-3 bg-gray-50 rounded-lg">
                   <p className="text-2xl font-bold">{g.percentage}%</p>
                   <p className="text-xs text-gray-500 capitalize">{g.type}</p>

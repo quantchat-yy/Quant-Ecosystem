@@ -63,14 +63,14 @@ const NotificationsPage: React.FC = () => {
   }, [fetchNotifications]);
 
   const markAllRead = useCallback(async () => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     setUnreadCount(0);
     await fetch('/api/notifications/read-all', { method: 'POST' });
   }, []);
 
   const markAsRead = useCallback(async (notifId: string) => {
-    setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, isRead: true } : n));
-    setUnreadCount(prev => Math.max(0, prev - 1));
+    setNotifications((prev) => prev.map((n) => (n.id === notifId ? { ...n, isRead: true } : n)));
+    setUnreadCount((prev) => Math.max(0, prev - 1));
     await fetch(`/api/notifications/${notifId}/read`, { method: 'POST' });
   }, []);
 
@@ -88,15 +88,24 @@ const NotificationsPage: React.FC = () => {
 
   const getNotificationText = (notif: Notification): string => {
     switch (notif.type) {
-      case 'like': return 'liked your post';
-      case 'repost': return 'reposted your post';
-      case 'reply': return 'replied to your post';
-      case 'follow': return 'followed you';
-      case 'mention': return 'mentioned you';
-      case 'quote': return 'quoted your post';
-      case 'community': return notif.content;
-      case 'space': return notif.content;
-      default: return notif.content;
+      case 'like':
+        return 'liked your post';
+      case 'repost':
+        return 'reposted your post';
+      case 'reply':
+        return 'replied to your post';
+      case 'follow':
+        return 'followed you';
+      case 'mention':
+        return 'mentioned you';
+      case 'quote':
+        return 'quoted your post';
+      case 'community':
+        return notif.content;
+      case 'space':
+        return notif.content;
+      default:
+        return notif.content;
     }
   };
 
@@ -113,7 +122,12 @@ const NotificationsPage: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <div className="text-red-500 text-xl mb-4">Failed to load notifications</div>
-        <button onClick={fetchNotifications} className="px-6 py-2 bg-blue-500 text-white rounded-full">Retry</button>
+        <button
+          onClick={fetchNotifications}
+          className="px-6 py-2 bg-blue-500 text-white rounded-full"
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -125,12 +139,16 @@ const NotificationsPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold">Notifications</h1>
             {unreadCount > 0 && (
-              <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">{unreadCount}</span>
+              <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {unreadCount}
+              </span>
             )}
           </div>
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
-              <button onClick={markAllRead} className="text-sm text-blue-500 hover:text-blue-700">Mark all read</button>
+              <button onClick={markAllRead} className="text-sm text-blue-500 hover:text-blue-700">
+                Mark all read
+              </button>
             )}
             <select
               value={filterType || ''}
@@ -147,12 +165,14 @@ const NotificationsPage: React.FC = () => {
           </div>
         </div>
         <div className="flex border-b">
-          {(['all', 'mentions', 'replies', 'follows'] as NotifTab[]).map(tab => (
+          {(['all', 'mentions', 'replies', 'follows'] as NotifTab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`flex-1 py-3 text-center text-sm font-medium capitalize ${
-                activeTab === tab ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500 hover:bg-gray-50'
+                activeTab === tab
+                  ? 'border-b-2 border-blue-500 text-blue-500'
+                  : 'text-gray-500 hover:bg-gray-50'
               }`}
             >
               {tab}
@@ -165,11 +185,13 @@ const NotificationsPage: React.FC = () => {
         <div className="text-center py-16">
           <div className="text-5xl mb-4">🔔</div>
           <h3 className="text-lg font-semibold text-gray-700">No notifications yet</h3>
-          <p className="text-gray-500 mt-1">When people interact with your posts, you will see it here.</p>
+          <p className="text-gray-500 mt-1">
+            When people interact with your posts, you will see it here.
+          </p>
         </div>
       ) : (
         <div className="divide-y">
-          {notifications.map(notif => (
+          {notifications.map((notif) => (
             <div
               key={notif.id}
               onClick={() => markAsRead(notif.id)}
@@ -180,7 +202,11 @@ const NotificationsPage: React.FC = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start gap-2">
-                  <img src={notif.actorAvatar} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
+                  <img
+                    src={notif.actorAvatar}
+                    alt=""
+                    className="w-8 h-8 rounded-full flex-shrink-0"
+                  />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm">
                       <span className="font-bold">{notif.actorName}</span>{' '}
@@ -191,9 +217,13 @@ const NotificationsPage: React.FC = () => {
                         {notif.targetPreview}
                       </p>
                     )}
-                    <span className="text-xs text-gray-400 mt-1">{getTimeAgo(notif.createdAt)}</span>
+                    <span className="text-xs text-gray-400 mt-1">
+                      {getTimeAgo(notif.createdAt)}
+                    </span>
                   </div>
-                  {!notif.isRead && <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2" />}
+                  {!notif.isRead && (
+                    <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2" />
+                  )}
                 </div>
               </div>
             </div>

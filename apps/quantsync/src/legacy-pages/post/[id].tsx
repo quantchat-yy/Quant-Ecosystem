@@ -55,7 +55,8 @@ const PostPage: React.FC<{ id?: string }> = ({ id }) => {
   const [collapsedThreads, setCollapsedThreads] = useState<Set<string>>(new Set());
   const [showShareMenu, setShowShareMenu] = useState<boolean>(false);
 
-  const postId = id || (typeof window !== 'undefined' ? window.location.pathname.split('/').pop() : '');
+  const postId =
+    id || (typeof window !== 'undefined' ? window.location.pathname.split('/').pop() : '');
 
   const fetchPost = useCallback(async () => {
     try {
@@ -83,19 +84,39 @@ const PostPage: React.FC<{ id?: string }> = ({ id }) => {
 
   const handleLike = useCallback(async () => {
     if (!post) return;
-    setPost(prev => prev ? { ...prev, isLiked: !prev.isLiked, likes: prev.isLiked ? prev.likes - 1 : prev.likes + 1 } : null);
+    setPost((prev) =>
+      prev
+        ? { ...prev, isLiked: !prev.isLiked, likes: prev.isLiked ? prev.likes - 1 : prev.likes + 1 }
+        : null,
+    );
     await fetch(`/api/posts/${postId}/like`, { method: 'POST' });
   }, [post, postId]);
 
   const handleRepost = useCallback(async () => {
     if (!post) return;
-    setPost(prev => prev ? { ...prev, isReposted: !prev.isReposted, reposts: prev.isReposted ? prev.reposts - 1 : prev.reposts + 1 } : null);
+    setPost((prev) =>
+      prev
+        ? {
+            ...prev,
+            isReposted: !prev.isReposted,
+            reposts: prev.isReposted ? prev.reposts - 1 : prev.reposts + 1,
+          }
+        : null,
+    );
     await fetch(`/api/posts/${postId}/repost`, { method: 'POST' });
   }, [post, postId]);
 
   const handleBookmark = useCallback(async () => {
     if (!post) return;
-    setPost(prev => prev ? { ...prev, isBookmarked: !prev.isBookmarked, bookmarks: prev.isBookmarked ? prev.bookmarks - 1 : prev.bookmarks + 1 } : null);
+    setPost((prev) =>
+      prev
+        ? {
+            ...prev,
+            isBookmarked: !prev.isBookmarked,
+            bookmarks: prev.isBookmarked ? prev.bookmarks - 1 : prev.bookmarks + 1,
+          }
+        : null,
+    );
     await fetch(`/api/posts/${postId}/bookmark`, { method: 'POST' });
   }, [post, postId]);
 
@@ -113,25 +134,27 @@ const PostPage: React.FC<{ id?: string }> = ({ id }) => {
       setReplyContent('');
       setReplyToId(null);
       fetchPost();
-    } catch {} finally {
+    } catch {
+    } finally {
       setReplying(false);
     }
   }, [replyContent, replyToId, postId, fetchPost]);
 
   const handleLikeReply = useCallback(async (replyId: string) => {
     const updateReplies = (items: Reply[]): Reply[] => {
-      return items.map(r => {
-        if (r.id === replyId) return { ...r, isLiked: !r.isLiked, likes: r.isLiked ? r.likes - 1 : r.likes + 1 };
+      return items.map((r) => {
+        if (r.id === replyId)
+          return { ...r, isLiked: !r.isLiked, likes: r.isLiked ? r.likes - 1 : r.likes + 1 };
         if (r.children.length > 0) return { ...r, children: updateReplies(r.children) };
         return r;
       });
     };
-    setReplies(prev => updateReplies(prev));
+    setReplies((prev) => updateReplies(prev));
     await fetch(`/api/posts/${replyId}/like`, { method: 'POST' });
   }, []);
 
   const toggleCollapse = useCallback((replyId: string) => {
-    setCollapsedThreads(prev => {
+    setCollapsedThreads((prev) => {
       const next = new Set(prev);
       if (next.has(replyId)) next.delete(replyId);
       else next.add(replyId);
@@ -148,7 +171,10 @@ const PostPage: React.FC<{ id?: string }> = ({ id }) => {
   const renderReply = (reply: Reply): React.ReactNode => {
     const isCollapsed = collapsedThreads.has(reply.id);
     return (
-      <div key={reply.id} className={`${reply.depth > 0 ? 'ml-8 border-l-2 border-gray-100 pl-4' : ''}`}>
+      <div
+        key={reply.id}
+        className={`${reply.depth > 0 ? 'ml-8 border-l-2 border-gray-100 pl-4' : ''}`}
+      >
         <div className="py-3">
           <div className="flex gap-2">
             <img src={reply.authorAvatar} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
@@ -157,14 +183,21 @@ const PostPage: React.FC<{ id?: string }> = ({ id }) => {
                 <span className="font-bold text-sm">{reply.authorName}</span>
                 {reply.isVerified && <span className="text-blue-500 text-xs">✓</span>}
                 <span className="text-gray-500 text-xs">@{reply.authorHandle}</span>
-                <span className="text-gray-400 text-xs ml-auto">{new Date(reply.createdAt).toLocaleDateString()}</span>
+                <span className="text-gray-400 text-xs ml-auto">
+                  {new Date(reply.createdAt).toLocaleDateString()}
+                </span>
               </div>
               <p className="text-gray-900 text-sm mt-0.5">{reply.content}</p>
               <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                <button onClick={() => handleLikeReply(reply.id)} className={`hover:text-red-500 ${reply.isLiked ? 'text-red-500' : ''}`}>
+                <button
+                  onClick={() => handleLikeReply(reply.id)}
+                  className={`hover:text-red-500 ${reply.isLiked ? 'text-red-500' : ''}`}
+                >
                   {reply.isLiked ? '❤️' : '🤍'} {reply.likes > 0 ? reply.likes : ''}
                 </button>
-                <button onClick={() => setReplyToId(reply.id)} className="hover:text-blue-500">💬 Reply</button>
+                <button onClick={() => setReplyToId(reply.id)} className="hover:text-blue-500">
+                  💬 Reply
+                </button>
                 {reply.children.length > 0 && (
                   <button onClick={() => toggleCollapse(reply.id)} className="text-blue-500">
                     {isCollapsed ? `Show ${reply.children.length} replies` : 'Hide replies'}
@@ -174,7 +207,7 @@ const PostPage: React.FC<{ id?: string }> = ({ id }) => {
             </div>
           </div>
         </div>
-        {!isCollapsed && reply.children.map(child => renderReply(child))}
+        {!isCollapsed && reply.children.map((child) => renderReply(child))}
       </div>
     );
   };
@@ -257,38 +290,79 @@ const PostPage: React.FC<{ id?: string }> = ({ id }) => {
         )}
 
         <div className="text-sm text-gray-500 mb-3">
-          {new Date(post.createdAt).toLocaleString()} · <span className="font-medium text-gray-700">{formatCount(post.views)}</span> Views
+          {new Date(post.createdAt).toLocaleString()} ·{' '}
+          <span className="font-medium text-gray-700">{formatCount(post.views)}</span> Views
         </div>
 
         <div className="border-y py-3 flex items-center gap-6 text-sm">
-          <span><strong>{formatCount(post.replies)}</strong> <span className="text-gray-500">Replies</span></span>
-          <span><strong>{formatCount(post.reposts)}</strong> <span className="text-gray-500">Reposts</span></span>
-          <span><strong>{formatCount(post.quotes)}</strong> <span className="text-gray-500">Quotes</span></span>
-          <span><strong>{formatCount(post.likes)}</strong> <span className="text-gray-500">Likes</span></span>
-          <span><strong>{formatCount(post.bookmarks)}</strong> <span className="text-gray-500">Bookmarks</span></span>
+          <span>
+            <strong>{formatCount(post.replies)}</strong>{' '}
+            <span className="text-gray-500">Replies</span>
+          </span>
+          <span>
+            <strong>{formatCount(post.reposts)}</strong>{' '}
+            <span className="text-gray-500">Reposts</span>
+          </span>
+          <span>
+            <strong>{formatCount(post.quotes)}</strong>{' '}
+            <span className="text-gray-500">Quotes</span>
+          </span>
+          <span>
+            <strong>{formatCount(post.likes)}</strong> <span className="text-gray-500">Likes</span>
+          </span>
+          <span>
+            <strong>{formatCount(post.bookmarks)}</strong>{' '}
+            <span className="text-gray-500">Bookmarks</span>
+          </span>
         </div>
 
         <div className="flex items-center justify-around py-3 border-b">
-          <button className="p-2 rounded-full hover:bg-blue-50 text-gray-500 hover:text-blue-500">💬</button>
-          <button onClick={handleRepost} className={`p-2 rounded-full hover:bg-green-50 ${post.isReposted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'}`}>🔄</button>
-          <button onClick={handleLike} className={`p-2 rounded-full hover:bg-red-50 ${post.isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}>{post.isLiked ? '❤️' : '🤍'}</button>
-          <button onClick={handleBookmark} className={`p-2 rounded-full hover:bg-blue-50 ${post.isBookmarked ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'}`}>{post.isBookmarked ? '🔖' : '📑'}</button>
+          <button className="p-2 rounded-full hover:bg-blue-50 text-gray-500 hover:text-blue-500">
+            💬
+          </button>
+          <button
+            onClick={handleRepost}
+            className={`p-2 rounded-full hover:bg-green-50 ${post.isReposted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'}`}
+          >
+            🔄
+          </button>
+          <button
+            onClick={handleLike}
+            className={`p-2 rounded-full hover:bg-red-50 ${post.isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
+          >
+            {post.isLiked ? '❤️' : '🤍'}
+          </button>
+          <button
+            onClick={handleBookmark}
+            className={`p-2 rounded-full hover:bg-blue-50 ${post.isBookmarked ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'}`}
+          >
+            {post.isBookmarked ? '🔖' : '📑'}
+          </button>
           <div className="relative">
-            <button onClick={() => setShowShareMenu(!showShareMenu)} className="p-2 rounded-full hover:bg-blue-50 text-gray-500 hover:text-blue-500">↗️</button>
+            <button
+              onClick={() => setShowShareMenu(!showShareMenu)}
+              className="p-2 rounded-full hover:bg-blue-50 text-gray-500 hover:text-blue-500"
+            >
+              ↗️
+            </button>
             {showShareMenu && (
               <div className="absolute bottom-full right-0 mb-2 bg-white border rounded-xl shadow-lg py-1 w-40">
-                <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Copy link</button>
-                <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Share via DM</button>
-                <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Quote Post</button>
+                <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">
+                  Copy link
+                </button>
+                <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">
+                  Share via DM
+                </button>
+                <button className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">
+                  Quote Post
+                </button>
               </div>
             )}
           </div>
         </div>
       </article>
 
-      <div className="divide-y">
-        {replies.map(reply => renderReply(reply))}
-      </div>
+      <div className="divide-y">{replies.map((reply) => renderReply(reply))}</div>
 
       {replies.length === 0 && (
         <div className="text-center py-12">
@@ -301,7 +375,9 @@ const PostPage: React.FC<{ id?: string }> = ({ id }) => {
         {replyToId && (
           <div className="flex items-center justify-between mb-2 text-xs text-gray-500">
             <span>Replying to a comment</span>
-            <button onClick={() => setReplyToId(null)} className="text-blue-500">Cancel</button>
+            <button onClick={() => setReplyToId(null)} className="text-blue-500">
+              Cancel
+            </button>
           </div>
         )}
         <div className="flex items-center gap-2">

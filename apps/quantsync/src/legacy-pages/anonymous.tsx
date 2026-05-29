@@ -42,28 +42,31 @@ const AnonymousPage: React.FC = () => {
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState<boolean>(true);
 
-  const fetchPosts = useCallback(async (reset?: boolean) => {
-    try {
-      if (reset) setLoading(true);
-      const params = new URLSearchParams({ sort: sortBy, limit: '20' });
-      if (cursor && !reset) params.set('cursor', cursor);
-      const res = await fetch(`/api/anonymous/posts?${params.toString()}`);
-      if (!res.ok) throw new Error('Failed to load posts');
-      const data = await res.json();
-      if (reset) {
-        setPosts(data.posts || []);
-      } else {
-        setPosts(prev => [...prev, ...(data.posts || [])]);
+  const fetchPosts = useCallback(
+    async (reset?: boolean) => {
+      try {
+        if (reset) setLoading(true);
+        const params = new URLSearchParams({ sort: sortBy, limit: '20' });
+        if (cursor && !reset) params.set('cursor', cursor);
+        const res = await fetch(`/api/anonymous/posts?${params.toString()}`);
+        if (!res.ok) throw new Error('Failed to load posts');
+        const data = await res.json();
+        if (reset) {
+          setPosts(data.posts || []);
+        } else {
+          setPosts((prev) => [...prev, ...(data.posts || [])]);
+        }
+        setCursor(data.cursor);
+        setHasMore(data.hasMore ?? false);
+        setError(null);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
-      setCursor(data.cursor);
-      setHasMore(data.hasMore ?? false);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [sortBy, cursor]);
+    },
+    [sortBy, cursor],
+  );
 
   const fetchTrustProfile = useCallback(async () => {
     try {
@@ -81,23 +84,25 @@ const AnonymousPage: React.FC = () => {
   }, [sortBy]);
 
   const handleVote = useCallback(async (postId: string, direction: 'up' | 'down') => {
-    setPosts(prev => prev.map(p => {
-      if (p.id !== postId) return p;
-      let newUp = p.upvotes;
-      let newDown = p.downvotes;
-      let newVote: 'up' | 'down' | null = direction;
-      if (p.userVote === direction) {
-        newVote = null;
-        if (direction === 'up') newUp--;
-        else newDown--;
-      } else {
-        if (p.userVote === 'up') newUp--;
-        if (p.userVote === 'down') newDown--;
-        if (direction === 'up') newUp++;
-        else newDown++;
-      }
-      return { ...p, upvotes: newUp, downvotes: newDown, userVote: newVote };
-    }));
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (p.id !== postId) return p;
+        let newUp = p.upvotes;
+        let newDown = p.downvotes;
+        let newVote: 'up' | 'down' | null = direction;
+        if (p.userVote === direction) {
+          newVote = null;
+          if (direction === 'up') newUp--;
+          else newDown--;
+        } else {
+          if (p.userVote === 'up') newUp--;
+          if (p.userVote === 'down') newDown--;
+          if (direction === 'up') newUp++;
+          else newDown++;
+        }
+        return { ...p, upvotes: newUp, downvotes: newDown, userVote: newVote };
+      }),
+    );
     await fetch(`/api/anonymous/posts/${postId}/vote`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -110,7 +115,11 @@ const AnonymousPage: React.FC = () => {
       const res = await fetch(`/api/anonymous/posts/${postId}/reveal`, { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
-        setPosts(prev => prev.map(p => p.id === postId ? { ...p, isRevealed: true, revealedAuthor: data.author } : p));
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === postId ? { ...p, isRevealed: true, revealedAuthor: data.author } : p,
+          ),
+        );
       }
     } catch {}
   }, []);
@@ -161,7 +170,12 @@ const AnonymousPage: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <div className="text-red-500 text-xl mb-4">Failed to load feed</div>
-        <button onClick={() => fetchPosts(true)} className="px-6 py-2 bg-gray-800 text-white rounded-full">Retry</button>
+        <button
+          onClick={() => fetchPosts(true)}
+          className="px-6 py-2 bg-gray-800 text-white rounded-full"
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -182,8 +196,12 @@ const AnonymousPage: React.FC = () => {
         </div>
         <div className="px-4 pb-3 flex items-center justify-between">
           <div className="flex gap-2">
-            {(['hot', 'new', 'top'] as const).map(sort => (
-              <button key={sort} onClick={() => setSortBy(sort)} className={`px-3 py-1 rounded-full text-sm capitalize ${sortBy === sort ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600'}`}>
+            {(['hot', 'new', 'top'] as const).map((sort) => (
+              <button
+                key={sort}
+                onClick={() => setSortBy(sort)}
+                className={`px-3 py-1 rounded-full text-sm capitalize ${sortBy === sort ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600'}`}
+              >
                 {sort}
               </button>
             ))}
@@ -204,10 +222,15 @@ const AnonymousPage: React.FC = () => {
         <div className="mx-4 mt-3 p-3 bg-gray-50 rounded-xl border">
           <div className="flex items-center justify-between text-sm">
             <span>Your Trust Score</span>
-            <span className={`font-bold ${getTrustColor(trustProfile.score)}`}>{trustProfile.score}/100</span>
+            <span className={`font-bold ${getTrustColor(trustProfile.score)}`}>
+              {trustProfile.score}/100
+            </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-            <div className="bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 h-2 rounded-full" style={{ width: `${trustProfile.score}%` }} />
+            <div
+              className="bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 h-2 rounded-full"
+              style={{ width: `${trustProfile.score}%` }}
+            />
           </div>
           <div className="flex justify-between text-xs text-gray-500 mt-2">
             <span>{trustProfile.postsCount} posts</span>
@@ -218,7 +241,10 @@ const AnonymousPage: React.FC = () => {
       )}
 
       <div className="px-4 py-3">
-        <button onClick={() => setShowCompose(!showCompose)} className="w-full py-3 bg-gray-100 rounded-xl text-gray-500 text-left px-4 hover:bg-gray-200">
+        <button
+          onClick={() => setShowCompose(!showCompose)}
+          className="w-full py-3 bg-gray-100 rounded-xl text-gray-500 text-left px-4 hover:bg-gray-200"
+        >
           Share something anonymously...
         </button>
       </div>
@@ -228,13 +254,17 @@ const AnonymousPage: React.FC = () => {
           <textarea
             value={newPostContent}
             onChange={(e) => setNewPostContent(e.target.value)}
-            placeholder={isAnonymousMode ? "Your identity is hidden..." : "Posting as yourself..."}
+            placeholder={isAnonymousMode ? 'Your identity is hidden...' : 'Posting as yourself...'}
             className="w-full min-h-[100px] resize-none border-none outline-none text-sm"
             maxLength={2000}
           />
           <div className="flex items-center justify-between mt-3">
             <span className="text-xs text-gray-400">{newPostContent.length}/2000</span>
-            <button onClick={handlePost} disabled={posting || !newPostContent.trim()} className="px-4 py-1.5 bg-gray-800 text-white rounded-full text-sm disabled:opacity-50">
+            <button
+              onClick={handlePost}
+              disabled={posting || !newPostContent.trim()}
+              className="px-4 py-1.5 bg-gray-800 text-white rounded-full text-sm disabled:opacity-50"
+            >
               {posting ? 'Posting...' : 'Post'}
             </button>
           </div>
@@ -249,44 +279,71 @@ const AnonymousPage: React.FC = () => {
         </div>
       ) : (
         <div className="divide-y">
-          {posts.map(post => (
+          {posts.map((post) => (
             <article key={post.id} className="px-4 py-4 hover:bg-gray-50">
               <div className="flex gap-3">
                 <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-lg flex-shrink-0">
                   {post.isRevealed ? (
-                    <img src={post.revealedAuthor?.avatar} alt="" className="w-full h-full rounded-full object-cover" />
-                  ) : '🎭'}
+                    <img
+                      src={post.revealedAuthor?.avatar}
+                      alt=""
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    '🎭'
+                  )}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     {post.isRevealed ? (
                       <>
                         <span className="font-medium text-sm">{post.revealedAuthor?.name}</span>
-                        <span className="text-gray-500 text-xs">@{post.revealedAuthor?.handle}</span>
-                        <span className="bg-green-100 text-green-700 text-xs px-1.5 py-0.5 rounded">Revealed</span>
+                        <span className="text-gray-500 text-xs">
+                          @{post.revealedAuthor?.handle}
+                        </span>
+                        <span className="bg-green-100 text-green-700 text-xs px-1.5 py-0.5 rounded">
+                          Revealed
+                        </span>
                       </>
                     ) : (
                       <span className="text-gray-500 text-sm">Anonymous</span>
                     )}
-                    <span className="text-xs text-gray-400 ml-auto">{new Date(post.createdAt).toLocaleDateString()}</span>
+                    <span className="text-xs text-gray-400 ml-auto">
+                      {new Date(post.createdAt).toLocaleDateString()}
+                    </span>
                   </div>
                   <p className="text-gray-900 whitespace-pre-wrap">{post.content}</p>
                   <div className="flex items-center gap-3 mt-3">
                     <div className="flex items-center gap-1">
-                      <button onClick={() => handleVote(post.id, 'up')} className={`p-1 rounded ${post.userVote === 'up' ? 'text-green-600 bg-green-50' : 'text-gray-500 hover:text-green-600'}`}>
+                      <button
+                        onClick={() => handleVote(post.id, 'up')}
+                        className={`p-1 rounded ${post.userVote === 'up' ? 'text-green-600 bg-green-50' : 'text-gray-500 hover:text-green-600'}`}
+                      >
                         ▲
                       </button>
-                      <span className={`text-sm font-medium ${(post.upvotes - post.downvotes) > 0 ? 'text-green-600' : (post.upvotes - post.downvotes) < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                      <span
+                        className={`text-sm font-medium ${post.upvotes - post.downvotes > 0 ? 'text-green-600' : post.upvotes - post.downvotes < 0 ? 'text-red-600' : 'text-gray-500'}`}
+                      >
                         {post.upvotes - post.downvotes}
                       </span>
-                      <button onClick={() => handleVote(post.id, 'down')} className={`p-1 rounded ${post.userVote === 'down' ? 'text-red-600 bg-red-50' : 'text-gray-500 hover:text-red-600'}`}>
+                      <button
+                        onClick={() => handleVote(post.id, 'down')}
+                        className={`p-1 rounded ${post.userVote === 'down' ? 'text-red-600 bg-red-50' : 'text-gray-500 hover:text-red-600'}`}
+                      >
                         ▼
                       </button>
                     </div>
-                    <button className="text-sm text-gray-500 hover:text-blue-500">💬 {post.replies}</button>
-                    <span className={`text-xs ${getTrustColor(post.trustScore)}`}>Trust: {post.trustScore}</span>
+                    <button className="text-sm text-gray-500 hover:text-blue-500">
+                      💬 {post.replies}
+                    </button>
+                    <span className={`text-xs ${getTrustColor(post.trustScore)}`}>
+                      Trust: {post.trustScore}
+                    </span>
                     {post.canReveal && !post.isRevealed && (
-                      <button onClick={() => handleReveal(post.id)} className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full ml-auto hover:bg-yellow-200">
+                      <button
+                        onClick={() => handleReveal(post.id)}
+                        className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full ml-auto hover:bg-yellow-200"
+                      >
                         Reveal (100+ upvotes)
                       </button>
                     )}
@@ -300,7 +357,10 @@ const AnonymousPage: React.FC = () => {
 
       {hasMore && (
         <div className="px-4 py-4">
-          <button onClick={() => fetchPosts()} className="w-full py-2 bg-gray-100 rounded-full text-sm text-gray-600 hover:bg-gray-200">
+          <button
+            onClick={() => fetchPosts()}
+            className="w-full py-2 bg-gray-100 rounded-full text-sm text-gray-600 hover:bg-gray-200"
+          >
             Load more
           </button>
         </div>

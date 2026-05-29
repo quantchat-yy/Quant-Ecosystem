@@ -39,7 +39,9 @@ const MessagesPage: React.FC = () => {
   const [groupName, setGroupName] = useState<string>('');
   const [groupMembers, setGroupMembers] = useState<string[]>([]);
   const [memberSearch, setMemberSearch] = useState<string>('');
-  const [memberResults, setMemberResults] = useState<{ id: string; name: string; handle: string; avatar: string }[]>([]);
+  const [memberResults, setMemberResults] = useState<
+    { id: string; name: string; handle: string; avatar: string }[]
+  >([]);
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -110,19 +112,25 @@ const MessagesPage: React.FC = () => {
     }
   }, [groupName, groupMembers, fetchConversations]);
 
-  const handleAcceptRequest = useCallback(async (requestId: string) => {
-    await fetch(`/api/messages/requests/${requestId}/accept`, { method: 'POST' });
-    setRequests(prev => prev.filter(r => r.id !== requestId));
-    fetchConversations();
-  }, [fetchConversations]);
+  const handleAcceptRequest = useCallback(
+    async (requestId: string) => {
+      await fetch(`/api/messages/requests/${requestId}/accept`, { method: 'POST' });
+      setRequests((prev) => prev.filter((r) => r.id !== requestId));
+      fetchConversations();
+    },
+    [fetchConversations],
+  );
 
   const handleDeclineRequest = useCallback(async (requestId: string) => {
     await fetch(`/api/messages/requests/${requestId}/decline`, { method: 'POST' });
-    setRequests(prev => prev.filter(r => r.id !== requestId));
+    setRequests((prev) => prev.filter((r) => r.id !== requestId));
   }, []);
 
   const searchMembers = useCallback(async (q: string) => {
-    if (q.length < 2) { setMemberResults([]); return; }
+    if (q.length < 2) {
+      setMemberResults([]);
+      return;
+    }
     try {
       const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}&limit=5`);
       if (res.ok) {
@@ -132,10 +140,13 @@ const MessagesPage: React.FC = () => {
     } catch {}
   }, []);
 
-  const filteredConversations = conversations.filter(c => {
+  const filteredConversations = conversations.filter((c) => {
     if (!searchQuery) return true;
-    const names = c.participants.map(p => p.name.toLowerCase()).join(' ');
-    return names.includes(searchQuery.toLowerCase()) || (c.name || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const names = c.participants.map((p) => p.name.toLowerCase()).join(' ');
+    return (
+      names.includes(searchQuery.toLowerCase()) ||
+      (c.name || '').toLowerCase().includes(searchQuery.toLowerCase())
+    );
   });
 
   const getTimeAgo = (dateStr: string): string => {
@@ -159,7 +170,12 @@ const MessagesPage: React.FC = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <div className="text-red-500 text-xl mb-4">Failed to load messages</div>
-        <button onClick={fetchConversations} className="px-6 py-2 bg-blue-500 text-white rounded-full">Retry</button>
+        <button
+          onClick={fetchConversations}
+          className="px-6 py-2 bg-blue-500 text-white rounded-full"
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -170,8 +186,20 @@ const MessagesPage: React.FC = () => {
         <div className="px-4 py-3 flex items-center justify-between">
           <h1 className="text-xl font-bold">Messages</h1>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowGroupCreate(true)} className="p-2 hover:bg-gray-100 rounded-full text-sm" title="New group">👥</button>
-            <button onClick={() => setShowNewMessage(true)} className="p-2 hover:bg-gray-100 rounded-full text-sm" title="New message">✉️</button>
+            <button
+              onClick={() => setShowGroupCreate(true)}
+              className="p-2 hover:bg-gray-100 rounded-full text-sm"
+              title="New group"
+            >
+              👥
+            </button>
+            <button
+              onClick={() => setShowNewMessage(true)}
+              className="p-2 hover:bg-gray-100 rounded-full text-sm"
+              title="New message"
+            >
+              ✉️
+            </button>
           </div>
         </div>
         <div className="px-4 pb-2">
@@ -184,12 +212,22 @@ const MessagesPage: React.FC = () => {
           />
         </div>
         <div className="flex border-b">
-          <button onClick={() => setActiveTab('inbox')} className={`flex-1 py-3 text-center text-sm font-medium ${activeTab === 'inbox' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`}>
+          <button
+            onClick={() => setActiveTab('inbox')}
+            className={`flex-1 py-3 text-center text-sm font-medium ${activeTab === 'inbox' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`}
+          >
             Inbox
           </button>
-          <button onClick={() => setActiveTab('requests')} className={`flex-1 py-3 text-center text-sm font-medium relative ${activeTab === 'requests' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`}>
+          <button
+            onClick={() => setActiveTab('requests')}
+            className={`flex-1 py-3 text-center text-sm font-medium relative ${activeTab === 'requests' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`}
+          >
             Requests
-            {requests.length > 0 && <span className="absolute top-2 right-8 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center">{requests.length}</span>}
+            {requests.length > 0 && (
+              <span className="absolute top-2 right-8 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center">
+                {requests.length}
+              </span>
+            )}
           </button>
         </div>
       </header>
@@ -203,26 +241,45 @@ const MessagesPage: React.FC = () => {
               <p className="text-gray-500 mt-1">Start a conversation with someone!</p>
             </div>
           ) : (
-            filteredConversations.map(conv => {
-              const displayName = conv.name || conv.participants.map(p => p.name).join(', ');
+            filteredConversations.map((conv) => {
+              const displayName = conv.name || conv.participants.map((p) => p.name).join(', ');
               const avatar = conv.participants[0]?.avatar;
               return (
-                <div key={conv.id} className={`px-4 py-3 flex items-center gap-3 hover:bg-gray-50 cursor-pointer ${conv.unreadCount > 0 ? 'bg-blue-50/30' : ''}`}>
+                <div
+                  key={conv.id}
+                  className={`px-4 py-3 flex items-center gap-3 hover:bg-gray-50 cursor-pointer ${conv.unreadCount > 0 ? 'bg-blue-50/30' : ''}`}
+                >
                   <div className="relative">
                     <img src={avatar} alt="" className="w-12 h-12 rounded-full" />
-                    {conv.participants[0]?.isOnline && <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />}
-                    {conv.type === 'group' && <span className="absolute -top-1 -right-1 text-xs">👥</span>}
+                    {conv.participants[0]?.isOnline && (
+                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+                    )}
+                    {conv.type === 'group' && (
+                      <span className="absolute -top-1 -right-1 text-xs">👥</span>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className={`font-medium text-sm truncate ${conv.unreadCount > 0 ? 'font-bold' : ''}`}>{displayName}</span>
-                      <span className="text-xs text-gray-500 flex-shrink-0">{conv.lastMessage ? getTimeAgo(conv.lastMessage.createdAt) : ''}</span>
+                      <span
+                        className={`font-medium text-sm truncate ${conv.unreadCount > 0 ? 'font-bold' : ''}`}
+                      >
+                        {displayName}
+                      </span>
+                      <span className="text-xs text-gray-500 flex-shrink-0">
+                        {conv.lastMessage ? getTimeAgo(conv.lastMessage.createdAt) : ''}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'text-gray-900 font-medium' : 'text-gray-500'}`}>
+                      <p
+                        className={`text-sm truncate ${conv.unreadCount > 0 ? 'text-gray-900 font-medium' : 'text-gray-500'}`}
+                      >
                         {conv.lastMessage?.content || 'No messages'}
                       </p>
-                      {conv.unreadCount > 0 && <span className="bg-blue-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">{conv.unreadCount}</span>}
+                      {conv.unreadCount > 0 && (
+                        <span className="bg-blue-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0">
+                          {conv.unreadCount}
+                        </span>
+                      )}
                     </div>
                   </div>
                   {conv.isPinned && <span className="text-xs">📌</span>}
@@ -241,7 +298,7 @@ const MessagesPage: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-700">No message requests</h3>
             </div>
           ) : (
-            requests.map(req => (
+            requests.map((req) => (
               <div key={req.id} className="px-4 py-3">
                 <div className="flex items-center gap-3 mb-2">
                   <img src={req.from.avatar} alt="" className="w-10 h-10 rounded-full" />
@@ -252,8 +309,18 @@ const MessagesPage: React.FC = () => {
                 </div>
                 <p className="text-sm text-gray-700 mb-3">{req.preview}</p>
                 <div className="flex gap-2">
-                  <button onClick={() => handleAcceptRequest(req.id)} className="px-4 py-1.5 bg-blue-500 text-white rounded-full text-sm">Accept</button>
-                  <button onClick={() => handleDeclineRequest(req.id)} className="px-4 py-1.5 border rounded-full text-sm">Decline</button>
+                  <button
+                    onClick={() => handleAcceptRequest(req.id)}
+                    className="px-4 py-1.5 bg-blue-500 text-white rounded-full text-sm"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => handleDeclineRequest(req.id)}
+                    className="px-4 py-1.5 border rounded-full text-sm"
+                  >
+                    Decline
+                  </button>
                 </div>
               </div>
             ))
@@ -266,11 +333,28 @@ const MessagesPage: React.FC = () => {
           <div className="bg-white rounded-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">New Message</h2>
-              <button onClick={() => setShowNewMessage(false)} className="text-gray-500 text-xl">✕</button>
+              <button onClick={() => setShowNewMessage(false)} className="text-gray-500 text-xl">
+                ✕
+              </button>
             </div>
-            <input type="text" value={newMessageTo} onChange={(e) => setNewMessageTo(e.target.value)} className="w-full border rounded-lg px-3 py-2 mb-3" placeholder="To: @username" />
-            <textarea value={newMessageContent} onChange={(e) => setNewMessageContent(e.target.value)} className="w-full border rounded-lg px-3 py-2 min-h-[100px] mb-3" placeholder="Type your message..." />
-            <button onClick={handleSendMessage} disabled={sending} className="w-full py-2 bg-blue-500 text-white rounded-full font-medium disabled:opacity-50">
+            <input
+              type="text"
+              value={newMessageTo}
+              onChange={(e) => setNewMessageTo(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 mb-3"
+              placeholder="To: @username"
+            />
+            <textarea
+              value={newMessageContent}
+              onChange={(e) => setNewMessageContent(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 min-h-[100px] mb-3"
+              placeholder="Type your message..."
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={sending}
+              className="w-full py-2 bg-blue-500 text-white rounded-full font-medium disabled:opacity-50"
+            >
               {sending ? 'Sending...' : 'Send'}
             </button>
           </div>
@@ -282,22 +366,53 @@ const MessagesPage: React.FC = () => {
           <div className="bg-white rounded-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold">Create Group Chat</h2>
-              <button onClick={() => setShowGroupCreate(false)} className="text-gray-500 text-xl">✕</button>
+              <button onClick={() => setShowGroupCreate(false)} className="text-gray-500 text-xl">
+                ✕
+              </button>
             </div>
-            <input type="text" value={groupName} onChange={(e) => setGroupName(e.target.value)} className="w-full border rounded-lg px-3 py-2 mb-3" placeholder="Group name" />
-            <input type="text" value={memberSearch} onChange={(e) => { setMemberSearch(e.target.value); searchMembers(e.target.value); }} className="w-full border rounded-lg px-3 py-2 mb-2" placeholder="Search people to add..." />
+            <input
+              type="text"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 mb-3"
+              placeholder="Group name"
+            />
+            <input
+              type="text"
+              value={memberSearch}
+              onChange={(e) => {
+                setMemberSearch(e.target.value);
+                searchMembers(e.target.value);
+              }}
+              className="w-full border rounded-lg px-3 py-2 mb-2"
+              placeholder="Search people to add..."
+            />
             {memberResults.length > 0 && (
               <div className="border rounded-lg mb-3 max-h-32 overflow-y-auto">
-                {memberResults.map(u => (
-                  <button key={u.id} onClick={() => { setGroupMembers(prev => [...prev, u.id]); setMemberResults([]); setMemberSearch(''); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-sm">
+                {memberResults.map((u) => (
+                  <button
+                    key={u.id}
+                    onClick={() => {
+                      setGroupMembers((prev) => [...prev, u.id]);
+                      setMemberResults([]);
+                      setMemberSearch('');
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-sm"
+                  >
                     <img src={u.avatar} alt="" className="w-6 h-6 rounded-full" />
                     {u.name}
                   </button>
                 ))}
               </div>
             )}
-            {groupMembers.length > 0 && <p className="text-xs text-gray-500 mb-3">{groupMembers.length} members selected</p>}
-            <button onClick={handleCreateGroup} disabled={!groupName.trim() || groupMembers.length < 2} className="w-full py-2 bg-blue-500 text-white rounded-full font-medium disabled:opacity-50">
+            {groupMembers.length > 0 && (
+              <p className="text-xs text-gray-500 mb-3">{groupMembers.length} members selected</p>
+            )}
+            <button
+              onClick={handleCreateGroup}
+              disabled={!groupName.trim() || groupMembers.length < 2}
+              className="w-full py-2 bg-blue-500 text-white rounded-full font-medium disabled:opacity-50"
+            >
               Create Group
             </button>
           </div>
