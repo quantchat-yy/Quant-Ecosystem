@@ -2,6 +2,65 @@ export type MediaType = 'image' | 'video' | 'music' | 'voice';
 export type ProviderPriority = 'self-hosted' | 'commercial';
 export type SensitivityLevel = 'strict' | 'moderate' | 'permissive';
 
+export type Modality = 'text' | 'image' | 'video' | 'audio' | 'music' | '3d';
+
+export interface ModalityTransform {
+  source: Modality;
+  target: Modality;
+  providerId: string;
+}
+
+export interface SynthIDConfig {
+  strength: number;
+  algorithm: 'spectral' | 'spatial' | 'hybrid';
+  includeMetadata: boolean;
+}
+
+export interface ProvenanceManifest {
+  assetId: string;
+  generationModel: string;
+  prompt: string;
+  timestamp: number;
+  userId: string;
+  c2paSignature: string;
+  synthIdEmbedded: boolean;
+  parentAssets: string[];
+  editHistory: string[];
+}
+
+export type ObjectEditOperationType = 'inpaint' | 'outpaint' | 'style-transfer' | 'remove';
+
+export interface ObjectEditOperation {
+  type: ObjectEditOperationType;
+  segmentId?: string;
+  prompt?: string;
+  direction?: 'left' | 'right' | 'up' | 'down';
+  size?: number;
+  style?: string;
+}
+
+export interface ObjectSegment {
+  id: string;
+  label: string;
+  confidence: number;
+  boundingBox: { x: number; y: number; width: number; height: number };
+  maskUri: string;
+}
+
+export interface EditResult {
+  uri: string;
+  operation: ObjectEditOperationType;
+  segments: ObjectSegment[];
+  metadata: Record<string, unknown>;
+}
+
+export interface VerificationResult {
+  assetId: string;
+  status: 'verified' | 'unverified' | 'tampered';
+  confidence: number;
+  manifest: ProvenanceManifest | null;
+}
+
 export interface ProviderConfig {
   id: string;
   name: string;

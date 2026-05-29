@@ -2,6 +2,15 @@ export type {
   MediaType,
   ProviderPriority,
   SensitivityLevel,
+  Modality,
+  ModalityTransform,
+  SynthIDConfig,
+  ProvenanceManifest,
+  ObjectEditOperationType,
+  ObjectEditOperation,
+  ObjectSegment,
+  EditResult,
+  VerificationResult,
   ProviderConfig,
   ImageOptions,
   VideoOptions,
@@ -17,7 +26,26 @@ export type {
 export { MediaRouter } from './router/media-router.js';
 export { ContentSafetyGate } from './safety/content-safety.js';
 export { CostEstimator } from './cost/cost-estimator.js';
-export { C2PAStamper } from './provenance/c2pa-stamp.js';
+export { C2PAStamper, ProvenanceManager } from './provenance/c2pa-stamp.js';
+export { SynthIDWatermarker } from './provenance/synthid-watermark.js';
+export type { WatermarkMetadata, DetectionResult } from './provenance/synthid-watermark.js';
+
+export { ModalityRouter } from './any-to-any/modality-router.js';
+export type { ModalityTransformProvider } from './any-to-any/modality-router.js';
+export {
+  TextToImageTransform,
+  TextToVideoTransform,
+  TextToMusicTransform,
+  TextTo3DTransform,
+  ImageToVideoTransform,
+  ImageTo3DTransform,
+  ImageCaptionTransform,
+  VideoSummaryTransform,
+  AudioTranscriptionTransform,
+} from './any-to-any/transform-providers.js';
+
+export { ObjectLevelEditor } from './editing/object-editor.js';
+export { SegmentationEngine } from './editing/segmentation.js';
 
 export type { ImageProvider } from './providers/image-provider.js';
 export {
