@@ -60,8 +60,9 @@ export class CIJobExecutor {
   private expandVariables(line: string, variables: Record<string, string>): string {
     let result = line;
     for (const [key, value] of Object.entries(variables)) {
-      result = result.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), value);
-      result = result.replace(new RegExp(`\\$${key}\\b`, 'g'), value);
+      const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      result = result.replace(new RegExp(`\\$\\{${escapedKey}\\}`, 'g'), value);
+      result = result.replace(new RegExp(`\\$${escapedKey}\\b`, 'g'), value);
     }
     return result;
   }

@@ -75,8 +75,14 @@ export class SMTPBridge {
 
   verify(address: string): boolean {
     if (!this.connected) return false;
-    // Basic email validation
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address);
+    if (!address || address.length > 254) return false;
+    const parts = address.split('@');
+    if (parts.length !== 2) return false;
+    const [local, domain] = parts;
+    if (!local || local.length > 64 || !domain || domain.length > 253) return false;
+    if (!domain.includes('.')) return false;
+    // Simple character validation without backtracking
+    return /^[^\s@]+$/.test(local) && /^[^\s@]+$/.test(domain);
   }
 
   getRelayStatus(): RelayStatus {

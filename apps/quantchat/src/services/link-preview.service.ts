@@ -18,16 +18,23 @@ export interface LinkPreview {
 export class LinkPreviewService {
   private cache: Map<string, LinkPreview> = new Map();
 
-  private static readonly URL_REGEX =
-    /https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_+.~#?&/=]*)/g;
+  private static readonly URL_REGEX = /https?:\/\/[^\s"'<>]{1,2048}/g;
 
   extractUrls(text: string): string[] {
     const matches = text.match(LinkPreviewService.URL_REGEX);
     if (!matches) {
       return [];
     }
-    // Deduplicate
-    return [...new Set(matches)];
+    // Validate with URL constructor and deduplicate
+    const validUrls = matches.filter((m) => {
+      try {
+        const parsed = new URL(m);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+      } catch {
+        return false;
+      }
+    });
+    return [...new Set(validUrls)];
   }
 
   generatePreview(url: string): LinkPreview {

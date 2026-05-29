@@ -276,7 +276,14 @@ export class AutoActionEngine {
       case 'contains':
         return String(fieldValue).includes(String(targetValue));
       case 'matches':
-        return new RegExp(String(targetValue)).test(String(fieldValue));
+        try {
+          const patternStr = String(targetValue);
+          if (patternStr.length > 1000) return false;
+          const regex = new RegExp(patternStr);
+          return regex.test(String(fieldValue).slice(0, 10000));
+        } catch {
+          return false;
+        }
       case 'in':
         return Array.isArray(targetValue) && targetValue.includes(fieldValue);
       case 'not_in':

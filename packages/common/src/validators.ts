@@ -17,12 +17,33 @@ export function validateEmail(email: string): ValidationResult {
     errors.push('Email is required');
     return { valid: false, errors };
   }
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  if (!emailRegex.test(email)) {
-    errors.push('Invalid email format');
-  }
   if (email.length > 254) {
     errors.push('Email must be 254 characters or fewer');
+    return { valid: false, errors };
+  }
+  const atIndex = email.lastIndexOf('@');
+  if (atIndex < 1 || atIndex > 64) {
+    errors.push('Invalid email format');
+    return { valid: errors.length === 0, errors };
+  }
+  const local = email.slice(0, atIndex);
+  const domain = email.slice(atIndex + 1);
+  // Local part: allow common email characters, bounded by split
+  if (!/^[a-zA-Z0-9._%+-]+$/.test(local)) {
+    errors.push('Invalid email format');
+  }
+  // Domain: must have at least one dot, each label alphanumeric/hyphen
+  const domainParts = domain.split('.');
+  if (domainParts.length < 2 || domainParts.some((p) => p.length === 0)) {
+    errors.push('Invalid email format');
+  } else {
+    const tld = domainParts[domainParts.length - 1];
+    if (!tld || tld.length < 2 || !/^[a-zA-Z]+$/.test(tld)) {
+      errors.push('Invalid email format');
+    }
+    if (domainParts.some((p) => !/^[a-zA-Z0-9-]+$/.test(p))) {
+      errors.push('Invalid email format');
+    }
   }
   return { valid: errors.length === 0, errors };
 }
@@ -144,7 +165,7 @@ export function validateDisplayName(name: string): ValidationResult {
  */
 export function validateFileUpload(
   file: { size: number; mimeType: string },
-  options: { maxSize: number; allowedTypes: string[] }
+  options: { maxSize: number; allowedTypes: string[] },
 ): ValidationResult {
   const errors: string[] = [];
   if (file.size > options.maxSize) {
@@ -198,10 +219,22 @@ export function validateSearchQuery(query: string): ValidationResult {
 export function validateOAuthScope(scope: string): ValidationResult {
   const errors: string[] = [];
   const validScopes = [
-    'profile:read', 'profile:write', 'email:read', 'email:send',
-    'messages:read', 'messages:write', 'posts:read', 'posts:write',
-    'media:read', 'media:upload', 'contacts:read', 'contacts:write',
-    'ai:use', 'realtime:connect', 'ads:manage', 'analytics:read',
+    'profile:read',
+    'profile:write',
+    'email:read',
+    'email:send',
+    'messages:read',
+    'messages:write',
+    'posts:read',
+    'posts:write',
+    'media:read',
+    'media:upload',
+    'contacts:read',
+    'contacts:write',
+    'ai:use',
+    'realtime:connect',
+    'ads:manage',
+    'analytics:read',
   ];
   const scopes = scope.split(' ').filter(Boolean);
   if (scopes.length === 0) {
@@ -235,9 +268,7 @@ export function validateDateRange(startDate: Date, endDate: Date): ValidationRes
 /**
  * Compose multiple validators and collect all errors
  */
-export function composeValidators(
-  ...results: ValidationResult[]
-): ValidationResult {
+export function composeValidators(...results: ValidationResult[]): ValidationResult {
   const allErrors = results.flatMap((r) => r.errors);
   return {
     valid: allErrors.length === 0,

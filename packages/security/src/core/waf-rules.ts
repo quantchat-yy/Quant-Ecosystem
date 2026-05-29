@@ -129,6 +129,7 @@ export class WAFRuleEngine {
       if (!content) continue;
 
       try {
+        if (rule.pattern.length > 500) continue;
         const regex = new RegExp(rule.pattern, 'i');
         if (regex.test(content)) {
           const decision: WAFDecision = {

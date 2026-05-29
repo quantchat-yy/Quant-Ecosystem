@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "fix",
   "description": "Fix ReDoS vulnerabilities in email validation regex patterns and polynomial regex patterns. Multiple files use email regex patterns like /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$/ which have nested quantifiers that can cause catastrophic backtracking. Also fix the URL regex in link-preview.service.ts and input-validator.ts.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Fix packages/federation/src/mail-protocols/smtp-bridge.ts line 79: Replace /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/ with a linear-time email regex. Use a bounded pattern like /^[^\\s@]{1,64}@[^\\s@]{1,255}$/ combined with a structural check (split on @ and verify parts), OR use a simple anchored pattern with possessive-like behavior by restructuring.",
     "Fix packages/common/src/validators.ts line 20: Replace /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$/ with a ReDoS-safe pattern. The safe approach: split on '@', validate each part separately with bounded character classes, e.g., /^[a-zA-Z0-9._%+-]{1,64}$/ for local part and validate domain with /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\\.[a-zA-Z]{2,}$/ but bounded, or use split+validate approach.",

@@ -423,16 +423,24 @@ export class InputValidator {
 
   /** Email validation */
   private isValidEmail(value: string): boolean {
-    const emailRegex =
-      /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-    return emailRegex.test(value) && value.length <= 254;
+    if (!value || value.length > 254) return false;
+    const atIndex = value.lastIndexOf('@');
+    if (atIndex < 1 || atIndex > 64) return false;
+    const local = value.slice(0, atIndex);
+    const domain = value.slice(atIndex + 1);
+    // Local part: allow common email characters, bounded by split
+    if (!/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+$/.test(local)) return false;
+    // Domain: split and validate each label
+    const domainParts = domain.split('.');
+    if (domainParts.length < 2 || domainParts.some((p) => p.length === 0)) return false;
+    return domainParts.every((p) => /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/.test(p));
   }
 
   /** URL validation */
   private isValidUrl(value: string): boolean {
     try {
-      const urlRegex = /^https?:\/\/[^\s/$.?#].[^\s]*$/;
-      return urlRegex.test(value);
+      const url = new URL(value);
+      return url.protocol === 'http:' || url.protocol === 'https:';
     } catch {
       return false;
     }

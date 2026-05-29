@@ -243,8 +243,16 @@ export class FormManager {
 
       case 'email':
         if (typeof value !== 'string') return false;
-        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-        return emailRegex.test(value);
+        if (value.length > 254) return false;
+        const atIdx = value.lastIndexOf('@');
+        if (atIdx < 1 || atIdx > 64) return false;
+        const localPart = value.slice(0, atIdx);
+        const domainPart = value.slice(atIdx + 1);
+        if (!/^[a-zA-Z0-9._%+-]+$/.test(localPart)) return false;
+        const labels = domainPart.split('.');
+        if (labels.length < 2 || labels.some((l) => !l || !/^[a-zA-Z0-9-]+$/.test(l))) return false;
+        const tldPart = labels[labels.length - 1];
+        return !!tldPart && tldPart.length >= 2 && /^[a-zA-Z]+$/.test(tldPart);
 
       case 'custom':
         if (!rule.validator) return true;
