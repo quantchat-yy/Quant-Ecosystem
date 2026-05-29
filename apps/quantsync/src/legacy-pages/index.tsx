@@ -32,6 +32,24 @@ interface Post {
   communityName?: string;
 }
 
+/**
+ * Sanitizes a media URL to prevent XSS via javascript: or other dangerous protocols.
+ * Only allows http:, https:, and data: URIs.
+ */
+function sanitizeMediaUrl(url: string | undefined): string {
+  if (!url) return '';
+  try {
+    const parsed = new URL(url);
+    const allowedProtocols = ['http:', 'https:', 'data:'];
+    if (allowedProtocols.includes(parsed.protocol)) {
+      return url;
+    }
+    return '';
+  } catch {
+    return '';
+  }
+}
+
 const FeedPage: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [mode, setMode] = useState<'algorithm' | 'chronological'>('algorithm');
@@ -334,12 +352,16 @@ const FeedPage: React.FC = () => {
                       <div key={idx} className="relative aspect-video bg-gray-100">
                         {m.type === 'video' ? (
                           <video
-                            src={m.url}
-                            poster={m.thumbnail}
+                            src={sanitizeMediaUrl(m.url)}
+                            poster={sanitizeMediaUrl(m.thumbnail)}
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <img src={m.url} alt="" className="w-full h-full object-cover" />
+                          <img
+                            src={sanitizeMediaUrl(m.url)}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
                         )}
                       </div>
                     ))}
