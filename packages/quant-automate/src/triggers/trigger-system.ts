@@ -63,10 +63,13 @@ export class TriggerSystem {
   checkAICondition(condition: string, context: Record<string, unknown>): boolean {
     // Evaluate simple conditions against context
     // Supports patterns like "key > value", "key == value", "key contains value"
-    const parts = condition.match(/^(\w+)\s*(==|!=|>|<|contains)\s*(\S.*)$/);
-    if (!parts) return false;
+    // Use a two-step parse to avoid ReDoS from backtracking (CodeQL js/polynomial-redos)
+    const operatorMatch = condition.match(/^(\w+)\s*(==|!=|>|<|contains)\s*/);
+    if (!operatorMatch) return false;
 
-    const [, key, operator, valueStr] = parts;
+    const key = operatorMatch[1];
+    const operator = operatorMatch[2];
+    const valueStr = condition.slice(operatorMatch[0].length).trim();
     if (!key || !operator || !valueStr) return false;
 
     const contextValue = context[key];
