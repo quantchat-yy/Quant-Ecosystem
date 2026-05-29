@@ -130,8 +130,8 @@ export class ErrorTracker {
       const trimmed = line.trim();
 
       // Match "at functionName (file:line:column)" or "at file:line:column"
-      const match1 = trimmed.match(/^at\s+(.+?)\s+\((.+?):(\d+):(\d+)\)$/);
-      const match2 = trimmed.match(/^at\s+(.+?):(\d+):(\d+)$/);
+      const match1 = trimmed.match(/^at (.+) \((.+):(\d+):(\d+)\)$/);
+      const match2 = trimmed.match(/^at (.+):(\d+):(\d+)$/);
 
       if (match1) {
         frames.push({
