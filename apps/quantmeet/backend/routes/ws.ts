@@ -75,202 +75,214 @@ export default async function wsRoutes(fastify: FastifyInstance) {
     }
   }
 
-  fastify.get('/', { websocket: true }, async (socket: WebSocket, request: FastifyRequest) => {
-    // Authenticate the WebSocket connection via JWT token in query string
-    const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
-    const token = url.searchParams.get('token');
+  fastify.get(
+    '/',
+    {
+      websocket: true,
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: '1 minute',
+        },
+      },
+    },
+    async (socket: WebSocket, request: FastifyRequest) => {
+      // Authenticate the WebSocket connection via JWT token in query string
+      const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+      const token = url.searchParams.get('token');
 
-    if (!token) {
-      socket.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
-      socket.close(4001, 'Authentication required');
-      return;
-    }
-
-    try {
-      const secret = new TextEncoder().encode(JWT_SECRET);
-      await jose.jwtVerify(token, secret, {
-        issuer: JWT_ISSUER,
-        audience: JWT_AUDIENCE,
-      });
-    } catch {
-      socket.send(JSON.stringify({ type: 'error', message: 'Invalid token' }));
-      socket.close(4001, 'Invalid token');
-      return;
-    }
-
-    socket.on('message', (rawData: Buffer | string) => {
-      let message: WsMessage;
-      try {
-        const data = typeof rawData === 'string' ? rawData : rawData.toString('utf-8');
-        message = JSON.parse(data) as WsMessage;
-      } catch {
-        socket.send(JSON.stringify({ type: 'error', message: 'Invalid JSON' }));
+      if (!token) {
+        socket.send(JSON.stringify({ type: 'error', message: 'Authentication required' }));
+        socket.close(4001, 'Authentication required');
         return;
       }
 
-      switch (message.type) {
-        case 'join-room': {
-          if (
-            !message.roomId ||
-            typeof message.roomId !== 'string' ||
-            message.roomId.trim().length === 0
-          ) {
-            socket.send(
-              JSON.stringify({ type: 'error', message: 'roomId must be a non-empty string' }),
+      try {
+        const secret = new TextEncoder().encode(JWT_SECRET);
+        await jose.jwtVerify(token, secret, {
+          issuer: JWT_ISSUER,
+          audience: JWT_AUDIENCE,
+        });
+      } catch {
+        socket.send(JSON.stringify({ type: 'error', message: 'Invalid token' }));
+        socket.close(4001, 'Invalid token');
+        return;
+      }
+
+      socket.on('message', (rawData: Buffer | string) => {
+        let message: WsMessage;
+        try {
+          const data = typeof rawData === 'string' ? rawData : rawData.toString('utf-8');
+          message = JSON.parse(data) as WsMessage;
+        } catch {
+          socket.send(JSON.stringify({ type: 'error', message: 'Invalid JSON' }));
+          return;
+        }
+
+        switch (message.type) {
+          case 'join-room': {
+            if (
+              !message.roomId ||
+              typeof message.roomId !== 'string' ||
+              message.roomId.trim().length === 0
+            ) {
+              socket.send(
+                JSON.stringify({ type: 'error', message: 'roomId must be a non-empty string' }),
+              );
+              return;
+            }
+            if (!message.participantId || typeof message.participantId !== 'string') {
+              socket.send(
+                JSON.stringify({
+                  type: 'error',
+                  message: 'participantId must be a non-empty string',
+                }),
+              );
+              return;
+            }
+            const connections = rooms.get(message.roomId) ?? [];
+            connections.push({
+              socket,
+              participantId: message.participantId,
+              roomId: message.roomId,
+            });
+            rooms.set(message.roomId, connections);
+
+            broadcastToRoom(
+              message.roomId,
+              {
+                type: 'participant-joined',
+                participantId: message.participantId,
+              },
+              message.participantId,
             );
-            return;
-          }
-          if (!message.participantId || typeof message.participantId !== 'string') {
+
             socket.send(
               JSON.stringify({
-                type: 'error',
-                message: 'participantId must be a non-empty string',
+                type: 'joined',
+                roomId: message.roomId,
+                participants: connections
+                  .filter((c) => c.participantId !== message.participantId)
+                  .map((c) => c.participantId),
               }),
             );
-            return;
+            break;
           }
-          const connections = rooms.get(message.roomId) ?? [];
-          connections.push({
-            socket,
-            participantId: message.participantId,
-            roomId: message.roomId,
-          });
-          rooms.set(message.roomId, connections);
 
-          broadcastToRoom(
-            message.roomId,
-            {
-              type: 'participant-joined',
-              participantId: message.participantId,
-            },
-            message.participantId,
-          );
+          case 'leave-room': {
+            removeConnection(socket);
+            socket.send(JSON.stringify({ type: 'left' }));
+            break;
+          }
 
-          socket.send(
-            JSON.stringify({
-              type: 'joined',
-              roomId: message.roomId,
-              participants: connections
-                .filter((c) => c.participantId !== message.participantId)
-                .map((c) => c.participantId),
-            }),
-          );
-          break;
+          case 'offer': {
+            if (!message.roomId || !message.participantId) return;
+            broadcastToRoom(
+              message.roomId,
+              {
+                type: 'offer',
+                participantId: message.participantId,
+                sdp: message.sdp,
+              },
+              message.participantId,
+            );
+            break;
+          }
+
+          case 'answer': {
+            if (!message.roomId || !message.participantId) return;
+            broadcastToRoom(
+              message.roomId,
+              {
+                type: 'answer',
+                participantId: message.participantId,
+                sdp: message.sdp,
+              },
+              message.participantId,
+            );
+            break;
+          }
+
+          case 'ice-candidate': {
+            if (!message.roomId || !message.participantId) return;
+            broadcastToRoom(
+              message.roomId,
+              {
+                type: 'ice-candidate',
+                participantId: message.participantId,
+                candidate: message.candidate,
+              },
+              message.participantId,
+            );
+            break;
+          }
+
+          case 'mute': {
+            if (!message.roomId || !message.participantId) return;
+            broadcastToRoom(
+              message.roomId,
+              {
+                type: 'mute',
+                participantId: message.participantId,
+                track: message.track,
+              },
+              message.participantId,
+            );
+            break;
+          }
+
+          case 'unmute': {
+            if (!message.roomId || !message.participantId) return;
+            broadcastToRoom(
+              message.roomId,
+              {
+                type: 'unmute',
+                participantId: message.participantId,
+                track: message.track,
+              },
+              message.participantId,
+            );
+            break;
+          }
+
+          case 'start-screen-share': {
+            if (!message.roomId || !message.participantId) return;
+            broadcastToRoom(
+              message.roomId,
+              {
+                type: 'screen-share-started',
+                participantId: message.participantId,
+              },
+              message.participantId,
+            );
+            break;
+          }
+
+          case 'stop-screen-share': {
+            if (!message.roomId || !message.participantId) return;
+            broadcastToRoom(
+              message.roomId,
+              {
+                type: 'screen-share-stopped',
+                participantId: message.participantId,
+              },
+              message.participantId,
+            );
+            break;
+          }
+
+          default: {
+            socket.send(
+              JSON.stringify({ type: 'error', message: `Unknown message type: ${message.type}` }),
+            );
+            break;
+          }
         }
+      });
 
-        case 'leave-room': {
-          removeConnection(socket);
-          socket.send(JSON.stringify({ type: 'left' }));
-          break;
-        }
-
-        case 'offer': {
-          if (!message.roomId || !message.participantId) return;
-          broadcastToRoom(
-            message.roomId,
-            {
-              type: 'offer',
-              participantId: message.participantId,
-              sdp: message.sdp,
-            },
-            message.participantId,
-          );
-          break;
-        }
-
-        case 'answer': {
-          if (!message.roomId || !message.participantId) return;
-          broadcastToRoom(
-            message.roomId,
-            {
-              type: 'answer',
-              participantId: message.participantId,
-              sdp: message.sdp,
-            },
-            message.participantId,
-          );
-          break;
-        }
-
-        case 'ice-candidate': {
-          if (!message.roomId || !message.participantId) return;
-          broadcastToRoom(
-            message.roomId,
-            {
-              type: 'ice-candidate',
-              participantId: message.participantId,
-              candidate: message.candidate,
-            },
-            message.participantId,
-          );
-          break;
-        }
-
-        case 'mute': {
-          if (!message.roomId || !message.participantId) return;
-          broadcastToRoom(
-            message.roomId,
-            {
-              type: 'mute',
-              participantId: message.participantId,
-              track: message.track,
-            },
-            message.participantId,
-          );
-          break;
-        }
-
-        case 'unmute': {
-          if (!message.roomId || !message.participantId) return;
-          broadcastToRoom(
-            message.roomId,
-            {
-              type: 'unmute',
-              participantId: message.participantId,
-              track: message.track,
-            },
-            message.participantId,
-          );
-          break;
-        }
-
-        case 'start-screen-share': {
-          if (!message.roomId || !message.participantId) return;
-          broadcastToRoom(
-            message.roomId,
-            {
-              type: 'screen-share-started',
-              participantId: message.participantId,
-            },
-            message.participantId,
-          );
-          break;
-        }
-
-        case 'stop-screen-share': {
-          if (!message.roomId || !message.participantId) return;
-          broadcastToRoom(
-            message.roomId,
-            {
-              type: 'screen-share-stopped',
-              participantId: message.participantId,
-            },
-            message.participantId,
-          );
-          break;
-        }
-
-        default: {
-          socket.send(
-            JSON.stringify({ type: 'error', message: `Unknown message type: ${message.type}` }),
-          );
-          break;
-        }
-      }
-    });
-
-    socket.on('close', () => {
-      removeConnection(socket);
-    });
-  });
+      socket.on('close', () => {
+        removeConnection(socket);
+      });
+    },
+  );
 }
