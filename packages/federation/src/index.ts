@@ -100,3 +100,87 @@ export type {
   APIDoc,
   DeveloperProfile,
 } from './developer-platform/developer-portal-types.js';
+
+// AT Protocol
+export { ATProtocolAdapter, ATPostSchema, ATTimelineItemSchema } from './at-protocol/at-adapter.js';
+export type { ATPost, ATTimelineItem, ATFeedResponse } from './at-protocol/at-adapter.js';
+export { ATIdentityService, ATProfileSchema } from './at-protocol/at-identity.js';
+export type { ATProfile, DIDDocument } from './at-protocol/at-identity.js';
+export { ATFeedGenerator, FeedAlgorithmSchema } from './at-protocol/at-feed-generator.js';
+export type {
+  FeedAlgorithm,
+  FeedItem,
+  FeedResult,
+  FeedGeneratorFn,
+} from './at-protocol/at-feed-generator.js';
+
+// ActivityPub (extended)
+export { FollowManager, FollowRecordSchema } from './activitypub/follow-manager.js';
+export type { FollowRecord } from './activitypub/follow-manager.js';
+export { BoostService, BoostRecordSchema } from './activitypub/boost-service.js';
+export type { BoostRecord } from './activitypub/boost-service.js';
+
+// Sync Services
+export {
+  CalDAVSyncService,
+  CalendarEventSyncSchema,
+  SyncCredentialsSchema,
+} from './sync/caldav-sync.js';
+export type {
+  CalendarEventSync,
+  SyncCredentials,
+  SyncResult,
+  ConflictResolution,
+} from './sync/caldav-sync.js';
+export { CardDAVSyncService, ContactSyncSchema } from './sync/carddav-sync.js';
+export type {
+  ContactSync,
+  CardDAVSyncCredentials,
+  CardDAVSyncResult,
+  MergeResult,
+} from './sync/carddav-sync.js';
+
+// Mail Protocol Bridges
+export {
+  IMAPBridge,
+  IMAPConfigSchema,
+  BridgeMailboxSchema,
+  BridgeMessageSchema,
+} from './mail-protocols/imap-bridge.js';
+export type {
+  IMAPConfig,
+  BridgeMailbox,
+  BridgeMessage,
+  MessageRange,
+  IMAPSearchCriteria,
+  IdleCallback,
+} from './mail-protocols/imap-bridge.js';
+export {
+  SMTPBridge,
+  SMTPConfigSchema,
+  SMTPOutboundMessageSchema,
+} from './mail-protocols/smtp-bridge.js';
+export type {
+  SMTPConfig,
+  SMTPOutboundMessage,
+  SendResult,
+  RelayStatus,
+} from './mail-protocols/smtp-bridge.js';
+
+// Public API / Self-Host
+export { PublicAPIConfig, APIEndpointConfigSchema } from './public-api/api-config.js';
+export type { APIEndpointConfig, OpenAPISpec, APIStatus } from './public-api/api-config.js';
+export {
+  SelfHostConfig,
+  SelfHostConfigSchema,
+  DatabaseConfigSchema,
+  StorageConfigSchema,
+  FederationConfigSchema,
+} from './public-api/self-host-config.js';
+export type {
+  SelfHostConfigType,
+  DatabaseConfig,
+  StorageConfig,
+  FederationConfig,
+  ValidationResult,
+} from './public-api/self-host-config.js';
