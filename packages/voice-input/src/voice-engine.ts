@@ -1,3 +1,5 @@
+import { randomBytes } from 'crypto';
+
 import type {
   VoiceConfig,
   TranscriptionResult,
@@ -65,7 +67,7 @@ export class VoiceEngine {
   registerCommand(command: Omit<VoiceCommand, 'id'>): VoiceCommand {
     const fullCommand: VoiceCommand = {
       ...command,
-      id: `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `cmd-${Date.now()}-${randomBytes(4).toString('hex')}`,
     };
     this.commands.set(fullCommand.id, fullCommand);
     return fullCommand;
@@ -93,7 +95,7 @@ export class VoiceEngine {
 
   startSession(language?: string): VoiceSession {
     const session: VoiceSession = {
-      id: `vs-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `vs-${Date.now()}-${randomBytes(4).toString('hex')}`,
       status: 'listening',
       startedAt: new Date(),
       endedAt: null,
@@ -164,7 +166,7 @@ export class VoiceEngine {
     }));
 
     const result: TranscriptionResult = {
-      id: `tr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `tr-${Date.now()}-${randomBytes(4).toString('hex')}`,
       text: audioText,
       confidence: 0.95,
       language: session.language,
