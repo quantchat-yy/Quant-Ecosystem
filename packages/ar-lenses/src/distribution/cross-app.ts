@@ -66,7 +66,7 @@ export class CrossAppDistributor {
   }
 
   getCapabilities(target: CrossAppTarget): AppCapabilities {
-    return APP_CAPABILITIES[target];
+    return { ...APP_CAPABILITIES[target] };
   }
 
   isCompatible(lensId: string, target: CrossAppTarget): boolean {
@@ -100,6 +100,7 @@ export class CrossAppDistributor {
       (e) =>
         e.effectType === 'style_transfer' ||
         e.effectType === 'background_replace' ||
+        e.effectType === 'prompt_to_lens' ||
         e.effectType === 'generative',
     );
     if (hasGenerative && !caps.supportsGenerative) {

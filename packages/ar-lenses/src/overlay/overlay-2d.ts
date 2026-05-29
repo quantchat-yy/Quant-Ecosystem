@@ -24,25 +24,24 @@ export class Overlay2DEngine {
     const results: RenderResult[] = [];
 
     for (const overlay of this.overlays.values()) {
-      const face = faces[0];
-      if (!face) continue;
+      for (const face of faces) {
+        const anchor = face.landmarks[overlay.anchorLandmark];
+        if (!anchor) continue;
 
-      const anchor = face.landmarks[overlay.anchorLandmark];
-      if (!anchor) continue;
-
-      const animated = this.applyAnimation(overlay, time);
-      results.push({
-        id: overlay.id,
-        position: {
-          x: anchor.position.x + animated.position.x,
-          y: anchor.position.y + animated.position.y,
-          z: anchor.position.z + animated.position.z,
-        },
-        opacity: animated.opacity,
-        scale: animated.scale,
-        rotation: animated.rotation,
-        zOrder: overlay.zOrder,
-      });
+        const animated = this.applyAnimation(overlay, time);
+        results.push({
+          id: `${overlay.id}:${face.id}`,
+          position: {
+            x: anchor.position.x + animated.position.x,
+            y: anchor.position.y + animated.position.y,
+            z: anchor.position.z + animated.position.z,
+          },
+          opacity: animated.opacity,
+          scale: animated.scale,
+          rotation: animated.rotation,
+          zOrder: overlay.zOrder,
+        });
+      }
     }
 
     return results.sort((a, b) => a.zOrder - b.zOrder);
@@ -62,7 +61,17 @@ export class Overlay2DEngine {
     }
 
     const keyframes = overlay.animation;
-    const duration = keyframes[keyframes.length - 1]?.time ?? 1;
+    const duration = keyframes[keyframes.length - 1]?.time ?? 0;
+    // Single keyframe or zero-length animation: hold that frame (avoid divide-by-zero -> NaN).
+    if (duration <= 0) {
+      const only = keyframes[0]!;
+      return {
+        position: only.position,
+        opacity: only.opacity,
+        scale: only.scale,
+        rotation: only.rotation,
+      };
+    }
     const normalizedTime = (time % duration) / duration;
     const currentTime = normalizedTime * duration;
 

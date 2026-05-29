@@ -10,6 +10,11 @@ const BODY_LANDMARK_COUNT = 33;
 const UPPER_BODY_LANDMARK_COUNT = 17;
 const DEFAULT_CONFIDENCE_THRESHOLD = 0.5;
 
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
 export class BodyTracker {
   private adapter: PlatformAdapterInterface;
   private confidenceThreshold: number;
@@ -21,9 +26,9 @@ export class BodyTracker {
     options?: { confidenceThreshold?: number; mode?: BodyTrackingMode; maxPersons?: number },
   ) {
     this.adapter = adapter;
-    this.confidenceThreshold = options?.confidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD;
+    this.confidenceThreshold = clamp01(options?.confidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD);
     this.mode = options?.mode ?? 'full';
-    this.maxPersons = options?.maxPersons ?? 5;
+    this.maxPersons = Math.max(1, Math.floor(options?.maxPersons ?? 5));
   }
 
   detectPose(frame: TrackingFrame): BodyDetection[] {
@@ -36,7 +41,11 @@ export class BodyTracker {
 
   private applyMode(body: BodyDetection): BodyDetection {
     if (this.mode === 'upper') {
-      const upperLandmarks = body.landmarks.slice(0, UPPER_BODY_LANDMARK_COUNT);
+      const sliced = body.landmarks.slice(0, UPPER_BODY_LANDMARK_COUNT);
+      const upperLandmarks: BodyLandmark[] = Array.from(
+        { length: UPPER_BODY_LANDMARK_COUNT },
+        (_, i) => sliced[i] ?? { index: i, position: { x: 0, y: 0, z: 0 }, confidence: 0 },
+      );
       return { ...body, landmarks: upperLandmarks, mode: 'upper' };
     }
     return this.validateLandmarks(body);

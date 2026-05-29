@@ -9,20 +9,26 @@ import type {
 const HAND_LANDMARK_COUNT = 21;
 const DEFAULT_CONFIDENCE_THRESHOLD = 0.6;
 
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
 export class HandTrackerAR {
   private adapter: PlatformAdapterInterface;
   private confidenceThreshold: number;
 
   constructor(adapter: PlatformAdapterInterface, options?: { confidenceThreshold?: number }) {
     this.adapter = adapter;
-    this.confidenceThreshold = options?.confidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD;
+    this.confidenceThreshold = clamp01(options?.confidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD);
   }
 
   detectHands(frame: TrackingFrame): HandDetectionAR[] {
     const raw = this.adapter.detectHands(frame);
     return raw
       .filter((hand) => hand.confidence >= this.confidenceThreshold)
-      .map((hand) => this.validateLandmarks(hand));
+      .map((hand) => this.validateLandmarks(hand))
+      .map((hand) => ({ ...hand, gesture: this.classifyGesture(hand.landmarks) }));
   }
 
   classifyGesture(landmarks: HandLandmarkAR[]): HandGestureAR {

@@ -45,10 +45,11 @@ export class BodyFilterGuard {
   }
 
   getPolicy(): EthicsPolicy {
-    return { ...this.policy };
+    return { ...this.policy, blockedCategories: [...this.policy.blockedCategories] };
   }
 
   updatePolicy(policy: Partial<EthicsPolicy>): void {
-    this.policy = { ...this.policy, ...policy };
+    const merged = { ...this.policy, ...policy };
+    this.policy = { ...merged, blockedCategories: [...merged.blockedCategories] };
   }
 }

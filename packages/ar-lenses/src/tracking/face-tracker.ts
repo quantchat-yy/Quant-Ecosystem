@@ -9,6 +9,11 @@ import type {
 const FACE_LANDMARK_COUNT = 468;
 const DEFAULT_CONFIDENCE_THRESHOLD = 0.5;
 
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
 export class FaceTracker {
   private adapter: PlatformAdapterInterface;
   private confidenceThreshold: number;
@@ -19,8 +24,8 @@ export class FaceTracker {
     options?: { confidenceThreshold?: number; maxFaces?: number },
   ) {
     this.adapter = adapter;
-    this.confidenceThreshold = options?.confidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD;
-    this.maxFaces = options?.maxFaces ?? 5;
+    this.confidenceThreshold = clamp01(options?.confidenceThreshold ?? DEFAULT_CONFIDENCE_THRESHOLD);
+    this.maxFaces = Math.max(1, Math.floor(options?.maxFaces ?? 5));
   }
 
   detectFaces(frame: TrackingFrame): FaceDetection[] {

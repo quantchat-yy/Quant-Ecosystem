@@ -16,7 +16,10 @@ export class BackgroundReplacer {
   }
 
   segment(bodies: BodyDetection[]): SegmentationResult {
-    if (bodies.length === 0) {
+    // Only bodies with landmarks can produce a valid mask; without any,
+    // computeBounds would yield Infinity/-Infinity dimensions.
+    const trackedBodies = bodies.filter((body) => body.landmarks.length > 0);
+    if (trackedBodies.length === 0) {
       return {
         personMask: false,
         edgeRefinement: this.config.edgeRefinement,
@@ -25,7 +28,7 @@ export class BackgroundReplacer {
       };
     }
 
-    const bounds = this.computeBounds(bodies);
+    const bounds = this.computeBounds(trackedBodies);
     const smoothedBounds = this.applyTemporalSmoothing(bounds);
 
     return {

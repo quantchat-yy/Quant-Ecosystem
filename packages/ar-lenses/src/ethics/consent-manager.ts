@@ -23,15 +23,16 @@ export class InMemoryConsentStorage implements ConsentStorage {
   }
 
   findById(id: string): ConsentRecord | undefined {
-    return this.records.find((r) => r.id === id);
+    const record = this.records.find((r) => r.id === id);
+    return record ? { ...record } : undefined;
   }
 
   findByUser(userId: string): ConsentRecord[] {
-    return this.records.filter((r) => r.userId === userId);
+    return this.records.filter((r) => r.userId === userId).map((r) => ({ ...r }));
   }
 
   findAll(): ConsentRecord[] {
-    return [...this.records];
+    return this.records.map((r) => ({ ...r }));
   }
 }
 

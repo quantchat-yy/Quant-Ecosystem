@@ -35,7 +35,7 @@ describe('Overlay2DEngine', () => {
     engine.addOverlay(overlay);
     const results = engine.render([makeFace()], 0);
     expect(results).toHaveLength(1);
-    expect(results[0]!.id).toBe('sticker1');
+    expect(results[0]!.id).toBe('sticker1:f1');
   });
 
   it('sorts by z-order', () => {
@@ -61,8 +61,8 @@ describe('Overlay2DEngine', () => {
       zOrder: 10,
     });
     const results = engine.render([makeFace()], 0);
-    expect(results[0]!.id).toBe('back');
-    expect(results[1]!.id).toBe('front');
+    expect(results[0]!.id).toBe('back:f1');
+    expect(results[1]!.id).toBe('front:f1');
   });
 
   it('applies animation keyframes', () => {

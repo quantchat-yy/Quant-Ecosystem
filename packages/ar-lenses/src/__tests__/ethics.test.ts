@@ -223,21 +223,21 @@ describe('DeepfakeMarker', () => {
   });
 
   it('fails verification for unknown assets', () => {
-    const marker = new DeepfakeMarker();
+    const marker = new DeepfakeMarker({ secretKey: 'test-secret' });
     const verification = marker.verify('unknown_asset');
     expect(verification.valid).toBe(false);
     expect(verification.marker).toBeNull();
   });
 
   it('checks marker existence', () => {
-    const marker = new DeepfakeMarker();
+    const marker = new DeepfakeMarker({ secretKey: 'test-secret' });
     marker.embed('marked', ['effect']);
     expect(marker.hasMarker('marked')).toBe(true);
     expect(marker.hasMarker('unmarked')).toBe(false);
   });
 
   it('retrieves transformations', () => {
-    const marker = new DeepfakeMarker();
+    const marker = new DeepfakeMarker({ secretKey: 'test-secret' });
     marker.embed('asset_x', ['a', 'b', 'c']);
     expect(marker.getTransformations('asset_x')).toEqual(['a', 'b', 'c']);
     expect(marker.getTransformations('missing')).toEqual([]);
@@ -263,5 +263,19 @@ describe('DeepfakeMarker', () => {
     const r1 = m1.embed('asset', ['fx']);
     const r2 = m2.embed('asset', ['fx']);
     expect(r1.signature).not.toBe(r2.signature);
+  });
+
+  it('refuses to construct without a non-empty secretKey', () => {
+    // @ts-expect-error secretKey is now required
+    expect(() => new DeepfakeMarker()).toThrow(/secretKey/);
+    expect(() => new DeepfakeMarker({ secretKey: '' })).toThrow(/secretKey/);
+  });
+
+  it('does not leak the internal transformations array', () => {
+    const marker = new DeepfakeMarker({ secretKey: 'copy-key' });
+    marker.embed('asset_copy', ['a', 'b']);
+    const got = marker.getTransformations('asset_copy');
+    got.push('mutated');
+    expect(marker.getTransformations('asset_copy')).toEqual(['a', 'b']);
   });
 });

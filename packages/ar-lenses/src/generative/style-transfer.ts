@@ -47,6 +47,17 @@ export class StyleTransfer {
       };
     }
 
+    // faceOnly requested but no face detected: fail closed (do not apply to full frame).
+    if (this.config.faceOnly && !face) {
+      return {
+        applied: false,
+        region: 'face',
+        stylePreset: this.config.stylePreset,
+        intensity: 0,
+        maskBounds: null,
+      };
+    }
+
     return {
       applied: true,
       region: this.config.faceOnly ? 'face' : 'full_frame',

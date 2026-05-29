@@ -41,7 +41,7 @@ export class PromptToLens {
     const words = prompt.split(/\s+/);
     const effects = this.extractEffects(prompt);
     const triggers = this.extractTriggers(prompt);
-    const intensity = request.intensity ?? 0.7;
+    const intensity = this.clampIntensity(request.intensity);
 
     const effectKeywordMatches = Object.keys(EFFECT_KEYWORDS).filter((kw) =>
       prompt.includes(kw),
@@ -97,8 +97,18 @@ export class PromptToLens {
     return [...triggers];
   }
 
+  private clampIntensity(intensity: number | undefined): number {
+    if (intensity === undefined || !Number.isFinite(intensity)) return 0.7;
+    return Math.max(0, Math.min(1, intensity));
+  }
+
   private generateName(prompt: string): string {
-    const words = prompt.split(/\s+/).slice(0, 4);
+    const words = prompt
+      .trim()
+      .split(/\s+/)
+      .filter((w) => w.length > 0)
+      .slice(0, 4);
+    if (words.length === 0) return 'Generated Lens';
     return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
   }
 
