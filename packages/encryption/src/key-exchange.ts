@@ -1,3 +1,5 @@
+import { randomBytes, randomInt } from 'crypto';
+
 import type { PreKeyBundle, SessionState, RatchetState } from './types.js';
 
 export class KeyExchange {
@@ -10,7 +12,7 @@ export class KeyExchange {
     this.sessions = new Map();
     this.preKeyBundles = new Map();
     this.localIdentityKey = localIdentityKey ?? this.generateKey('identity');
-    this.registrationId = Math.floor(Math.random() * 16384);
+    this.registrationId = randomInt(16384);
   }
 
   getLocalIdentityKey(): string {
@@ -34,7 +36,7 @@ export class KeyExchange {
   }
 
   establishSession(remoteBundle: PreKeyBundle): SessionState {
-    const sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const sessionId = `session-${Date.now()}-${randomBytes(4).toString('hex')}`;
 
     const ratchetState: RatchetState = {
       rootKey: this.generateKey('root'),
@@ -107,11 +109,7 @@ export class KeyExchange {
   }
 
   private generateKey(prefix: string): string {
-    const chars = 'abcdef0123456789';
-    let result = '';
-    for (let i = 0; i < 64; i++) {
-      result += chars[Math.floor(Math.random() * chars.length)];
-    }
+    const result = randomBytes(32).toString('hex');
     return `${prefix}-${result}`;
   }
 }
