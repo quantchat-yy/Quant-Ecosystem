@@ -140,8 +140,8 @@ export class ContentExtractor {
       // Remove standalone timestamps at line starts: 00:01:23 or 1:23
       cleaned = cleaned.replace(/^\d{1,2}:\d{2}(?::\d{2})?\s*[-–]?\s*/gm, '');
 
-      // Remove arrow/dash separators after timestamps
-      cleaned = cleaned.replace(/-->/g, '');
+      // Remove HTML comment end tags and arrow/dash separators after timestamps
+      cleaned = cleaned.replace(/--!?>/g, '');
 
       // Normalize whitespace: collapse multiple spaces and newlines
       cleaned = cleaned.replace(/\n+/g, ' ');
