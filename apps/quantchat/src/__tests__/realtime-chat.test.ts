@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// TODO: These tests replicate hook branching logic in plain imperative code rather than
+// exercising useRealtimeChat directly. Once @testing-library/react-hooks (or equivalent
+// renderHook utility) is added as a dev dependency, rewrite these to call the actual hook
+// with a mock RealtimeContext provider.
+
 // Mock the useRealtimeChat hook logic directly since testing React hooks
 // in isolation requires a setup with renderHook
 

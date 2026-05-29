@@ -3,24 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { AppShell, TopBar, BottomNav, ChatList } from '@quant/shared-ui';
 import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
-import type { NavItem } from '@quant/shared-ui';
 import { useConversations } from '../hooks/useConversations';
-
-const navItems: NavItem[] = [
-  { id: 'chats', label: 'Chats', icon: <span>&#128172;</span> },
-  { id: 'stories', label: 'Stories', icon: <span>&#9711;</span> },
-  { id: 'camera', label: 'Camera', icon: <span>&#128247;</span> },
-  { id: 'map', label: 'Map', icon: <span>&#127758;</span> },
-  { id: 'profile', label: 'Profile', icon: <span>&#128100;</span> },
-];
-
-const routes: Record<string, string> = {
-  chats: '/',
-  stories: '/stories',
-  camera: '/camera',
-  map: '/map',
-  profile: '/profile',
-};
+import { navItems, routes } from '../lib/navigation';
 
 export default function ChatListPage() {
   const router = useRouter();

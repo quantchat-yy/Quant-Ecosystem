@@ -13,9 +13,30 @@ export { useRealtime } from './realtime-context';
 export function RealtimeProvider({ children }: { children: ReactNode }) {
   const clientRef = useRef<WebSocketClient | null>(null);
   const [connectionState, setConnectionState] = useState<ClientState>('disconnected');
+  const [token, setToken] = useState<string | null>(null);
+
+  // Poll for token availability so we re-connect when auth completes
+  useEffect(() => {
+    const currentToken = getAuthToken();
+    if (currentToken) {
+      setToken(currentToken);
+      return;
+    }
+    // Re-check every 500ms until a token becomes available
+    const interval = setInterval(() => {
+      const t = getAuthToken();
+      if (t) {
+        setToken(t);
+        clearInterval(interval);
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
-    const token = getAuthToken() || '';
+    // Gate connection on token availability - do not connect with empty token
+    if (!token) return;
+
     const url = process.env.NEXT_PUBLIC_WS_URL || 'wss://chat.quant.app/ws';
 
     const client = new WebSocketClient(
@@ -39,7 +60,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       client.disconnect();
       clientRef.current = null;
     };
-  }, []);
+  }, [token]);
 
   const subscribe = useCallback((channel: string, handler: EventHandler) => {
     if (clientRef.current) {

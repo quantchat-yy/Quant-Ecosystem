@@ -4,25 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppShell, TopBar, BottomNav } from '@quant/shared-ui';
 import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
-import type { NavItem } from '@quant/shared-ui';
 import { useStories } from '../../hooks/useStories';
 import { StoryViewer } from '../../components/StoryViewer';
-
-const navItems: NavItem[] = [
-  { id: 'chats', label: 'Chats', icon: <span>&#128172;</span> },
-  { id: 'stories', label: 'Stories', icon: <span>&#9711;</span> },
-  { id: 'camera', label: 'Camera', icon: <span>&#128247;</span> },
-  { id: 'map', label: 'Map', icon: <span>&#127758;</span> },
-  { id: 'profile', label: 'Profile', icon: <span>&#128100;</span> },
-];
-
-const routes: Record<string, string> = {
-  chats: '/',
-  stories: '/stories',
-  camera: '/camera',
-  map: '/map',
-  profile: '/profile',
-};
+import { navItems, routes } from '../../lib/navigation';
 
 export default function StoriesPage() {
   const router = useRouter();

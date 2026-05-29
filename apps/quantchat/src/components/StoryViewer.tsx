@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Story {
@@ -34,34 +34,39 @@ export function StoryViewer({
 }: StoryViewerProps) {
   const currentStory = stories[currentIndex];
 
+  // Use refs for callbacks to avoid stale closure in the auto-advance timer
+  const onNextRef = useRef(onNext);
+  const onCloseRef = useRef(onClose);
+  const onPrevRef = useRef(onPrev);
+  onNextRef.current = onNext;
+  onCloseRef.current = onClose;
+  onPrevRef.current = onPrev;
+
   useEffect(() => {
     if (!autoAdvance || !currentStory || !isOpen) return;
 
     const timer = setTimeout(() => {
       if (currentIndex < stories.length - 1) {
-        onNext();
+        onNextRef.current();
       } else {
-        onClose();
+        onCloseRef.current();
       }
     }, currentStory.duration * 1000);
 
     return () => clearTimeout(timer);
-  }, [currentIndex, currentStory, autoAdvance, isOpen, onNext, onClose, stories.length]);
+  }, [currentIndex, currentStory, autoAdvance, isOpen, stories.length]);
 
-  const handleTap = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const midpoint = rect.width / 2;
+  const handleTap = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const midpoint = rect.width / 2;
 
-      if (x < midpoint) {
-        onPrev();
-      } else {
-        onNext();
-      }
-    },
-    [onNext, onPrev],
-  );
+    if (x < midpoint) {
+      onPrevRef.current();
+    } else {
+      onNextRef.current();
+    }
+  }, []);
 
   if (!currentStory) return null;
 

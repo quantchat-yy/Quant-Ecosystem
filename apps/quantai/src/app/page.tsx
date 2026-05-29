@@ -96,7 +96,9 @@ export default function AIPage() {
               }}
             />
           </div>
-          {/* Render agentic messages inline when tool calls exist */}
+          {/* TODO: Render agentic messages inline within the chat stream once
+              AIChat supports custom render slots. Currently rendered in a separate
+              panel because AIChat only accepts {role, content} messages. */}
           {messages.some((m) => m.toolCalls && m.toolCalls.length > 0) && (
             <div className="p-4 space-y-3 border-t border-[var(--quant-border)] overflow-y-auto max-h-60">
               {messages
