@@ -19,6 +19,7 @@
     "fastify-type-provider-zod": "^4.0.2",
     "@quant/auth": "workspace:*",
     "@quant/common": "workspace:*",
+    "@quant/database": "workspace:*",
     "fastify": "^5.2.1",
     "fastify-plugin": "^5.0.1",
     "ioredis": "^5.6.1",

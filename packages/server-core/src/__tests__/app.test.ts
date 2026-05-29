@@ -27,6 +27,11 @@ describe('server-core app', () => {
       return { userId: request.auth.userId };
     });
 
+    // Register an unprotected route (global auth hook should still protect it)
+    app.get('/test-unprotected', async () => {
+      return { ok: true };
+    });
+
     await app.ready();
   });
 
@@ -57,13 +62,33 @@ describe('server-core app', () => {
   });
 
   describe('error handling', () => {
-    it('unknown routes return 404', async () => {
+    it('unknown routes return 401 when unauthenticated', async () => {
       const response = await app.inject({
         method: 'GET',
         url: '/nonexistent-route',
       });
 
-      expect(response.statusCode).toBe(404);
+      expect(response.statusCode).toBe(401);
+    });
+  });
+
+  describe('prisma plugin', () => {
+    it('decorates app with prisma client', () => {
+      expect(app.prisma).toBeDefined();
+    });
+  });
+
+  describe('global auth enforcement', () => {
+    it('rejects unauthenticated requests to unprotected routes', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/test-unprotected',
+      });
+
+      expect(response.statusCode).toBe(401);
+      const body = response.json();
+      expect(body.success).toBe(false);
+      expect(body.error.code).toBe('UNAUTHORIZED');
     });
   });
 

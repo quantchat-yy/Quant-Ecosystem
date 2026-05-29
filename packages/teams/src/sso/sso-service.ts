@@ -70,17 +70,13 @@ export class SSOService {
 
     if (!config.allowInsecureAssertion) {
       // Fail closed until real signature verification exists.
-      console.warn(
-        'SSO_VERIFICATION_NOT_IMPLEMENTED: rejecting assertion. Real SAML/OIDC ' +
-          'signature verification is required before assertions can be accepted.',
-      );
+      // SSO_VERIFICATION_NOT_IMPLEMENTED: rejecting assertion. Real SAML/OIDC
+      // signature verification is required before assertions can be accepted.
       return { valid: false };
     }
 
-    console.warn(
-      'INSECURE_SSO_STUB: accepting assertion without signature verification ' +
-        '(allowInsecureAssertion=true). Do NOT enable this in production.',
-    );
+    // INSECURE_SSO_STUB: accepting assertion without signature verification
+    // (allowInsecureAssertion=true). Do NOT enable this in production.
     return { valid: true, userId: `user-${orgId}-${assertion.slice(0, 8)}` };
   }
 

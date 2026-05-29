@@ -3,6 +3,7 @@ export { default as errorHandlerPlugin, createAppError, isAppError } from './plu
 export type { AppError } from './plugins/error-handler';
 export { default as authPlugin } from './plugins/auth';
 export type { RequireAuthOptions } from './plugins/auth';
+export { default as prismaPlugin } from './plugins/prisma';
 export { default as healthPlugin } from './plugins/health';
 export { default as metricsPlugin } from './plugins/metrics';
 export { default as requestIdPlugin } from './plugins/request-id';

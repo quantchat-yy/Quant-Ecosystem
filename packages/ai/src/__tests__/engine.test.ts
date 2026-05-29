@@ -26,7 +26,7 @@ describe('AIEngine', () => {
 
     vi.mocked(generateText).mockResolvedValue({
       text: 'Mocked AI response content',
-      usage: { promptTokens: 10, completionTokens: 20 },
+      usage: { inputTokens: 10, outputTokens: 20 },
       finishReason: 'stop',
     } as never);
 

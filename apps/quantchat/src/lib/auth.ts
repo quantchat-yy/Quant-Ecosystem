@@ -39,7 +39,7 @@ export function getWsAuthUrl(conversationId: string): string {
   const wsBase = envWsUrl
     ? envWsUrl
     : typeof window !== 'undefined'
-      ? `ws://${window.location.hostname}:3001`
-      : `ws://127.0.0.1:3001`;
+      ? `ws://${window.location.hostname}:3002`
+      : `ws://127.0.0.1:3002`;
   return `${wsBase}/ws/chat?conversationId=${conversationId}&token=${token}`;
 }

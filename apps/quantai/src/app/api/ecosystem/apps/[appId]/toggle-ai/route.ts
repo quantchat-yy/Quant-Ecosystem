@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.QUANTAI_BACKEND_URL || 'http://localhost:3002';
+const BACKEND_URL = process.env.QUANTAI_BACKEND_URL || 'http://localhost:3020';
 
 export async function POST(
   request: NextRequest,
