@@ -5,6 +5,7 @@
 
 import React, { useCallback } from 'react';
 import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
+import { sanitizeMediaUrl } from '@quant/common';
 import { useFeed } from '../hooks/useFeed';
 
 const FeedPage: React.FC = () => {
@@ -59,14 +60,14 @@ const FeedPage: React.FC = () => {
             <div className="post-header">
               <img
                 className="post-author-avatar"
-                src={post.authorAvatar}
+                src={sanitizeMediaUrl(post.authorAvatar)}
                 alt={post.authorUsername}
               />
               <span className="post-author-name">{post.authorUsername}</span>
             </div>
             <div className="post-media" onDoubleClick={() => actions.doubleTapLike(post.id)}>
               {post.mediaUrls && post.mediaUrls.length > 0 && (
-                <img className="post-image" src={post.mediaUrls[0]} alt="Post" />
+                <img className="post-image" src={sanitizeMediaUrl(post.mediaUrls[0])} alt="Post" />
               )}
               {state.likeAnimation === post.id && (
                 <div className="like-animation">

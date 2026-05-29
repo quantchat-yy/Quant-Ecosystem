@@ -4,6 +4,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { sanitizeMediaUrl } from '@quant/common';
 
 interface Post {
   id: string;
@@ -298,7 +299,7 @@ const FeedPage: React.FC = () => {
           >
             <div className="flex gap-3">
               <img
-                src={post.authorAvatar}
+                src={sanitizeMediaUrl(post.authorAvatar)}
                 alt={post.authorName}
                 className="w-12 h-12 rounded-full object-cover flex-shrink-0"
               />
@@ -334,12 +335,16 @@ const FeedPage: React.FC = () => {
                       <div key={idx} className="relative aspect-video bg-gray-100">
                         {m.type === 'video' ? (
                           <video
-                            src={m.url}
-                            poster={m.thumbnail}
+                            src={sanitizeMediaUrl(m.url)}
+                            poster={sanitizeMediaUrl(m.thumbnail)}
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <img src={m.url} alt="" className="w-full h-full object-cover" />
+                          <img
+                            src={sanitizeMediaUrl(m.url)}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
                         )}
                       </div>
                     ))}

@@ -83,7 +83,7 @@ export function formatDate(date: Date, format: 'iso' | 'short' | 'long' = 'iso')
  */
 export function debounce<T extends (...args: unknown[]) => unknown>(
   fn: T,
-  waitMs: number
+  waitMs: number,
 ): (...args: Parameters<T>) => void {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -103,7 +103,7 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
  */
 export function throttle<T extends (...args: unknown[]) => unknown>(
   fn: T,
-  intervalMs: number
+  intervalMs: number,
 ): (...args: Parameters<T>) => void {
   let lastCallTime = 0;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -152,7 +152,7 @@ export function sleep(ms: number): Promise<void> {
  */
 export async function retry<T>(
   fn: () => Promise<T>,
-  options: { maxAttempts?: number; baseDelayMs?: number; maxDelayMs?: number } = {}
+  options: { maxAttempts?: number; baseDelayMs?: number; maxDelayMs?: number } = {},
 ): Promise<T> {
   const { maxAttempts = 3, baseDelayMs = 1000, maxDelayMs = 30000 } = options;
 
@@ -174,10 +174,7 @@ export async function retry<T>(
 /**
  * Create a paginated result from an array
  */
-export function paginate<T>(
-  items: T[],
-  params: PaginationParams
-): PaginatedResult<T> {
+export function paginate<T>(items: T[], params: PaginationParams): PaginatedResult<T> {
   const { page, pageSize } = params;
   const total = items.length;
   const totalPages = Math.ceil(total / pageSize);
@@ -247,7 +244,7 @@ export function hashString(str: string): string {
  */
 export function pick<T extends Record<string, unknown>, K extends keyof T>(
   obj: T,
-  keys: K[]
+  keys: K[],
 ): Pick<T, K> {
   const result = {} as Pick<T, K>;
   for (const key of keys) {
@@ -263,7 +260,7 @@ export function pick<T extends Record<string, unknown>, K extends keyof T>(
  */
 export function omit<T extends Record<string, unknown>, K extends keyof T>(
   obj: T,
-  keys: K[]
+  keys: K[],
 ): Omit<T, K> {
   const result = { ...obj };
   for (const key of keys) {
@@ -315,4 +312,44 @@ export function isEmpty(value: unknown): boolean {
   if (Array.isArray(value)) return value.length === 0;
   if (typeof value === 'object') return Object.keys(value).length === 0;
   return false;
+}
+
+/**
+ * Sanitize a URL for use in media src attributes (img, video, audio).
+ * Only allows http:, https:, and data:image/ protocols.
+ * Returns an empty string for invalid or potentially dangerous URLs.
+ */
+export function sanitizeMediaUrl(url: string | undefined | null): string {
+  if (!url || typeof url !== 'string') return '';
+
+  const trimmed = url.trim();
+  if (trimmed === '') return '';
+
+  // Block obfuscated javascript: protocol (with whitespace/control chars)
+  if (/j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t\s*:/i.test(trimmed)) {
+    return '';
+  }
+
+  // Block vbscript: protocol
+  if (/v\s*b\s*s\s*c\s*r\s*i\s*p\s*t\s*:/i.test(trimmed)) {
+    return '';
+  }
+
+  // Allow relative URLs (no protocol)
+  if (trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../')) {
+    return trimmed;
+  }
+
+  // Allow safe absolute protocols
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Allow data:image/ URLs (but not data:text/html or other dangerous types)
+  if (/^data:image\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Block everything else (unknown protocols, data:text/html, etc.)
+  return '';
 }
