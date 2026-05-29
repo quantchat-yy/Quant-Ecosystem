@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "fix",
   "description": "Fix XSS vulnerabilities: The sanitize.ts functions (sanitizeHtmlContent and sanitizeCodeHighlight) return unsanitized HTML when typeof window === 'undefined' (SSR). CodeQL flags dangerouslySetInnerHTML usage because DOMPurify is bypassed during SSR. Fix by using a server-safe sanitization approach (e.g., isomorphic-dompurify or a regex-based server-side strip for dangerous patterns).",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "In packages/shared-ui/src/utils/sanitize.ts, replace the SSR bypass (returning raw html) with server-safe sanitization. Use the 'isomorphic-dompurify' package OR implement server-side sanitization that strips script tags, event handlers, and dangerous protocols when window is undefined. The key issue is the `if (typeof window === 'undefined') return html;` pattern which returns unsanitized content.",
     "Install isomorphic-dompurify in the shared-ui package (pnpm add isomorphic-dompurify --filter @quant/shared-ui). Replace the DOMPurify import with isomorphic-dompurify. This makes DOMPurify work in both Node.js and browser contexts, eliminating the need for the SSR bypass.",
@@ -20,5 +20,5 @@
     "Run: cd /projects/sandbox/Quant-Ecosystem && pnpm --filter @quant/shared-ui test"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Replaced dompurify with isomorphic-dompurify. Removed SSR bypass. All 257 tests in shared-ui pass (including 11 sanitize tests). Typecheck has pre-existing TS6305 errors from unbuilt brand/common package dist outputs (confirmed same on base branch). The @types/dompurify package shows a deprecation warning but still works correctly with isomorphic-dompurify."
 }
