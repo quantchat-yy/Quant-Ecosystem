@@ -113,6 +113,28 @@ Code-level ~45-50% to Meta+Google. Production-real ~12-15%. **Breadth raced ahea
 
 **The status JSON saying `typecheck: fail` / `build: fail` is now WRONG and is itself a defect** (it will mislead every future agent and break CI dashboards). Fix it honestly (BUG-4) — do not just flip it to `pass`; flip it only after BUG-1 makes the aggregate run deterministic.
 
+## A2.2b — DEEP-DIVE STATE SNAPSHOT (verified May 29, 2026, 15:30 UTC — post merges of #93/#96–#101)
+
+**Where we actually are (measured, not claimed):**
+- **Scale:** 80 packages, 16 apps, 8 services.
+- **Gates on `main` (HEAD f7bd96f):** `install --frozen-lockfile` ✅, `turbo typecheck` **120/120** ✅, `turbo test` **124/124** ✅, `turbo build` ✅, `lint` ✅ (warnings only), `audit --audit-level=high` exit 0 ✅.
+- **Phases merged & live on main:** through **Phase 75** — 73 (BYOC + Quant Credits), 74 (Quant Studio UGC), 75 (Cross-App Gaming). Plus BLOCK-0 fixes (deterministic turbo outputs, vitest discovery, ai SDK alignment) and #98 coverage work.
+- **Coverage-gate (auth/payments/security @ 80%):** auth **80.4%** ✅, payments **83.2%** ✅, security **~50%** ⏳ (needs the remaining 0% modules — encryption, csrf-protection, rate-limiter, audit-logger, ddos-protection, honeypot, ip-geolocation, mtls-config, oauth2-security, pii-compliance, session-security — covered to reach 80%).
+- **`test-and-coverage` global gate:** real product line coverage ~30% < 50% — still red (BUG-2, large effort).
+- **Still open debt:** BUG-2 (coverage), BUG-3 (Phase-68 motion/a11y), BUG-5 (7 moderate vulns), BUG-6 (simulated core honesty).
+
+### BUG-0 — MERGE & DEPENDENCY COHERENCE (process gate — added May 29 after a live main-break) 🔴
+
+**What happened:** PR #93 pinned `ai@^4.3.19` (to match the v1.x `@ai-sdk/*` providers + v4-style code). PR #96 independently rewrote `packages/ai/engine.ts` to the **v6** API (`maxOutputTokens`, `usage.inputTokens`, `providerModel as any`). When #96 merged, the lockfile/package.json kept `ai@4` but the code became v6 → `@quant/ai` typecheck broke on `main` and cascaded to dependents (fixed in #101 by restoring the v4-consistent engine). Separately, **every** Kiro phase PR (#95, #99, #100) conflicts on `pnpm-lock.yaml` because each adds a package while `main` advances.
+
+**Rules Kiro MUST follow on every phase PR (non-negotiable):**
+1. **Rebase/merge `main` into the PR branch and re-run `turbo typecheck` + `turbo test` BEFORE marking ready.** A PR that was green at creation is not green after `main` moves. Treat "green on stale base" as untested.
+2. **Resolve `pnpm-lock.yaml` conflicts by taking `main`'s lockfile, then `pnpm install --lockfile-only`** (adds only the new package's entry, no unrelated version bumps). Always verify `pnpm install --frozen-lockfile` exits 0 afterward.
+3. **One library, one major version.** Never change a dependency's major (e.g. `ai` v4→v6) without, in the SAME PR, updating BOTH the code AND the matching provider/peer packages, and proving `turbo typecheck` green. If two PRs touch the same dependency, the second to merge MUST re-verify the combined result.
+4. **After every merge to `main`, immediately run `turbo typecheck` + `turbo test` on `main`.** If red, the merge is not done — fix forward in a follow-up PR before starting the next phase. `main` is never left red.
+
+**Hard gate:** no phase PR is merged unless, on its branch with latest `main` merged in, `turbo typecheck` + `turbo test` are green and `pnpm install --frozen-lockfile` exits 0.
+
 ## A2.3 — THE NEW/REMAINING BUGS (verified, with evidence) — Kiro fixes these next
 
 ### BUG-1 — `pnpm build` + cold `pnpm typecheck` are FLAKY (CI blocker) 🔴
@@ -635,13 +657,31 @@ Anyone builds games/apps/tools/lenses/agents — vibe-code, visual, real code, o
 
 Same game playable in QuantChat (Snapchat-style), QuantMax random video (Omegle++, anonymous-then-consent-reveal), QuantNeon feed, QuantMeet icebreakers. One identity, universal leaderboard. Minor-safe. (Full spec: prior prompt Phase 47/57.)
 
-### PHASE 76 — AR Lenses + Face Games
+### PHASE 76 — AR Lenses + Face Games  ← **NEXT UP for Kiro**
 
-Real-time face/hand/body tracking, AR overlays, generative lenses, user-built lenses (Lens Studio), cross-app. Ethical filter design. (Full spec: prior prompt Phase 48/58.)
+Real-time face/hand/body tracking, AR overlays, generative lenses, user-built lenses, cross-app. Ethical filter design. (Background spec: prior prompt Phase 48/58.)
+
+**Build in `packages/ar-lenses` (mirror the Phase 74/75 shape: typed services + Zod schemas + ≥80 real tests, no UI dependency for the core).** Concrete deliverables:
+- **`LensManifest` + validator** — `.lens` format (Zod): lens id/version/author, requested capabilities (`face` | `hand` | `body` | `segmentation`), asset refs, target apps, content rating. Reuse the `@quant/quant-studio` permission-gate + CSP pattern — a lens is a sandboxed UGC artifact. **Do not duplicate**: import `quant-studio`'s sandbox/permission primitives.
+- **`TrackingService`** — capability-gated, backend-agnostic interface over face/hand/body/segmentation landmark streams (define the adapter interface; provide a deterministic `@simulated` adapter for tests, labeled per BUG-6 — do NOT claim a real ML backend until wired to MediaPipe/TF.js in Phase 77/83).
+- **`LensCompositor`** — applies overlays/effects to a frame given landmarks; pure, testable transforms (anchor to landmark, scale, occlusion order).
+- **`GenerativeLensService`** — text→lens via the BYOC AI layer (`@quant/ai`), permission-gated, provenance-tagged output.
+- **`CrossAppLensHost`** — reuse Phase 75's app-context hosting (chat/feed/fullscreen/meeting/random) so a lens runs in QuantChat/QuantMax/QuantNeon/QuantMeet with one identity.
+- **`EthicsGuard`** — beauty-filter disclosure flag, no covert face-reshaping without a visible "edited" badge, minor-safety reuse of Phase 75's `MinorSafetyService`, no biometric retention (landmarks are ephemeral; assert no persistence).
+**Security/ethics P0:** lenses are untrusted UGC — run them through the quant-studio sandbox (CSP, IPC limits, permission gate). Biometric data never leaves the device boundary in the core; the simulated adapter must make that explicit.
+**HARD GATE:** `@quant/ar-lenses` ≥ 80 meaningful tests (manifest validation, capability gating, compositor transforms, ethics/minor-safety enforcement, cross-app host); `turbo typecheck`+`turbo test` green with latest `main` merged in (BUG-0 rules); simulated tracking labeled `@simulated`; PR resolves pnpm-lock per BUG-0 rule 2.
 
 ### PHASE 77 — Gemini-Omni-class Generative + Agentic 2.0
 
-Any-to-any media gen with provenance (SynthID/C2PA), object-level image editing, Quant Flow (AI filmmaking + vibe-coded tools), Information Agents, Daily Brief/Spark, Universal Cart, voice brain-dump. Beat Antigravity/Flow/Info-Agents with BYOC + cross-app edge. (Full spec: prior prompts.)
+Any-to-any media gen with provenance (SynthID/C2PA), object-level image editing, Quant Flow (AI filmmaking + vibe-coded tools), Information Agents, Daily Brief/Spark, Universal Cart, voice brain-dump. Beat Antigravity/Flow/Info-Agents with BYOC + cross-app edge. (Background spec: prior prompts.)
+
+**Build in `packages/generative-omni` (or deepen existing `generative-media`); typed services + Zod + ≥80 real tests.** Concrete deliverables:
+- **`MediaGenService`** — any-to-any (text/image/audio/video) over the BYOC `@quant/ai` provider layer; every output carries a **provenance record** (C2PA-style manifest: model, prompt hash, timestamp, SynthID-style watermark flag). Provenance is mandatory and tested.
+- **`ObjectEditService`** — segment + edit a named object in an image (mask → transform → recompose); pure, testable region ops with a `@simulated` model adapter.
+- **`QuantFlow`** — node-graph for AI filmmaking + vibe-coded tools: typed nodes (gen, edit, compose, branch), deterministic graph execution + checkpoint/resume (reuse Phase 71 `quant-automate` durable-run primitives — do not reinvent).
+- **`InformationAgent`** — standing query → schedule → multi-source fetch → synthesize → Daily Brief / Spark digest (reuse `quant-tools` IntentRouter + `ai-daily-brief`).
+- **`UniversalCart`** — cross-app "buy/save/act on this" object that any app can drop into, settled via Phase 73 credits/payments.
+**HARD GATE:** provenance on 100% of generated artifacts (tested); ≥80 tests; BUG-0 rules; any un-wired model path labeled `@simulated` (BUG-6), with a tracking note pointing at Phase 83 for the real adapter.
 
 ### PHASE 78 — Smart Glasses + Wearables
 
