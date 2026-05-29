@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { useState, useCallback, useRef, useMemo } from 'react';
+import { getAuthToken } from '../lib/auth';
 
 interface ChatMessage {
   id: string;
@@ -153,10 +154,11 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
       const decoder = new TextDecoder();
       let buffer = '';
       let accumulated = '';
+      let streamDone = false;
 
       try {
         while (true) {
-          if (signal.aborted) break;
+          if (signal.aborted || streamDone) break;
           const { done, value } = await reader.read();
           if (done) break;
 
@@ -167,7 +169,10 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               const data = line.slice(6);
-              if (data === '[DONE]') break;
+              if (data === '[DONE]') {
+                streamDone = true;
+                break;
+              }
               try {
                 const parsed = JSON.parse(data);
                 const token = parsed.content || parsed.token || parsed.delta?.content || '';
@@ -237,7 +242,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         setIsStreaming(true);
         setError(null);
 
-        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const token = getAuthToken();
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
 

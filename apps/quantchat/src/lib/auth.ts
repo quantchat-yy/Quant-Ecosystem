@@ -35,5 +35,11 @@ export function getAuthHeadersWithContent(): Record<string, string> {
  */
 export function getWsAuthUrl(conversationId: string): string {
   const token = getAuthToken() || '';
-  return `ws://localhost:3001/ws/chat?conversationId=${conversationId}&token=${token}`;
+  const envWsUrl = process.env.NEXT_PUBLIC_WS_URL;
+  const wsBase = envWsUrl
+    ? envWsUrl
+    : typeof window !== 'undefined'
+      ? `ws://${window.location.hostname}:3001`
+      : `ws://127.0.0.1:3001`;
+  return `${wsBase}/ws/chat?conversationId=${conversationId}&token=${token}`;
 }
