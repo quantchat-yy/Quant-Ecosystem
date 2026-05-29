@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Create the @quant/cross-app-gaming package with full implementation: types, game session service, universal leaderboard, cross-app hosting adapters, identity bridge, minor safety layer, and comprehensive tests.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create packages/cross-app-gaming/package.json following the pattern from packages/cross-app-workflows/package.json. Name: @quant/cross-app-gaming. Dependencies: zod ^3.23.0, @quant/common workspace:*. DevDeps: @types/node ^22, typescript ~5.5.0, vitest ^2.",
     "Create packages/cross-app-gaming/tsconfig.json extending ../../tsconfig.json with outDir:./dist, rootDir:./src, composite:true, references to ../common.",
@@ -38,5 +38,5 @@
     "source /root/.nvm/nvm.sh && nvm use 22 && cd /projects/sandbox/Quant-Ecosystem && pnpm lint --filter=@quant/cross-app-gaming"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Review fixes applied: (1) AnonymousIdentity no longer leaks realUserId - split into PublicAnonymousIdentity returned to callers and internal mapping. (2) checkGameAccess now uses content ratings (everyone/teen/mature) to block age-inappropriate games. (3) Regional leaderboard filter now correctly matches entry.region against options.region. (4) Added revokeConsent() method that sets revoked=true, causing getDisplayIdentity to return anonymous. (5) Added cleanupAbandonedSessions(maxAgeMs) to remove stale abandoned sessions. (6) Added registerGameContexts() so getAvailableContexts returns only supported contexts. All 88 tests pass (up from 72). Typecheck passes."
 }
