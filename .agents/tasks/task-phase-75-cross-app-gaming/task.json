@@ -1,0 +1,7 @@
+{
+  "task_id": "task-phase-75-cross-app-gaming",
+  "task_description": "Phase 75: Cross-App Gaming + Social Play - Create a @quant/cross-app-gaming package that enables the same game to be played across QuantChat, QuantMax random video, QuantNeon feed, and QuantMeet icebreakers. Includes game session management, universal leaderboard, cross-app hosting adapters, identity bridge (anonymous-then-consent-reveal), and minor safety enforcement.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001"],
+  "blocked_reason": null
+}
