@@ -24,5 +24,5 @@
     "pnpm turbo test --filter=@quant/quantai"
   ],
   "blocked_reason": null,
-  "findings": "Replaced setInterval-based fake streaming with real fetch + ReadableStream SSE parsing. Removed useMutation and apiClient imports (replaced with direct fetch to /api/assistant/chat). Added AbortController for cancel support. The hook now supports both SSE (text/event-stream) and regular JSON responses. All 155 tests pass, typecheck green. Prettier reformatted via pre-commit hook."
+  "findings": "Replaced setInterval-based fake streaming with real fetch + ReadableStream SSE parsing. Removed useMutation and apiClient imports (replaced with direct fetch to /api/assistant/chat). Added AbortController for cancel support. The hook now supports both SSE (text/event-stream) and regular JSON responses. All 155 tests pass, typecheck green. Prettier reformatted via pre-commit hook. Review fixes: (1) added streamDone flag so [DONE] sentinel properly breaks both inner for-loop and outer while(true) reader loop, (2) created apps/quantai/src/lib/auth.ts and replaced direct localStorage.getItem('token') with centralized getAuthToken() import."
 }
