@@ -150,7 +150,18 @@ ${this.escapeLatex(plainContent)}
   }
 
   private escapeLatex(text: string): string {
-    return text.replace(/\\/g, '\\textbackslash{}').replace(/[&%$#_{}~^]/g, '\\$&');
+    return text.replace(/[\\&%$#_{}~^]/g, (match) => {
+      switch (match) {
+        case '\\':
+          return '\\textbackslash{}';
+        case '~':
+          return '\\textasciitilde{}';
+        case '^':
+          return '\\textasciicircum{}';
+        default:
+          return '\\' + match;
+      }
+    });
   }
 
   private stripHtml(html: string): string {
