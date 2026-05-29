@@ -49,12 +49,18 @@ export class ContentExtractor {
         while ((tjArrayMatch = tjArrayRegex.exec(segment)) !== null) {
           const arrayContent = tjArrayMatch[1];
           if (!arrayContent) continue;
-          const stringRegex = /\(([^)]*)\)/g;
-          let strMatch: RegExpExecArray | null;
-          while ((strMatch = stringRegex.exec(arrayContent)) !== null) {
-            if (strMatch[1]) {
-              textSegments.push(strMatch[1]);
+          // Use iterative parsing instead of regex to avoid ReDoS risk
+          let searchStart = 0;
+          while (searchStart < arrayContent.length) {
+            const openIdx = arrayContent.indexOf('(', searchStart);
+            if (openIdx === -1) break;
+            const closeIdx = arrayContent.indexOf(')', openIdx + 1);
+            if (closeIdx === -1) break;
+            const content = arrayContent.substring(openIdx + 1, closeIdx);
+            if (content) {
+              textSegments.push(content);
             }
+            searchStart = closeIdx + 1;
           }
         }
       }
