@@ -226,7 +226,7 @@ export default function CodePage(): JSX.Element {
     const keywords = KEYWORD_CLASSES[language] || [];
     const lines = code.split('\n');
     return lines.map((line) => {
-      let highlighted = line;
+      let highlighted = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       keywords.forEach((kw) => {
         const regex = new RegExp(`\\b${kw}\\b`, 'g');
         highlighted = highlighted.replace(regex, `<span class="keyword">${kw}</span>`);
