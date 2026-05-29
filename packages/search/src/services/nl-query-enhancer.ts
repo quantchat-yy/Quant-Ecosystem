@@ -29,9 +29,9 @@ const ACTION_PATTERNS: RegExp[] = [
 ];
 
 const PROJECT_PATTERNS: RegExp[] = [
-  /\babout\s+[Pp]roject\s+([A-Z][a-zA-Z0-9\s]+?)(?:\s+and|\s+or|\s*$)/,
-  /\b[Pp]roject\s+([A-Z][a-zA-Z0-9\s]+?)(?:\s+and|\s+or|\s*$)/,
-  /\brelated\s+to\s+([A-Z][a-zA-Z0-9\s]+?)(?:\s+and|\s+or|\s*$)/,
+  /\babout\s+[Pp]roject\s+([A-Z][a-zA-Z0-9]*(?:\s+[a-zA-Z0-9]+)*)(?:\s+(?:and|or)\b|$)/,
+  /\b[Pp]roject\s+([A-Z][a-zA-Z0-9]*(?:\s+[a-zA-Z0-9]+)*)(?:\s+(?:and|or)\b|$)/,
+  /\brelated\s+to\s+([A-Z][a-zA-Z0-9]*(?:\s+[a-zA-Z0-9]+)*)(?:\s+(?:and|or)\b|$)/,
 ];
 
 const PERSON_PATTERNS: RegExp[] = [
@@ -42,9 +42,9 @@ const PERSON_PATTERNS: RegExp[] = [
 ];
 
 const TOPIC_PATTERNS: RegExp[] = [
-  /\babout\s+(.+?)(?:\s+from|\s+by|\s+since|\s+in\s|\s*$)/i,
-  /\bregarding\s+(.+?)(?:\s+from|\s+by|\s+since|\s+in\s|\s*$)/i,
-  /\brelated\s+to\s+(.+?)(?:\s+from|\s+by|\s+since|\s+in\s|\s*$)/i,
+  /\babout\s+(\S+(?:\s+(?!from\b|by\b|since\b|in\s)\S+)*)/i,
+  /\bregarding\s+(\S+(?:\s+(?!from\b|by\b|since\b|in\s)\S+)*)/i,
+  /\brelated\s+to\s+(\S+(?:\s+(?!from\b|by\b|since\b|in\s)\S+)*)/i,
 ];
 
 /**
@@ -76,6 +76,10 @@ export class NLQueryEnhancer {
   }
 
   private detectIntent(query: string): QueryIntent {
+    if (query.length > 1000) {
+      return 'informational';
+    }
+
     for (const pattern of ACTION_PATTERNS) {
       if (pattern.test(query)) {
         return 'action';
@@ -92,6 +96,10 @@ export class NLQueryEnhancer {
   }
 
   private extractEntities(query: string): ExtractedEntity[] {
+    if (query.length > 1000) {
+      return [];
+    }
+
     const entities: ExtractedEntity[] = [];
     const seen = new Set<string>();
 
