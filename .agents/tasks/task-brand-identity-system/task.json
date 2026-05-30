@@ -9,6 +9,6 @@
     "tests": "pass",
     "test_quality": "pass",
     "docker_build": "skipped",
-    "summary": "typecheck passes with zero errors, all 31 tests pass, lint clean. Review issues addressed: bharat primary darkened to #C24500 (5.07:1 vs white), maskable icon fill fixed, logo circle text contrast fixed with dark text on light brand colors, primary/primaryForeground AA test added, generateThemeCSS now throws for unknown themes, devanagari JSDoc added."
+    "summary": "typecheck passes with zero errors, all 33 tests pass, lint clean. V2 review issues addressed: QuantDrive logo circle lightened to #818CF8, QuantAI logo circle lightened to #A78BFA, light/colorblindSafe accentForeground changed to #000000, dark destructiveForeground changed to #000000, accent/destructive AA test coverage added."
   }
 }
