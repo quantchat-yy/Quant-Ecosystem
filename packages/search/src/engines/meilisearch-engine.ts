@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { MeiliSearch } from 'meilisearch';
 import type { SearchEngine, SearchResult, SearchEngineOptions, IndexConfig } from './types';
 
