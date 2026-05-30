@@ -35,7 +35,7 @@ async function gracefulShutdownPlugin(fastify: FastifyInstance, opts: GracefulSh
 
   fastify.addHook('onRequest', async (_request: FastifyRequest, reply: FastifyReply) => {
     if (isShuttingDown) {
-      reply.status(503).send({ error: 'Service shutting down' });
+      return reply.status(503).send({ error: 'Service shutting down' });
     }
   });
 

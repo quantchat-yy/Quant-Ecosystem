@@ -121,27 +121,11 @@ export class UnifiedAIService {
 
   /**
    * Generate an embedding vector for the given text.
-   * Returns mock embeddings when no API keys are configured.
+   * TODO: Wire up real embedding provider (OpenAI text-embedding-3-large)
+   * For now, return deterministic mock embeddings.
    */
-  async generateEmbedding(text: string): Promise<number[]> {
-    if (!hasAnyProvider()) {
-      return generateMockEmbedding(1536);
-    }
-
-    // When real providers are available, use the engine for embedding
-    // For now, the Vercel AI SDK embedding support is provider-specific
-    // so we use a mock-based approach with proper dimension
-    try {
-      await this.generateText(text, {
-        systemPrompt: 'Generate a semantic representation of the following text.',
-        maxTokens: 10,
-      });
-      // Real embedding would come from a dedicated embedding endpoint
-      // For this implementation, return mock embedding when engine is available
-      return generateMockEmbedding(1536);
-    } catch {
-      return generateMockEmbedding(1536);
-    }
+  async generateEmbedding(_text: string): Promise<number[]> {
+    return generateMockEmbedding(1536);
   }
 
   /**

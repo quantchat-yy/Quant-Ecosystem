@@ -43,8 +43,9 @@ services:
     environment:
       DATABASE_URL: postgresql://quant:quant_secret@postgres:5432/quantdb
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: dev-jwt-secret-change-in-production-32chars!
-      NODE_ENV: production
+      # Set JWT_SECRET in .env for local dev; required in production
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-in-production!!!}
+      NODE_ENV: ${NODE_ENV:-development}
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,8 +63,8 @@ services:
     environment:
       DATABASE_URL: postgresql://quant:quant_secret@postgres:5432/quantdb
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: dev-jwt-secret-change-in-production-32chars!
-      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-in-production!!!}
+      NODE_ENV: ${NODE_ENV:-development}
     depends_on:
       postgres:
         condition: service_healthy
@@ -81,10 +82,10 @@ services:
     environment:
       DATABASE_URL: postgresql://quant:quant_secret@postgres:5432/quantdb
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: dev-jwt-secret-change-in-production-32chars!
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-in-production!!!}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-development}
     depends_on:
       postgres:
         condition: service_healthy
@@ -102,8 +103,8 @@ services:
     environment:
       DATABASE_URL: postgresql://quant:quant_secret@postgres:5432/quantdb
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: dev-jwt-secret-change-in-production-32chars!
-      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-in-production!!!}
+      NODE_ENV: ${NODE_ENV:-development}
     depends_on:
       postgres:
         condition: service_healthy
@@ -120,7 +121,7 @@ services:
       - '8080:8080'
     environment:
       REDIS_URL: redis://redis:6379
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-development}
     depends_on:
       redis:
         condition: service_healthy

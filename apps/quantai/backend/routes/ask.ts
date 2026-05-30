@@ -10,6 +10,8 @@ const askBodySchema = z.object({
 });
 
 export default async function askRoutes(fastify: FastifyInstance) {
+  const aiService = new UnifiedAIService();
+
   // POST /api/ask - Single-shot Q&A
   fastify.post('/ask', async (request, reply) => {
     const parseResult = askBodySchema.safeParse(request.body);
@@ -27,9 +29,8 @@ export default async function askRoutes(fastify: FastifyInstance) {
     }
 
     const { question, model, systemPrompt } = parseResult.data;
-    const service = new UnifiedAIService();
 
-    const response = await service.generateText(question, {
+    const response = await aiService.generateText(question, {
       model,
       systemPrompt,
       userId,

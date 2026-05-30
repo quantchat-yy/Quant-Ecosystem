@@ -1,3 +1,6 @@
+-- Initial migration for Quant Ecosystem
+-- This migration should only run once on a clean database.
+
 -- CreateExtension
 CREATE EXTENSION IF NOT EXISTS vector;
 
@@ -35,7 +38,7 @@ CREATE TYPE "MergeStrategy" AS ENUM ('MERGE', 'SQUASH', 'REBASE');
 CREATE TYPE "CIStatus" AS ENUM ('PENDING', 'RUNNING', 'SUCCESS', 'FAILED', 'CANCELLED');
 
 -- CreateTable: users
-CREATE TABLE IF NOT EXISTS "users" (
+CREATE TABLE "users" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "username" TEXT NOT NULL,
@@ -78,7 +81,7 @@ CREATE INDEX "users_status_idx" ON "users"("status");
 CREATE INDEX "users_createdAt_idx" ON "users"("createdAt");
 
 -- CreateTable: sessions
-CREATE TABLE IF NOT EXISTS "sessions" (
+CREATE TABLE "sessions" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "token" TEXT NOT NULL,
@@ -97,7 +100,7 @@ CREATE INDEX "sessions_token_idx" ON "sessions"("token");
 CREATE INDEX "sessions_expiresAt_idx" ON "sessions"("expiresAt");
 
 -- CreateTable: refresh_tokens
-CREATE TABLE IF NOT EXISTS "refresh_tokens" (
+CREATE TABLE "refresh_tokens" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "token" TEXT NOT NULL,
@@ -115,7 +118,7 @@ CREATE INDEX "refresh_tokens_token_idx" ON "refresh_tokens"("token");
 CREATE INDEX "refresh_tokens_family_idx" ON "refresh_tokens"("family");
 
 -- CreateTable: oauth_accounts
-CREATE TABLE IF NOT EXISTS "oauth_accounts" (
+CREATE TABLE "oauth_accounts" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "provider" TEXT NOT NULL,
@@ -134,7 +137,7 @@ CREATE UNIQUE INDEX "oauth_accounts_provider_providerAccountId_key" ON "oauth_ac
 CREATE INDEX "oauth_accounts_userId_idx" ON "oauth_accounts"("userId");
 
 -- CreateTable: user_relationships
-CREATE TABLE IF NOT EXISTS "user_relationships" (
+CREATE TABLE "user_relationships" (
     "id" TEXT NOT NULL,
     "followerId" TEXT NOT NULL,
     "followingId" TEXT NOT NULL,
@@ -149,7 +152,7 @@ CREATE INDEX "user_relationships_followerId_idx" ON "user_relationships"("follow
 CREATE INDEX "user_relationships_followingId_idx" ON "user_relationships"("followingId");
 
 -- CreateTable: conversations
-CREATE TABLE IF NOT EXISTS "conversations" (
+CREATE TABLE "conversations" (
     "id" TEXT NOT NULL,
     "type" "ConversationType" NOT NULL DEFAULT 'DIRECT',
     "name" TEXT,
@@ -170,7 +173,7 @@ CREATE INDEX "conversations_createdBy_idx" ON "conversations"("createdBy");
 CREATE INDEX "conversations_lastMessageAt_idx" ON "conversations"("lastMessageAt");
 
 -- CreateTable: conversation_members
-CREATE TABLE IF NOT EXISTS "conversation_members" (
+CREATE TABLE "conversation_members" (
     "id" TEXT NOT NULL,
     "conversationId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -190,7 +193,7 @@ CREATE INDEX "conversation_members_conversationId_idx" ON "conversation_members"
 CREATE INDEX "conversation_members_userId_idx" ON "conversation_members"("userId");
 
 -- CreateTable: messages
-CREATE TABLE IF NOT EXISTS "messages" (
+CREATE TABLE "messages" (
     "id" TEXT NOT NULL,
     "conversationId" TEXT NOT NULL,
     "senderId" TEXT NOT NULL,
@@ -217,7 +220,7 @@ CREATE INDEX "messages_senderId_idx" ON "messages"("senderId");
 CREATE INDEX "messages_createdAt_idx" ON "messages"("createdAt");
 
 -- CreateTable: message_reactions
-CREATE TABLE IF NOT EXISTS "message_reactions" (
+CREATE TABLE "message_reactions" (
     "id" TEXT NOT NULL,
     "messageId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -231,7 +234,7 @@ CREATE UNIQUE INDEX "message_reactions_messageId_userId_emoji_key" ON "message_r
 CREATE INDEX "message_reactions_messageId_idx" ON "message_reactions"("messageId");
 
 -- CreateTable: emails
-CREATE TABLE IF NOT EXISTS "emails" (
+CREATE TABLE "emails" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "threadId" TEXT,
@@ -275,7 +278,7 @@ CREATE INDEX "emails_isRead_idx" ON "emails"("isRead");
 CREATE INDEX "emails_receivedAt_idx" ON "emails"("receivedAt");
 
 -- CreateTable: email_threads
-CREATE TABLE IF NOT EXISTS "email_threads" (
+CREATE TABLE "email_threads" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "subject" TEXT NOT NULL,
@@ -294,7 +297,7 @@ CREATE INDEX "email_threads_userId_idx" ON "email_threads"("userId");
 CREATE INDEX "email_threads_lastEmailAt_idx" ON "email_threads"("lastEmailAt");
 
 -- CreateTable: email_folders
-CREATE TABLE IF NOT EXISTS "email_folders" (
+CREATE TABLE "email_folders" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -313,7 +316,7 @@ CREATE UNIQUE INDEX "email_folders_userId_name_key" ON "email_folders"("userId",
 CREATE INDEX "email_folders_userId_idx" ON "email_folders"("userId");
 
 -- CreateTable: ai_sessions
-CREATE TABLE IF NOT EXISTS "ai_sessions" (
+CREATE TABLE "ai_sessions" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "title" TEXT,
@@ -336,7 +339,7 @@ CREATE INDEX "ai_sessions_userId_idx" ON "ai_sessions"("userId");
 CREATE INDEX "ai_sessions_createdAt_idx" ON "ai_sessions"("createdAt");
 
 -- CreateTable: ai_messages
-CREATE TABLE IF NOT EXISTS "ai_messages" (
+CREATE TABLE "ai_messages" (
     "id" TEXT NOT NULL,
     "sessionId" TEXT NOT NULL,
     "role" "AIMessageRole" NOT NULL DEFAULT 'USER',
@@ -356,7 +359,7 @@ CREATE INDEX "ai_messages_sessionId_idx" ON "ai_messages"("sessionId");
 CREATE INDEX "ai_messages_createdAt_idx" ON "ai_messages"("createdAt");
 
 -- CreateTable: notifications
-CREATE TABLE IF NOT EXISTS "notifications" (
+CREATE TABLE "notifications" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "type" TEXT NOT NULL,
@@ -384,7 +387,7 @@ CREATE INDEX "notifications_isRead_idx" ON "notifications"("isRead");
 CREATE INDEX "notifications_createdAt_idx" ON "notifications"("createdAt");
 
 -- CreateTable: outbox_events
-CREATE TABLE IF NOT EXISTS "outbox_events" (
+CREATE TABLE "outbox_events" (
     "id" TEXT NOT NULL,
     "aggregateType" TEXT NOT NULL,
     "aggregateId" TEXT NOT NULL,
@@ -401,7 +404,7 @@ CREATE INDEX "outbox_events_aggregateType_aggregateId_idx" ON "outbox_events"("a
 CREATE INDEX "outbox_events_createdAt_idx" ON "outbox_events"("createdAt");
 
 -- CreateTable: audit_logs
-CREATE TABLE IF NOT EXISTS "audit_logs" (
+CREATE TABLE "audit_logs" (
     "id" TEXT NOT NULL,
     "actorId" TEXT NOT NULL,
     "action" TEXT NOT NULL,
