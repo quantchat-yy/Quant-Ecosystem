@@ -1,0 +1,137 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: ankane/pgvector:latest
+    environment:
+      POSTGRES_USER: quant
+      POSTGRES_PASSWORD: quant_secret
+      POSTGRES_DB: quantdb
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U quant']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - quant-network
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - quant-network
+
+  quantmail:
+    build:
+      context: .
+      dockerfile: apps/quantmail/Dockerfile
+    ports:
+      - '3010:3010'
+    environment:
+      DATABASE_URL: postgresql://quant:quant_secret@postgres:5432/quantdb
+      REDIS_URL: redis://redis:6379
+      # Set JWT_SECRET in .env for local dev; required in production
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-in-production!!!}
+      NODE_ENV: ${NODE_ENV:-development}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - quant-network
+
+  quantchat:
+    build:
+      context: .
+      dockerfile: apps/quantchat/Dockerfile
+    ports:
+      - '3015:3015'
+    environment:
+      DATABASE_URL: postgresql://quant:quant_secret@postgres:5432/quantdb
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-in-production!!!}
+      NODE_ENV: ${NODE_ENV:-development}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - quant-network
+
+  quantai:
+    build:
+      context: .
+      dockerfile: apps/quantai/Dockerfile
+    ports:
+      - '3020:3020'
+    environment:
+      DATABASE_URL: postgresql://quant:quant_secret@postgres:5432/quantdb
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-in-production!!!}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      NODE_ENV: ${NODE_ENV:-development}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - quant-network
+
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    ports:
+      - '3100:3100'
+    environment:
+      DATABASE_URL: postgresql://quant:quant_secret@postgres:5432/quantdb
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-in-production!!!}
+      NODE_ENV: ${NODE_ENV:-development}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - quant-network
+
+  ws-gateway:
+    build:
+      context: .
+      dockerfile: services/ws-gateway/Dockerfile
+    ports:
+      - '8080:8080'
+    environment:
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: ${NODE_ENV:-development}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - quant-network
+
+networks:
+  quant-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

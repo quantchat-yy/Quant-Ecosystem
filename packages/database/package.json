@@ -13,6 +13,9 @@
     "db:seed": "tsx src/seed.ts",
     "lint": "eslint ."
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "@quant/common": "workspace:*"

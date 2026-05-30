@@ -35,24 +35,31 @@ describe('server-core app', () => {
   });
 
   describe('health endpoints', () => {
-    it('GET /healthz returns 200 with status ok', async () => {
+    it('GET /healthz returns 200 with structured response', async () => {
       const response = await app.inject({
         method: 'GET',
         url: '/healthz',
       });
 
       expect(response.statusCode).toBe(200);
-      expect(response.json()).toEqual({ status: 'ok' });
+      const body = response.json();
+      expect(body.status).toBe('ok');
+      expect(body).toHaveProperty('uptime');
+      expect(body).toHaveProperty('timestamp');
+      expect(body).toHaveProperty('version');
     });
 
-    it('GET /readyz returns 200 when no Redis configured', async () => {
+    it('GET /readyz returns checks structure', async () => {
       const response = await app.inject({
         method: 'GET',
         url: '/readyz',
       });
 
-      expect(response.statusCode).toBe(200);
-      expect(response.json()).toEqual({ status: 'ok' });
+      const body = response.json();
+      expect(body).toHaveProperty('status');
+      expect(body).toHaveProperty('checks');
+      expect(body.checks).toHaveProperty('database');
+      expect(body.checks).toHaveProperty('redis');
     });
   });
 

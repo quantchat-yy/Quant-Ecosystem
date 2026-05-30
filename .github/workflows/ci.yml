@@ -70,6 +70,15 @@ jobs:
       matrix:
         service:
           - ws-gateway
+        include:
+          - service: quantmail
+            dockerfile: apps/quantmail/Dockerfile
+          - service: quantchat
+            dockerfile: apps/quantchat/Dockerfile
+          - service: quantai
+            dockerfile: apps/quantai/Dockerfile
+          - service: admin
+            dockerfile: apps/admin/Dockerfile
     steps:
       - uses: actions/checkout@v4
 
@@ -88,7 +97,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: services/${{ matrix.service }}/Dockerfile
+          file: ${{ matrix.dockerfile || format('services/{0}/Dockerfile', matrix.service) }}
           push: false
           load: true
           tags: quant-platform/${{ matrix.service }}:${{ github.sha }}

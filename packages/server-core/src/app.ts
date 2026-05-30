@@ -8,6 +8,8 @@ import authPlugin from './plugins/auth';
 import prismaPlugin from './plugins/prisma';
 import metricsPlugin from './plugins/metrics';
 import requestIdPlugin from './plugins/request-id';
+import requestLoggerPlugin from './plugins/request-logger';
+import gracefulShutdownPlugin from './plugins/graceful-shutdown';
 
 export async function createApp(config: AppConfig) {
   // Production security validation
@@ -77,6 +79,9 @@ export async function createApp(config: AppConfig) {
   // Register request-id propagation
   await fastify.register(requestIdPlugin);
 
+  // Register request logger (after error handler so errors are logged)
+  await fastify.register(requestLoggerPlugin);
+
   // Register metrics collection
   await fastify.register(metricsPlugin);
 
@@ -90,11 +95,13 @@ export async function createApp(config: AppConfig) {
     jwtAudience: config.jwtAudience,
   });
 
+  // Public paths that bypass auth
+  const PUBLIC_PATHS = ['/health', '/healthz', '/ready', '/readyz', '/live', '/livez', '/metrics'];
+
   // Enforce auth on all routes except health/metrics
   fastify.addHook('onRequest', async (request, reply) => {
     const path = request.url.split('?')[0] ?? '';
-    const publicPaths = ['/health', '/healthz', '/ready', '/readyz', '/live', '/livez', '/metrics'];
-    if (publicPaths.some((p) => path === p || path.startsWith(p + '/'))) {
+    if (PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + '/'))) {
       return;
     }
     await fastify.requireAuth()(request, reply);
@@ -106,13 +113,8 @@ export async function createApp(config: AppConfig) {
     redisClient,
   });
 
-  // Graceful shutdown
-  const shutdown = async () => {
-    await fastify.close();
-  };
-
-  process.on('SIGTERM', shutdown);
-  process.on('SIGINT', shutdown);
+  // Register graceful shutdown
+  await fastify.register(gracefulShutdownPlugin, { timeoutMs: 30000 });
 
   return fastify;
 }
