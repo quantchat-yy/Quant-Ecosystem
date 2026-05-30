@@ -18,6 +18,7 @@ const navLinks: NavLink[] = [
   { label: 'AI/ML', href: '/ai', icon: '🤖' },
   { label: 'Security', href: '/security', icon: '🔒' },
   { label: 'Database', href: '/database', icon: '🗄️' },
+  { label: 'Observability', href: '/observability', icon: '📡' },
   { label: 'Settings', href: '/settings', icon: '⚙️' },
 ];
 

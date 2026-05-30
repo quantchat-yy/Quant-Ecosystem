@@ -172,3 +172,12 @@ export type {
   IndexFieldConfig,
   AnalyzerConfig,
 } from './types';
+
+// Engine factory pattern
+export { createSearchEngine, MeilisearchEngine, InMemoryEngine } from './engines/index';
+export type {
+  SearchEngine,
+  SearchResult as EngineSearchResult,
+  SearchEngineOptions,
+  IndexConfig as EngineIndexConfig,
+} from './engines/types';
