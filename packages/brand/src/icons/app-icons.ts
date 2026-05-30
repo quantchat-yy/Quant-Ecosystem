@@ -11,7 +11,12 @@ export interface AppIconSet {
   maskable512: string;
 }
 
-function wrapIconAtSize(iconSvg: string, size: number, maskable?: boolean): string {
+function wrapIconAtSize(
+  iconSvg: string,
+  size: number,
+  maskable?: boolean,
+  brandColor?: string,
+): string {
   const innerContent = iconSvg.replace(/<svg[^>]*>/, '').replace(/<\/svg>/, '');
 
   const padding = maskable ? size * 0.1 : size * 0.15;
@@ -19,7 +24,7 @@ function wrapIconAtSize(iconSvg: string, size: number, maskable?: boolean): stri
   const scale = iconSize / 24;
 
   const bgCircle = maskable
-    ? `<circle cx="${size / 2}" cy="${size / 2}" r="${size * 0.4}" fill="currentBackground"/>`
+    ? `<circle cx="${size / 2}" cy="${size / 2}" r="${size * 0.4}" fill="${brandColor ?? 'white'}"/>`
     : '';
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
@@ -48,7 +53,7 @@ export function generateAppIconSet(appId: string): AppIconSet {
     pwa512: wrapIconAtSize(iconBase, 512),
     ios180: wrapIconAtSize(iconBase, 180),
     android192: wrapIconAtSize(iconBase, 192),
-    maskable512: wrapIconAtSize(iconBase, 512, true),
+    maskable512: wrapIconAtSize(iconBase, 512, true, app.color),
   };
 }
 

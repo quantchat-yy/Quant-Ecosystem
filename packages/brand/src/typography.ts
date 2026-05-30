@@ -6,6 +6,7 @@ export const fontFamily = {
   mono: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', monospace",
   /** Indic script fallback for Devanagari support */
   indic: "'Noto Sans Devanagari', 'Inter', system-ui, sans-serif",
+  /** Explicit name for the Devanagari stack; identical to `indic`, kept for backward compatibility */
   devanagari: "'Noto Sans Devanagari', 'Inter', system-ui, sans-serif",
   tamil: "'Noto Sans Tamil', 'Inter', system-ui, sans-serif",
   bengali: "'Noto Sans Bengali', 'Inter', system-ui, sans-serif",

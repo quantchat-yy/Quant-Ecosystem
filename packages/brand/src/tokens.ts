@@ -119,7 +119,7 @@ export function generateAppCSS(appId: string): string {
 export function generateThemeCSS(themeName: string): string {
   const theme = themes[themeName];
   if (!theme) {
-    return `/* Unknown theme: ${themeName} */`;
+    throw new Error(`Unknown theme: ${themeName}`);
   }
   return `:root[data-theme="${themeName}"] {
   --background: ${theme.background};

@@ -251,6 +251,16 @@ describe('themes', () => {
       ).toBe(true);
     }
   });
+
+  it('all themes primary vs primaryForeground meets AA', () => {
+    const allThemes = [dark, light, neon, bharat, highContrast, colorblindSafe];
+    for (const theme of allThemes) {
+      expect(
+        meetsAA(theme.primary, theme.primaryForeground),
+        `${theme.name} primary/primaryForeground should meet AA`,
+      ).toBe(true);
+    }
+  });
 });
 
 describe('contrast utilities', () => {
@@ -333,8 +343,7 @@ describe('generateThemeCSS', () => {
     expect(css).toContain('--ring:');
   });
 
-  it('returns comment for unknown theme', () => {
-    const css = generateThemeCSS('unknown');
-    expect(css).toContain('Unknown theme: unknown');
+  it('throws for unknown theme', () => {
+    expect(() => generateThemeCSS('unknown')).toThrow('Unknown theme: unknown');
   });
 });

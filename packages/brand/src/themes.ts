@@ -78,7 +78,7 @@ export const bharat: Theme = {
   foreground: '#1A0F00',
   surface: '#FFF5E6',
   surfaceElevated: '#FFFFFF',
-  primary: '#D94F00',
+  primary: '#C24500',
   primaryForeground: '#FFFFFF',
   accent: '#7B2D8B',
   accentForeground: '#FFFFFF',
@@ -87,7 +87,7 @@ export const bharat: Theme = {
   mutedForeground: '#6B4700',
   destructive: '#B91C1C',
   destructiveForeground: '#FFFFFF',
-  ring: '#D94F00',
+  ring: '#C24500',
 };
 
 export const highContrast: Theme = {
