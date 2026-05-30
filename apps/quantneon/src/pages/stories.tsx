@@ -3,15 +3,31 @@
 // ============================================================================
 
 import React, { useState, useCallback } from 'react';
-import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
+import { LoadingState, ErrorState, EmptyState, PageTransition } from '@quant/shared-ui';
 import { useStories } from '../hooks/useStories';
 
 const StoriesPage: React.FC = () => {
   const { data, isLoading, error, refetch } = useStories();
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
 
-  if (isLoading) return <LoadingState variant="spinner" text="Loading stories..." />;
-  if (error) return <ErrorState message={error.message} onRetry={() => void refetch()} />;
+  if (isLoading) {
+    return (
+      <PageTransition>
+        <div className="min-h-screen bg-black dark:bg-[#0F0F14] flex items-center justify-center">
+          <LoadingState variant="spinner" text="Loading stories..." />
+        </div>
+      </PageTransition>
+    );
+  }
+  if (error) {
+    return (
+      <PageTransition>
+        <div className="min-h-screen bg-black dark:bg-[#0F0F14] flex items-center justify-center">
+          <ErrorState message={error.message} onRetry={() => void refetch()} />
+        </div>
+      </PageTransition>
+    );
+  }
 
   const stories: {
     id: string;
@@ -23,10 +39,14 @@ const StoriesPage: React.FC = () => {
 
   if (stories.length === 0) {
     return (
-      <EmptyState
-        title="No stories"
-        description="Stories from people you follow will appear here"
-      />
+      <PageTransition>
+        <div className="min-h-screen bg-black dark:bg-[#0F0F14] flex items-center justify-center">
+          <EmptyState
+            title="No stories"
+            description="Stories from people you follow will appear here"
+          />
+        </div>
+      </PageTransition>
     );
   }
 
@@ -41,43 +61,48 @@ const StoriesPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="stories-page">
-      <div className="stories-viewer" onClick={handleNext}>
-        <div className="story-progress-bar">
+    <PageTransition>
+      <div
+        className="h-[100dvh] bg-black dark:bg-[#0F0F14] text-white relative"
+        onClick={handleNext}
+      >
+        {/* Progress Bar */}
+        <div className="absolute top-2 left-2 right-2 z-10 flex gap-1">
           {stories.map((_, i) => (
             <div
               key={i}
-              className={`progress-segment ${i < currentStoryIndex ? 'completed' : i === currentStoryIndex ? 'active' : ''}`}
+              className={`flex-1 h-0.5 rounded-full ${i < currentStoryIndex ? 'bg-white' : i === currentStoryIndex ? 'bg-white/80' : 'bg-white/30'}`}
             />
           ))}
         </div>
-        <div className="story-header">
-          <img className="story-avatar" src={currentStory?.avatar} alt={currentStory?.username} />
-          <span className="story-username">{currentStory?.username}</span>
+        {/* Header */}
+        <div className="absolute top-6 left-4 z-10 flex items-center gap-2">
+          <img
+            className="w-8 h-8 rounded-full object-cover"
+            src={currentStory?.avatar}
+            alt={currentStory?.username}
+          />
+          <span className="text-sm font-semibold">{currentStory?.username}</span>
         </div>
-        <div className="story-content">
+        {/* Content */}
+        <div className="absolute inset-0 flex items-center justify-center">
           {currentStory?.mediaUrl && (
-            <img className="story-media" src={currentStory.mediaUrl} alt="Story" />
+            <img className="w-full h-full object-cover" src={currentStory.mediaUrl} alt="Story" />
           )}
         </div>
-        <div className="story-nav">
+        {/* Navigation zones */}
+        <div className="absolute inset-0 flex">
           <div
-            className="nav-left"
+            className="w-1/3 h-full"
             onClick={(e) => {
               e.stopPropagation();
               handlePrevious();
             }}
           />
-          <div
-            className="nav-right"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleNext();
-            }}
-          />
+          <div className="w-2/3 h-full" />
         </div>
       </div>
-    </div>
+    </PageTransition>
   );
 };
 

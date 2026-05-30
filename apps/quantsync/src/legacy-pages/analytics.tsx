@@ -123,7 +123,7 @@ const AnalyticsPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto min-h-screen p-4">
+    <div className="max-w-4xl mx-auto min-h-screen p-4 bg-[var(--quant-background)] text-[var(--quant-foreground)]">
       <header className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Analytics</h1>
         <div className="flex gap-2">

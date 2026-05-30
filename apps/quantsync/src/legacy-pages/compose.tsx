@@ -259,7 +259,7 @@ const ComposePage: React.FC = () => {
   ]);
 
   return (
-    <div className="max-w-2xl mx-auto min-h-screen bg-white">
+    <div className="max-w-2xl mx-auto min-h-screen bg-[var(--quant-background)] text-[var(--quant-foreground)]">
       <header className="sticky top-0 bg-white border-b px-4 py-3 flex items-center justify-between z-10">
         <button className="text-gray-600 hover:text-gray-900 text-lg">✕</button>
         <div className="flex items-center gap-3">

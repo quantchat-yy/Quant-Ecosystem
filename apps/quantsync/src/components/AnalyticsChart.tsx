@@ -1,9 +1,12 @@
+'use client';
+
 // ============================================================================
 // QuantSync - AnalyticsChart Component
 // Line/bar chart with data points, hover tooltip, date range, comparison
 // ============================================================================
 
 import React, { useState, useCallback, useMemo } from 'react';
+import { FadeIn } from '@quant/shared-ui';
 
 interface DataPoint {
   date: string;
@@ -237,100 +240,106 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
   };
 
   return (
-    <div className={`bg-white rounded-xl border p-4 ${responsive ? 'w-full' : ''}`}>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="font-bold text-gray-900">{title}</h3>
-          <div className="flex items-center gap-3 mt-1">
-            <span className="text-2xl font-bold">{defaultFormatValue(totalValue)}</span>
-            <span
-              className={`text-xs px-1.5 py-0.5 rounded ${trend >= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}
-            >
-              {trend >= 0 ? '+' : ''}
-              {trend.toFixed(1)}%
+    <FadeIn>
+      <div
+        className={`bg-white dark:bg-[var(--quant-card)] rounded-xl border dark:border-gray-700 p-4 ${responsive ? 'w-full' : ''}`}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-bold text-gray-900 dark:text-gray-100">{title}</h3>
+            <div className="flex items-center gap-3 mt-1">
+              <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {defaultFormatValue(totalValue)}
+              </span>
+              <span
+                className={`text-xs px-1.5 py-0.5 rounded ${trend >= 0 ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}
+              >
+                {trend >= 0 ? '+' : ''}
+                {trend.toFixed(1)}%
+              </span>
+            </div>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              Avg: {defaultFormatValue(Math.round(avgValue))}/day
             </span>
           </div>
-          <span className="text-xs text-gray-500">
-            Avg: {defaultFormatValue(Math.round(avgValue))}/day
-          </span>
+          {dateRanges && (
+            <div className="flex gap-1">
+              {dateRanges.map((range) => (
+                <button
+                  key={range.value}
+                  onClick={() => onRangeChange?.(range.value)}
+                  className={`px-2 py-1 rounded text-xs min-h-[44px] ${selectedRange === range.value ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                >
+                  {range.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        {dateRanges && (
-          <div className="flex gap-1">
-            {dateRanges.map((range) => (
-              <button
-                key={range.value}
-                onClick={() => onRangeChange?.(range.value)}
-                className={`px-2 py-1 rounded text-xs ${selectedRange === range.value ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'}`}
-              >
-                {range.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
 
-      <div className="relative" onMouseLeave={handleMouseLeave}>
-        {type === 'line' ? (
-          <div
-            onMouseMove={(e) => {
-              if (data.length === 0) return;
-              const rect = e.currentTarget.getBoundingClientRect();
-              const x = e.clientX - rect.left;
-              const idx = Math.round((x / rect.width) * (data.length - 1));
-              if (idx >= 0 && idx < data.length) {
-                handleMouseMove(e, idx);
-              }
-            }}
-          >
-            {renderLineChart()}
-          </div>
-        ) : (
-          renderBarChart()
-        )}
-
-        {tooltip && (
-          <div
-            className="absolute bg-gray-900 text-white text-xs px-3 py-2 rounded-lg shadow-lg pointer-events-none z-10"
-            style={{
-              left: `${Math.min(tooltip.x, 200)}px`,
-              top: `${Math.max(tooltip.y - 50, 0)}px`,
-            }}
-          >
-            <p className="font-medium">{defaultFormatValue(tooltip.value)}</p>
-            <p className="text-gray-400">{tooltip.date}</p>
-            {tooltip.comparisonValue !== undefined && (
-              <p className="text-gray-400">
-                Previous: {defaultFormatValue(tooltip.comparisonValue)}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {showLabels && data.length > 0 && (
-        <div className="flex justify-between mt-2 text-xs text-gray-400">
-          <span>{data[0]?.date}</span>
-          {data.length > 2 && <span>{data[Math.floor(data.length / 2)]?.date}</span>}
-          <span>{data[data.length - 1]?.date}</span>
-        </div>
-      )}
-
-      {comparisonData && (
-        <div className="flex items-center gap-4 mt-3 pt-3 border-t">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-0.5 rounded" style={{ backgroundColor: color }} />
-            <span className="text-xs text-gray-500">Current</span>
-          </div>
-          <div className="flex items-center gap-1.5">
+        <div className="relative" onMouseLeave={handleMouseLeave}>
+          {type === 'line' ? (
             <div
-              className="w-3 h-0.5 rounded border-dashed"
-              style={{ backgroundColor: comparisonColor }}
-            />
-            <span className="text-xs text-gray-500">Previous</span>
-          </div>
+              onMouseMove={(e) => {
+                if (data.length === 0) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const idx = Math.round((x / rect.width) * (data.length - 1));
+                if (idx >= 0 && idx < data.length) {
+                  handleMouseMove(e, idx);
+                }
+              }}
+            >
+              {renderLineChart()}
+            </div>
+          ) : (
+            renderBarChart()
+          )}
+
+          {tooltip && (
+            <div
+              className="absolute bg-gray-900 text-white text-xs px-3 py-2 rounded-lg shadow-lg pointer-events-none z-10"
+              style={{
+                left: `${Math.min(tooltip.x, 200)}px`,
+                top: `${Math.max(tooltip.y - 50, 0)}px`,
+              }}
+            >
+              <p className="font-medium">{defaultFormatValue(tooltip.value)}</p>
+              <p className="text-gray-400">{tooltip.date}</p>
+              {tooltip.comparisonValue !== undefined && (
+                <p className="text-gray-400">
+                  Previous: {defaultFormatValue(tooltip.comparisonValue)}
+                </p>
+              )}
+            </div>
+          )}
         </div>
-      )}
-    </div>
+
+        {showLabels && data.length > 0 && (
+          <div className="flex justify-between mt-2 text-xs text-gray-400 dark:text-gray-500">
+            <span>{data[0]?.date}</span>
+            {data.length > 2 && <span>{data[Math.floor(data.length / 2)]?.date}</span>}
+            <span>{data[data.length - 1]?.date}</span>
+          </div>
+        )}
+
+        {comparisonData && (
+          <div className="flex items-center gap-4 mt-3 pt-3 border-t dark:border-gray-700">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-0.5 rounded" style={{ backgroundColor: color }} />
+              <span className="text-xs text-gray-500 dark:text-gray-400">Current</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div
+                className="w-3 h-0.5 rounded border-dashed"
+                style={{ backgroundColor: comparisonColor }}
+              />
+              <span className="text-xs text-gray-500 dark:text-gray-400">Previous</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </FadeIn>
   );
 };
 

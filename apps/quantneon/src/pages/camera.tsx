@@ -4,7 +4,7 @@
 // ============================================================================
 
 import React, { useState, useCallback } from 'react';
-import { LoadingState, ErrorState } from '@quant/shared-ui';
+import { PageTransition, LoadingState } from '@quant/shared-ui';
 import { useARFilters } from '../hooks/useARFilters';
 
 type CameraMode = 'Photo' | 'Video' | 'Boomerang' | 'Layout' | 'Hands-Free';
@@ -12,7 +12,7 @@ type FlashMode = 'off' | 'on' | 'auto';
 type CameraFacing = 'front' | 'back';
 
 const CameraPage: React.FC = () => {
-  const { data: filters, isLoading, error, refetch } = useARFilters();
+  const { data: filters, isLoading, error } = useARFilters();
   const [currentMode, setCurrentMode] = useState<CameraMode>('Photo');
   const [flash, setFlash] = useState<FlashMode>('off');
   const [facing, setFacing] = useState<CameraFacing>('back');
@@ -24,89 +24,92 @@ const CameraPage: React.FC = () => {
   const handleCapture = useCallback(() => {
     if (currentMode === 'Video' || currentMode === 'Hands-Free') {
       setIsRecording(!isRecording);
-    } else {
-      // Photo capture would happen here
     }
   }, [currentMode, isRecording]);
 
   return (
-    <div className="camera-page">
-      {/* Viewfinder */}
-      <div className="viewfinder">
-        <div className="camera-preview-area">
-          <div className="camera-placeholder">
-            <span>{facing === 'front' ? '🤳' : '📷'}</span>
-          </div>
-          {selectedFilter && (
-            <div className="active-filter-overlay">
-              <span>Filter: {selectedFilter}</span>
+    <PageTransition>
+      <div className="min-h-screen bg-black dark:bg-[#0F0F14] text-white">
+        <div className="max-w-2xl mx-auto">
+          {/* Viewfinder */}
+          <div className="relative h-[70vh] bg-gray-900">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-4xl">{facing === 'front' ? '🤳' : '📷'}</span>
             </div>
-          )}
-        </div>
+            {selectedFilter && (
+              <div className="absolute top-4 left-4 bg-black/50 rounded-full px-3 py-1">
+                <span className="text-xs">Filter: {selectedFilter}</span>
+              </div>
+            )}
 
-        {/* Top controls */}
-        <div className="camera-top-controls">
-          <button
-            className="flash-btn"
-            onClick={() => setFlash((f) => (f === 'off' ? 'on' : f === 'on' ? 'auto' : 'off'))}
-          >
-            {flash === 'off' ? '⚡' : flash === 'on' ? '⚡' : '⚡A'}
-          </button>
-          <button
-            className="flip-btn"
-            onClick={() => setFacing((f) => (f === 'front' ? 'back' : 'front'))}
-          >
-            🔄
-          </button>
-        </div>
+            {/* Top controls */}
+            <div className="absolute top-4 right-4 flex gap-3">
+              <button
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-black/50 rounded-full"
+                onClick={() => setFlash((f) => (f === 'off' ? 'on' : f === 'on' ? 'auto' : 'off'))}
+              >
+                {flash === 'off' ? '⚡' : flash === 'on' ? '⚡' : '⚡A'}
+              </button>
+              <button
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-black/50 rounded-full"
+                onClick={() => setFacing((f) => (f === 'front' ? 'back' : 'front'))}
+              >
+                🔄
+              </button>
+            </div>
 
-        {isRecording && (
-          <div className="recording-indicator">
-            <span className="rec-dot" /> REC
+            {isRecording && (
+              <div className="absolute top-4 left-4 flex items-center gap-2 bg-red-600/80 rounded-full px-3 py-1">
+                <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
+                <span className="text-xs font-medium">REC</span>
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Filters */}
-      <div className="filters-strip">
-        {isLoading && <LoadingState variant="dots" text="" size="sm" />}
-        {error && <span className="filter-error">Could not load filters</span>}
-        {!isLoading &&
-          !error &&
-          (filters || []).map((filter: { id: string; name: string }) => (
+          {/* Filters */}
+          <div className="flex gap-2 px-4 py-3 overflow-x-auto">
+            {isLoading && <LoadingState variant="dots" text="" size="sm" />}
+            {error && <span className="text-red-400 text-xs">Could not load filters</span>}
+            {!isLoading &&
+              !error &&
+              (filters || []).map((filter: { id: string; name: string }) => (
+                <button
+                  key={filter.id}
+                  className={`min-h-[44px] px-3 py-2 rounded-full text-xs whitespace-nowrap ${selectedFilter === filter.id ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-300'}`}
+                  onClick={() => setSelectedFilter(selectedFilter === filter.id ? null : filter.id)}
+                >
+                  {filter.name}
+                </button>
+              ))}
+          </div>
+
+          {/* Mode selector */}
+          <div className="flex justify-center gap-4 px-4 py-2">
+            {modes.map((mode) => (
+              <button
+                key={mode}
+                className={`min-h-[44px] px-3 py-2 text-xs font-medium ${currentMode === mode ? 'text-white border-b-2 border-white' : 'text-gray-500'}`}
+                onClick={() => setCurrentMode(mode)}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+
+          {/* Capture button */}
+          <div className="flex justify-center py-6">
             <button
-              key={filter.id}
-              className={`filter-item ${selectedFilter === filter.id ? 'active' : ''}`}
-              onClick={() => setSelectedFilter(selectedFilter === filter.id ? null : filter.id)}
+              className={`w-16 h-16 rounded-full border-4 border-white flex items-center justify-center ${isRecording ? 'bg-red-500' : 'bg-transparent'}`}
+              onClick={handleCapture}
             >
-              <span className="filter-name">{filter.name}</span>
+              <div
+                className={`rounded-full ${isRecording ? 'w-6 h-6 bg-red-600 rounded-sm' : 'w-12 h-12 bg-white'}`}
+              />
             </button>
-          ))}
+          </div>
+        </div>
       </div>
-
-      {/* Mode selector */}
-      <div className="mode-selector">
-        {modes.map((mode) => (
-          <button
-            key={mode}
-            className={`mode-btn ${currentMode === mode ? 'active' : ''}`}
-            onClick={() => setCurrentMode(mode)}
-          >
-            {mode}
-          </button>
-        ))}
-      </div>
-
-      {/* Capture button */}
-      <div className="capture-controls">
-        <button
-          className={`capture-btn ${isRecording ? 'recording' : ''} ${currentMode === 'Video' ? 'video-mode' : ''}`}
-          onClick={handleCapture}
-        >
-          <div className="capture-inner" />
-        </button>
-      </div>
-    </div>
+    </PageTransition>
   );
 };
 

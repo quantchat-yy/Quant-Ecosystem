@@ -172,7 +172,7 @@ const SettingsPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto min-h-screen flex">
+    <div className="max-w-4xl mx-auto min-h-screen flex bg-[var(--quant-background)] text-[var(--quant-foreground)]">
       <aside className="w-56 border-r p-4 hidden md:block sticky top-0 h-screen">
         <h2 className="font-bold text-lg mb-4">Settings</h2>
         {(

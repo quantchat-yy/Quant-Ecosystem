@@ -234,7 +234,7 @@ const FeedPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto min-h-screen">
+    <div className="max-w-2xl mx-auto min-h-screen bg-[var(--quant-background)] text-[var(--quant-foreground)]">
       <header className="sticky top-0 bg-white/80 backdrop-blur-sm border-b z-10">
         <div className="flex items-center justify-between px-4 py-3">
           <h1 className="text-xl font-bold">Home</h1>

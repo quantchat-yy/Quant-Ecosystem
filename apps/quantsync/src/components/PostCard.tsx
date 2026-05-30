@@ -1,9 +1,13 @@
+'use client';
+
 // ============================================================================
 // QuantSync - PostCard Component
 // Full post card with interactions, media gallery, poll, verification badge
 // ============================================================================
 
 import React, { useState, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { SpringButton } from '@quant/shared-ui';
 
 interface PostMedia {
   url: string;
@@ -100,10 +104,15 @@ const PostCard: React.FC<PostCardProps> = ({
     poll?.votedOptionId || null,
   );
   const [_mediaIndex, _setMediaIndex] = useState<number>(0);
+  const [likeAnimating, setLikeAnimating] = useState<boolean>(false);
 
   const handleLike = useCallback(() => {
     setLocalLiked(!localLiked);
     setLocalLikes(localLiked ? localLikes - 1 : localLikes + 1);
+    if (!localLiked) {
+      setLikeAnimating(true);
+      setTimeout(() => setLikeAnimating(false), 400);
+    }
     onLike?.(id);
   }, [localLiked, localLikes, id, onLike]);
 
@@ -152,7 +161,7 @@ const PostCard: React.FC<PostCardProps> = ({
 
   const getVerificationColor = (): string => {
     if (verificationType === 'gold') return 'text-yellow-500';
-    if (verificationType === 'gray') return 'text-gray-500';
+    if (verificationType === 'gray') return 'text-gray-500 dark:text-gray-400';
     return 'text-blue-500';
   };
 
@@ -188,9 +197,16 @@ const PostCard: React.FC<PostCardProps> = ({
   };
 
   return (
-    <article className="px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer border-b">
+    <motion.article
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer border-b dark:border-gray-800"
+    >
       {isThreadStart && threadLength && threadLength > 1 && (
-        <div className="text-xs text-blue-500 ml-14 mb-1">🧵 Thread ({threadLength} posts)</div>
+        <div className="text-xs text-blue-500 ml-14 mb-1">
+          &#x1F9F5; Thread ({threadLength} posts)
+        </div>
       )}
       <div className="flex gap-3">
         <div className="flex-shrink-0">
@@ -203,18 +219,24 @@ const PostCard: React.FC<PostCardProps> = ({
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1 min-w-0">
-              <span className="font-bold text-gray-900 truncate text-sm">{authorName}</span>
+              <span className="font-bold text-gray-900 dark:text-gray-100 truncate text-sm">
+                {authorName}
+              </span>
               {isVerified && (
                 <span
                   className={`${getVerificationColor()} text-sm`}
                   title={`Verified (${verificationType || 'blue'})`}
                 >
-                  ✓
+                  &#x2713;
                 </span>
               )}
-              <span className="text-gray-500 text-sm truncate">@{authorHandle}</span>
-              <span className="text-gray-400 mx-0.5">·</span>
-              <span className="text-gray-500 text-sm flex-shrink-0">{formatTime(createdAt)}</span>
+              <span className="text-gray-500 dark:text-gray-400 text-sm truncate">
+                @{authorHandle}
+              </span>
+              <span className="text-gray-400 dark:text-gray-500 mx-0.5">&middot;</span>
+              <span className="text-gray-500 dark:text-gray-400 text-sm flex-shrink-0">
+                {formatTime(createdAt)}
+              </span>
             </div>
             <div className="relative">
               <button
@@ -222,18 +244,18 @@ const PostCard: React.FC<PostCardProps> = ({
                   e.stopPropagation();
                   setShowMenu(!showMenu);
                 }}
-                className="p-1 rounded-full hover:bg-gray-100 text-gray-400"
+                className="p-3 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500"
               >
-                ⋯
+                &#x22EF;
               </button>
               {showMenu && (
-                <div className="absolute right-0 top-8 bg-white border rounded-xl shadow-lg py-1 w-48 z-20">
+                <div className="absolute right-0 top-8 bg-white dark:bg-[var(--quant-card)] border dark:border-gray-700 rounded-xl shadow-lg py-1 w-48 z-20">
                   <button
                     onClick={() => {
                       onMute?.(authorId);
                       setShowMenu(false);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
                   >
                     Mute @{authorHandle}
                   </button>
@@ -242,7 +264,7 @@ const PostCard: React.FC<PostCardProps> = ({
                       onBlock?.(authorId);
                       setShowMenu(false);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-red-600"
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-red-600"
                   >
                     Block @{authorHandle}
                   </button>
@@ -251,7 +273,7 @@ const PostCard: React.FC<PostCardProps> = ({
                       onReport?.(id);
                       setShowMenu(false);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
                   >
                     Report post
                   </button>
@@ -261,21 +283,23 @@ const PostCard: React.FC<PostCardProps> = ({
           </div>
 
           {communityName && (
-            <div className="text-xs text-purple-600 mb-0.5">in {communityName}</div>
+            <div className="text-xs text-purple-600 dark:text-purple-400 mb-0.5">
+              in {communityName}
+            </div>
           )}
 
-          <div className="text-gray-900 whitespace-pre-wrap break-words mb-2 text-[15px]">
+          <div className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words mb-2 text-[15px]">
             {highlightContent(content)}
           </div>
 
           {media.length > 0 && (
             <div
-              className={`rounded-xl overflow-hidden mb-2 border ${media.length === 1 ? '' : 'grid grid-cols-2 gap-0.5'}`}
+              className={`rounded-xl overflow-hidden mb-2 border dark:border-gray-700 ${media.length === 1 ? '' : 'grid grid-cols-2 gap-0.5'}`}
             >
               {media.map((m, idx) => (
                 <div
                   key={idx}
-                  className={`relative ${media.length === 1 ? 'aspect-video' : 'aspect-square'} bg-gray-100`}
+                  className={`relative ${media.length === 1 ? 'aspect-video' : 'aspect-square'} bg-gray-100 dark:bg-gray-800`}
                 >
                   {m.type === 'video' ? (
                     <video
@@ -298,7 +322,7 @@ const PostCard: React.FC<PostCardProps> = ({
           )}
 
           {poll && (
-            <div className="border rounded-xl p-3 mb-2">
+            <div className="border dark:border-gray-700 rounded-xl p-3 mb-2">
               {poll.options.map((opt) => {
                 const pct =
                   poll.totalVotes > 0 ? Math.round((opt.votes / poll.totalVotes) * 100) : 0;
@@ -311,26 +335,30 @@ const PostCard: React.FC<PostCardProps> = ({
                     disabled={!!selectedPollOption}
                     className="w-full mb-2 last:mb-0"
                   >
-                    <div className="relative h-9 rounded-full overflow-hidden border">
+                    <div className="relative h-9 rounded-full overflow-hidden border dark:border-gray-700">
                       {showResults && (
                         <div
-                          className="absolute inset-y-0 left-0 bg-blue-100 rounded-full transition-all"
+                          className="absolute inset-y-0 left-0 bg-blue-100 dark:bg-blue-900/30 rounded-full transition-all"
                           style={{ width: `${pct}%` }}
                         />
                       )}
                       <div className="absolute inset-0 flex items-center justify-between px-3">
-                        <span className={`text-sm ${isSelected ? 'font-bold' : ''}`}>
-                          {opt.text} {isSelected && '✓'}
+                        <span
+                          className={`text-sm text-gray-900 dark:text-gray-100 ${isSelected ? 'font-bold' : ''}`}
+                        >
+                          {opt.text} {isSelected && '\u2713'}
                         </span>
-                        {showResults && <span className="text-sm text-gray-600">{pct}%</span>}
+                        {showResults && (
+                          <span className="text-sm text-gray-600 dark:text-gray-400">{pct}%</span>
+                        )}
                       </div>
                     </div>
                   </button>
                 );
               })}
-              <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+              <div className="flex items-center gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400">
                 <span>{poll.totalVotes} votes</span>
-                <span>·</span>
+                <span>&middot;</span>
                 <span>
                   {new Date(poll.endsAt) > new Date()
                     ? 'Ends ' + new Date(poll.endsAt).toLocaleDateString()
@@ -341,68 +369,76 @@ const PostCard: React.FC<PostCardProps> = ({
           )}
 
           <div className="flex items-center justify-between mt-1 max-w-md -ml-2">
-            <button
+            <SpringButton
               onClick={(e) => {
                 e.stopPropagation();
                 onReply?.(id);
               }}
-              className="flex items-center gap-1 text-gray-500 hover:text-blue-500 group"
+              className="flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-blue-500 group min-h-[44px] min-w-[44px]"
             >
-              <span className="p-2 rounded-full group-hover:bg-blue-50 text-sm">💬</span>
+              <span className="p-3 rounded-full group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 text-sm">
+                &#x1F4AC;
+              </span>
               <span className="text-xs">{formatCount(replies)}</span>
-            </button>
-            <button
+            </SpringButton>
+            <SpringButton
               onClick={(e) => {
                 e.stopPropagation();
                 handleRepost();
               }}
-              className={`flex items-center gap-1 group ${localReposted ? 'text-green-500' : 'text-gray-500 hover:text-green-500'}`}
+              className={`flex items-center gap-1 group min-h-[44px] min-w-[44px] ${localReposted ? 'text-green-500' : 'text-gray-500 dark:text-gray-400 hover:text-green-500'}`}
             >
-              <span className="p-2 rounded-full group-hover:bg-green-50 text-sm">🔄</span>
+              <span className="p-3 rounded-full group-hover:bg-green-50 dark:group-hover:bg-green-900/20 text-sm">
+                &#x1F504;
+              </span>
               <span className="text-xs">{formatCount(localReposts)}</span>
-            </button>
-            <button
+            </SpringButton>
+            <SpringButton
               onClick={(e) => {
                 e.stopPropagation();
                 handleLike();
               }}
-              className={`flex items-center gap-1 group ${localLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
+              className={`flex items-center gap-1 group min-h-[44px] min-w-[44px] ${localLiked ? 'text-red-500' : 'text-gray-500 dark:text-gray-400 hover:text-red-500'}`}
             >
-              <span className="p-2 rounded-full group-hover:bg-red-50 text-sm">
-                {localLiked ? '❤️' : '🤍'}
-              </span>
+              <motion.span
+                animate={likeAnimating ? { scale: [1, 1.4, 1] } : { scale: 1 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 10 }}
+                className="p-3 rounded-full group-hover:bg-red-50 dark:group-hover:bg-red-900/20 text-sm"
+              >
+                {localLiked ? '\u2764\uFE0F' : '\u{1F90D}'}
+              </motion.span>
               <span className="text-xs">{formatCount(localLikes)}</span>
-            </button>
-            <button
+            </SpringButton>
+            <SpringButton
               onClick={(e) => {
                 e.stopPropagation();
                 handleBookmark();
               }}
-              className={`flex items-center gap-1 group ${localBookmarked ? 'text-blue-500' : 'text-gray-500 hover:text-blue-500'}`}
+              className={`flex items-center gap-1 group min-h-[44px] min-w-[44px] ${localBookmarked ? 'text-blue-500' : 'text-gray-500 dark:text-gray-400 hover:text-blue-500'}`}
             >
-              <span className="p-2 rounded-full group-hover:bg-blue-50 text-sm">
-                {localBookmarked ? '🔖' : '📑'}
+              <span className="p-3 rounded-full group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20 text-sm">
+                {localBookmarked ? '\uD83D\uDD16' : '\uD83D\uDCD1'}
               </span>
-            </button>
+            </SpringButton>
             <div className="relative">
-              <button
+              <SpringButton
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowShareMenu(!showShareMenu);
                 }}
-                className="p-2 rounded-full text-gray-500 hover:text-blue-500 hover:bg-blue-50 text-sm"
+                className="p-3 min-h-[44px] min-w-[44px] rounded-full text-gray-500 dark:text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm"
               >
-                ↗️
-              </button>
+                &#x2197;&#xFE0F;
+              </SpringButton>
               {showShareMenu && (
-                <div className="absolute bottom-full right-0 mb-1 bg-white border rounded-xl shadow-lg py-1 w-36 z-20">
-                  <button className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50">
+                <div className="absolute bottom-full right-0 mb-1 bg-white dark:bg-[var(--quant-card)] border dark:border-gray-700 rounded-xl shadow-lg py-1 w-36 z-20">
+                  <button className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100">
                     Copy link
                   </button>
-                  <button className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50">
+                  <button className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100">
                     Send via DM
                   </button>
-                  <button className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50">
+                  <button className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100">
                     Quote
                   </button>
                 </div>
@@ -411,7 +447,7 @@ const PostCard: React.FC<PostCardProps> = ({
           </div>
         </div>
       </div>
-    </article>
+    </motion.article>
   );
 };
 

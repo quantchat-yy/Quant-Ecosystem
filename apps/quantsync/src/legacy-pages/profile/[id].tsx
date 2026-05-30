@@ -145,7 +145,7 @@ const ProfilePage: React.FC<{ id?: string }> = ({ id }) => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto min-h-screen">
+    <div className="max-w-2xl mx-auto min-h-screen bg-[var(--quant-background)] text-[var(--quant-foreground)]">
       <div className="h-48 bg-gradient-to-r from-blue-400 to-purple-500 relative">
         {profile.banner && (
           <img src={profile.banner} alt="" className="w-full h-full object-cover" />

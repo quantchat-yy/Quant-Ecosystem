@@ -1,7 +1,11 @@
+'use client';
+
 // ============================================================================
 // QuantSync - VoteButtons Component
 // Upvote/Downvote buttons with score display
 // ============================================================================
+
+import { motion } from 'framer-motion';
 
 interface VoteButtonsProps {
   upvotes: number;
@@ -25,9 +29,9 @@ export function VoteButtons({
   orientation = 'vertical',
 }: VoteButtonsProps) {
   const sizeClasses = {
-    small: 'h-11 w-11 text-xs',
-    medium: 'h-11 w-11 text-sm',
-    large: 'h-11 w-11 text-base',
+    small: 'min-h-[44px] min-w-[44px] text-xs',
+    medium: 'min-h-[44px] min-w-[44px] text-sm',
+    large: 'min-h-[44px] min-w-[44px] text-base',
   };
 
   const iconScale = {
@@ -41,12 +45,14 @@ export function VoteButtons({
 
   return (
     <div className={containerClasses} role="group" aria-label="Vote buttons">
-      <button
+      <motion.button
         type="button"
+        whileTap={{ scale: 1.3 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 15 }}
         className={`${sizeClasses[size]} flex items-center justify-center rounded-md transition-colors ${
           userVote === 'up'
-            ? 'bg-orange-100 text-orange-600'
-            : 'text-gray-400 hover:bg-gray-100 hover:text-orange-500'
+            ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
+            : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-orange-500'
         }`}
         onClick={onUpvote}
         aria-label="Upvote"
@@ -55,21 +61,27 @@ export function VoteButtons({
         <span className={iconScale[size]} aria-hidden="true">
           &#9650;
         </span>
-      </button>
+      </motion.button>
       <span
         className={`text-sm font-bold ${
-          score > 0 ? 'text-orange-600' : score < 0 ? 'text-blue-600' : 'text-gray-600'
+          score > 0
+            ? 'text-orange-600 dark:text-orange-400'
+            : score < 0
+              ? 'text-blue-600 dark:text-blue-400'
+              : 'text-gray-600 dark:text-gray-400'
         }`}
         aria-label={`Score: ${score}`}
       >
         {formatScore(score)}
       </span>
-      <button
+      <motion.button
         type="button"
+        whileTap={{ scale: 1.3 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 15 }}
         className={`${sizeClasses[size]} flex items-center justify-center rounded-md transition-colors ${
           userVote === 'down'
-            ? 'bg-blue-100 text-blue-600'
-            : 'text-gray-400 hover:bg-gray-100 hover:text-blue-500'
+            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+            : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-500'
         }`}
         onClick={onDownvote}
         aria-label="Downvote"
@@ -78,7 +90,7 @@ export function VoteButtons({
         <span className={iconScale[size]} aria-hidden="true">
           &#9660;
         </span>
-      </button>
+      </motion.button>
     </div>
   );
 }

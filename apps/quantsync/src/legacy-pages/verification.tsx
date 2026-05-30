@@ -158,7 +158,7 @@ const VerificationPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto min-h-screen p-4">
+    <div className="max-w-2xl mx-auto min-h-screen p-4 bg-[var(--quant-background)] text-[var(--quant-foreground)]">
       <h1 className="text-2xl font-bold mb-6">Verification</h1>
 
       <section className="mb-8">

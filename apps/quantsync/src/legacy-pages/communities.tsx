@@ -217,7 +217,7 @@ const CommunitiesPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto min-h-screen flex">
+    <div className="max-w-6xl mx-auto min-h-screen flex bg-[var(--quant-background)] text-[var(--quant-foreground)]">
       <aside className="w-64 border-r p-4 hidden lg:block sticky top-0 h-screen overflow-y-auto">
         <h3 className="font-bold text-gray-700 mb-3">Your Communities</h3>
         {joinedCommunities.length === 0 ? (

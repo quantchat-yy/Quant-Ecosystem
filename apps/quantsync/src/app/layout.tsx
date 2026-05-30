@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '../providers/query-provider';
 import { AppProviders } from '../providers/app-providers';
+import { MotionProvider } from '@quant/shared-ui';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -16,10 +17,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark" suppressHydrationWarning>
       <body className={inter.className}>
         <QueryProvider>
-          <AppProviders>{children}</AppProviders>
+          <AppProviders>
+            <MotionProvider>{children}</MotionProvider>
+          </AppProviders>
         </QueryProvider>
       </body>
     </html>

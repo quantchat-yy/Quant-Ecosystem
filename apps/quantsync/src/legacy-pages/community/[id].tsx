@@ -189,7 +189,7 @@ const CommunityPage: React.FC<{ id?: string }> = ({ id }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--quant-background)] text-[var(--quant-foreground)]">
       <div className="h-48 bg-gradient-to-r from-purple-500 to-pink-500 relative">
         {community.banner && (
           <img src={community.banner} alt="" className="w-full h-full object-cover" />

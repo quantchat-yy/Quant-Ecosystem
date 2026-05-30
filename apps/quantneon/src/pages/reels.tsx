@@ -3,7 +3,14 @@
 // ============================================================================
 
 import React, { useCallback, useRef } from 'react';
-import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  LoadingState,
+  ErrorState,
+  EmptyState,
+  SpringButton,
+  PageTransition,
+} from '@quant/shared-ui';
 import { useReels } from '../hooks/useReels';
 
 const ReelsPage: React.FC = () => {
@@ -32,102 +39,144 @@ const ReelsPage: React.FC = () => {
   }, []);
 
   if (state.loading && state.reels.length === 0) {
-    return <LoadingState variant="spinner" text="Loading reels..." />;
+    return (
+      <PageTransition>
+        <div className="h-[100dvh] bg-black flex items-center justify-center">
+          <LoadingState variant="spinner" text="Loading reels..." />
+        </div>
+      </PageTransition>
+    );
   }
 
   if (state.error && state.reels.length === 0) {
-    return <ErrorState message={state.error} onRetry={() => void actions.loadMore()} />;
+    return (
+      <PageTransition>
+        <div className="h-[100dvh] bg-black flex items-center justify-center">
+          <ErrorState message={state.error} onRetry={() => void actions.loadMore()} />
+        </div>
+      </PageTransition>
+    );
   }
 
   if (state.reels.length === 0) {
-    return <EmptyState title="No reels" description="Check back later for new reels" />;
+    return (
+      <PageTransition>
+        <div className="h-[100dvh] bg-black flex items-center justify-center">
+          <EmptyState title="No reels" description="Check back later for new reels" />
+        </div>
+      </PageTransition>
+    );
   }
 
   return (
-    <div className="reels-page" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-      {currentReel && (
-        <div className="reel-player" onClick={() => actions.togglePlay()}>
-          <video
-            className="reel-video"
-            src={currentReel.videoUrl}
-            poster={currentReel.thumbnailUrl}
-            autoPlay={state.isPlaying}
-            loop
-            muted={state.isMuted}
-            playsInline
-          />
-
-          {!state.isPlaying && (
-            <div className="play-overlay">
-              <span>▶</span>
-            </div>
-          )}
-
-          <div className="reel-actions">
-            <button
-              className={`reel-action ${state.liked.has(currentReel.id) ? 'liked' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                state.liked.has(currentReel.id)
-                  ? actions.unlike(currentReel.id)
-                  : actions.like(currentReel.id);
-              }}
+    <PageTransition>
+      <div
+        className="h-[100dvh] bg-black text-white relative overflow-hidden"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        <AnimatePresence mode="wait">
+          {currentReel && (
+            <motion.div
+              key={currentReel.id}
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -100, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="absolute inset-0"
+              onClick={() => actions.togglePlay()}
             >
-              <span>❤️</span>
-              <span>{formatCount(currentReel.likeCount)}</span>
-            </button>
-            <button
-              className="reel-action"
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
-            >
-              <span>💬</span>
-              <span>{formatCount(currentReel.commentCount)}</span>
-            </button>
-            <button
-              className="reel-action"
-              onClick={(e) => {
-                e.stopPropagation();
-                actions.share(currentReel.id);
-              }}
-            >
-              <span>↗</span>
-              <span>{formatCount(currentReel.shareCount)}</span>
-            </button>
-            <button
-              className="reel-action mute"
-              onClick={(e) => {
-                e.stopPropagation();
-                actions.toggleMute();
-              }}
-            >
-              <span>{state.isMuted ? '🔇' : '🔊'}</span>
-            </button>
-          </div>
-
-          <div className="reel-info">
-            <div className="reel-creator">
-              <img
-                className="creator-avatar"
-                src={currentReel.creatorAvatar}
-                alt={currentReel.creator}
+              <video
+                className="absolute inset-0 w-full h-full object-cover"
+                src={currentReel.videoUrl}
+                poster={currentReel.thumbnailUrl}
+                autoPlay={state.isPlaying}
+                loop
+                muted={state.isMuted}
+                playsInline
               />
-              <span className="creator-name">@{currentReel.creator}</span>
-            </div>
-            <p className="reel-caption">{currentReel.caption}</p>
-            <div className="reel-sound">
-              <span>🎵</span>
-              <span>{currentReel.soundName}</span>
-            </div>
-          </div>
 
-          <div className="reel-progress">
-            <div className="progress-fill" style={{ width: `${state.progress}%` }} />
-          </div>
-        </div>
-      )}
-    </div>
+              {!state.isPlaying && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute inset-0 flex items-center justify-center bg-black/20"
+                >
+                  <span className="text-5xl">▶</span>
+                </motion.div>
+              )}
+
+              <div className="absolute right-3 bottom-32 flex flex-col items-center gap-5">
+                <SpringButton
+                  className={`min-w-[44px] min-h-[44px] flex flex-col items-center justify-center gap-1 ${state.liked.has(currentReel.id) ? 'text-red-500' : 'text-white'}`}
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    state.liked.has(currentReel.id)
+                      ? actions.unlike(currentReel.id)
+                      : actions.like(currentReel.id);
+                  }}
+                >
+                  <span className="text-2xl">❤️</span>
+                  <span className="text-xs">{formatCount(currentReel.likeCount)}</span>
+                </SpringButton>
+                <SpringButton
+                  className="min-w-[44px] min-h-[44px] flex flex-col items-center justify-center gap-1 text-white"
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                  }}
+                >
+                  <span className="text-2xl">💬</span>
+                  <span className="text-xs">{formatCount(currentReel.commentCount)}</span>
+                </SpringButton>
+                <SpringButton
+                  className="min-w-[44px] min-h-[44px] flex flex-col items-center justify-center gap-1 text-white"
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    actions.share(currentReel.id);
+                  }}
+                >
+                  <span className="text-2xl">↗</span>
+                  <span className="text-xs">{formatCount(currentReel.shareCount)}</span>
+                </SpringButton>
+                <SpringButton
+                  className="min-w-[44px] min-h-[44px] flex flex-col items-center justify-center gap-1 text-white"
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    actions.toggleMute();
+                  }}
+                >
+                  <span className="text-2xl">{state.isMuted ? '🔇' : '🔊'}</span>
+                </SpringButton>
+              </div>
+
+              <div className="absolute bottom-4 left-3 right-16">
+                <div className="flex items-center gap-2 mb-2">
+                  <img
+                    className="w-8 h-8 rounded-full object-cover border border-white/30"
+                    src={currentReel.creatorAvatar}
+                    alt={currentReel.creator}
+                  />
+                  <span className="font-semibold text-sm">@{currentReel.creator}</span>
+                </div>
+                <p className="text-sm leading-snug line-clamp-2">{currentReel.caption}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-xs">🎵</span>
+                  <span className="text-xs truncate">{currentReel.soundName}</span>
+                </div>
+              </div>
+
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
+                <motion.div
+                  className="h-full bg-white"
+                  style={{ width: `${state.progress}%` }}
+                  transition={{ duration: 0.1 }}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </PageTransition>
   );
 };
 
