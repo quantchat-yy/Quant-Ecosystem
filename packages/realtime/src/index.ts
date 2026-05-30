@@ -79,3 +79,7 @@ export type {
   ValidationSuccess,
   ValidationFailure,
 } from './event-schema-registry';
+
+// Event Bus
+export { EventBus } from './event-bus';
+export type { EventBusHandler, EventBusSubscription } from './event-bus';

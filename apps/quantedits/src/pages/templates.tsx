@@ -113,7 +113,7 @@ const TemplateBrowser: React.FC = () => {
     refetch,
   } = useTemplates(categoryParam, searchQuery || undefined);
 
-  const templates: Template[] = (templatesData ?? []) as Template[];
+  const templates: Template[] = (templatesData ?? []) as unknown as Template[];
 
   const filteredTemplates = useMemo(() => {
     let result = templates

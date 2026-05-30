@@ -32,6 +32,7 @@ interface UseMatchingReturn {
   matchCelebration: { profileName: string } | null;
   dismissCelebration: () => void;
   refillQueue: () => void;
+  matches: any[];
 }
 
 export function useMatching(): UseMatchingReturn {
@@ -143,6 +144,7 @@ export function useMatching(): UseMatchingReturn {
     matchCelebration,
     dismissCelebration,
     refillQueue,
+    matches: [],
   };
 }
 

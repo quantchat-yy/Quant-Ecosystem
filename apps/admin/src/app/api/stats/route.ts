@@ -1,57 +1,32 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '../../../lib/prisma';
 
-interface EcosystemStats {
-  timestamp: string;
-  users: {
-    total: number;
-    active: number;
-    newToday: number;
-    online: number;
-  };
-  requests: {
-    perMinute: number;
-    totalToday: number;
-    avgLatency: number;
-    p99Latency: number;
-  };
-  errors: {
-    rate: number;
-    totalToday: number;
-    criticalCount: number;
-  };
-  storage: {
-    totalUsed: string;
-    filesCount: number;
-    uploadsToday: number;
-  };
-}
+export async function GET() {
+  try {
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-export async function GET(): Promise<NextResponse<EcosystemStats>> {
-  const stats: EcosystemStats = {
-    timestamp: new Date().toISOString(),
-    users: {
-      total: 24891,
-      active: 18432,
-      newToday: 127,
-      online: 1284,
-    },
-    requests: {
-      perMinute: 8432,
-      totalToday: 4250000,
-      avgLatency: 45,
-      p99Latency: 230,
-    },
-    errors: {
-      rate: 0.0012,
-      totalToday: 5100,
-      criticalCount: 2,
-    },
-    storage: {
-      totalUsed: '2.4 TB',
-      filesCount: 456230,
-      uploadsToday: 3421,
-    },
-  };
+    const [totalUsers, activeUsers, newToday] = await Promise.all([
+      prisma.user.count(),
+      prisma.user.count({ where: { lastLoginAt: { gte: oneDayAgo } } }),
+      prisma.user.count({ where: { createdAt: { gte: startOfDay } } }),
+    ]);
 
-  return NextResponse.json(stats);
+    return NextResponse.json({
+      timestamp: now.toISOString(),
+      users: { total: totalUsers, active: activeUsers, newToday, online: 0 },
+      database: { connected: true },
+    });
+  } catch (error) {
+    // If DB is unavailable, return zeros gracefully
+    return NextResponse.json({
+      timestamp: new Date().toISOString(),
+      users: { total: 0, active: 0, newToday: 0, online: 0 },
+      database: {
+        connected: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+    });
+  }
 }

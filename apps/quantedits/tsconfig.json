@@ -3,16 +3,21 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": ".",
-    "jsx": "react-jsx"
+    "jsx": "preserve",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowJs": true,
+    "noEmit": true,
+    "incremental": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noUncheckedIndexedAccess": false,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "backend/**/*.ts"],
-  "references": [
-    { "path": "../../packages/auth" },
-    { "path": "../../packages/ai" },
-    { "path": "../../packages/common" },
-    { "path": "../../packages/database" },
-    { "path": "../../packages/realtime" },
-    { "path": "../../packages/server-core" },
-    { "path": "../../packages/shared-ui" }
-  ]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "backend/**/*.ts", "next-env.d.ts"],
+  "exclude": ["node_modules", ".next", "dist"]
 }

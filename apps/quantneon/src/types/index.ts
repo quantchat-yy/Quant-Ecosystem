@@ -21,6 +21,10 @@ export interface Post {
   isPinned: boolean;
   collaborators: string[];
   createdAt: string;
+  authorAvatar?: string;
+  authorUsername?: string;
+  mediaUrls?: string[];
+  likeCount: number;
 }
 
 export interface MediaItem {
@@ -77,7 +81,16 @@ export interface Story {
 
 export interface Sticker {
   id: string;
-  type: 'poll' | 'question' | 'slider' | 'countdown' | 'quiz' | 'music' | 'mention' | 'location' | 'link';
+  type:
+    | 'poll'
+    | 'question'
+    | 'slider'
+    | 'countdown'
+    | 'quiz'
+    | 'music'
+    | 'mention'
+    | 'location'
+    | 'link';
   position: { x: number; y: number };
   data: any;
 }

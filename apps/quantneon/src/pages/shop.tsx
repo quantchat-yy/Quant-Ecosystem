@@ -10,7 +10,11 @@ interface ShopPageProps {
   featured: Product[];
 }
 
-export function ShopPage({ products, categories, featured }: ShopPageProps) {
+export function ShopPage({
+  products = [],
+  categories = [],
+  featured = [],
+}: Partial<ShopPageProps>) {
   return (
     <div className="min-h-screen bg-gray-50 pb-20" aria-label="Shop">
       {/* Header */}

@@ -4,170 +4,98 @@ interface AppHealth {
   name: string;
   status: 'healthy' | 'degraded' | 'down';
   port: number;
-  uptime: number;
+  responseTimeMs: number;
   lastCheck: string;
 }
 
-interface ServiceHealth {
-  name: string;
-  status: 'running' | 'stopped' | 'error';
-  uptime: number;
-  lastRestart: string;
+const APP_REGISTRY = [
+  { name: 'QuantMail', port: 3000 },
+  { name: 'QuantChat', port: 3001 },
+  { name: 'QuantDrive', port: 3002 },
+  { name: 'QuantCalendar', port: 3003 },
+  { name: 'QuantAds', port: 3004 },
+  { name: 'QuantDocs', port: 3005 },
+  { name: 'QuantSync', port: 3006 },
+  { name: 'QuantMeet', port: 3007 },
+  { name: 'QuantAI', port: 3020 },
+  { name: 'QuantMax', port: 3030 },
+  { name: 'QuantNeon', port: 3031 },
+  { name: 'QuantEdits', port: 3032 },
+  { name: 'Quantube', port: 3033 },
+  { name: 'Admin', port: 3100 },
+];
+
+const SERVICE_REGISTRY = [
+  { name: 'ws-gateway', port: 3040 },
+  { name: 'smtp-inbound', port: 3050 },
+  { name: 'cdc-relay', port: 3060 },
+  { name: 'ci-runner', port: 3070 },
+  { name: 'git-server', port: 3080 },
+  { name: 'matchmaking', port: 3090 },
+  { name: 'moderation-worker', port: 3091 },
+  { name: 'search-indexer', port: 3092 },
+];
+
+async function checkHealth(
+  port: number,
+): Promise<{ status: 'healthy' | 'down'; responseTimeMs: number }> {
+  const start = Date.now();
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2000);
+    const res = await fetch(`http://localhost:${port}/health`, { signal: controller.signal });
+    clearTimeout(timeout);
+    return { status: res.ok ? 'healthy' : 'down', responseTimeMs: Date.now() - start };
+  } catch {
+    return { status: 'down', responseTimeMs: Date.now() - start };
+  }
 }
 
-interface HealthResponse {
-  timestamp: string;
-  overall: 'healthy' | 'degraded' | 'down';
-  apps: AppHealth[];
-  services: ServiceHealth[];
-}
+export async function GET() {
+  const now = new Date().toISOString();
 
-export async function GET(): Promise<NextResponse<HealthResponse>> {
-  const apps: AppHealth[] = [
-    {
-      name: 'QuantMail',
-      status: 'healthy',
-      port: 3000,
-      uptime: 99.99,
-      lastCheck: new Date().toISOString(),
-    },
-    {
-      name: 'QuantChat',
-      status: 'healthy',
-      port: 3001,
-      uptime: 99.98,
-      lastCheck: new Date().toISOString(),
-    },
-    {
-      name: 'QuantDrive',
-      status: 'healthy',
-      port: 3002,
-      uptime: 99.97,
-      lastCheck: new Date().toISOString(),
-    },
-    {
-      name: 'QuantCalendar',
-      status: 'healthy',
-      port: 3003,
-      uptime: 99.99,
-      lastCheck: new Date().toISOString(),
-    },
-    {
-      name: 'QuantMeet',
-      status: 'healthy',
-      port: 3004,
-      uptime: 99.95,
-      lastCheck: new Date().toISOString(),
-    },
-    {
-      name: 'QuantNotes',
-      status: 'healthy',
-      port: 3005,
-      uptime: 99.99,
-      lastCheck: new Date().toISOString(),
-    },
-    {
-      name: 'QuantTasks',
-      status: 'healthy',
-      port: 3006,
-      uptime: 99.98,
-      lastCheck: new Date().toISOString(),
-    },
-    {
-      name: 'QuantCode',
-      status: 'degraded',
-      port: 3007,
-      uptime: 98.5,
-      lastCheck: new Date().toISOString(),
-    },
-    {
-      name: 'QuantCI',
-      status: 'healthy',
-      port: 3008,
-      uptime: 99.9,
-      lastCheck: new Date().toISOString(),
-    },
-    {
-      name: 'QuantSocial',
-      status: 'healthy',
-      port: 3009,
-      uptime: 99.96,
-      lastCheck: new Date().toISOString(),
-    },
-    {
-      name: 'QuantAI',
-      status: 'healthy',
-      port: 3010,
-      uptime: 99.97,
-      lastCheck: new Date().toISOString(),
-    },
-    {
-      name: 'QuantPay',
-      status: 'healthy',
-      port: 3011,
-      uptime: 99.99,
-      lastCheck: new Date().toISOString(),
-    },
-    {
-      name: 'QuantGames',
-      status: 'healthy',
-      port: 3012,
-      uptime: 99.94,
-      lastCheck: new Date().toISOString(),
-    },
-    {
-      name: 'QuantForms',
-      status: 'healthy',
-      port: 3013,
-      uptime: 99.98,
-      lastCheck: new Date().toISOString(),
-    },
-    {
-      name: 'QuantAnalytics',
-      status: 'healthy',
-      port: 3014,
-      uptime: 99.97,
-      lastCheck: new Date().toISOString(),
-    },
-    {
-      name: 'QuantAdmin',
-      status: 'healthy',
-      port: 3100,
-      uptime: 99.99,
-      lastCheck: new Date().toISOString(),
-    },
-  ];
+  const appChecks = await Promise.allSettled(
+    APP_REGISTRY.map(async (app) => {
+      const health = await checkHealth(app.port);
+      return { name: app.name, port: app.port, ...health, lastCheck: now } as AppHealth;
+    }),
+  );
 
-  const services: ServiceHealth[] = [
-    { name: 'ws-gateway', status: 'running', uptime: 99.98, lastRestart: '2024-01-10T03:00:00Z' },
-    { name: 'smtp-inbound', status: 'running', uptime: 99.95, lastRestart: '2024-01-12T06:00:00Z' },
-    { name: 'cdc-relay', status: 'running', uptime: 99.99, lastRestart: '2024-01-08T02:00:00Z' },
-    { name: 'ci-runner', status: 'running', uptime: 99.9, lastRestart: '2024-01-14T12:00:00Z' },
-    { name: 'git-server', status: 'running', uptime: 99.99, lastRestart: '2024-01-05T04:00:00Z' },
-    { name: 'matchmaking', status: 'running', uptime: 99.92, lastRestart: '2024-01-13T08:00:00Z' },
-    {
-      name: 'moderation-worker',
-      status: 'running',
-      uptime: 99.96,
-      lastRestart: '2024-01-11T10:00:00Z',
-    },
-    {
-      name: 'search-indexer',
-      status: 'running',
-      uptime: 99.97,
-      lastRestart: '2024-01-09T05:00:00Z',
-    },
-  ];
+  const apps: AppHealth[] = appChecks.map((result, i) => {
+    if (result.status === 'fulfilled') return result.value;
+    return {
+      name: APP_REGISTRY[i].name,
+      port: APP_REGISTRY[i].port,
+      status: 'down' as const,
+      responseTimeMs: 0,
+      lastCheck: now,
+    };
+  });
 
-  const hasDegraded = apps.some((a) => a.status === 'degraded');
+  const serviceChecks = await Promise.allSettled(
+    SERVICE_REGISTRY.map(async (svc) => {
+      const health = await checkHealth(svc.port);
+      return {
+        name: svc.name,
+        status: health.status === 'healthy' ? ('running' as const) : ('stopped' as const),
+        responseTimeMs: health.responseTimeMs,
+        lastCheck: now,
+      };
+    }),
+  );
+
+  const services = serviceChecks.map((result, i) => {
+    if (result.status === 'fulfilled') return result.value;
+    return {
+      name: SERVICE_REGISTRY[i].name,
+      status: 'stopped' as const,
+      responseTimeMs: 0,
+      lastCheck: now,
+    };
+  });
+
   const hasDown = apps.some((a) => a.status === 'down');
+  const overall = hasDown ? 'degraded' : 'healthy';
 
-  const response: HealthResponse = {
-    timestamp: new Date().toISOString(),
-    overall: hasDown ? 'down' : hasDegraded ? 'degraded' : 'healthy',
-    apps,
-    services,
-  };
-
-  return NextResponse.json(response);
+  return NextResponse.json({ timestamp: now, overall, apps, services });
 }

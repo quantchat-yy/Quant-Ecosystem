@@ -21,7 +21,7 @@ export class SpeechToTextService {
    * Transcribe audio buffer to text
    */
   async transcribe(audio: Buffer, language?: string): Promise<TranscriptionResult> {
-    const file = new File([audio], 'audio.webm', { type: 'audio/webm' });
+    const file = new File([new Uint8Array(audio)], 'audio.webm', { type: 'audio/webm' });
 
     const response = await this.client.audio.transcriptions.create({
       file,

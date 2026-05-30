@@ -221,8 +221,8 @@ const ProjectGallery: React.FC = () => {
     error: templatesError,
   } = useTemplates();
 
-  const projects: Project[] = (projectsData ?? []) as Project[];
-  const templates: Template[] = (templatesData ?? []) as Template[];
+  const projects: Project[] = (projectsData ?? []) as unknown as Project[];
+  const templates: Template[] = (templatesData ?? []) as unknown as Template[];
   const sharedProjects: SharedProject[] = [];
 
   const filteredProjects = useMemo(() => {

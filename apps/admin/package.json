@@ -13,9 +13,12 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
     "@quant/auth": "workspace:*",
     "@quant/common": "workspace:*",
     "@quant/database": "workspace:*",
+    "@quant/notifications": "workspace:*",
+    "@quant/search": "workspace:*",
     "@quant/server-core": "workspace:*",
     "@quant/shared-ui": "workspace:*",
     "@tanstack/react-query": "^5.60.0",

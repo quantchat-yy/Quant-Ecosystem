@@ -57,7 +57,7 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
 
   const { data: assetsData, isLoading, error, refetch } = useAssets(activeTab, searchQuery);
 
-  const assets: Asset[] = (assetsData ?? []) as Asset[];
+  const assets: Asset[] = (assetsData ?? []) as unknown as Asset[];
 
   const filteredAssets = useMemo(() => {
     let result = assets

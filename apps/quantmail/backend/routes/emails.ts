@@ -1,7 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
+import { CrossAppDispatcher } from '@quant/notifications';
 import { EmailService } from '../services/email.service';
+
+const notifier = new CrossAppDispatcher('quantmail');
 
 const composeSchema = z.object({
   toAddresses: z.array(z.string().email()).min(1),
@@ -55,6 +58,19 @@ export default async function emailsRoutes(fastify: FastifyInstance) {
 
     if (parseResult.data.send && parseResult.data.sentFolderId) {
       const sent = await service.send(userId, email.id, parseResult.data.sentFolderId);
+
+      // Notify recipients about the new email
+      try {
+        notifier.notifyNewEmail(
+          parseResult.data.toAddresses,
+          userId,
+          parseResult.data.subject,
+          email.id,
+        );
+      } catch {
+        /* notification failure should not block email sending */
+      }
+
       return reply.status(201).send({ success: true, data: sent });
     }
 

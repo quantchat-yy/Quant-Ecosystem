@@ -1,3 +1,4 @@
+import './globals.css';
 import { QueryProvider } from '../providers/query-provider';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
