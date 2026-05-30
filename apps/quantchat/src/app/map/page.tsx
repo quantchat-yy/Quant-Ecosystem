@@ -1,12 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { BottomNav } from '@quant/shared-ui';
 import { LoadingState } from '@quant/shared-ui';
 import { navItems, routes } from '../../lib/navigation';
 
-const friends = [
+interface FriendLocation {
+  id: string;
+  name: string;
+  top: string;
+  left: string;
+  color: string;
+}
+
+const FALLBACK_FRIENDS: FriendLocation[] = [
   { id: '1', name: 'Alex', top: '25%', left: '35%', color: 'bg-emerald-500' },
   { id: '2', name: 'Sam', top: '45%', left: '60%', color: 'bg-indigo-500' },
   { id: '3', name: 'Jordan', top: '60%', left: '25%', color: 'bg-amber-500' },
@@ -23,7 +31,21 @@ const heatMapAreas = [
 export default function MapPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'friends' | 'explore'>('friends');
-  const [loading] = useState(false);
+  const [friends, setFriends] = useState<FriendLocation[]>(FALLBACK_FRIENDS);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/map/friends')
+      .then((r) => r.json())
+      .then((json) => {
+        const data = json.data || json.friends || json;
+        if (Array.isArray(data) && data.length > 0) setFriends(data);
+      })
+      .catch(() => {
+        /* keep fallback */
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   if (loading) return <LoadingState variant="skeleton" text="Loading map..." />;
 

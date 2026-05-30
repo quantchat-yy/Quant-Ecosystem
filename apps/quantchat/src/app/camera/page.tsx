@@ -21,8 +21,28 @@ export default function CameraPage() {
   const [frontCamera, setFrontCamera] = useState(false);
   const [activeFilter, setActiveFilter] = useState('none');
   const [isRecording, setIsRecording] = useState(false);
+  const [captureStatus, setCaptureStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   const activeFilterObj = filters.find((f) => f.id === activeFilter) || filters[0];
+
+  const handleCapture = async () => {
+    setCaptureStatus('saving');
+    try {
+      const res = await fetch('/api/stories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'photo', filter: activeFilter }),
+      });
+      if (res.ok) {
+        setCaptureStatus('saved');
+      } else {
+        setCaptureStatus('error');
+      }
+    } catch {
+      setCaptureStatus('error');
+    }
+    setTimeout(() => setCaptureStatus('idle'), 2000);
+  };
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
@@ -34,6 +54,25 @@ export default function CameraPage() {
           <div className="w-32 h-32 border border-white/20 rounded-lg" />
         </div>
       </div>
+
+      {/* Capture status feedback */}
+      {captureStatus !== 'idle' && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30">
+          <div
+            className={`px-4 py-2 rounded-full backdrop-blur-md text-sm font-medium ${
+              captureStatus === 'saving'
+                ? 'bg-white/20 text-white'
+                : captureStatus === 'saved'
+                  ? 'bg-emerald-500/80 text-white'
+                  : 'bg-red-500/80 text-white'
+            }`}
+          >
+            {captureStatus === 'saving' && 'Saving...'}
+            {captureStatus === 'saved' && 'Story created!'}
+            {captureStatus === 'error' && 'Failed to save'}
+          </div>
+        </div>
+      )}
 
       {/* Top controls */}
       <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 pt-6">
@@ -90,10 +129,16 @@ export default function CameraPage() {
       <div className="absolute bottom-20 left-0 right-0 z-10 flex items-center justify-center gap-8">
         <button
           onMouseDown={() => setIsRecording(true)}
-          onMouseUp={() => setIsRecording(false)}
+          onMouseUp={() => {
+            setIsRecording(false);
+            handleCapture();
+          }}
           onMouseLeave={() => setIsRecording(false)}
           onTouchStart={() => setIsRecording(true)}
-          onTouchEnd={() => setIsRecording(false)}
+          onTouchEnd={() => {
+            setIsRecording(false);
+            handleCapture();
+          }}
           className={`w-20 h-20 rounded-full border-4 border-white flex items-center justify-center transition-all ${
             isRecording
               ? 'bg-red-500 scale-110 border-red-300'

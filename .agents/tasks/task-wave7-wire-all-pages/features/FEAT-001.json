@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Wire all 8 unwired admin panel pages to their existing backend API routes. Replace hardcoded mock arrays with fetch() calls that include loading, error, and data states. Keep mock data as fallback when API calls fail.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Wire apps/admin/src/app/page.tsx (Dashboard): Add useEffect that fetches /api/stats and /api/health. Replace systemStats array with data from /api/stats (users.total, users.active etc). Replace appHealthData with apps array from /api/health. Show LoadingState while fetching, ErrorState on failure, fall back to existing mock data on error.",
     "Wire apps/admin/src/app/apps/page.tsx: Add useEffect that fetches /api/health. Replace appsData array with the apps array returned from health endpoint (map name, port, status fields). Add loading/error states.",
@@ -26,5 +26,5 @@
     "cd /projects/sandbox/Quant-Ecosystem && pnpm turbo typecheck --filter=@quant/admin"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 8 pages wired successfully. TypeScript compiles with zero errors. Pre-commit hooks pass (prettier reformatted). Node available at /opt/toolchains/.nvm/versions/node/v22.22.3/bin (PATH must be set). Created 3 new API routes: /api/ai/stats, /api/database/stats, /api/settings (GET+PUT)."
 }

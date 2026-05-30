@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Wire the 4 admin observability components and the 4 remaining app pages (QuantAI ask/voice, QuantChat camera/map) to real API endpoints. Replace all hardcoded mock arrays with fetch calls.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Wire apps/admin/src/app/observability/components/ServiceHealthGrid.tsx: Replace the hardcoded services array with a fetch to /api/health. Map the response apps+services arrays to the ServiceHealth interface. Add loading/error states.",
     "Wire apps/admin/src/app/observability/components/ErrorTracker.tsx: Replace mockErrors array with a fetch to /api/audit?action=ERROR or create a new /api/errors/recent route. Add loading/error states.",

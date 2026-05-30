@@ -26,13 +26,35 @@ export default function AskQuantPage() {
   const { currentModel } = useModelSelector();
   const [query, setQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [response, setResponse] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
     setIsSubmitting(true);
-    // Placeholder: in future this routes to the agentic orchestration layer
-    setTimeout(() => setIsSubmitting(false), 1000);
+    setError(null);
+    setResponse(null);
+
+    try {
+      const res = await fetch('/api/assistant/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: query, model: currentModel.id }),
+      });
+      const json = await res.json();
+      if (json.response || json.message || json.data) {
+        setResponse(json.response || json.message || json.data);
+      } else if (json.error) {
+        setError(json.error);
+      } else {
+        setResponse(JSON.stringify(json));
+      }
+    } catch {
+      setError('Failed to connect to AI service. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSuggestionClick = (label: string) => {
@@ -97,6 +119,36 @@ export default function AskQuantPage() {
               </button>
             </div>
           </motion.form>
+
+          {/* AI Response */}
+          {response && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full max-w-2xl mb-8 rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-5"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-sm font-medium text-indigo-400">Quant AI</span>
+                <span className="text-xs text-[var(--quant-text-secondary)]">
+                  via {currentModel.name}
+                </span>
+              </div>
+              <p className="text-sm text-[var(--quant-foreground)] whitespace-pre-wrap">
+                {response}
+              </p>
+            </motion.div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full max-w-2xl mb-8 rounded-xl border border-red-500/20 bg-red-500/5 p-4"
+            >
+              <p className="text-sm text-red-400">{error}</p>
+            </motion.div>
+          )}
 
           {/* Suggestion cards */}
           <motion.div

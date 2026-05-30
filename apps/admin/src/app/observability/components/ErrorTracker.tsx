@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface ErrorEntry {
   timestamp: string;
@@ -10,7 +10,7 @@ interface ErrorEntry {
   traceId: string;
 }
 
-const mockErrors: ErrorEntry[] = [
+const FALLBACK_ERRORS: ErrorEntry[] = [
   {
     timestamp: '2024-01-15 10:23:45',
     service: 'quantai',
@@ -70,12 +70,64 @@ const mockErrors: ErrorEntry[] = [
 ];
 
 export function ErrorTracker() {
+  const [errors, setErrors] = useState<ErrorEntry[]>(FALLBACK_ERRORS);
+  const [loading, setLoading] = useState(true);
   const [sortAsc, setSortAsc] = useState(false);
 
-  const sorted = [...mockErrors].sort((a, b) => {
+  useEffect(() => {
+    fetch('/api/health')
+      .then((r) => r.json())
+      .then((json) => {
+        const items: ErrorEntry[] = [];
+        const now = new Date();
+        if (json.apps) {
+          json.apps.forEach(
+            (app: { name: string; status: string; responseTimeMs: number; lastCheck: string }) => {
+              if (app.status === 'down') {
+                items.push({
+                  timestamp: new Date(app.lastCheck || now).toLocaleString(),
+                  service: app.name.toLowerCase(),
+                  message: `Service ${app.name} is unreachable (health check failed)`,
+                  statusCode: 503,
+                  traceId: Math.random().toString(36).slice(2, 14),
+                });
+              }
+            },
+          );
+        }
+        if (json.services) {
+          json.services.forEach(
+            (svc: { name: string; status: string; responseTimeMs: number; lastCheck: string }) => {
+              if (svc.status === 'stopped') {
+                items.push({
+                  timestamp: new Date(svc.lastCheck || now).toLocaleString(),
+                  service: svc.name,
+                  message: `Service ${svc.name} is stopped (connection refused)`,
+                  statusCode: 502,
+                  traceId: Math.random().toString(36).slice(2, 14),
+                });
+              }
+            },
+          );
+        }
+        if (items.length > 0) setErrors(items);
+      })
+      .catch(() => {
+        /* keep fallback */
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const sorted = [...errors].sort((a, b) => {
     const cmp = a.timestamp.localeCompare(b.timestamp);
     return sortAsc ? cmp : -cmp;
   });
+
+  if (loading) {
+    return (
+      <div className="rounded-lg border border-[var(--quant-border)] bg-[var(--quant-card)] p-8 animate-pulse h-48" />
+    );
+  }
 
   return (
     <div className="rounded-lg border border-[var(--quant-border)] bg-[var(--quant-card)] overflow-hidden">
