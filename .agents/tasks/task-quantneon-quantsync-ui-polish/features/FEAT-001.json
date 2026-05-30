@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "QuantNeon UI/UX polish: Add framer-motion dependency, wire all components through API hooks with proper loading/error/empty states, add spring-physics animations (StaggerList, PageTransition, SpringButton from @quant/shared-ui), staggered list entrances, responsive dark-mode styles with Tailwind (360px-1440px), 44px tap targets, and hover/press/focus states across all pages and components.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Add framer-motion ^11.0.0 to apps/quantneon/package.json dependencies and run pnpm install at the workspace root.",
     "Update apps/quantneon/tailwind.config.ts to extend theme with dark mode ('class' strategy), custom neon/purple accent colors, and responsive breakpoints. Add the dark class support.",
@@ -37,5 +37,5 @@
     "pnpm --filter @quant/quantneon lint"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Pre-existing typecheck errors in packages/observability (opentelemetry version mismatch) and packages/server-core (@quant/database module not found) are NOT caused by our changes. Confirmed by running typecheck on base commit. Skeleton component uses variant values 'text'|'circle'|'rect' with string width/height. The lint-staged pre-commit hook runs prettier --write on staged files."
 }
