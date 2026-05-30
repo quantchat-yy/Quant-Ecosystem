@@ -2,6 +2,7 @@
 // QuantNeon - PostGrid Component (Instagram-style photo grid)
 // ============================================================================
 
+import { motion } from 'framer-motion';
 import type { Post } from '../types';
 
 interface PostGridProps {
@@ -12,17 +13,15 @@ interface PostGridProps {
 
 export function PostGrid({ posts, columns = 3, onPostClick }: PostGridProps) {
   return (
-    <div
-      className="grid gap-0.5"
-      style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
-      role="grid"
-      aria-label="Photo grid"
-    >
-      {posts.map((post) => (
-        <button
+    <div className={`grid gap-0.5 grid-cols-2 sm:grid-cols-3`} role="grid" aria-label="Photo grid">
+      {posts.map((post, index) => (
+        <motion.button
           type="button"
           key={post.id}
-          className="relative aspect-square overflow-hidden bg-gray-900 group"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: index * 0.05, duration: 0.3 }}
+          className="relative aspect-square overflow-hidden bg-gray-900 dark:bg-gray-800 group hover:scale-[1.02] transition-transform"
           onClick={() => onPostClick?.(post.id)}
           aria-label={`${post.type} post, ${post.likes} likes, ${post.commentCount} comments`}
         >
@@ -48,7 +47,7 @@ export function PostGrid({ posts, columns = 3, onPostClick }: PostGridProps) {
               💬 {post.commentCount}
             </span>
           </div>
-        </button>
+        </motion.button>
       ))}
     </div>
   );

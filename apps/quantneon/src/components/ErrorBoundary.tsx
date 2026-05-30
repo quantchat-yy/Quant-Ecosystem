@@ -26,16 +26,18 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   override render() {
     if (this.state.hasError) {
       return (
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-screen bg-white dark:bg-[#0F0F14]">
           <div className="text-center p-8">
             <div className="text-4xl mb-4">&#x26A0;</div>
-            <h2 className="text-xl font-semibold mb-2">Something went wrong</h2>
-            <p className="text-gray-500 mb-6 max-w-md">
+            <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
+              Something went wrong
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md">
               {this.state.error?.message || 'An unexpected error occurred'}
             </p>
             <button
               onClick={this.handleReset}
-              className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              className="min-h-[44px] px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 dark:focus:ring-offset-[#0F0F14]"
             >
               Try Again
             </button>
