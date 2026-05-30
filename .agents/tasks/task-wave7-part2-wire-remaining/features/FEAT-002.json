@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Remove @simulated annotations from all 12 agent-runtime pilot files and ensure they all properly delegate to this.aiEngine rather than using any hardcoded if/else rule-based logic. Most pilots already call this.aiEngine.infer() but still carry @simulated/@NAIVE comments. Also rename any remaining 'analyzeWithAI' private methods to clearly indicate they use the real AI engine (not simulation), and remove any dead rule-based code paths that existed before the AI integration.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "For each of the 12 pilot files at packages/agent-runtime/src/agents/{code,content,email,finance,health,learning,meeting,research,schedule,shopping,social,travel}-pilot.ts: Remove the @simulated JSDoc comment block (the 4-line comment starting with '/**' and ending with '*/'). Remove the Classification: NAIVE line. Remove the 'Production path:' line. These are outdated since the pilots now use aiEngine.",
     "In each pilot file, verify there is no hardcoded if/else logic that returns fake responses without calling aiEngine. If any pilot has a fallback path that returns hardcoded data without attempting AI first, restructure so AI is always attempted first with the hardcoded path only used in the catch block.",
@@ -19,5 +19,5 @@
     "grep -r '@simulated' packages/agent-runtime/src/agents/ should return nothing"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All 12 pilot files had the @simulated JSDoc block removed cleanly. Typecheck passes. All 12 files still reference this.aiEngine for real AI integration. Pre-commit hook requires NVM to be sourced for pnpm availability."
 }
