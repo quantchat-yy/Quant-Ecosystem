@@ -139,7 +139,7 @@ export function useReels(): [ReelsState, ReelsActions] {
     },
   });
 
-  const reels: Reel[] = (reelsQuery.data ?? []) as Reel[];
+  const reels: Reel[] = (reelsQuery.data ?? []) as unknown as Reel[];
 
   useEffect(() => {
     if (isPlaying && reels.length > 0) {

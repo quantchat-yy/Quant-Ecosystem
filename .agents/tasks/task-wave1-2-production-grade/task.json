@@ -1,0 +1,7 @@
+{
+  "task_id": "task-wave1-2-production-grade",
+  "task_description": "Make the Quant-Ecosystem production-grade by fixing dead frontend builds (quantmax, quantneon, quantedits), enhancing the admin panel with real backend data, wiring cross-app shared services (notifications, search, WebSocket events), and ensuring all turbo tasks pass.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}

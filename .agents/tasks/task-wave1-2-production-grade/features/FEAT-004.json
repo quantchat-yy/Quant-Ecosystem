@@ -1,0 +1,27 @@
+{
+  "id": "FEAT-004",
+  "type": "chore",
+  "description": "Final verification pass - ensure ALL turbo tasks pass across the entire monorepo after all changes. Fix any TypeScript errors, build failures, test failures, or lint issues introduced by the previous features. Run the full pipeline: typecheck, build, test, lint.",
+  "status": "pending",
+  "steps": [
+    "Run `pnpm turbo typecheck` across the full monorepo and fix any errors.",
+    "Run `pnpm turbo build` across the full monorepo and fix any build failures.",
+    "Run `pnpm turbo test` across the full monorepo and fix any test failures.",
+    "Run `pnpm turbo lint` across the full monorepo and fix any lint issues.",
+    "Commit all changes with appropriate commit messages."
+  ],
+  "acceptance_criteria": [
+    "`pnpm turbo typecheck` - ALL tasks pass",
+    "`pnpm turbo build` - ALL tasks pass",
+    "`pnpm turbo test` - ALL tasks pass",
+    "`pnpm turbo lint` - ALL tasks pass"
+  ],
+  "verification": [
+    "pnpm turbo typecheck 2>&1 | tail -5",
+    "pnpm turbo build 2>&1 | tail -5",
+    "pnpm turbo test 2>&1 | tail -5",
+    "pnpm turbo lint 2>&1 | tail -5"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

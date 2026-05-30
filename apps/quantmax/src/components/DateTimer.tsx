@@ -37,10 +37,10 @@ export const DateTimer: React.FC<DateTimerProps> = ({
   const pulseRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const progress = useMemo(() => {
-    return totalTime > 0 ? (timeRemaining / totalTime) : 0;
+    return totalTime > 0 ? timeRemaining / totalTime : 0;
   }, [timeRemaining, totalTime]);
 
-  const circumference = useMemo(() => 2 * Math.PI * 70, 0);
+  const circumference = useMemo(() => 2 * Math.PI * 70, []);
 
   const strokeDashoffset = useMemo(() => {
     return circumference * (1 - progress);
@@ -65,7 +65,7 @@ export const DateTimer: React.FC<DateTimerProps> = ({
   useEffect(() => {
     if (isActive && timeRemaining > 0) {
       timerRef.current = setInterval(() => {
-        setTimeRemaining(prev => {
+        setTimeRemaining((prev) => {
           if (prev <= 1) {
             if (timerRef.current) clearInterval(timerRef.current);
             onTimeUp();
@@ -73,7 +73,7 @@ export const DateTimer: React.FC<DateTimerProps> = ({
           }
           return prev - 1;
         });
-        setTimeElapsed(prev => prev + 1);
+        setTimeElapsed((prev) => prev + 1);
       }, 1000);
     } else if (!isActive && timerRef.current) {
       clearInterval(timerRef.current);
@@ -88,7 +88,7 @@ export const DateTimer: React.FC<DateTimerProps> = ({
     if (isLowTime && isActive) {
       setIsPulsing(true);
       pulseRef.current = setInterval(() => {
-        setPulseOpacity(prev => prev === 1 ? 0.5 : 1);
+        setPulseOpacity((prev) => (prev === 1 ? 0.5 : 1));
       }, 500);
     } else {
       setIsPulsing(false);
@@ -104,8 +104,8 @@ export const DateTimer: React.FC<DateTimerProps> = ({
     if (extensionsUsed >= maxExtensions) return;
     const newExtensions = extensionsUsed + 1;
     setExtensionsUsed(newExtensions);
-    setTimeRemaining(prev => prev + extensionSeconds);
-    setTotalTime(prev => prev + extensionSeconds);
+    setTimeRemaining((prev) => prev + extensionSeconds);
+    setTotalTime((prev) => prev + extensionSeconds);
     onExtend(newExtensions);
   }, [extensionsUsed, maxExtensions, extensionSeconds, onExtend]);
 
@@ -116,19 +116,28 @@ export const DateTimer: React.FC<DateTimerProps> = ({
   }, [onEndDate]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '20px' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '16px',
+        padding: '20px',
+      }}
+    >
       {/* Circular SVG Countdown */}
-      <div style={{ position: 'relative', width: '160px', height: '160px', opacity: pulseOpacity, transition: 'opacity 0.3s' }}>
+      <div
+        style={{
+          position: 'relative',
+          width: '160px',
+          height: '160px',
+          opacity: pulseOpacity,
+          transition: 'opacity 0.3s',
+        }}
+      >
         <svg width="160" height="160" viewBox="0 0 160 160">
           {/* Background circle */}
-          <circle
-            cx="80"
-            cy="80"
-            r="70"
-            fill="none"
-            stroke="#2a2a2a"
-            strokeWidth="8"
-          />
+          <circle cx="80" cy="80" r="70" fill="none" stroke="#2a2a2a" strokeWidth="8" />
           {/* Progress circle */}
           <circle
             cx="80"
@@ -158,20 +167,35 @@ export const DateTimer: React.FC<DateTimerProps> = ({
         </svg>
 
         {/* Time Display */}
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-          <div style={{ fontSize: '32px', fontWeight: 'bold', color: strokeColor, fontFamily: 'monospace' }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            textAlign: 'center',
+          }}
+        >
+          <div
+            style={{
+              fontSize: '32px',
+              fontWeight: 'bold',
+              color: strokeColor,
+              fontFamily: 'monospace',
+            }}
+          >
             {formatTime(timeRemaining)}
           </div>
-          <div style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>
-            remaining
-          </div>
+          <div style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>remaining</div>
         </div>
       </div>
 
       {/* Time Elapsed Display */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span style={{ color: '#666', fontSize: '13px' }}>Elapsed:</span>
-        <span style={{ color: '#ccc', fontSize: '13px', fontFamily: 'monospace' }}>{formatTime(timeElapsed)}</span>
+        <span style={{ color: '#ccc', fontSize: '13px', fontFamily: 'monospace' }}>
+          {formatTime(timeElapsed)}
+        </span>
       </div>
 
       {/* Extension Count Indicator */}

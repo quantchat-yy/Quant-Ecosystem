@@ -45,7 +45,7 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ products, onCapture, onShare, onBuyPr
 
   useEffect(() => {
     if (filteredProducts.length > 0 && !selectedProduct) {
-      setSelectedProduct(filteredProducts[0]);
+      setSelectedProduct(filteredProducts[0] ?? null);
     }
   }, [category, filteredProducts, selectedProduct]);
 
@@ -147,7 +147,10 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ products, onCapture, onShare, onBuyPr
           <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
             <div className="text-center">
               <p className="text-gray-400 text-lg mb-2">Camera Off</p>
-              <button onClick={toggleCamera} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
+              <button
+                onClick={toggleCamera}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm"
+              >
                 Turn On Camera
               </button>
             </div>
@@ -180,13 +183,22 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ products, onCapture, onShare, onBuyPr
         <div className="absolute bottom-4 left-0 right-0 flex items-center justify-center gap-4 px-4">
           {captured ? (
             <>
-              <button onClick={handleRetake} className="px-4 py-2.5 bg-gray-700 text-white rounded-full text-sm font-medium">
+              <button
+                onClick={handleRetake}
+                className="px-4 py-2.5 bg-gray-700 text-white rounded-full text-sm font-medium"
+              >
                 Retake
               </button>
-              <button onClick={handleShare} className="px-4 py-2.5 bg-blue-600 text-white rounded-full text-sm font-medium">
+              <button
+                onClick={handleShare}
+                className="px-4 py-2.5 bg-blue-600 text-white rounded-full text-sm font-medium"
+              >
                 Share
               </button>
-              <button onClick={handleBuy} className="px-4 py-2.5 bg-green-600 text-white rounded-full text-sm font-medium">
+              <button
+                onClick={handleBuy}
+                className="px-4 py-2.5 bg-green-600 text-white rounded-full text-sm font-medium"
+              >
                 Buy ${selectedProduct?.price.toFixed(2)}
               </button>
             </>
@@ -197,7 +209,11 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ products, onCapture, onShare, onBuyPr
                 disabled={!selectedProduct || !cameraActive}
                 className="w-16 h-16 rounded-full border-4 border-white bg-white/20 backdrop-blur-sm disabled:opacity-40 hover:bg-white/30 transition-colors"
               />
-              <button onClick={handleBuy} disabled={!selectedProduct} className="px-4 py-2.5 bg-green-600 text-white rounded-full text-sm font-medium disabled:opacity-40">
+              <button
+                onClick={handleBuy}
+                disabled={!selectedProduct}
+                className="px-4 py-2.5 bg-green-600 text-white rounded-full text-sm font-medium disabled:opacity-40"
+              >
                 Buy Now
               </button>
             </>
@@ -213,7 +229,9 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ products, onCapture, onShare, onBuyPr
               key={cat.key}
               onClick={() => handleCategoryChange(cat.key)}
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                category === cat.key ? 'bg-white text-black' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                category === cat.key
+                  ? 'bg-white text-black'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
               }`}
             >
               <span>{cat.icon}</span>
@@ -227,7 +245,9 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ products, onCapture, onShare, onBuyPr
       <div className="bg-gray-900 px-4 pb-4 border-t border-gray-800">
         <div ref={scrollRef} className="flex gap-3 overflow-x-auto py-3 scrollbar-hide">
           {filteredProducts.length === 0 ? (
-            <p className="text-gray-500 text-sm py-4 w-full text-center">No products in this category</p>
+            <p className="text-gray-500 text-sm py-4 w-full text-center">
+              No products in this category
+            </p>
           ) : (
             filteredProducts.map((product) => (
               <button
@@ -239,7 +259,11 @@ const ARTryOn: React.FC<ARTryOnProps> = ({ products, onCapture, onShare, onBuyPr
                     : 'border-gray-700 hover:border-gray-500'
                 }`}
               >
-                <img src={product.thumbnail} alt={product.name} className="w-full h-full object-cover" />
+                <img
+                  src={product.thumbnail}
+                  alt={product.name}
+                  className="w-full h-full object-cover"
+                />
               </button>
             ))
           )}

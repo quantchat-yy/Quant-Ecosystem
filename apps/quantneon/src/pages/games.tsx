@@ -10,7 +10,11 @@ interface GamesPageProps {
   rewards: { coins: number; level: number };
 }
 
-export function GamesPage({ games, featured, rewards }: GamesPageProps) {
+export function GamesPage({
+  games = [],
+  featured = [],
+  rewards = { coins: 0, level: 0 },
+}: Partial<GamesPageProps>) {
   return (
     <div className="min-h-screen bg-gray-900 pb-20" aria-label="Games hub">
       {/* Header */}

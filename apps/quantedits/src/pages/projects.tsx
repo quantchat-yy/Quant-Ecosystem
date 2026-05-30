@@ -39,7 +39,7 @@ const ProjectManager: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  const projects: Project[] = (projectsData ?? []) as Project[];
+  const projects: Project[] = (projectsData ?? []) as unknown as Project[];
 
   const filteredProjects = useMemo(() => {
     let result = projects
