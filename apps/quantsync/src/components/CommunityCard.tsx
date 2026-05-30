@@ -1,3 +1,5 @@
+'use client';
+
 // ============================================================================
 // QuantSync - CommunityCard Component
 // Community preview card for discovery
@@ -14,7 +16,7 @@ interface CommunityCardProps {
 export function CommunityCard({ community, onJoin, onClick }: CommunityCardProps) {
   return (
     <div
-      className="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+      className="flex w-full flex-col rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[var(--quant-card)] shadow-sm overflow-hidden cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all"
       onClick={() => onClick?.(community.id)}
       role="article"
       aria-label={`Community: ${community.displayName}`}
@@ -28,20 +30,22 @@ export function CommunityCard({ community, onJoin, onClick }: CommunityCardProps
       )}
       <div className="flex flex-col items-start gap-2 p-4">
         <img
-          className="h-12 w-12 rounded-full border-2 border-white shadow-sm -mt-8"
+          className="h-12 w-12 rounded-full border-2 border-white dark:border-gray-800 shadow-sm -mt-8"
           src={community.icon || '/default-community.png'}
           alt={community.displayName}
         />
-        <h4 className="text-lg font-semibold text-gray-900">{community.displayName}</h4>
-        <span className="text-sm text-gray-500">r/{community.name}</span>
-        <p className="text-sm text-gray-600 line-clamp-3">
+        <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          {community.displayName}
+        </h4>
+        <span className="text-sm text-gray-500 dark:text-gray-400">r/{community.name}</span>
+        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-3">
           {community.description.substring(0, 150)}
         </p>
-        <div className="flex items-center gap-3 text-xs text-gray-500">
+        <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
           <span>{formatCount(community.memberCount)} members</span>
           <span>{community.onlineCount} online</span>
         </div>
-        <span className="inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+        <span className="inline-block rounded-full bg-indigo-100 dark:bg-indigo-900/30 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300">
           {community.category}
         </span>
         {!community.isJoined && (
@@ -57,7 +61,7 @@ export function CommunityCard({ community, onJoin, onClick }: CommunityCardProps
           </button>
         )}
         {community.isJoined && (
-          <span className="mt-2 inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+          <span className="mt-2 inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/30 px-3 py-1 text-xs font-medium text-green-700 dark:text-green-300">
             Joined
           </span>
         )}
