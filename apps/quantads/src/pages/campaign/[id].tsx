@@ -13,32 +13,7 @@ interface CampaignDetailState {
 }
 
 export function CampaignDetailPage({ campaignId: _campaignId }: { campaignId: string }) {
-  const state: CampaignDetailState = {
-    campaign: null,
-    metrics: null,
-    activeTab: 'overview',
-    isLoading: true,
-  };
-
-  return {
-    type: 'CampaignDetailPage',
-    layout: 'full-width',
-    components: {
-      header: { type: 'CampaignHeader', props: { campaign: state.campaign } },
-      metrics: { type: 'MetricsSummary', props: { metrics: state.metrics } },
-      tabs: {
-        type: 'TabBar',
-        props: {
-          tabs: ['overview', 'creatives', 'targeting', 'analytics', 'ab-tests'],
-          active: state.activeTab,
-        },
-      },
-      content: {
-        type: 'CampaignTabContent',
-        props: { tab: state.activeTab, campaign: state.campaign },
-      },
-    },
-  };
+  return null;
 }
 
 export default CampaignDetailPage;

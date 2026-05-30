@@ -93,7 +93,7 @@ export async function createApp(config: AppConfig) {
   // Enforce auth on all routes except health/metrics
   fastify.addHook('onRequest', async (request, reply) => {
     const path = request.url.split('?')[0] ?? '';
-    const publicPaths = ['/health', '/ready', '/live', '/metrics'];
+    const publicPaths = ['/health', '/healthz', '/ready', '/readyz', '/live', '/livez', '/metrics'];
     if (publicPaths.some((p) => path === p || path.startsWith(p + '/'))) {
       return;
     }

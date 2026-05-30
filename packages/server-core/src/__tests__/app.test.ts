@@ -57,10 +57,39 @@ describe('server-core app', () => {
   });
 
   describe('error handling', () => {
-    it('unknown routes return 404', async () => {
+    it('unknown routes return 401 without auth token', async () => {
       const response = await app.inject({
         method: 'GET',
         url: '/nonexistent-route',
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
+
+    it('unknown routes return 404 with valid auth token', async () => {
+      const secret = new TextEncoder().encode(testConfig.jwtSecret);
+      const token = await new jose.SignJWT({
+        email: 'test@example.com',
+        username: 'testuser',
+        role: 'user',
+        scopes: ['profile:read'],
+        app: 'quantmail',
+      })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('1h')
+        .setIssuer(testConfig.jwtIssuer)
+        .setAudience(testConfig.jwtAudience)
+        .setJti('test-token-404')
+        .setSubject('user-123')
+        .sign(secret);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/nonexistent-route',
+        headers: {
+          authorization: `Bearer ${token}`,
+        },
       });
 
       expect(response.statusCode).toBe(404);

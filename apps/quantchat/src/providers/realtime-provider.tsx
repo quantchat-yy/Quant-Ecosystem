@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { WebSocketClient } from '@quant/realtime';
-import type { ClientState, EventHandler } from '@quant/realtime';
+import { WebSocketClient } from '@quant/realtime/client';
+import type { ClientState, EventHandler } from '@quant/realtime/client';
 import { getAuthToken } from '../lib/auth';
 import { RealtimeContext } from './realtime-context';
 import type { RealtimeContextValue } from './realtime-context';
