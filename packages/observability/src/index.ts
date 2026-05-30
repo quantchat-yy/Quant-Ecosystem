@@ -22,7 +22,7 @@ export { ServiceSLODefinitions, parseSLOConfig, getServiceSLO } from './slo-defi
 export { BurnRateCalculator } from './slo-burn-rate';
 export { ChaosExperimentRunner } from './chaos-experiments';
 export { RunbookGenerator } from './runbook-generator';
-export { SyntheticMonitor, HttpClientFn } from './synthetic-monitor';
+export { SyntheticMonitor, type HttpClientFn } from './synthetic-monitor';
 export { DashboardConfigGenerator } from './dashboard-config';
 export { PagerDutyIntegration } from './pagerduty-integration';
 export { BrowserRUM } from './browser-rum';
@@ -141,3 +141,27 @@ export type {
   GameDayResult,
   Postmortem,
 } from './types';
+
+// OpenTelemetry SDK integration
+export {
+  initTracing,
+  getTracer,
+  getActiveTraceContext,
+  trace,
+  context,
+  SpanStatusCode as OTelSpanStatusCode,
+  initMetrics,
+  getMeter,
+  createHttpMetrics,
+  createLogger,
+} from './sdk/index';
+export type {
+  TracingConfig,
+  OTelSpan,
+  Tracer,
+  MetricsConfig,
+  Counter as OTelCounter,
+  Histogram as OTelHistogram,
+  Meter as OTelMeter,
+  LoggerConfig as OTelLoggerConfig,
+} from './sdk/index';

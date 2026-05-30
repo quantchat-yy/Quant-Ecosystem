@@ -10,3 +10,4 @@ export { default as requestIdPlugin } from './plugins/request-id';
 export { default as requestLoggerPlugin } from './plugins/request-logger';
 export { default as gracefulShutdownPlugin } from './plugins/graceful-shutdown';
 export type { AppConfig, AuthenticatedRequest } from './types';
+export { default as observabilityPlugin } from './plugins/observability';

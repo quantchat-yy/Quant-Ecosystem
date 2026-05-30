@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Observability with real OpenTelemetry SDK. The existing packages/observability/ has in-house implementations of tracing/metrics/logging (DistributedTracer, MetricsCollector, StructuredLogger). Wave 4 adds: real @opentelemetry/* SDK packages with OTLP exporter, a proper initTracing() function that is opt-in (only activates when OTEL_EXPORTER_OTLP_ENDPOINT is set), a server-core plugin that registers OTel Fastify instrumentation, and Jaeger/Prometheus/Grafana in docker-compose.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Add @opentelemetry/sdk-node, @opentelemetry/auto-instrumentations-node, @opentelemetry/exporter-trace-otlp-http, @opentelemetry/exporter-metrics-otlp-http, @opentelemetry/sdk-metrics, @opentelemetry/api to packages/observability/package.json dependencies",
     "Create packages/observability/src/sdk/tracing.ts - initTracing(serviceName) function that sets up NodeSDK with OtlpTraceExporter. Must be opt-in: if OTEL_EXPORTER_OTLP_ENDPOINT is not set, return a no-op. Export shutdown function.",

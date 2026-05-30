@@ -20,6 +20,7 @@
     "@quant/auth": "workspace:*",
     "@quant/common": "workspace:*",
     "@quant/database": "workspace:*",
+    "@quant/observability": "workspace:*",
     "fastify": "^5.2.1",
     "fastify-plugin": "^5.0.1",
     "ioredis": "^5.6.1",
