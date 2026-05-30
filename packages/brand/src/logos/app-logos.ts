@@ -13,8 +13,8 @@ export const appLogos: Record<string, { light: string; dark: string }> = {
   },
   quantai: {
     light:
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40">\n  <circle cx="20" cy="20" r="16" fill="#8B5CF6"/>\n  <text x="20" y="26" font-size="14" fill="#1A0F00" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700">Q</text>\n  <text x="50" y="26" font-size="16" fill="#0F172A" font-family="Inter, sans-serif" font-weight="600">QuantAI</text>\n</svg>',
-    dark: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40">\n  <circle cx="20" cy="20" r="16" fill="#8B5CF6"/>\n  <text x="20" y="26" font-size="14" fill="#1A0F00" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700">Q</text>\n  <text x="50" y="26" font-size="16" fill="#F8FAFC" font-family="Inter, sans-serif" font-weight="600">QuantAI</text>\n</svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40">\n  <circle cx="20" cy="20" r="16" fill="#A78BFA"/>\n  <text x="20" y="26" font-size="14" fill="#1A0F00" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700">Q</text>\n  <text x="50" y="26" font-size="16" fill="#0F172A" font-family="Inter, sans-serif" font-weight="600">QuantAI</text>\n</svg>',
+    dark: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40">\n  <circle cx="20" cy="20" r="16" fill="#A78BFA"/>\n  <text x="20" y="26" font-size="14" fill="#1A0F00" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700">Q</text>\n  <text x="50" y="26" font-size="16" fill="#F8FAFC" font-family="Inter, sans-serif" font-weight="600">QuantAI</text>\n</svg>',
   },
   quantcalendar: {
     light:
@@ -28,8 +28,8 @@ export const appLogos: Record<string, { light: string; dark: string }> = {
   },
   quantdrive: {
     light:
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40">\n  <circle cx="20" cy="20" r="16" fill="#6366F1"/>\n  <text x="20" y="26" font-size="14" fill="#1A0F00" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700">Q</text>\n  <text x="50" y="26" font-size="16" fill="#0F172A" font-family="Inter, sans-serif" font-weight="600">QuantDrive</text>\n</svg>',
-    dark: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40">\n  <circle cx="20" cy="20" r="16" fill="#6366F1"/>\n  <text x="20" y="26" font-size="14" fill="#1A0F00" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700">Q</text>\n  <text x="50" y="26" font-size="16" fill="#F8FAFC" font-family="Inter, sans-serif" font-weight="600">QuantDrive</text>\n</svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40">\n  <circle cx="20" cy="20" r="16" fill="#818CF8"/>\n  <text x="20" y="26" font-size="14" fill="#1A0F00" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700">Q</text>\n  <text x="50" y="26" font-size="16" fill="#0F172A" font-family="Inter, sans-serif" font-weight="600">QuantDrive</text>\n</svg>',
+    dark: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40">\n  <circle cx="20" cy="20" r="16" fill="#818CF8"/>\n  <text x="20" y="26" font-size="14" fill="#1A0F00" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700">Q</text>\n  <text x="50" y="26" font-size="16" fill="#F8FAFC" font-family="Inter, sans-serif" font-weight="600">QuantDrive</text>\n</svg>',
   },
   quantmeet: {
     light:

@@ -32,7 +32,7 @@ export const dark: Theme = {
   muted: '#1E293B',
   mutedForeground: '#94A3B8',
   destructive: '#EF4444',
-  destructiveForeground: '#FFFFFF',
+  destructiveForeground: '#000000',
   ring: '#6366F1',
 };
 
@@ -45,7 +45,7 @@ export const light: Theme = {
   primary: '#4F46E5',
   primaryForeground: '#FFFFFF',
   accent: '#D97706',
-  accentForeground: '#FFFFFF',
+  accentForeground: '#000000',
   border: '#E2E8F0',
   muted: '#F1F5F9',
   mutedForeground: '#64748B',
@@ -117,7 +117,7 @@ export const colorblindSafe: Theme = {
   primary: '#0077BB',
   primaryForeground: '#FFFFFF',
   accent: '#EE7733',
-  accentForeground: '#FFFFFF',
+  accentForeground: '#000000',
   border: '#CCCCDD',
   muted: '#EEEEF5',
   mutedForeground: '#555577',

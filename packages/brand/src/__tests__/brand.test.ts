@@ -261,6 +261,26 @@ describe('themes', () => {
       ).toBe(true);
     }
   });
+
+  it('all themes accent vs accentForeground meets AA', () => {
+    const allThemes = [dark, light, neon, bharat, highContrast, colorblindSafe];
+    for (const theme of allThemes) {
+      expect(
+        meetsAA(theme.accentForeground, theme.accent),
+        `${theme.name} accent/accentForeground should meet AA`,
+      ).toBe(true);
+    }
+  });
+
+  it('all themes destructive vs destructiveForeground meets AA', () => {
+    const allThemes = [dark, light, neon, bharat, highContrast, colorblindSafe];
+    for (const theme of allThemes) {
+      expect(
+        meetsAA(theme.destructiveForeground, theme.destructive),
+        `${theme.name} destructive/destructiveForeground should meet AA`,
+      ).toBe(true);
+    }
+  });
 });
 
 describe('contrast utilities', () => {
