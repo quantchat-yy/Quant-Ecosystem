@@ -1,0 +1,7 @@
+{
+  "task_id": "task-brand-identity-system",
+  "task_description": "Build the complete brand and visual identity system for the Quant Ecosystem in packages/brand/ and docs/brand/. Add missing apps (Maps, Photos), 6-theme system, Indic typography, WCAG contrast utilities, ~100 core icons, app icon set generation, per-app logos, and brand guidelines documentation.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}
