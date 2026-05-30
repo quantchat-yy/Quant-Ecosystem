@@ -13,25 +13,21 @@ export interface EventRelayConfig {
   broadcast: (channel: string, event: RealtimeEvent) => void;
 }
 
+let registered = false;
+
 /**
  * Register cross-app event handlers on the EventBus.
  * These handlers relay events from app backends to connected WebSocket clients.
  */
 export function registerEventHandlers(config: EventRelayConfig): void {
+  if (registered) return;
+  registered = true;
+
   const bus = EventBus.getInstance();
 
-  // Subscribe to all events and relay to WebSocket clients
-  bus.subscribe('*', (event: RealtimeEvent) => {
-    logger.debug({ type: event.type, channel: event.channel }, 'Relaying event to clients');
-    config.broadcast(event.channel, event);
-  });
-
-  // Subscribe to specific high-priority channels
+  // Channel-specific handlers for known event types
   bus.subscribe('notifications', (event: RealtimeEvent) => {
-    logger.info(
-      { type: event.type, recipients: event.metadata?.recipientIds },
-      'Broadcasting notification',
-    );
+    logger.info({ type: event.type }, 'Broadcasting notification');
     config.broadcast(`user:${event.senderId}:notifications`, event);
   });
 
@@ -44,6 +40,15 @@ export function registerEventHandlers(config: EventRelayConfig): void {
 
   bus.subscribe('presence', (event: RealtimeEvent) => {
     config.broadcast('presence', event);
+  });
+
+  // Catch-all for any other channels
+  bus.subscribe('*', (event: RealtimeEvent) => {
+    // Only relay if not already handled by a specific handler
+    if (!['notifications', 'messages', 'presence'].includes(event.channel)) {
+      logger.debug({ type: event.type, channel: event.channel }, 'Relaying unhandled event');
+      config.broadcast(event.channel, event);
+    }
   });
 
   logger.info('Cross-app event handlers registered');

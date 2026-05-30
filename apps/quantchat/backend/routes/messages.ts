@@ -48,14 +48,17 @@ export default async function messagesRoutes(fastify: FastifyInstance) {
       metadata: parseResult.data.metadata,
     });
 
-    // Notify conversation participants
+    // Notify conversation participants about new message
+    // NOTE: In production, fetch participant IDs from the conversation record
     try {
-      notifier.notifyNewMessage(
-        [request.params.id],
-        userId,
-        parseResult.data.content.slice(0, 100),
-        request.params.id,
-      );
+      notifier.dispatch({
+        type: 'message',
+        title: `New message in conversation`,
+        body: parseResult.data.content.slice(0, 100),
+        recipientIds: [], // TODO: Resolve from conversation members via prisma
+        priority: 'normal',
+        data: { conversationId: request.params.id, senderId: userId },
+      });
     } catch {
       /* notification failure should not block message sending */
     }

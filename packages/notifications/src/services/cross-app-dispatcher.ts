@@ -6,6 +6,14 @@
 import { NotificationFanout } from './notification-fanout';
 import type { FanoutEvent, FanoutResult } from './notification-fanout';
 import type { NotificationType, NotificationPriority, DeliveryChannel } from '../types';
+import type { PreferenceService } from './preference-service';
+
+/**
+ * Minimal interface matching the methods NotificationFanout actually calls
+ * on PreferenceService. This avoids unsafe `as never` casts while keeping
+ * the default preferences lightweight.
+ */
+type MinimalPreferenceService = Pick<PreferenceService, 'shouldNotify' | 'getChannelsForEvent'>;
 
 export interface CrossAppNotification {
   type: NotificationType;
@@ -44,7 +52,9 @@ export class CrossAppDispatcher {
         return ['in_app'];
       },
     };
-    this.fanout = new NotificationFanout(defaultPrefs as never);
+    this.fanout = new NotificationFanout(
+      defaultPrefs as MinimalPreferenceService as PreferenceService,
+    );
   }
 
   /**
