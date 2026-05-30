@@ -10,8 +10,10 @@ export interface SignalingServerOptions {
 
 export class SignalingServer {
   private connections: Map<string, ISocket> = new Map();
+  private participantRooms: Map<string, string> = new Map();
   private roomManager: RoomManager;
   private logger?: pino.Logger;
+  private cleanupTimer?: ReturnType<typeof setInterval>;
 
   constructor(options: SignalingServerOptions) {
     this.roomManager = options.roomManager;
@@ -52,6 +54,7 @@ export class SignalingServer {
       case 'join': {
         try {
           this.roomManager.joinRoom(message.roomId, message.participantId, message.displayName);
+          this.participantRooms.set(message.participantId, message.roomId);
           this.broadcastToRoom(
             message.roomId,
             { type: 'participant-joined', participantId: message.participantId },
@@ -77,6 +80,7 @@ export class SignalingServer {
 
       case 'leave': {
         this.roomManager.leaveRoom(message.roomId, message.participantId);
+        this.participantRooms.delete(message.participantId);
         this.broadcastToRoom(message.roomId, {
           type: 'participant-left',
           participantId: message.participantId,
@@ -154,7 +158,35 @@ export class SignalingServer {
 
   removeConnection(participantId: string): void {
     this.connections.delete(participantId);
+
+    // Clean up room membership and notify peers
+    const roomId = this.participantRooms.get(participantId);
+    if (roomId) {
+      this.roomManager.leaveRoom(roomId, participantId);
+      this.participantRooms.delete(participantId);
+      this.broadcastToRoom(roomId, {
+        type: 'participant-left',
+        participantId,
+      });
+    }
+
     this.logger?.info({ participantId }, 'WebRTC connection removed');
+  }
+
+  startCleanupInterval(intervalMs: number): void {
+    this.cleanupTimer = setInterval(() => {
+      const cleaned = this.roomManager.cleanupStaleRooms(intervalMs);
+      if (cleaned.length > 0) {
+        this.logger?.info({ rooms: cleaned }, 'Cleaned up stale rooms');
+      }
+    }, intervalMs);
+  }
+
+  stopCleanupInterval(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = undefined;
+    }
   }
 
   getConnectionCount(): number {

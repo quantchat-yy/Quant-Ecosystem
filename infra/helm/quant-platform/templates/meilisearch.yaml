@@ -29,10 +29,16 @@ spec:
             - name: http
               containerPort: {{ .Values.meilisearch.port }}
               protocol: TCP
-          {{- with .Values.meilisearch.env }}
           env:
+            - name: MEILI_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "quant-platform.fullname" . }}-secrets
+                  key: MEILI_MASTER_KEY
+                  optional: true
+            {{- with .Values.meilisearch.env }}
             {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- end }}
           resources:
             {{- toYaml .Values.meilisearch.resources | nindent 12 }}
           volumeMounts:

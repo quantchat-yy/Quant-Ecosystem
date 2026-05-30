@@ -1,7 +1,6 @@
 import fp from 'fastify-plugin';
-import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { OrgService, MemberService } from '@quant/organizations';
-import type { OrgContext } from '@quant/organizations';
+import type { FastifyInstance } from 'fastify';
+import { OrgService, MemberService, createOrgContextPlugin } from '@quant/organizations';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -9,9 +8,6 @@ declare module 'fastify' {
       service: OrgService;
       members: MemberService;
     };
-  }
-  interface FastifyRequest {
-    orgContext?: OrgContext | null;
   }
 }
 
@@ -24,40 +20,8 @@ async function organizationsPlugin(fastify: FastifyInstance) {
     members: memberService,
   });
 
-  fastify.decorateRequest('orgContext', null);
-
-  fastify.addHook('onRequest', async (request: FastifyRequest) => {
-    const orgId = request.headers['x-organization-id'] as string | undefined;
-
-    if (!orgId) {
-      request.orgContext = null;
-      return;
-    }
-
-    const org = orgService.getOrg(orgId);
-    if (!org) {
-      request.orgContext = null;
-      return;
-    }
-
-    const userId = (request as unknown as { auth?: { userId?: string } }).auth?.userId;
-    if (!userId) {
-      request.orgContext = null;
-      return;
-    }
-
-    const membership = memberService.getMembership(orgId, userId);
-    if (!membership) {
-      request.orgContext = null;
-      return;
-    }
-
-    request.orgContext = {
-      orgId: org.id,
-      org,
-      memberRole: membership.role,
-    };
-  });
+  // Register the org context middleware with shared service instances
+  await fastify.register(createOrgContextPlugin, { orgService, memberService });
 }
 
 export default fp(organizationsPlugin, {

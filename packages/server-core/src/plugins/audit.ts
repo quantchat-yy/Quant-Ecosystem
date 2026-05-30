@@ -21,8 +21,7 @@ async function auditPlugin(fastify: FastifyInstance) {
 
     if (!isSensitive) return;
 
-    const userId =
-      (request as unknown as { auth?: { userId?: string } }).auth?.userId ?? 'anonymous';
+    const userId = request.auth?.userId ?? 'anonymous';
 
     auditLogger.log({
       userId,

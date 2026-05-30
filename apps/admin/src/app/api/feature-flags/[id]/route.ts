@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { UpdateFlagInput } from '@quant/feature-flags';
-
-// Shared in-memory store reference (in real app this would be DB)
-const flagsStore: Map<string, Record<string, unknown>> = new Map();
+import { requireAdminAuth } from '../../_auth';
+import { flagsStore } from '../_store';
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireAdminAuth();
+  if (!auth) {
+    return NextResponse.json(
+      { success: false, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } },
+      { status: 401 },
+    );
+  }
+
   const { id } = await params;
   const flag = flagsStore.get(id);
   if (!flag) {
@@ -17,6 +24,14 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireAdminAuth();
+  if (!auth) {
+    return NextResponse.json(
+      { success: false, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } },
+      { status: 401 },
+    );
+  }
+
   const { id } = await params;
   const flag = flagsStore.get(id);
   if (!flag) {
@@ -62,6 +77,14 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const auth = await requireAdminAuth();
+  if (!auth) {
+    return NextResponse.json(
+      { success: false, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } },
+      { status: 401 },
+    );
+  }
+
   const { id } = await params;
   const existed = flagsStore.delete(id);
   if (!existed) {

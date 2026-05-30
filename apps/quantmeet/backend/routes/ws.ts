@@ -24,10 +24,20 @@ const JWT_SECRET = getJwtSecret();
 const JWT_ISSUER = process.env.JWT_ISSUER || 'quant-ecosystem';
 const JWT_AUDIENCE = process.env.JWT_AUDIENCE || 'quant-apps';
 
+const CLEANUP_INTERVAL_MS = 60_000; // 1 minute
+
 const roomManager = new RoomManager();
 const signalingServer = new SignalingServer({ roomManager });
 
+// Start periodic cleanup of stale rooms
+signalingServer.startCleanupInterval(CLEANUP_INTERVAL_MS);
+
 export default async function wsRoutes(fastify: FastifyInstance) {
+  // Stop cleanup interval on server shutdown
+  fastify.addHook('onClose', () => {
+    signalingServer.stopCleanupInterval();
+  });
+
   fastify.get(
     '/',
     {

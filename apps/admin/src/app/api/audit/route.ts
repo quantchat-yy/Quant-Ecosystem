@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAdminAuth } from '../_auth';
 
 const MOCK_AUDIT_ENTRIES = [
   {
@@ -49,6 +50,14 @@ const MOCK_AUDIT_ENTRIES = [
 ];
 
 export async function GET(request: Request) {
+  const auth = await requireAdminAuth();
+  if (!auth) {
+    return NextResponse.json(
+      { success: false, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } },
+      { status: 401 },
+    );
+  }
+
   const url = new URL(request.url);
   const action = url.searchParams.get('action');
   const userId = url.searchParams.get('userId');

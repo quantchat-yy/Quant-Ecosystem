@@ -10,9 +10,14 @@ declare module 'fastify' {
   }
 }
 
-async function orgContextPlugin(fastify: FastifyInstance) {
-  const orgService = new OrgService();
-  const memberService = new MemberService();
+export interface OrgContextPluginOptions {
+  orgService?: OrgService;
+  memberService?: MemberService;
+}
+
+async function orgContextPlugin(fastify: FastifyInstance, options: OrgContextPluginOptions) {
+  const orgService = options.orgService ?? new OrgService();
+  const memberService = options.memberService ?? new MemberService();
 
   fastify.decorateRequest('orgContext', null);
 

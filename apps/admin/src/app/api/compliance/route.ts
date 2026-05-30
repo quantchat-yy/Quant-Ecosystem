@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAdminAuth } from '../_auth';
 
 let retentionPolicies = [
   { resource: 'auth_logs', maxAgeDays: 90, enabled: true },
@@ -7,6 +8,14 @@ let retentionPolicies = [
 ];
 
 export async function GET() {
+  const auth = await requireAdminAuth();
+  if (!auth) {
+    return NextResponse.json(
+      { success: false, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } },
+      { status: 401 },
+    );
+  }
+
   return NextResponse.json({
     success: true,
     data: {
@@ -16,6 +25,14 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireAdminAuth();
+  if (!auth) {
+    return NextResponse.json(
+      { success: false, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } },
+      { status: 401 },
+    );
+  }
+
   const body = await request.json();
   const { action } = body;
 

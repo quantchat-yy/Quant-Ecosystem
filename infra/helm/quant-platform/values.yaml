@@ -46,6 +46,7 @@ secrets:
     - SMTP_PASSWORD
     - S3_ACCESS_KEY
     - S3_SECRET_KEY
+    - MEILI_MASTER_KEY
 
 meilisearch:
   enabled: true
