@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Wire cross-app shared services: notifications dispatch from app backends, cross-app search integration in frontends, and WebSocket gateway event relay. This connects the shared infrastructure packages (packages/notifications, packages/search, services/ws-gateway) into the actual app backends so the ecosystem feels unified with real-time events flowing across apps.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create packages/notifications/src/services/cross-app-dispatcher.ts: A service class that app backends can import to dispatch notifications to other apps' users. It wraps NotificationFanout with app-specific context (sourceApp name). Methods: notifyUsers(event: { type, title, body, recipientIds, priority, data }). This is the bridge between app backends and the notification system.",
     "Wire notification dispatch into apps/quantmail/backend: In the email routes (apps/quantmail/backend/routes/emails.ts), after successfully sending an email, dispatch a notification to the recipient via the CrossAppDispatcher. Import from @quant/notifications.",

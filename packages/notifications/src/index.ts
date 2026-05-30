@@ -83,3 +83,6 @@ export type {
 } from './types';
 
 export { CATEGORY_URGENCY } from './types';
+
+export { CrossAppDispatcher } from './services/cross-app-dispatcher';
+export type { CrossAppNotification } from './services/cross-app-dispatcher';

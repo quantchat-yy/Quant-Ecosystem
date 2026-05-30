@@ -403,6 +403,9 @@ importers:
       '@quant/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@quant/notifications':
+        specifier: workspace:*
+        version: link:../../packages/notifications
       '@quant/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime
@@ -680,6 +683,9 @@ importers:
       '@quant/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@quant/notifications':
+        specifier: workspace:*
+        version: link:../../packages/notifications
       '@quant/queue':
         specifier: workspace:*
         version: link:../../packages/queue

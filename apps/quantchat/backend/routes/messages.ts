@@ -1,7 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
+import { CrossAppDispatcher } from '@quant/notifications';
 import { MessageService } from '../services/message.service';
+
+const notifier = new CrossAppDispatcher('quantchat');
 
 const sendMessageSchema = z.object({
   content: z.string().min(1).max(10000),
@@ -44,6 +47,18 @@ export default async function messagesRoutes(fastify: FastifyInstance) {
       replyToId: parseResult.data.replyToId,
       metadata: parseResult.data.metadata,
     });
+
+    // Notify conversation participants
+    try {
+      notifier.notifyNewMessage(
+        [request.params.id],
+        userId,
+        parseResult.data.content.slice(0, 100),
+        request.params.id,
+      );
+    } catch {
+      /* notification failure should not block message sending */
+    }
 
     return reply.status(201).send({ success: true, data: message });
   });
