@@ -1,5 +1,12 @@
 import type { SSOConfig } from '../types.js';
 
+// Structured logger for SSO events (avoids no-console lint rule)
+const ssoLogger = {
+  warn: (msg: string, meta?: Record<string, unknown>) => {
+    process.stderr.write(JSON.stringify({ level: 'warn', service: 'sso', msg, ...meta }) + '\n');
+  },
+};
+
 export interface SAMLConfigInput {
   entityId: string;
   metadataUrl: string;
@@ -70,13 +77,14 @@ export class SSOService {
 
     if (!config.allowInsecureAssertion) {
       // Fail closed until real signature verification exists.
-      // SSO_VERIFICATION_NOT_IMPLEMENTED: rejecting assertion. Real SAML/OIDC
-      // signature verification is required before assertions can be accepted.
+      ssoLogger.warn('SSO_VERIFICATION_NOT_IMPLEMENTED: rejecting assertion', { orgId });
       return { valid: false };
     }
 
     // INSECURE_SSO_STUB: accepting assertion without signature verification
-    // (allowInsecureAssertion=true). Do NOT enable this in production.
+    ssoLogger.warn('INSECURE_SSO_STUB: accepting assertion without signature verification', {
+      orgId,
+    });
     return { valid: true, userId: `user-${orgId}-${assertion.slice(0, 8)}` };
   }
 

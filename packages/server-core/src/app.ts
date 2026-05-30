@@ -85,8 +85,10 @@ export async function createApp(config: AppConfig) {
     const mod: string = '@quant/' + 'database';
     const db = await import(/* @vite-ignore */ mod);
     await fastify.register(prismaPlugin, { client: db.prisma });
-  } catch {
-    // @quant/database not available (e.g., in unit tests without DB)
+  } catch (err) {
+    if (config.env !== 'test') {
+      fastify.log.warn({ err }, 'Failed to load @quant/database - Prisma client not available');
+    }
   }
 
   // Register auth plugin
@@ -97,8 +99,10 @@ export async function createApp(config: AppConfig) {
   });
 
   // Global auth enforcement - skip health checks and metrics
+  const publicPaths = new Set(['/healthz', '/readyz', '/metrics']);
   fastify.addHook('onRequest', async (request, reply) => {
-    if (request.url === '/healthz' || request.url === '/readyz' || request.url === '/metrics') {
+    const pathname = request.url.split('?')[0]!.replace(/\/+$/, '') || '/';
+    if (publicPaths.has(pathname)) {
       return;
     }
     await fastify.requireAuth()(request, reply);
