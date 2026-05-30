@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Real Search Engine with Meilisearch factory pattern and docker-compose integration. The search package already has a SearchClient (packages/search/src/services/search-client.ts) wrapping MeiliSearch SDK, plus BM25 in core/. Wave 4 adds: an engines/ directory with MeilisearchEngine class implementing a SearchEngine interface, a factory that returns MeilisearchEngine or InMemoryEngine based on env, wiring to admin/quantmail/quantchat search endpoints, and Meilisearch in docker-compose.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create packages/search/src/engines/types.ts - define SearchEngine interface with methods: search(index, query, options), indexDocuments(index, docs), removeDocuments(index, ids), createIndex(name, config), deleteIndex(name)",
     "Create packages/search/src/engines/in-memory-engine.ts - InMemoryEngine class implementing SearchEngine using the existing BM25Ranker from core/bm25-ranker.ts for ranking, with in-memory document storage",
