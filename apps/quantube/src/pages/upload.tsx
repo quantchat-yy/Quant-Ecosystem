@@ -88,6 +88,7 @@ const UploadPage: React.FC = () => {
   >('upload');
   const [error, setError] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const [publishFailed, setPublishFailed] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const xhrRef = useRef<XMLHttpRequest | null>(null);
@@ -144,7 +145,7 @@ const UploadPage: React.FC = () => {
       handleUploadFallback(uploadFileEntry.id);
     });
 
-    xhr.open('POST', `${window.location.origin}/api/videos/upload`);
+    xhr.open('POST', '/api/videos/upload');
     xhr.send(formData);
   }, []);
 
@@ -279,6 +280,7 @@ const UploadPage: React.FC = () => {
   const handlePublish = useCallback(async () => {
     setPublishing(true);
     setError(null);
+    setPublishFailed(false);
     try {
       const response = await apiClient.uploadVideo({
         title: metadata.title,
@@ -293,7 +295,8 @@ const UploadPage: React.FC = () => {
 
       setCurrentStep('review');
     } catch (err) {
-      // Fallback: still move to review on failure (graceful degradation)
+      // Mark publish as failed so the review screen shows appropriate messaging
+      setPublishFailed(true);
       setCurrentStep('review');
     } finally {
       setPublishing(false);
@@ -713,16 +716,23 @@ const UploadPage: React.FC = () => {
         {/* Review / Success */}
         {currentStep === 'review' && (
           <div className="text-center py-16">
-            <div className="text-6xl mb-4">Done</div>
-            <h2 className="text-2xl font-bold text-white mb-2">Video Published Successfully!</h2>
+            <div className="text-6xl mb-4">{publishFailed ? '!' : 'Done'}</div>
+            <h2 className="text-2xl font-bold text-white mb-2">
+              {publishFailed
+                ? 'Video saved locally - publishing will retry'
+                : 'Video Published Successfully!'}
+            </h2>
             <p className="text-gray-400 mb-6">
-              Your video &quot;{metadata.title}&quot; is now {metadata.visibility}.
+              {publishFailed
+                ? `Your video "${metadata.title}" could not be published. It has been saved and will retry automatically.`
+                : `Your video "${metadata.title}" is now ${metadata.visibility}.`}
             </p>
             <div className="flex gap-4 justify-center">
               <button
                 onClick={() => {
                   setFiles([]);
                   setCurrentStep('upload');
+                  setPublishFailed(false);
                   setMetadata({
                     title: '',
                     description: '',

@@ -189,16 +189,16 @@ const ChannelPage: React.FC = () => {
       if (!response.success || !response.data) {
         throw new Error(response.error?.message || 'Failed to load channel');
       }
-      return response.data as unknown as ChannelApiResponse;
+      return response.data;
     },
     enabled: !!channelId,
     retry: 1,
   });
 
-  // Derive data from query result, falling back to defaults on error
+  // Derive data from query result, falling back to defaults on error or missing data
   const channel: ChannelData | null = data?.channel ?? (error ? FALLBACK_CHANNEL : null);
-  const videos: ChannelVideo[] = data?.videos ?? (error ? FALLBACK_VIDEOS : []);
-  const playlists: ChannelPlaylist[] = data?.playlists ?? (error ? FALLBACK_PLAYLISTS : []);
+  const videos: ChannelVideo[] = data?.videos ?? FALLBACK_VIDEOS;
+  const playlists: ChannelPlaylist[] = data?.playlists ?? FALLBACK_PLAYLISTS;
   const communityPosts: CommunityPost[] = data?.communityPosts ?? [];
 
   const shorts = videos.filter((v) => v.isShort);
