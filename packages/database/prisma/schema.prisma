@@ -1068,19 +1068,23 @@ model OutboxEvent {
 }
 
 model AuditLog {
-  id           String   @id @default(cuid())
-  actorId      String
-  action       String
-  resourceType String
-  resourceId   String
-  diff         Json     @default("{}")
-  ipAddress    String?
-  userAgent    String?
-  createdAt    DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  orgId      String?
+  action     String
+  resource   String
+  resourceId String?
+  metadata   Json     @default("{}")
+  ip         String?
+  userAgent  String?
+  timestamp  DateTime @default(now())
+  createdAt  DateTime @default(now())
 
-  @@index([actorId])
-  @@index([resourceType, resourceId])
-  @@index([createdAt])
+  @@index([userId])
+  @@index([orgId])
+  @@index([action])
+  @@index([resource])
+  @@index([timestamp])
   @@map("audit_logs")
 }
 
@@ -1323,4 +1327,80 @@ model CIJob {
   @@index([runId])
   @@index([status])
   @@map("ci_jobs")
+}
+
+// ==================== FEATURE FLAGS ====================
+
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String   @default("")
+  enabled     Boolean  @default(false)
+  rules       Json     @default("[]")
+  percentage  Int      @default(100)
+  variants    Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@index([enabled])
+  @@map("feature_flags")
+}
+
+// ==================== ORGANIZATIONS ====================
+
+enum OrgPlan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum OrgMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Organization {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  plan      OrgPlan   @default(FREE)
+  settings  Json      @default("{}")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  members    OrganizationMember[]
+  workspaces OrgWorkspace[]
+
+  @@index([slug])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id       String        @id @default(cuid())
+  orgId    String
+  userId   String
+  role     OrgMemberRole @default(MEMBER)
+  joinedAt DateTime      @default(now())
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([orgId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+model OrgWorkspace {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@map("org_workspaces")
 }

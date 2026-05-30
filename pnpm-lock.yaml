@@ -67,6 +67,9 @@ importers:
       '@prisma/client':
         specifier: ^6.19.3
         version: 6.19.3(prisma@6.19.3(magicast@0.3.5)(typescript@5.9.3))(typescript@5.9.3)
+      '@quant/audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -76,9 +79,15 @@ importers:
       '@quant/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@quant/feature-flags':
+        specifier: workspace:*
+        version: link:../../packages/feature-flags
       '@quant/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
+      '@quant/organizations':
+        specifier: workspace:*
+        version: link:../../packages/organizations
       '@quant/search':
         specifier: workspace:*
         version: link:../../packages/search
@@ -835,6 +844,9 @@ importers:
       '@quant/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      '@quant/webrtc':
+        specifier: workspace:*
+        version: link:../../packages/webrtc
       '@tanstack/react-query':
         specifier: ^5.60.0
         version: 5.100.14(react@19.2.6)
@@ -1302,6 +1314,28 @@ importers:
         specifier: ^2
         version: 2.1.9(@types/node@22.19.19)(jiti@2.6.1)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
 
+  packages/audit:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../common
+      '@quant/database':
+        specifier: workspace:*
+        version: link:../database
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jiti@2.6.1)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
+
   packages/auth:
     dependencies:
       '@quant/common':
@@ -1621,6 +1655,28 @@ importers:
         version: 2.1.9(@types/node@22.19.19)(jiti@2.6.1)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
 
   packages/error-monitoring:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jiti@2.6.1)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
+
+  packages/feature-flags:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../common
+      '@quant/database':
+        specifier: workspace:*
+        version: link:../database
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -1966,6 +2022,34 @@ importers:
     dependencies:
       zod:
         specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jiti@2.6.1)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
+
+  packages/organizations:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../common
+      '@quant/database':
+        specifier: workspace:*
+        version: link:../database
+      fastify:
+        specifier: ^5.2.1
+        version: 5.8.5
+      fastify-plugin:
+        specifier: ^5.0.1
+        version: 5.1.0
+      zod:
+        specifier: ^3.24.2
         version: 3.25.76
     devDependencies:
       '@types/node':
@@ -2375,6 +2459,9 @@ importers:
       '@fastify/rate-limit':
         specifier: ^10.2.1
         version: 10.3.0
+      '@quant/audit':
+        specifier: workspace:*
+        version: link:../audit
       '@quant/auth':
         specifier: workspace:*
         version: link:../auth
@@ -2384,9 +2471,15 @@ importers:
       '@quant/database':
         specifier: workspace:*
         version: link:../database
+      '@quant/feature-flags':
+        specifier: workspace:*
+        version: link:../feature-flags
       '@quant/observability':
         specifier: workspace:*
         version: link:../observability
+      '@quant/organizations':
+        specifier: workspace:*
+        version: link:../organizations
       fastify:
         specifier: ^5.2.1
         version: 5.8.5
@@ -2721,6 +2814,28 @@ importers:
         version: 5.5.4
       vitest:
         specifier: ^2.0.0
+        version: 2.1.9(@types/node@22.19.19)(jiti@2.6.1)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
+
+  packages/webrtc:
+    dependencies:
+      '@quant/common':
+        specifier: workspace:*
+        version: link:../common
+      pino:
+        specifier: ^9.6.0
+        version: 9.14.0
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
         version: 2.1.9(@types/node@22.19.19)(jiti@2.6.1)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
 
   packages/wellbeing:
@@ -10309,22 +10424,6 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 1.2.0
 
-  '@vitest/mocker@2.1.9(vite@6.4.2(@types/node@22.19.19)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0))':
-    dependencies:
-      '@vitest/spy': 2.1.9
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      vite: 6.4.2(@types/node@22.19.19)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
-
-  '@vitest/mocker@2.1.9(vite@6.4.2(@types/node@25.9.1)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0))':
-    dependencies:
-      '@vitest/spy': 2.1.9
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      vite: 6.4.2(@types/node@25.9.1)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
-
   '@vitest/mocker@2.1.9(vite@6.4.2(@types/node@25.9.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 2.1.9
@@ -13307,7 +13406,7 @@ snapshots:
   vitest@2.1.9(@types/node@22.19.19)(jiti@2.6.1)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@6.4.2(@types/node@22.19.19)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0))
+      '@vitest/mocker': 2.1.9(vite@6.4.2(@types/node@25.9.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
@@ -13346,7 +13445,7 @@ snapshots:
   vitest@2.1.9(@types/node@25.9.1)(jiti@1.21.7)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@6.4.2(@types/node@25.9.1)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0))
+      '@vitest/mocker': 2.1.9(vite@6.4.2(@types/node@25.9.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9

@@ -21,6 +21,18 @@ ingress:
   tls:
     secretName: quant-platform-staging-tls
 
+meilisearch:
+  enabled: true
+  storage:
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 512Mi
+
 services:
   ws-gateway:
     replicaCount: 2
@@ -34,5 +46,80 @@ services:
     autoscaling:
       minReplicas: 2
       maxReplicas: 5
+    pdb:
+      minAvailable: 1
+
+  quantmail:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+    pdb:
+      minAvailable: 1
+
+  quantchat:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+    pdb:
+      minAvailable: 1
+
+  quantai:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 5
+    pdb:
+      minAvailable: 1
+
+  admin:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+    pdb:
+      minAvailable: 1
+
+  triton-inference-server:
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 4Gi
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
     pdb:
       minAvailable: 1
