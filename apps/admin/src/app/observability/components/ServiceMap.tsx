@@ -7,6 +7,16 @@ interface ServiceDependency {
   dependencies: string[];
 }
 
+interface HealthData {
+  apps?: Array<{ name: string; status: string; responseTimeMs: number; lastCheck: string }>;
+  services?: Array<{ name: string; status: string; responseTimeMs: number; lastCheck: string }>;
+}
+
+interface Props {
+  healthData?: HealthData | null;
+  loading?: boolean;
+}
+
 const FALLBACK_DEPS: ServiceDependency[] = [
   { service: 'quantmail', dependencies: ['postgres', 'redis', 'smtp-relay'] },
   { service: 'quantchat', dependencies: ['redis', 'postgres', 'ws-gateway'] },
@@ -64,35 +74,43 @@ function getDepColor(dep: string) {
   }
 }
 
-export function ServiceMap() {
+function deriveDeps(json: HealthData): ServiceDependency[] {
+  const items: ServiceDependency[] = [];
+  if (json.apps) {
+    json.apps.forEach((app) => {
+      const key = app.name.toLowerCase();
+      const deps = KNOWN_DEPS[key] || ['postgres', 'redis'];
+      items.push({ service: key, dependencies: deps });
+    });
+  }
+  if (json.services) {
+    json.services.forEach((svc) => {
+      const deps = KNOWN_DEPS[svc.name] || ['redis'];
+      items.push({ service: svc.name, dependencies: deps });
+    });
+  }
+  return items;
+}
+
+export function ServiceMap({ healthData, loading: externalLoading }: Props) {
   const [serviceDeps, setServiceDeps] = useState<ServiceDependency[]>(FALLBACK_DEPS);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(externalLoading ?? true);
 
   useEffect(() => {
-    fetch('/api/health')
-      .then((r) => r.json())
-      .then((json) => {
-        const items: ServiceDependency[] = [];
-        if (json.apps) {
-          json.apps.forEach((app: { name: string }) => {
-            const key = app.name.toLowerCase();
-            const deps = KNOWN_DEPS[key] || ['postgres', 'redis'];
-            items.push({ service: key, dependencies: deps });
-          });
-        }
-        if (json.services) {
-          json.services.forEach((svc: { name: string }) => {
-            const deps = KNOWN_DEPS[svc.name] || ['redis'];
-            items.push({ service: svc.name, dependencies: deps });
-          });
-        }
-        if (items.length > 0) setServiceDeps(items);
-      })
-      .catch(() => {
-        /* keep fallback */
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    if (externalLoading !== undefined) {
+      setLoading(externalLoading);
+    }
+  }, [externalLoading]);
+
+  useEffect(() => {
+    if (healthData) {
+      const items = deriveDeps(healthData);
+      if (items.length > 0) setServiceDeps(items);
+      setLoading(false);
+    } else if (healthData === null && externalLoading === false) {
+      setLoading(false);
+    }
+  }, [healthData, externalLoading]);
 
   if (loading) {
     return (

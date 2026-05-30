@@ -48,7 +48,7 @@ export default function AskQuantPage() {
       } else if (json.error) {
         setError(json.error);
       } else {
-        setResponse(JSON.stringify(json));
+        setResponse('AI responded but the response format was unexpected. Please try again.');
       }
     } catch {
       setError('Failed to connect to AI service. Please try again.');

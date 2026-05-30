@@ -7,6 +7,9 @@ interface FeatureFlag {
   enabled: boolean;
 }
 
+// NOTE: State is intentionally stored in-memory for this demo/dev environment.
+// It will reset on cold start or redeploy. A persistent store (database or KV)
+// should be used before shipping to production.
 let flags: FeatureFlag[] = [
   {
     id: 'ai_chat',
@@ -51,6 +54,8 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
+  // TODO: Add auth middleware to validate session/role before accepting writes.
+  // Currently unprotected for dev parity with /api/feature-flags/[id]/route.ts.
   try {
     const body = await request.json();
     const { id, enabled } = body as { id: string; enabled: boolean };

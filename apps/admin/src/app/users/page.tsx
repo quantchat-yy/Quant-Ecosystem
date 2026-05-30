@@ -162,17 +162,16 @@ export default function UsersPage() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="p-8 text-center">
-        <p className="text-red-500 mb-2">Error: {error}</p>
-        <p className="text-sm text-[var(--quant-muted-foreground)]">Showing cached data</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-4 py-3 flex items-center gap-2">
+          <span className="text-yellow-500 text-sm font-medium">&#9888;</span>
+          <p className="text-sm text-yellow-600">
+            Could not refresh data: {error}. Showing cached data below.
+          </p>
+        </div>
+      )}
       <div>
         <h1 className="text-2xl font-bold text-[var(--quant-foreground)]">Users Management</h1>
         <p className="text-sm text-[var(--quant-muted-foreground)] mt-1">

@@ -27,7 +27,7 @@ export default function VoicePage() {
       } else if (json.error) {
         setError(json.error);
       } else {
-        setAiResponse(JSON.stringify(json));
+        setAiResponse('AI responded but the response format was unexpected. Please try again.');
       }
     } catch {
       setError('Failed to get AI response. Please try again.');

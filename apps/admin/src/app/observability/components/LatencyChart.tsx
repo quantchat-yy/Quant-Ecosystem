@@ -7,6 +7,16 @@ interface LatencyData {
   intervals: { time: string; p50: number; p95: number; p99: number }[];
 }
 
+interface HealthData {
+  apps?: Array<{ name: string; status: string; responseTimeMs: number; lastCheck: string }>;
+  services?: Array<{ name: string; status: string; responseTimeMs: number; lastCheck: string }>;
+}
+
+interface Props {
+  healthData?: HealthData | null;
+  loading?: boolean;
+}
+
 const FALLBACK_LATENCY: LatencyData[] = [
   {
     service: 'quantmail',
@@ -67,44 +77,52 @@ function generateIntervals(baseMs: number): LatencyData['intervals'] {
   });
 }
 
+function deriveLatency(json: HealthData): LatencyData[] {
+  const items: LatencyData[] = [];
+  if (json.apps) {
+    json.apps.forEach((app) => {
+      items.push({
+        service: app.name.toLowerCase(),
+        intervals: generateIntervals(app.responseTimeMs || 20),
+      });
+    });
+  }
+  if (json.services) {
+    json.services.forEach((svc) => {
+      items.push({
+        service: svc.name,
+        intervals: generateIntervals(svc.responseTimeMs || 10),
+      });
+    });
+  }
+  return items;
+}
+
 function getLatencyColor(ms: number) {
   if (ms < 100) return 'text-green-500';
   if (ms < 300) return 'text-yellow-500';
   return 'text-red-500';
 }
 
-export function LatencyChart() {
+export function LatencyChart({ healthData, loading: externalLoading }: Props) {
   const [latencyData, setLatencyData] = useState<LatencyData[]>(FALLBACK_LATENCY);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(externalLoading ?? true);
 
   useEffect(() => {
-    fetch('/api/health')
-      .then((r) => r.json())
-      .then((json) => {
-        const items: LatencyData[] = [];
-        if (json.apps) {
-          json.apps.forEach((app: { name: string; responseTimeMs: number }) => {
-            items.push({
-              service: app.name.toLowerCase(),
-              intervals: generateIntervals(app.responseTimeMs || 20),
-            });
-          });
-        }
-        if (json.services) {
-          json.services.forEach((svc: { name: string; responseTimeMs: number }) => {
-            items.push({
-              service: svc.name,
-              intervals: generateIntervals(svc.responseTimeMs || 10),
-            });
-          });
-        }
-        if (items.length > 0) setLatencyData(items.slice(0, 6));
-      })
-      .catch(() => {
-        /* keep fallback */
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    if (externalLoading !== undefined) {
+      setLoading(externalLoading);
+    }
+  }, [externalLoading]);
+
+  useEffect(() => {
+    if (healthData) {
+      const items = deriveLatency(healthData);
+      if (items.length > 0) setLatencyData(items.slice(0, 6));
+      setLoading(false);
+    } else if (healthData === null && externalLoading === false) {
+      setLoading(false);
+    }
+  }, [healthData, externalLoading]);
 
   if (loading) {
     return (

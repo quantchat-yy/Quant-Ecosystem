@@ -9,6 +9,16 @@ interface ServiceHealth {
   lastCheck: string;
 }
 
+interface HealthData {
+  apps?: Array<{ name: string; status: string; responseTimeMs: number; lastCheck: string }>;
+  services?: Array<{ name: string; status: string; responseTimeMs: number; lastCheck: string }>;
+}
+
+interface Props {
+  healthData?: HealthData | null;
+  loading?: boolean;
+}
+
 const FALLBACK_SERVICES: ServiceHealth[] = [
   { name: 'quantmail', status: 'healthy', uptime: 99.98, lastCheck: '2s ago' },
   { name: 'quantchat', status: 'healthy', uptime: 99.95, lastCheck: '3s ago' },
@@ -45,48 +55,51 @@ function mapStatus(status: string): ServiceHealth['status'] {
   return 'down';
 }
 
-export function ServiceHealthGrid() {
+function deriveServices(json: HealthData): ServiceHealth[] {
+  const items: ServiceHealth[] = [];
+  if (json.apps) {
+    json.apps.forEach((app) => {
+      items.push({
+        name: app.name.toLowerCase(),
+        status: mapStatus(app.status),
+        uptime: app.status === 'healthy' ? 99.9 + Math.random() * 0.09 : 95 + Math.random() * 3,
+        lastCheck: new Date(app.lastCheck).toLocaleTimeString(),
+      });
+    });
+  }
+  if (json.services) {
+    json.services.forEach((svc) => {
+      items.push({
+        name: svc.name,
+        status: mapStatus(svc.status),
+        uptime: svc.status === 'running' ? 99.9 + Math.random() * 0.09 : 90 + Math.random() * 5,
+        lastCheck: new Date(svc.lastCheck).toLocaleTimeString(),
+      });
+    });
+  }
+  return items;
+}
+
+export function ServiceHealthGrid({ healthData, loading: externalLoading }: Props) {
   const [services, setServices] = useState<ServiceHealth[]>(FALLBACK_SERVICES);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(externalLoading ?? true);
 
   useEffect(() => {
-    fetch('/api/health')
-      .then((r) => r.json())
-      .then((json) => {
-        const items: ServiceHealth[] = [];
-        if (json.apps) {
-          json.apps.forEach(
-            (app: { name: string; status: string; responseTimeMs: number; lastCheck: string }) => {
-              items.push({
-                name: app.name.toLowerCase(),
-                status: mapStatus(app.status),
-                uptime:
-                  app.status === 'healthy' ? 99.9 + Math.random() * 0.09 : 95 + Math.random() * 3,
-                lastCheck: new Date(app.lastCheck).toLocaleTimeString(),
-              });
-            },
-          );
-        }
-        if (json.services) {
-          json.services.forEach(
-            (svc: { name: string; status: string; responseTimeMs: number; lastCheck: string }) => {
-              items.push({
-                name: svc.name,
-                status: mapStatus(svc.status),
-                uptime:
-                  svc.status === 'running' ? 99.9 + Math.random() * 0.09 : 90 + Math.random() * 5,
-                lastCheck: new Date(svc.lastCheck).toLocaleTimeString(),
-              });
-            },
-          );
-        }
-        if (items.length > 0) setServices(items);
-      })
-      .catch(() => {
-        /* keep fallback */
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    if (externalLoading !== undefined) {
+      setLoading(externalLoading);
+    }
+  }, [externalLoading]);
+
+  useEffect(() => {
+    if (healthData) {
+      const items = deriveServices(healthData);
+      if (items.length > 0) setServices(items);
+      setLoading(false);
+    } else if (healthData === null && externalLoading === false) {
+      // Parent finished loading but got no data - keep fallback
+      setLoading(false);
+    }
+  }, [healthData, externalLoading]);
 
   if (loading) {
     return (

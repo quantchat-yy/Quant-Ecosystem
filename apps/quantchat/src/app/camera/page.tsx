@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { BottomNav } from '@quant/shared-ui';
 import { navItems, routes } from '../../lib/navigation';
@@ -22,10 +22,16 @@ export default function CameraPage() {
   const [activeFilter, setActiveFilter] = useState('none');
   const [isRecording, setIsRecording] = useState(false);
   const [captureStatus, setCaptureStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const capturedRef = useRef(false);
 
   const activeFilterObj = filters.find((f) => f.id === activeFilter) || filters[0];
 
   const handleCapture = async () => {
+    if (capturedRef.current) return;
+    capturedRef.current = true;
+    setTimeout(() => {
+      capturedRef.current = false;
+    }, 500);
     setCaptureStatus('saving');
     try {
       const res = await fetch('/api/stories', {
