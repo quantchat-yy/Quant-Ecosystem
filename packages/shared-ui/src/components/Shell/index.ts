@@ -59,3 +59,18 @@ export type { UndoToastProps } from './UndoToast';
 
 export { OfflineIndicator } from './OfflineIndicator';
 export type { OfflineIndicatorProps, ConnectionStatus } from './OfflineIndicator';
+
+export { SettingsPanel } from './SettingsPanel';
+export type {
+  SettingsPanelProps,
+  ThemeOption,
+  NotificationPreference,
+  ShortcutEntry,
+  ShortcutGroup,
+} from './SettingsPanel';
+
+export { CrossAppRelations } from './CrossAppRelations';
+export type { CrossAppRelationsProps, RelatedItem } from './CrossAppRelations';
+
+export { ActivityFeed } from './ActivityFeed';
+export type { ActivityFeedProps, ActivityItem } from './ActivityFeed';

@@ -231,6 +231,9 @@ export {
   QuickActions,
   UndoToast,
   OfflineIndicator,
+  SettingsPanel,
+  CrossAppRelations,
+  ActivityFeed,
 } from './components/Shell';
 export type {
   GlobalNavProps,
@@ -266,6 +269,15 @@ export type {
   UndoToastProps,
   OfflineIndicatorProps,
   ConnectionStatus,
+  SettingsPanelProps,
+  ThemeOption,
+  NotificationPreference,
+  ShortcutEntry,
+  ShortcutGroup,
+  CrossAppRelationsProps,
+  RelatedItem,
+  ActivityFeedProps,
+  ActivityItem,
 } from './components/Shell';
 
 // State components
@@ -289,6 +301,8 @@ export {
   WorkspaceSetupStep,
   ConnectAppsStep,
   AIPreferencesStep,
+  FullOnboardingWizard,
+  AppTourStep,
 } from './components/Onboarding';
 export type {
   OnboardingFlowProps,
@@ -298,7 +312,15 @@ export type {
   ConnectAppsStepProps,
   AppToggleItem,
   AIPreferencesStepProps,
+  FullOnboardingWizardProps,
+  OnboardingWizardData,
+  AppTourStepProps,
+  AppTourFeature,
 } from './components/Onboarding';
+
+// Auth components
+export { LoginPage, ConsentScreen } from './components/Auth';
+export type { LoginPageProps, ConsentScreenProps, Permission } from './components/Auth';
 
 // Motion / Animation primitives (union of phase-67/68 motion systems)
 export {

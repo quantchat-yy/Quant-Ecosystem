@@ -19,3 +19,9 @@ export type { ConnectAppsStepProps, AppToggleItem } from './ConnectAppsStep';
 
 export { AIPreferencesStep } from './AIPreferencesStep';
 export type { AIPreferencesStepProps } from './AIPreferencesStep';
+
+export { FullOnboardingWizard } from './FullOnboardingWizard';
+export type { FullOnboardingWizardProps, OnboardingWizardData } from './FullOnboardingWizard';
+
+export { AppTourStep } from './AppTourStep';
+export type { AppTourStepProps, AppTourFeature } from './AppTourStep';
