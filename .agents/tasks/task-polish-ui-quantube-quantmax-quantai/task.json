@@ -1,0 +1,7 @@
+{
+  "task_id": "task-polish-ui-quantube-quantmax-quantai",
+  "task_description": "Polish UI/UX across quantube, quantmax, and quantai apps: integrate @quant/brand system (colors, typography, motion tokens), add Framer Motion spring-physics animations, staggered list entrances, page transitions, microinteractions. Add loading skeletons, empty states, error boundaries. Ensure full responsive 360-1440px, dark mode, 44px tap targets.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}
