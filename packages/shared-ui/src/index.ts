@@ -253,12 +253,23 @@ export type {
 } from './components/Shell';
 
 // State components
-export { EmptyState, LoadingState, ErrorState, SuccessState } from './components/States';
+export {
+  EmptyState,
+  LoadingState,
+  ErrorState,
+  SuccessState,
+  SkeletonCard,
+  SkeletonGrid,
+  OptimisticWrapper,
+} from './components/States';
 export type {
   EmptyStateProps,
   LoadingStateProps,
   ErrorStateProps,
   SuccessStateProps,
+  SkeletonCardProps,
+  SkeletonGridProps,
+  OptimisticWrapperProps,
 } from './components/States';
 
 // Guards
@@ -334,6 +345,16 @@ export type { Orientation } from './hooks/useOrientation';
 // CommandPaletteUI component
 export { CommandPaletteUI } from './components/CommandPaletteUI';
 export type { CommandPaletteUIProps, CommandPaletteItem } from './components/CommandPaletteUI';
+
+// CommandPaletteProvider
+export {
+  CommandPaletteProvider,
+  useCommandPalette,
+} from './components/CommandPaletteUI/CommandPaletteProvider';
+
+// useAskQuant hook
+export { useAskQuant } from './hooks/useAskQuant';
+export type { AskQuantMessage, UseAskQuantOptions, UseAskQuantReturn } from './hooks/useAskQuant';
 
 // ThemeProvider component
 export { ThemeProvider, useThemeMode } from './components/ThemeProvider';

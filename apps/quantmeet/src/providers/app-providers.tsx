@@ -1,36 +1,47 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ThemeProvider, CommandPaletteUI } from '@quant/shared-ui';
+import { useEffect } from 'react';
+import { ThemeProvider, CommandPaletteProvider, useCommandPalette } from '@quant/shared-ui';
 import type { CommandPaletteItem } from '@quant/shared-ui';
 
-const commands: CommandPaletteItem[] = [
-  { id: 'new-meeting', label: 'New Meeting', shortcut: 'N', action: () => {} },
-  { id: 'join', label: 'Join Meeting', shortcut: 'J', action: () => {} },
+const QUANTMEET_COMMANDS: CommandPaletteItem[] = [
+  {
+    id: 'create-meeting',
+    label: 'Create meeting',
+    group: 'QuantMeet',
+    shortcut: 'N',
+    action: () => {},
+  },
+  {
+    id: 'join-meeting',
+    label: 'Join meeting',
+    group: 'QuantMeet',
+    shortcut: 'J',
+    action: () => {},
+  },
+  { id: 'toggle-camera', label: 'Toggle camera', group: 'QuantMeet', action: () => {} },
+  { id: 'toggle-mic', label: 'Toggle mic', group: 'QuantMeet', action: () => {} },
+  { id: 'ask-quant', label: 'Ask Quant', group: 'AI', action: () => {} },
 ];
 
-export function AppProviders({ children }: { children: React.ReactNode }) {
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+function QuantMeetCommandRegistrar() {
+  const { registerCommand } = useCommandPalette();
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setCommandPaletteOpen(true);
-      }
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, []);
+    const unregisters = QUANTMEET_COMMANDS.map((cmd) => registerCommand(cmd));
+    return () => unregisters.forEach((unregister) => unregister());
+  }, [registerCommand]);
 
+  return null;
+}
+
+export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider defaultTheme="system">
-      {children}
-      <CommandPaletteUI
-        isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-        commands={commands}
-      />
+      <CommandPaletteProvider appName="QuantMeet">
+        <QuantMeetCommandRegistrar />
+        {children}
+      </CommandPaletteProvider>
     </ThemeProvider>
   );
 }

@@ -1,37 +1,41 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ThemeProvider, CommandPaletteUI } from '@quant/shared-ui';
+import { useEffect } from 'react';
+import { ThemeProvider, CommandPaletteProvider, useCommandPalette } from '@quant/shared-ui';
 import type { CommandPaletteItem } from '@quant/shared-ui';
 
-const commands: CommandPaletteItem[] = [
-  { id: 'new-doc', label: 'New Document', shortcut: 'N', action: () => {} },
-  { id: 'search', label: 'Search Documents', shortcut: '/', action: () => {} },
-  { id: 'templates', label: 'Browse Templates', action: () => {} },
+const QUANTDOCS_COMMANDS: CommandPaletteItem[] = [
+  {
+    id: 'new-document',
+    label: 'New document',
+    group: 'QuantDocs',
+    shortcut: 'N',
+    action: () => {},
+  },
+  { id: 'share-document', label: 'Share document', group: 'QuantDocs', action: () => {} },
+  { id: 'version-history', label: 'Version history', group: 'QuantDocs', action: () => {} },
+  { id: 'export', label: 'Export', group: 'QuantDocs', action: () => {} },
+  { id: 'ask-quant', label: 'Ask Quant', group: 'AI', action: () => {} },
 ];
 
-export function AppProviders({ children }: { children: React.ReactNode }) {
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+function QuantDocsCommandRegistrar() {
+  const { registerCommand } = useCommandPalette();
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setCommandPaletteOpen(true);
-      }
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, []);
+    const unregisters = QUANTDOCS_COMMANDS.map((cmd) => registerCommand(cmd));
+    return () => unregisters.forEach((unregister) => unregister());
+  }, [registerCommand]);
 
+  return null;
+}
+
+export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider defaultTheme="system">
-      {children}
-      <CommandPaletteUI
-        isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-        commands={commands}
-      />
+      <CommandPaletteProvider appName="QuantDocs">
+        <QuantDocsCommandRegistrar />
+        {children}
+      </CommandPaletteProvider>
     </ThemeProvider>
   );
 }
