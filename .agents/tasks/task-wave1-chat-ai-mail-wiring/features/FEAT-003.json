@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "QuantMail - Wire compose, thread, and inbox fully through the proxy layer. The inbox page, compose page, and thread page exist but some hooks may call the frontend api-client which talks to the backend directly (bypassing Next.js API routes). Ensure all mail operations go through Next.js API routes using the proxy. Also add missing routes for draft, forward, labels batch operations.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Step 1: Review apps/quantmail/src/services/api-client.ts and verify its baseUrl points to '/api' or a relative URL (not directly to localhost:3010). If it targets the backend directly, update it to go through Next.js API routes at /api/*. The constructor already uses process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3010' - change the default to '/api' so all frontend requests go through the Next.js proxy layer.",
     "Step 2: Add missing API routes for complete email workflow: (a) apps/quantmail/src/app/api/emails/compose/route.ts - POST to create a draft/compose, (b) apps/quantmail/src/app/api/emails/[id]/forward/route.ts - POST to forward an email, (c) apps/quantmail/src/app/api/emails/batch/route.ts - POST for batch archive/delete/mark-read operations.",

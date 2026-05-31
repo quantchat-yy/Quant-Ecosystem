@@ -16,6 +16,12 @@ export default function ThreadPage() {
   const threadId = (params?.id as string) || '';
   const { data: thread, isLoading, error, refetch } = useThread(threadId);
   const [expandedMessages, setExpandedMessages] = useState<Set<number>>(new Set());
+  const [showReplyForm, setShowReplyForm] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [isSendingReply, setIsSendingReply] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [showSummary, setShowSummary] = useState(true);
 
   const toggleMessage = useCallback((index: number) => {
     setExpandedMessages((prev) => {
@@ -45,8 +51,46 @@ export default function ThreadPage() {
   }, [thread, router]);
 
   const handleReply = useCallback(() => {
-    router.push(`/compose?replyTo=${threadId}`);
-  }, [router, threadId]);
+    setShowReplyForm((prev) => !prev);
+  }, []);
+
+  const handleSendReply = useCallback(async () => {
+    if (!replyText.trim() || isSendingReply) return;
+    setIsSendingReply(true);
+    try {
+      await fetch(`/api/threads/${threadId}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: replyText }),
+      });
+      setReplyText('');
+      setShowReplyForm(false);
+      refetch();
+    } finally {
+      setIsSendingReply(false);
+    }
+  }, [replyText, isSendingReply, threadId, refetch]);
+
+  const handleSummarize = useCallback(async () => {
+    if (!thread?.messages?.[0] || isSummarizing) return;
+    setIsSummarizing(true);
+    try {
+      const res = await fetch(`/api/emails/${thread.messages[0].id}/summarize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (data.data?.summary) {
+        setSummary(data.data.summary);
+        setShowSummary(true);
+      } else if (data.summary) {
+        setSummary(data.summary);
+        setShowSummary(true);
+      }
+    } finally {
+      setIsSummarizing(false);
+    }
+  }, [thread, isSummarizing]);
 
   const handleForward = useCallback(
     (emailId: string) => {
@@ -70,6 +114,9 @@ export default function ThreadPage() {
           </Button>
           {thread && (
             <div className="flex items-center gap-2 ml-auto">
+              <Button variant="secondary" onClick={handleSummarize} disabled={isSummarizing}>
+                {isSummarizing ? 'Summarizing...' : 'Summarize'}
+              </Button>
               <Button variant="secondary" onClick={handleArchive}>
                 Archive
               </Button>
@@ -98,6 +145,23 @@ export default function ThreadPage() {
           )}
           {!isLoading && !error && thread && (
             <>
+              {/* AI Summary Card */}
+              {summary && (
+                <Card padding="md" className="mb-4 bg-[var(--quant-muted)]">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold">AI Summary</span>
+                    <Button variant="secondary" onClick={() => setShowSummary((s) => !s)}>
+                      {showSummary ? 'Hide' : 'Show'}
+                    </Button>
+                  </div>
+                  {showSummary && (
+                    <p className="text-sm text-[var(--quant-muted-foreground)] leading-relaxed">
+                      {summary}
+                    </p>
+                  )}
+                </Card>
+              )}
+
               <h1 className="text-xl md:text-2xl font-bold mb-4">{thread.subject}</h1>
               <div className="flex items-center gap-2 mb-6 text-sm text-[var(--quant-muted-foreground)]">
                 <span>{thread.messageCount} messages</span>
@@ -173,12 +237,40 @@ export default function ThreadPage() {
                 })}
               </div>
 
+              {/* Inline Reply Form */}
+              {showReplyForm && (
+                <div className="mt-4">
+                  <Card padding="md">
+                    <textarea
+                      className="w-full min-h-[120px] p-3 rounded-md border border-[var(--quant-border)] bg-[var(--quant-background)] text-sm resize-y focus:outline-none focus:ring-2 focus:ring-[var(--quant-primary)]"
+                      placeholder="Write your reply..."
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                    />
+                    <div className="flex gap-2 mt-3">
+                      <Button
+                        variant="primary"
+                        onClick={handleSendReply}
+                        disabled={isSendingReply || !replyText.trim()}
+                      >
+                        {isSendingReply ? 'Sending...' : 'Send Reply'}
+                      </Button>
+                      <Button variant="secondary" onClick={() => setShowReplyForm(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </Card>
+                </div>
+              )}
+
               {/* Reply footer */}
-              <div className="mt-6 pt-4 border-t border-[var(--quant-border)]">
-                <Button variant="primary" onClick={handleReply}>
-                  Reply to thread
-                </Button>
-              </div>
+              {!showReplyForm && (
+                <div className="mt-6 pt-4 border-t border-[var(--quant-border)]">
+                  <Button variant="primary" onClick={handleReply}>
+                    Reply to thread
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </div>
