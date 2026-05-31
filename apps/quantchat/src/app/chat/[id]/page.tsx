@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useMemo } from 'react';
+import { use, useMemo, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { ChatBubble, ChatInput, TypingIndicator, TopBar } from '@quant/shared-ui';
 import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
@@ -13,7 +13,10 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const { id } = use(params);
   const { data, isLoading, error, refetch } = useMessages(id);
   const sendMessage = useSendMessage();
-  const { typingUsers, incomingMessages, isConnected } = useRealtimeChat(id);
+  const { typingUsers, incomingMessages, isConnected, sendRealtimeMessage, setTyping, markRead } =
+    useRealtimeChat(id);
+
+  const lastMarkedRef = useRef<string | null>(null);
 
   const messages = useMemo(() => {
     const restMessages = data ?? [];
@@ -46,8 +49,49 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     ];
   }, [data, incomingMessages]);
 
+  // Wire read receipts: mark latest message from others as read on mount and on new messages
+  useEffect(() => {
+    const otherMessages = messages.filter((m) => m.sender !== 'self');
+    const latestOther = otherMessages[otherMessages.length - 1];
+    if (latestOther && latestOther.id !== lastMarkedRef.current) {
+      lastMarkedRef.current = latestOther.id;
+      markRead(latestOther.id);
+    }
+  }, [messages, markRead]);
+
+  const handleSend = useCallback(
+    (content: string) => {
+      // REST POST for persistence
+      sendMessage.mutate({ conversationId: id, content, type: 'text' as const });
+      // WS broadcast for real-time delivery
+      sendRealtimeMessage(content);
+      // Stop typing indicator on send
+      setTyping(false);
+    },
+    [id, sendMessage, sendRealtimeMessage, setTyping],
+  );
+
+  const handleTyping = useCallback(
+    (isTyping: boolean) => {
+      setTyping(isTyping);
+    },
+    [setTyping],
+  );
+
   if (isLoading) return <LoadingState variant="skeleton" text="Loading messages..." />;
   if (error) return <ErrorState message={error.message} onRetry={() => void refetch()} />;
+
+  // Connection status: green = connected, yellow = reconnecting (not connected but page is active), gray = disconnected
+  const getStatusColor = () => {
+    if (isConnected) return 'bg-emerald-500';
+    // If not connected, treat as reconnecting (yellow) briefly
+    return 'bg-yellow-500';
+  };
+
+  const getStatusLabel = () => {
+    if (isConnected) return 'Online';
+    return 'Reconnecting';
+  };
 
   return (
     <div className="flex flex-col h-screen">
@@ -58,12 +102,8 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         }}
         rightActions={[
           <div key="status" className="flex items-center gap-2">
-            <span
-              className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-gray-400'}`}
-            />
-            <span className="text-xs text-[var(--quant-muted-foreground)]">
-              {isConnected ? 'Online' : 'Offline'}
-            </span>
+            <span className={`w-2 h-2 rounded-full ${getStatusColor()}`} />
+            <span className="text-xs text-[var(--quant-muted-foreground)]">{getStatusLabel()}</span>
           </div>,
         ]}
       />
@@ -94,12 +134,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         )}
         <TypingIndicator users={typingUsers} />
       </div>
-      <ChatInput
-        onSend={(content) => {
-          sendMessage.mutate({ conversationId: id, content, type: 'text' as const });
-        }}
-        placeholder="Type a message..."
-      />
+      <ChatInput onSend={handleSend} onTyping={handleTyping} placeholder="Type a message..." />
     </div>
   );
 }

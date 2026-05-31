@@ -3,12 +3,35 @@
 // ============================================================================
 
 import type {
-  Message, Conversation, Story, Snap, SnapStreak, SnapMemory,
-  Call, Group, DiscoverItem, Publisher, ARFilter, Bitmoji,
-  FriendLocation, Place, GeoFilter, SmartReply, TranslationResult,
-  ModerationResult, Notification, AuthTokens, SendMessageRequest,
-  CreateStoryRequest, SendSnapRequest, InitiateCallRequest, CreateGroupRequest,
-  LocationUpdateRequest, StoryHighlight, PhoneAuthRequest, OTPVerifyRequest,
+  Message,
+  Conversation,
+  Story,
+  Snap,
+  SnapStreak,
+  SnapMemory,
+  Call,
+  Group,
+  DiscoverItem,
+  Publisher,
+  ARFilter,
+  Bitmoji,
+  FriendLocation,
+  Place,
+  GeoFilter,
+  SmartReply,
+  TranslationResult,
+  ModerationResult,
+  Notification,
+  AuthTokens,
+  SendMessageRequest,
+  CreateStoryRequest,
+  SendSnapRequest,
+  InitiateCallRequest,
+  CreateGroupRequest,
+  LocationUpdateRequest,
+  StoryHighlight,
+  PhoneAuthRequest,
+  OTPVerifyRequest,
 } from '../types';
 
 // ============================================================================
@@ -40,7 +63,7 @@ export class QuantChatApiClient {
   private onTokenRefresh?: (tokens: AuthTokens) => void;
   private onAuthError?: () => void;
 
-  constructor(baseUrl: string = 'https://chat.quant.app/api') {
+  constructor(baseUrl: string = '/api') {
     this.baseUrl = baseUrl;
     this.deviceId = this.generateDeviceId();
   }
@@ -50,7 +73,10 @@ export class QuantChatApiClient {
     this.refreshToken = refreshToken;
   }
 
-  setCallbacks(callbacks: { onTokenRefresh?: (tokens: AuthTokens) => void; onAuthError?: () => void }): void {
+  setCallbacks(callbacks: {
+    onTokenRefresh?: (tokens: AuthTokens) => void;
+    onAuthError?: () => void;
+  }): void {
     this.onTokenRefresh = callbacks.onTokenRefresh;
     this.onAuthError = callbacks.onAuthError;
   }
@@ -59,12 +85,19 @@ export class QuantChatApiClient {
   // Auth
   // --------------------------------------------------------------------------
 
-  async requestOTP(request: PhoneAuthRequest): Promise<ApiResponse<{ message: string; expiresIn: number }>> {
+  async requestOTP(
+    request: PhoneAuthRequest,
+  ): Promise<ApiResponse<{ message: string; expiresIn: number }>> {
     return this.post('/auth/otp/request', request);
   }
 
-  async verifyOTP(request: OTPVerifyRequest): Promise<ApiResponse<AuthTokens & { isNewUser: boolean }>> {
-    const response = await this.post<AuthTokens & { isNewUser: boolean }>('/auth/otp/verify', { ...request, deviceId: this.deviceId });
+  async verifyOTP(
+    request: OTPVerifyRequest,
+  ): Promise<ApiResponse<AuthTokens & { isNewUser: boolean }>> {
+    const response = await this.post<AuthTokens & { isNewUser: boolean }>('/auth/otp/verify', {
+      ...request,
+      deviceId: this.deviceId,
+    });
     if (response.success && response.data) {
       this.setTokens(response.data.accessToken, response.data.refreshToken);
     }
@@ -75,11 +108,16 @@ export class QuantChatApiClient {
     return this.post('/auth/link-quantmail', { quantMailEmail: email, quantMailToken: token });
   }
 
-  async getProfile(): Promise<ApiResponse<{ id: string; phoneNumber: string; username: string; displayName: string }>> {
+  async getProfile(): Promise<
+    ApiResponse<{ id: string; phoneNumber: string; username: string; displayName: string }>
+  > {
     return this.get('/auth/profile');
   }
 
-  async updateProfile(data: { username?: string; displayName?: string }): Promise<ApiResponse<unknown>> {
+  async updateProfile(data: {
+    username?: string;
+    displayName?: string;
+  }): Promise<ApiResponse<unknown>> {
     return this.put('/auth/profile', data);
   }
 
@@ -97,7 +135,10 @@ export class QuantChatApiClient {
     return this.get('/conversations');
   }
 
-  async createConversation(participantIds: string[], name?: string): Promise<ApiResponse<Conversation>> {
+  async createConversation(
+    participantIds: string[],
+    name?: string,
+  ): Promise<ApiResponse<Conversation>> {
     return this.post('/conversations', { participantIds, name });
   }
 
@@ -105,7 +146,11 @@ export class QuantChatApiClient {
     return this.get(`/conversations/${conversationId}`);
   }
 
-  async getMessages(conversationId: string, limit?: number, before?: string): Promise<ApiResponse<Message[]>> {
+  async getMessages(
+    conversationId: string,
+    limit?: number,
+    before?: string,
+  ): Promise<ApiResponse<Message[]>> {
     return this.get(`/conversations/${conversationId}/messages`, { params: { limit, before } });
   }
 
@@ -161,7 +206,11 @@ export class QuantChatApiClient {
     return this.post(`/stories/${storyId}/view`, {});
   }
 
-  async replyToStory(storyId: string, content: string, type?: 'text' | 'emoji' | 'snap'): Promise<ApiResponse<unknown>> {
+  async replyToStory(
+    storyId: string,
+    content: string,
+    type?: 'text' | 'emoji' | 'snap',
+  ): Promise<ApiResponse<unknown>> {
     return this.post(`/stories/${storyId}/reply`, { content, type });
   }
 
@@ -285,7 +334,11 @@ export class QuantChatApiClient {
   // AR Filters
   // --------------------------------------------------------------------------
 
-  async getFilters(options?: { type?: string; category?: string; trending?: boolean }): Promise<ApiResponse<ARFilter[]>> {
+  async getFilters(options?: {
+    type?: string;
+    category?: string;
+    trending?: boolean;
+  }): Promise<ApiResponse<ARFilter[]>> {
     return this.get('/filters', { params: options as Record<string, string> });
   }
 
@@ -293,7 +346,10 @@ export class QuantChatApiClient {
     return this.get('/filters/trending');
   }
 
-  async applyFilter(filterId: string, imageData: string): Promise<ApiResponse<{ processedUrl: string }>> {
+  async applyFilter(
+    filterId: string,
+    imageData: string,
+  ): Promise<ApiResponse<{ processedUrl: string }>> {
     return this.post(`/filters/${filterId}/apply`, { imageData });
   }
 
@@ -305,7 +361,10 @@ export class QuantChatApiClient {
     return this.post('/ai/smart-replies', { message });
   }
 
-  async translateMessage(text: string, targetLanguage: string): Promise<ApiResponse<TranslationResult>> {
+  async translateMessage(
+    text: string,
+    targetLanguage: string,
+  ): Promise<ApiResponse<TranslationResult>> {
     return this.post('/ai/translate', { text, targetLanguage });
   }
 
@@ -365,11 +424,19 @@ export class QuantChatApiClient {
     return this.request('GET', path, undefined, options);
   }
 
-  private async post<T>(path: string, body: unknown, options?: RequestOptions): Promise<ApiResponse<T>> {
+  private async post<T>(
+    path: string,
+    body: unknown,
+    options?: RequestOptions,
+  ): Promise<ApiResponse<T>> {
     return this.request('POST', path, body, options);
   }
 
-  private async put<T>(path: string, body: unknown, options?: RequestOptions): Promise<ApiResponse<T>> {
+  private async put<T>(
+    path: string,
+    body: unknown,
+    options?: RequestOptions,
+  ): Promise<ApiResponse<T>> {
     return this.request('PUT', path, body, options);
   }
 
@@ -377,7 +444,12 @@ export class QuantChatApiClient {
     return this.request('DELETE', path, undefined, options);
   }
 
-  private async request<T>(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<ApiResponse<T>> {
+  private async request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    options?: RequestOptions,
+  ): Promise<ApiResponse<T>> {
     let url = `${this.baseUrl}${path}`;
 
     if (options?.params) {
@@ -407,13 +479,17 @@ export class QuantChatApiClient {
         signal: options?.signal,
       });
 
-      const data = await response.json() as ApiResponse<T>;
+      const data = (await response.json()) as ApiResponse<T>;
 
       if (response.status === 401 && this.refreshToken) {
         const refreshed = await this.refreshTokens();
         if (refreshed) {
           headers['Authorization'] = `Bearer ${this.accessToken}`;
-          const retryResponse = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+          const retryResponse = await fetch(url, {
+            method,
+            headers,
+            body: body ? JSON.stringify(body) : undefined,
+          });
           return retryResponse.json() as Promise<ApiResponse<T>>;
         }
         this.onAuthError?.();
@@ -436,7 +512,7 @@ export class QuantChatApiClient {
         body: JSON.stringify({ refreshToken: this.refreshToken, deviceId: this.deviceId }),
       });
 
-      const data = await response.json() as ApiResponse<AuthTokens>;
+      const data = (await response.json()) as ApiResponse<AuthTokens>;
       if (data.success && data.data) {
         this.accessToken = data.data.accessToken;
         this.refreshToken = data.data.refreshToken;

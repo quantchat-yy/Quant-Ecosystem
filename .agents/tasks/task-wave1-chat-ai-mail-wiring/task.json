@@ -1,0 +1,7 @@
+{
+  "task_id": "task-wave1-chat-ai-mail-wiring",
+  "task_description": "Wave 1 continued: Wire QuantChat WebSocket for live messaging, QuantAI real SSE streaming (kill fake setInterval), QuantMail compose/inbox/thread fully through proxy, and cross-app token management. These are the critical production-readiness items that transform stubs into working features.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004"],
+  "blocked_reason": null
+}
