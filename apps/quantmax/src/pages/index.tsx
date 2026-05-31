@@ -85,6 +85,18 @@ const ForYouFeedPage: React.FC = () => {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      {/* Mute Toggle - Top Right */}
+      <button
+        className="absolute right-4 top-12 z-30 flex h-9 w-9 items-center justify-center rounded-full bg-black/30 backdrop-blur-sm"
+        onClick={(e) => {
+          e.stopPropagation();
+          toggleMute();
+        }}
+        aria-label={state.isMuted ? 'Unmute' : 'Mute'}
+      >
+        <span className="text-sm text-white">{state.isMuted ? '\u{1F507}' : '\u{1F50A}'}</span>
+      </button>
+
       {/* Navigation Tabs */}
       <div className="absolute inset-x-0 top-0 z-30 flex items-center justify-center gap-6 pb-2 pt-12">
         <button
@@ -239,7 +251,7 @@ const ForYouFeedPage: React.FC = () => {
                 <span className="mt-0.5 text-[10px]">{formatCount(currentVideo.shares)}</span>
               </motion.button>
 
-              {/* Mute */}
+              {/* Bookmark */}
               <motion.button
                 custom={4}
                 variants={actionItemVariants}
@@ -247,13 +259,42 @@ const ForYouFeedPage: React.FC = () => {
                 animate="visible"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                className="flex h-11 w-11 items-center justify-center text-white"
+                className="flex h-11 w-11 flex-col items-center justify-center text-white"
                 onClick={(e) => {
                   e.stopPropagation();
-                  toggleMute();
                 }}
+                aria-label="Bookmark"
               >
-                <span className="text-xl">{state.isMuted ? '\u{1F507}' : '\u{1F50A}'}</span>
+                <span className="text-2xl">&#128278;</span>
+              </motion.button>
+
+              {/* Spinning Sound Disc */}
+              <motion.button
+                custom={5}
+                variants={actionItemVariants}
+                initial="hidden"
+                animate="visible"
+                className="flex h-11 w-11 items-center justify-center"
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+                aria-label="Sound"
+              >
+                <motion.div
+                  animate={{ rotate: state.isPlaying ? 360 : 0 }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                  className="h-9 w-9 rounded-full border-2 border-white/40 bg-gradient-to-br from-gray-800 to-gray-600 flex items-center justify-center overflow-hidden"
+                >
+                  {currentVideo.sound?.albumArt ? (
+                    <img
+                      className="h-full w-full object-cover rounded-full"
+                      src={currentVideo.sound.albumArt}
+                      alt=""
+                    />
+                  ) : (
+                    <span className="text-xs">&#127925;</span>
+                  )}
+                </motion.div>
               </motion.button>
             </div>
 

@@ -91,7 +91,7 @@ const MatchingPage: React.FC = () => {
           className="w-full max-w-sm"
         >
           <div className="overflow-hidden rounded-2xl bg-[var(--quant-card)] shadow-xl">
-            {/* Photo */}
+            {/* Photo with Swipe Dots */}
             <div className="relative">
               {currentProfile.photos &&
                 currentProfile.photos.length > 0 &&
@@ -102,9 +102,28 @@ const MatchingPage: React.FC = () => {
                     alt={currentProfile.displayName}
                   />
                 )}
+              {/* Photo Dots */}
+              {currentProfile.photos && currentProfile.photos.length > 1 && (
+                <div className="absolute top-3 inset-x-3 flex gap-1">
+                  {currentProfile.photos.map((_: unknown, idx: number) => (
+                    <div
+                      key={idx}
+                      className={`h-0.5 flex-1 rounded-full ${idx === 0 ? 'bg-white' : 'bg-white/40'}`}
+                    />
+                  ))}
+                </div>
+              )}
               {currentProfile.verified === 'verified' && (
                 <div className="absolute right-3 top-3 rounded-full bg-[var(--quant-info)] p-1.5">
                   <span className="text-xs text-white">&#10003;</span>
+                </div>
+              )}
+              {/* Distance Badge */}
+              {currentProfile.location && (
+                <div className="absolute left-3 top-3 rounded-full bg-black/50 backdrop-blur-sm px-2.5 py-1">
+                  <span className="text-xs text-white font-medium">
+                    {currentProfile.location.city}
+                  </span>
                 </div>
               )}
               <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent" />
@@ -143,7 +162,21 @@ const MatchingPage: React.FC = () => {
       </AnimatePresence>
 
       {/* Action Buttons */}
-      <div className="mt-6 flex items-center justify-center gap-6">
+      <div className="mt-6 flex items-center justify-center gap-4">
+        {/* Undo */}
+        {matching.canUndo && (
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.95 }}
+            className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[var(--quant-warning)] text-[var(--quant-warning)] shadow-lg"
+            onClick={() => matching.undo()}
+            aria-label="Undo last action"
+          >
+            <span className="text-sm">&#8630;</span>
+          </motion.button>
+        )}
+
+        {/* Pass (X) */}
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.95 }}
@@ -151,8 +184,16 @@ const MatchingPage: React.FC = () => {
           onClick={handlePass}
           aria-label="Pass"
         >
-          <span className="text-xl">&#10005;</span>
+          <motion.span
+            className="text-xl"
+            animate={{ rotate: 0 }}
+            whileTap={{ rotate: -15, scale: 1.2 }}
+          >
+            &#10005;
+          </motion.span>
         </motion.button>
+
+        {/* Super Like (Star) */}
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.95 }}
@@ -160,8 +201,12 @@ const MatchingPage: React.FC = () => {
           onClick={handleSuperLike}
           aria-label="Super Like"
         >
-          <span className="text-lg">&#11088;</span>
+          <motion.span className="text-lg" whileTap={{ scale: 1.4, y: -5 }}>
+            &#11088;
+          </motion.span>
         </motion.button>
+
+        {/* Like (Heart) */}
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.95 }}
@@ -169,21 +214,21 @@ const MatchingPage: React.FC = () => {
           onClick={handleLike}
           aria-label="Like"
         >
-          <span className="text-xl">&#9829;</span>
+          <motion.span className="text-xl" whileTap={{ scale: 1.3 }}>
+            &#9829;
+          </motion.span>
+        </motion.button>
+
+        {/* Boost */}
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.95 }}
+          className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-purple-500 text-purple-500 shadow-lg"
+          aria-label="Boost your profile"
+        >
+          <span className="text-sm">&#9889;</span>
         </motion.button>
       </div>
-
-      {/* Undo Button */}
-      {matching.canUndo && (
-        <motion.button
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-4 rounded-lg px-4 py-2 text-sm text-[var(--quant-muted-foreground)] hover:text-[var(--quant-foreground)]"
-          onClick={() => matching.undo()}
-        >
-          Undo
-        </motion.button>
-      )}
 
       {/* Match Celebration */}
       <AnimatePresence>

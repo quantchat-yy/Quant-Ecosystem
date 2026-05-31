@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "QuantNeon (Instagram killer) + QuantEdits (CapCut killer) + QuantMax (TikTok+Tinder+Omegle killer) deep page-level screens with full interactions - profile grids, story viewer, explore page, timeline editor, asset library, vertical video feed, swipe cards, random video chat",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "QuantNeon: Create apps/quantneon/src/pages/story-viewer.tsx - full-screen story viewer with progress bar at top, tap to advance, swipe to skip user, pause on hold, reply input at bottom, seen indicator.",
     "QuantNeon: Enhance apps/quantneon/src/pages/explore.tsx - add category tabs (For You, Travel, Food, Art, Fashion, Sports), masonry grid layout, search bar with suggestions, trending tags.",
