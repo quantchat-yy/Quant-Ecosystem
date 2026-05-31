@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 
 const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'ws://localhost:7880';
+const MAX_RECONNECT_DELAY = 30000;
 
 export interface RemoteParticipant {
   participantId: string;
@@ -23,6 +24,8 @@ export interface UseLiveKitReturn {
   localStream: MediaStream | null;
   isConnected: boolean;
   isConnecting: boolean;
+  isReconnecting: boolean;
+  reconnectAttempts: number;
   error: string | null;
   audioEnabled: boolean;
   videoEnabled: boolean;
@@ -39,6 +42,8 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
@@ -53,6 +58,10 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const speakingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wasConnectedRef = useRef(false);
+  const disconnectedManuallyRef = useRef(false);
+  const audioEnabledRef = useRef(true);
 
   const resolvedUrl = serverUrl || LIVEKIT_URL;
 
@@ -72,7 +81,7 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
 
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
       speakingIntervalRef.current = setInterval(() => {
-        if (!analyserRef.current) return;
+        if (!analyserRef.current || !audioEnabledRef.current) return;
         analyserRef.current.getByteFrequencyData(dataArray);
         const average = dataArray.reduce((sum, val) => sum + val, 0) / dataArray.length;
         setIsSpeaking(average > 15);
@@ -80,6 +89,25 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
     } catch {
       // AudioContext not available in some environments
     }
+  }, []);
+
+  const pauseSpeakingDetection = useCallback(() => {
+    if (speakingIntervalRef.current) {
+      clearInterval(speakingIntervalRef.current);
+      speakingIntervalRef.current = null;
+    }
+    setIsSpeaking(false);
+  }, []);
+
+  const resumeSpeakingDetection = useCallback(() => {
+    if (speakingIntervalRef.current || !analyserRef.current) return;
+    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+    speakingIntervalRef.current = setInterval(() => {
+      if (!analyserRef.current || !audioEnabledRef.current) return;
+      analyserRef.current.getByteFrequencyData(dataArray);
+      const average = dataArray.reduce((sum, val) => sum + val, 0) / dataArray.length;
+      setIsSpeaking(average > 15);
+    }, 100);
   }, []);
 
   const stopSpeakingDetection = useCallback(() => {
@@ -93,6 +121,67 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
     }
     analyserRef.current = null;
     setIsSpeaking(false);
+  }, []);
+
+  // Create a peer connection with ICE restart handling (Issue 3)
+  const createPeerConnection = useCallback((participantId: string): RTCPeerConnection => {
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+    });
+
+    // ICE restart on failure (Issue 3)
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'failed') {
+        pc.restartIce();
+        pc.createOffer({ iceRestart: true })
+          .then((offer) => pc.setLocalDescription(offer))
+          .then(() => {
+            if (wsRef.current?.readyState === WebSocket.OPEN && pc.localDescription) {
+              wsRef.current.send(
+                JSON.stringify({
+                  type: 'offer',
+                  participantId,
+                  offer: pc.localDescription,
+                }),
+              );
+            }
+          })
+          .catch(() => {
+            // ICE restart failed silently
+          });
+      }
+    };
+
+    // Add local tracks to the connection
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => {
+        pc.addTrack(track, localStreamRef.current!);
+      });
+    }
+
+    // Handle remote tracks
+    pc.ontrack = (event) => {
+      const [remoteStream] = event.streams;
+      setRemoteParticipants((prev) =>
+        prev.map((p) => (p.participantId === participantId ? { ...p, stream: remoteStream } : p)),
+      );
+    };
+
+    // ICE candidate handling
+    pc.onicecandidate = (event) => {
+      if (event.candidate && wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(
+          JSON.stringify({
+            type: 'ice-candidate',
+            participantId,
+            candidate: event.candidate.toJSON(),
+          }),
+        );
+      }
+    };
+
+    peerConnectionsRef.current.set(participantId, pc);
+    return pc;
   }, []);
 
   // Handle signaling messages from WebSocket
@@ -125,40 +214,7 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
         });
 
         // Create peer connection for the new participant
-        const pc = new RTCPeerConnection({
-          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-        });
-        peerConnectionsRef.current.set(participantId, pc);
-
-        // Add local tracks to the connection
-        if (localStreamRef.current) {
-          localStreamRef.current.getTracks().forEach((track) => {
-            pc.addTrack(track, localStreamRef.current!);
-          });
-        }
-
-        // Handle remote tracks
-        pc.ontrack = (event) => {
-          const [remoteStream] = event.streams;
-          setRemoteParticipants((prev) =>
-            prev.map((p) =>
-              p.participantId === participantId ? { ...p, stream: remoteStream } : p,
-            ),
-          );
-        };
-
-        // ICE candidate handling
-        pc.onicecandidate = (event) => {
-          if (event.candidate && wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(
-              JSON.stringify({
-                type: 'ice-candidate',
-                participantId,
-                candidate: event.candidate.toJSON(),
-              }),
-            );
-          }
-        };
+        const pc = createPeerConnection(participantId);
 
         // Create and send offer
         const offer = await pc.createOffer();
@@ -175,37 +231,7 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
       } else if (type === 'offer' && message.offer) {
         let pc = peerConnectionsRef.current.get(participantId);
         if (!pc) {
-          pc = new RTCPeerConnection({
-            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-          });
-          peerConnectionsRef.current.set(participantId, pc);
-
-          if (localStreamRef.current) {
-            localStreamRef.current.getTracks().forEach((track) => {
-              pc!.addTrack(track, localStreamRef.current!);
-            });
-          }
-
-          pc.ontrack = (event) => {
-            const [remoteStream] = event.streams;
-            setRemoteParticipants((prev) =>
-              prev.map((p) =>
-                p.participantId === participantId ? { ...p, stream: remoteStream } : p,
-              ),
-            );
-          };
-
-          pc.onicecandidate = (event) => {
-            if (event.candidate && wsRef.current?.readyState === WebSocket.OPEN) {
-              wsRef.current.send(
-                JSON.stringify({
-                  type: 'ice-candidate',
-                  participantId,
-                  candidate: event.candidate.toJSON(),
-                }),
-              );
-            }
-          };
+          pc = createPeerConnection(participantId);
         }
 
         await pc.setRemoteDescription(new RTCSessionDescription(message.offer));
@@ -257,13 +283,68 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
         );
       }
     },
-    [],
+    [createPeerConnection],
+  );
+
+  // WebSocket reconnection logic (Issue 2)
+  const scheduleReconnect = useCallback(
+    (attempt: number) => {
+      if (disconnectedManuallyRef.current) return;
+
+      const delay = Math.min(1000 * Math.pow(2, attempt), MAX_RECONNECT_DELAY);
+      setIsReconnecting(true);
+
+      reconnectTimerRef.current = setTimeout(() => {
+        if (disconnectedManuallyRef.current) return;
+
+        setReconnectAttempts(attempt + 1);
+
+        // Reconnect WebSocket
+        const wsUrl = `${resolvedUrl}/room/${roomId}?token=${encodeURIComponent(token || '')}`;
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+
+        ws.addEventListener('open', () => {
+          setIsConnected(true);
+          setIsReconnecting(false);
+          setReconnectAttempts(0);
+          wasConnectedRef.current = true;
+          setError(null);
+        });
+
+        ws.addEventListener('message', (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            handleSignalingMessage(msg);
+          } catch {
+            // Ignore non-JSON messages
+          }
+        });
+
+        ws.addEventListener('close', () => {
+          setIsConnected(false);
+          pauseSpeakingDetection();
+          if (!disconnectedManuallyRef.current && wasConnectedRef.current) {
+            scheduleReconnect(attempt + 1);
+          }
+        });
+
+        ws.addEventListener('error', () => {
+          setIsConnected(false);
+          if (!disconnectedManuallyRef.current && wasConnectedRef.current) {
+            scheduleReconnect(attempt + 1);
+          }
+        });
+      }, delay);
+    },
+    [resolvedUrl, roomId, token, handleSignalingMessage, pauseSpeakingDetection],
   );
 
   useEffect(() => {
     if (!token || !roomId) return;
 
     let cancelled = false;
+    disconnectedManuallyRef.current = false;
 
     async function connect() {
       setIsConnecting(true);
@@ -295,6 +376,7 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
           if (!cancelled) {
             setIsConnected(true);
             setIsConnecting(false);
+            wasConnectedRef.current = true;
           }
         });
 
@@ -310,6 +392,11 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
         ws.addEventListener('close', () => {
           if (!cancelled) {
             setIsConnected(false);
+            pauseSpeakingDetection();
+            // Reconnect if was previously connected and not manually disconnected (Issue 2)
+            if (wasConnectedRef.current && !disconnectedManuallyRef.current) {
+              scheduleReconnect(0);
+            }
           }
         });
 
@@ -318,6 +405,11 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
             setError('WebSocket connection failed');
             setIsConnected(false);
             setIsConnecting(false);
+            pauseSpeakingDetection();
+            // Reconnect if was previously connected and not manually disconnected (Issue 2)
+            if (wasConnectedRef.current && !disconnectedManuallyRef.current) {
+              scheduleReconnect(0);
+            }
           }
         });
       } catch (err) {
@@ -333,6 +425,11 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
 
     return () => {
       cancelled = true;
+      disconnectedManuallyRef.current = true;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
       stopSpeakingDetection();
       if (wsRef.current) {
         wsRef.current.close();
@@ -359,6 +456,8 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
     handleSignalingMessage,
     startSpeakingDetection,
     stopSpeakingDetection,
+    scheduleReconnect,
+    pauseSpeakingDetection,
   ]);
 
   const toggleAudio = useCallback(() => {
@@ -369,6 +468,14 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
         track.enabled = newEnabled;
       });
       setAudioEnabled(newEnabled);
+      audioEnabledRef.current = newEnabled;
+
+      // Pause/resume speaking detection based on audio state (Issue 4)
+      if (newEnabled) {
+        resumeSpeakingDetection();
+      } else {
+        pauseSpeakingDetection();
+      }
 
       // Broadcast track state to remote participants
       if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -377,7 +484,7 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
         );
       }
     }
-  }, [audioEnabled]);
+  }, [audioEnabled, pauseSpeakingDetection, resumeSpeakingDetection]);
 
   const toggleVideo = useCallback(() => {
     if (localStreamRef.current) {
@@ -455,6 +562,11 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
   }, []);
 
   const disconnect = useCallback(() => {
+    disconnectedManuallyRef.current = true;
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
     stopSpeakingDetection();
     if (wsRef.current) {
       wsRef.current.close();
@@ -473,14 +585,19 @@ export function useLiveKit({ roomId, token, serverUrl }: UseLiveKitOptions): Use
     setLocalStream(null);
     setIsConnected(false);
     setIsConnecting(false);
+    setIsReconnecting(false);
+    setReconnectAttempts(0);
     setIsScreenSharing(false);
     setRemoteParticipants([]);
+    wasConnectedRef.current = false;
   }, [stopSpeakingDetection]);
 
   return {
     localStream,
     isConnected,
     isConnecting,
+    isReconnecting,
+    reconnectAttempts,
     error,
     audioEnabled,
     videoEnabled,

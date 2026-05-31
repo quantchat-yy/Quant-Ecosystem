@@ -5,7 +5,7 @@ const BACKEND_URL = process.env.QUANTNEON_BACKEND_URL || 'http://localhost:3006'
 export async function proxyToBackend(
   request: NextRequest,
   backendPath: string,
-  options?: { method?: string; body?: unknown },
+  options?: { method?: string; body?: unknown; stream?: boolean },
 ) {
   const method = options?.method || request.method;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -29,6 +29,28 @@ export async function proxyToBackend(
     }
   }
   const res = await fetch(url.toString(), fetchOptions);
-  const data = await res.json();
+
+  // Stream binary/SSE responses directly
+  const contentType = res.headers.get('content-type') || '';
+  if (
+    options?.stream ||
+    contentType.includes('stream') ||
+    contentType.includes('octet') ||
+    contentType.includes('video') ||
+    contentType.includes('audio') ||
+    contentType.includes('pdf')
+  ) {
+    return new NextResponse(res.body, {
+      status: res.status,
+      headers: {
+        'Content-Type': contentType,
+        'Content-Disposition': res.headers.get('content-disposition') || '',
+        'Cache-Control': res.headers.get('cache-control') || 'no-cache',
+      },
+    });
+  }
+
+  // Default: JSON response
+  const data = await res.json().catch(() => ({ error: 'Invalid response' }));
   return NextResponse.json(data, { status: res.status });
 }
