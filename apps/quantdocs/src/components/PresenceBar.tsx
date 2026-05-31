@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { spring } from '@quant/brand';
-import { Avatar } from '@quant/shared-ui';
+import { Avatar, Badge } from '@quant/shared-ui';
 import type { AwarenessUser } from '../hooks/useDocument';
 
 interface Viewer {
@@ -15,10 +15,17 @@ interface Viewer {
 
 interface PresenceBarProps {
   viewers?: Viewer[];
+  maxVisible?: number;
   awareness?: Map<string, AwarenessUser>;
 }
 
-export function PresenceBar({ viewers = [], awareness }: PresenceBarProps) {
+const DEFAULT_MAX_VISIBLE = 3;
+
+export function PresenceBar({
+  viewers = [],
+  maxVisible = DEFAULT_MAX_VISIBLE,
+  awareness,
+}: PresenceBarProps) {
   // Merge viewers with awareness data for typing/editing indicators
   const enrichedViewers = viewers.map((viewer) => {
     const awarenessData = awareness?.get(viewer.id);
@@ -45,6 +52,10 @@ export function PresenceBar({ viewers = [], awareness }: PresenceBarProps) {
     });
   }
 
+  // Apply maxVisible slicing
+  const visibleViewers = enrichedViewers.slice(0, maxVisible);
+  const overflowCount = enrichedViewers.length - maxVisible;
+
   return (
     <div
       className="flex items-center gap-2 px-4 py-2 border-b border-[var(--quant-border)]"
@@ -52,7 +63,7 @@ export function PresenceBar({ viewers = [], awareness }: PresenceBarProps) {
     >
       <div className="flex -space-x-2">
         <AnimatePresence>
-          {enrichedViewers.map((viewer) => (
+          {visibleViewers.map((viewer) => (
             <motion.div
               key={viewer.id}
               initial={{ opacity: 0, scale: 0 }}
@@ -73,6 +84,15 @@ export function PresenceBar({ viewers = [], awareness }: PresenceBarProps) {
                   status="online"
                 />
               </div>
+              {/* Animated pulse indicator */}
+              <motion.span
+                className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--quant-background)]"
+                style={{ backgroundColor: viewer.color || '#34A853' }}
+                animate={{ scale: [1, 1.3, 1] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                aria-hidden="true"
+              />
+              {/* Typing dots indicator */}
               {viewer.isTyping && (
                 <motion.div
                   className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-[var(--quant-primary)] flex items-center justify-center"
@@ -87,20 +107,46 @@ export function PresenceBar({ viewers = [], awareness }: PresenceBarProps) {
           ))}
         </AnimatePresence>
       </div>
+
       {enrichedViewers.length > 0 && (
-        <motion.span
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-xs text-[var(--quant-muted-foreground)]"
-        >
-          {enrichedViewers.length} viewing
+        <div className="flex items-center gap-2">
+          {visibleViewers.map((viewer) => (
+            <motion.span
+              key={viewer.id}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="text-xs font-medium"
+              style={{ color: viewer.color || 'var(--quant-foreground)' }}
+            >
+              {viewer.name}
+            </motion.span>
+          ))}
+          {overflowCount > 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', ...spring.snappy }}
+            >
+              <Badge variant="default">
+                +{overflowCount} {overflowCount === 1 ? 'other' : 'others'} viewing
+              </Badge>
+            </motion.div>
+          )}
+          {overflowCount <= 0 && (
+            <motion.span
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-xs text-[var(--quant-muted-foreground)]"
+            >
+              {enrichedViewers.length} viewing
+            </motion.span>
+          )}
           {enrichedViewers.some((v) => v.isTyping) && (
-            <span className="ml-1 text-[var(--quant-primary)]">
-              {' '}
+            <span className="text-xs text-[var(--quant-primary)]">
               &middot; {enrichedViewers.filter((v) => v.isTyping).length} editing
             </span>
           )}
-        </motion.span>
+        </div>
       )}
     </div>
   );

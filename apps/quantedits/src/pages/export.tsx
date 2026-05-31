@@ -27,7 +27,7 @@ interface Resolution {
   label: string;
 }
 
-type ExportFormat = 'mp4' | 'mov' | 'gif' | 'png' | 'jpg' | 'pdf' | 'svg';
+type ExportFormat = 'mp4' | 'mov' | 'webm' | 'gif' | 'png' | 'jpg' | 'pdf' | 'svg';
 
 interface PlatformPreset {
   id: string;
@@ -109,6 +109,7 @@ const PLATFORM_PRESETS: PlatformPreset[] = [
 const FORMAT_INFO: Record<ExportFormat, { label: string; icon: string; videoOnly: boolean }> = {
   mp4: { label: 'MP4 (H.264)', icon: '🎬', videoOnly: true },
   mov: { label: 'MOV (ProRes)', icon: '🎥', videoOnly: true },
+  webm: { label: 'WebM (VP9)', icon: '🌐', videoOnly: true },
   gif: { label: 'GIF (Animated)', icon: '🌀', videoOnly: true },
   png: { label: 'PNG (Lossless)', icon: '🖼', videoOnly: false },
   jpg: { label: 'JPG (Compressed)', icon: '📸', videoOnly: false },
@@ -140,7 +141,8 @@ const ExportPage: React.FC<ExportPageProps> = ({ projectId, projectName, duratio
     const pixels = res.width * res.height;
     const bitrate = (pixels / (1920 * 1080)) * quality * 0.1;
     const exportDuration = exportRange === 'full' ? duration : endTime - startTime;
-    if (format === 'mp4' || format === 'mov') return (bitrate * exportDuration * 1024 * 1024) / 8;
+    if (format === 'mp4' || format === 'mov' || format === 'webm')
+      return (bitrate * exportDuration * 1024 * 1024) / 8;
     if (format === 'gif') return (bitrate * exportDuration * 512 * 1024) / 8;
     return pixels * (quality / 100) * (format === 'png' ? 4 : 1);
   }, [
@@ -364,7 +366,7 @@ const ExportPage: React.FC<ExportPageProps> = ({ projectId, projectName, duratio
               )}
             </section>
 
-            {(format === 'mp4' || format === 'mov' || format === 'gif') && (
+            {(format === 'mp4' || format === 'mov' || format === 'webm' || format === 'gif') && (
               <section className="settings-section">
                 <h3>Video Settings</h3>
                 <div className="setting-row">

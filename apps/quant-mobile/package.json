@@ -15,10 +15,12 @@
     "@quant/common": "workspace:*",
     "@quant/sync-engine": "workspace:*",
     "@quant/auth": "workspace:*",
+    "react": "^18.3.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
     "vitest": "^2",
     "typescript": "~5.5.0"
   }

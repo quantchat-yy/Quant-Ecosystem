@@ -16,6 +16,8 @@ import { CalendarSidebar } from '../components/CalendarSidebar';
 import { CalendarGrid } from '../components/CalendarGrid';
 import type { CalendarViewType } from '../components/CalendarGrid';
 import { EventForm } from '../components/EventForm';
+import { EventDetailModal } from '../components/EventDetailModal';
+import { SchedulingAssistant } from '../components/SchedulingAssistant';
 import type { CalendarEvent } from '../hooks/useEvents';
 
 const VIEW_TABS: { id: CalendarViewType; label: string }[] = [
@@ -30,6 +32,8 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isEventFormOpen, setIsEventFormOpen] = useState(false);
+  const [isEventDetailOpen, setIsEventDetailOpen] = useState(false);
+  const [isSchedulingOpen, setIsSchedulingOpen] = useState(false);
 
   const { data: events, isLoading: eventsLoading, error: eventsError, refetch } = useEvents();
   const { data: calendars, isLoading: calendarsLoading } = useCalendars();
@@ -78,7 +82,20 @@ export default function CalendarPage() {
 
   const handleEventClick = useCallback((event: CalendarEvent) => {
     setSelectedEvent(event);
+    setIsEventDetailOpen(true);
+  }, []);
+
+  const handleEditFromDetail = useCallback((event: CalendarEvent) => {
+    setIsEventDetailOpen(false);
+    setSelectedEvent(event);
     setIsEventFormOpen(true);
+  }, []);
+
+  const handleDeleteFromDetail = useCallback((eventId: string) => {
+    setIsEventDetailOpen(false);
+    setSelectedEvent(null);
+    // Delete handled via useDeleteEvent in real implementation
+    void eventId;
   }, []);
 
   const handleNewEvent = useCallback(() => {
@@ -143,6 +160,8 @@ export default function CalendarPage() {
           onDateSelect={handleDateSelect}
           onMonthChange={handleMonthChange}
           onNewEvent={handleNewEvent}
+          events={events ?? []}
+          onEventClick={handleEventClick}
         />
       }
       aria-label="QuantCalendar application"
@@ -228,6 +247,29 @@ export default function CalendarPage() {
         event={selectedEvent}
         calendars={calendars ?? []}
       />
+
+      <EventDetailModal
+        open={isEventDetailOpen}
+        event={selectedEvent}
+        onClose={() => {
+          setIsEventDetailOpen(false);
+          setSelectedEvent(null);
+        }}
+        onEdit={handleEditFromDetail}
+        onDelete={handleDeleteFromDetail}
+      />
+
+      {isSchedulingOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <SchedulingAssistant
+            onClose={() => setIsSchedulingOpen(false)}
+            onSelectTime={() => {
+              setIsSchedulingOpen(false);
+              handleNewEvent();
+            }}
+          />
+        </div>
+      )}
     </AppShell>
   );
 }

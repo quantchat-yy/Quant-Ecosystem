@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import type { CalendarEvent } from '../hooks/useEvents';
 import { EventCard } from './EventCard';
 
@@ -8,13 +8,52 @@ interface MonthViewProps {
   events: CalendarEvent[];
   currentDate: Date;
   onEventClick?: (event: CalendarEvent) => void;
+  onCreateEvent?: (start: Date, end: Date) => void;
 }
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MAX_VISIBLE_EVENTS = 3;
 
-export function MonthView({ events, currentDate, onEventClick }: MonthViewProps) {
+export function MonthView({ events, currentDate, onEventClick, onCreateEvent }: MonthViewProps) {
   const today = useMemo(() => new Date(), []);
+  const [dragStart, setDragStart] = useState<Date | null>(null);
+  const [dragEnd, setDragEnd] = useState<Date | null>(null);
+
+  const handleMouseDown = useCallback((date: Date) => {
+    setDragStart(date);
+    setDragEnd(date);
+  }, []);
+
+  const handleMouseEnter = useCallback(
+    (date: Date) => {
+      if (dragStart) {
+        setDragEnd(date);
+      }
+    },
+    [dragStart],
+  );
+
+  const handleMouseUp = useCallback(() => {
+    if (dragStart && dragEnd && onCreateEvent) {
+      const start = dragStart < dragEnd ? dragStart : dragEnd;
+      const end = dragStart < dragEnd ? dragEnd : dragStart;
+      const endWithTime = new Date(end);
+      endWithTime.setHours(23, 59, 59);
+      onCreateEvent(start, endWithTime);
+    }
+    setDragStart(null);
+    setDragEnd(null);
+  }, [dragStart, dragEnd, onCreateEvent]);
+
+  const isInDragRange = useCallback(
+    (date: Date) => {
+      if (!dragStart || !dragEnd) return false;
+      const start = dragStart < dragEnd ? dragStart : dragEnd;
+      const end = dragStart < dragEnd ? dragEnd : dragStart;
+      return date >= start && date <= end;
+    },
+    [dragStart, dragEnd],
+  );
 
   const weeks = useMemo(() => {
     const year = currentDate.getFullYear();
@@ -65,7 +104,16 @@ export function MonthView({ events, currentDate, onEventClick }: MonthViewProps)
     date.getFullYear() === today.getFullYear();
 
   return (
-    <div className="flex flex-col h-full" role="grid" aria-label="Month calendar view">
+    <div
+      className="flex flex-col h-full"
+      role="grid"
+      aria-label="Month calendar view"
+      onMouseUp={handleMouseUp}
+      onMouseLeave={() => {
+        setDragStart(null);
+        setDragEnd(null);
+      }}
+    >
       <div className="grid grid-cols-7 border-b border-[var(--quant-border)]" role="row">
         {DAYS_OF_WEEK.map((day) => (
           <div
@@ -95,9 +143,11 @@ export function MonthView({ events, currentDate, onEventClick }: MonthViewProps)
                   key={dayIndex}
                   className={`p-1 border-r border-[var(--quant-border)] last:border-r-0 overflow-hidden ${
                     !isCurrentMonth ? 'bg-[var(--quant-muted)] opacity-60' : ''
-                  }`}
+                  } ${isInDragRange(date) ? 'bg-blue-100 dark:bg-blue-900/30' : ''}`}
                   role="gridcell"
                   aria-label={date.toLocaleDateString()}
+                  onMouseDown={() => handleMouseDown(date)}
+                  onMouseEnter={() => handleMouseEnter(date)}
                 >
                   <div className="flex justify-center mb-0.5">
                     <span

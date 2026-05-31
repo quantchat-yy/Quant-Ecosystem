@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { spring } from '@quant/brand';
 import { Button, Sidebar } from '@quant/shared-ui';
 import type { SidebarItem } from '@quant/shared-ui';
 import { MiniCalendar } from './MiniCalendar';
 import type { Calendar } from '../hooks/useCalendars';
+import type { CalendarEvent } from '../hooks/useEvents';
 
 interface CalendarSidebarProps {
   calendars: Calendar[];
@@ -16,6 +17,8 @@ interface CalendarSidebarProps {
   onMonthChange: (date: Date) => void;
   onNewEvent: () => void;
   onToggleCalendarVisibility?: (calendarId: string) => void;
+  events?: CalendarEvent[];
+  onEventClick?: (event: CalendarEvent) => void;
 }
 
 export function CalendarSidebar({
@@ -26,8 +29,18 @@ export function CalendarSidebar({
   onMonthChange,
   onNewEvent,
   onToggleCalendarVisibility,
+  events = [],
+  onEventClick,
 }: CalendarSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+
+  const upcomingEvents = useMemo(() => {
+    const now = new Date();
+    return events
+      .filter((e) => new Date(e.start) >= now)
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+      .slice(0, 5);
+  }, [events]);
 
   const sidebarItems: SidebarItem[] = calendars.map((cal) => ({
     id: cal.id,
@@ -83,6 +96,36 @@ export function CalendarSidebar({
                   onDateSelect={onDateSelect}
                   onMonthChange={onMonthChange}
                 />
+                {upcomingEvents.length > 0 && (
+                  <div className="space-y-1 pt-2 border-t border-[var(--quant-border)]">
+                    <p className="text-xs font-medium text-[var(--quant-muted-foreground)]">
+                      Upcoming
+                    </p>
+                    <ul className="space-y-1" aria-label="Upcoming events">
+                      {upcomingEvents.map((event) => (
+                        <li key={event.id}>
+                          <button
+                            onClick={() => onEventClick?.(event)}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left hover:bg-[var(--quant-muted)] transition-colors text-xs min-h-[32px]"
+                          >
+                            <span
+                              className="w-2 h-2 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: event.color || '#4285F4' }}
+                              aria-hidden="true"
+                            />
+                            <span className="truncate flex-1">{event.title}</span>
+                            <span className="text-[var(--quant-muted-foreground)] flex-shrink-0">
+                              {new Date(event.start).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             }
             footer={

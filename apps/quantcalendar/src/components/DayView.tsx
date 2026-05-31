@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import type { CalendarEvent } from '../hooks/useEvents';
 import { EventCard } from './EventCard';
 
@@ -8,12 +8,53 @@ interface DayViewProps {
   events: CalendarEvent[];
   currentDate: Date;
   onEventClick?: (event: CalendarEvent) => void;
+  onCreateEvent?: (start: Date, end: Date) => void;
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-export function DayView({ events, currentDate, onEventClick }: DayViewProps) {
+export function DayView({ events, currentDate, onEventClick, onCreateEvent }: DayViewProps) {
   const today = useMemo(() => new Date(), []);
+  const [dragStartHour, setDragStartHour] = useState<number | null>(null);
+  const [dragEndHour, setDragEndHour] = useState<number | null>(null);
+
+  const handleHourMouseDown = useCallback((hour: number) => {
+    setDragStartHour(hour);
+    setDragEndHour(hour);
+  }, []);
+
+  const handleHourMouseEnter = useCallback(
+    (hour: number) => {
+      if (dragStartHour !== null) {
+        setDragEndHour(hour);
+      }
+    },
+    [dragStartHour],
+  );
+
+  const handleMouseUp = useCallback(() => {
+    if (dragStartHour !== null && dragEndHour !== null && onCreateEvent) {
+      const startH = Math.min(dragStartHour, dragEndHour);
+      const endH = Math.max(dragStartHour, dragEndHour) + 1;
+      const start = new Date(currentDate);
+      start.setHours(startH, 0, 0, 0);
+      const end = new Date(currentDate);
+      end.setHours(endH, 0, 0, 0);
+      onCreateEvent(start, end);
+    }
+    setDragStartHour(null);
+    setDragEndHour(null);
+  }, [dragStartHour, dragEndHour, onCreateEvent, currentDate]);
+
+  const isInDragRange = useCallback(
+    (hour: number) => {
+      if (dragStartHour === null || dragEndHour === null) return false;
+      const minH = Math.min(dragStartHour, dragEndHour);
+      const maxH = Math.max(dragStartHour, dragEndHour);
+      return hour >= minH && hour <= maxH;
+    },
+    [dragStartHour, dragEndHour],
+  );
 
   const dayEvents = useMemo(() => {
     return events.filter((event) => {
@@ -56,6 +97,11 @@ export function DayView({ events, currentDate, onEventClick }: DayViewProps) {
       className="flex flex-col h-full overflow-auto"
       role="grid"
       aria-label={`Day view for ${dateLabel}`}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={() => {
+        setDragStartHour(null);
+        setDragEndHour(null);
+      }}
     >
       <div className="sticky top-0 z-10 bg-[var(--quant-background)] border-b border-[var(--quant-border)] p-3">
         <h2 className={`text-lg font-semibold ${isToday ? 'text-quant-primary' : ''}`}>
@@ -75,7 +121,13 @@ export function DayView({ events, currentDate, onEventClick }: DayViewProps) {
               <div className="text-xs text-[var(--quant-muted-foreground)] p-1 text-right pr-2 border-r border-[var(--quant-border)]">
                 {formatHour(hour)}
               </div>
-              <div className="p-1 space-y-1" role="gridcell" aria-label={formatHour(hour)}>
+              <div
+                className={`p-1 space-y-1 ${isInDragRange(hour) ? 'bg-blue-100 dark:bg-blue-900/30' : ''}`}
+                role="gridcell"
+                aria-label={formatHour(hour)}
+                onMouseDown={() => handleHourMouseDown(hour)}
+                onMouseEnter={() => handleHourMouseEnter(hour)}
+              >
                 {hourEvents.map((event) => (
                   <EventCard key={event.id} event={event} onClick={onEventClick} />
                 ))}

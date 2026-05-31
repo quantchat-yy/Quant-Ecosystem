@@ -82,19 +82,37 @@ const VideoChatPage: React.FC = () => {
   const [reportReason, setReportReason] = useState<string>('');
   const [sessionCount, setSessionCount] = useState<number>(0);
   const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [callDuration, setCallDuration] = useState<number>(0);
 
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoSkipRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const statsRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const callTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     return () => {
       if (searchTimerRef.current) clearInterval(searchTimerRef.current);
       if (autoSkipRef.current) clearInterval(autoSkipRef.current);
       if (statsRef.current) clearInterval(statsRef.current);
+      if (callTimerRef.current) clearInterval(callTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (connectionState === 'connected') {
+      setCallDuration(0);
+      callTimerRef.current = setInterval(() => {
+        setCallDuration((prev) => prev + 1);
+      }, 1000);
+    } else {
+      if (callTimerRef.current) clearInterval(callTimerRef.current);
+      setCallDuration(0);
+    }
+    return () => {
+      if (callTimerRef.current) clearInterval(callTimerRef.current);
+    };
+  }, [connectionState]);
 
   useEffect(() => {
     if (chatEndRef.current) {
@@ -495,6 +513,12 @@ const VideoChatPage: React.FC = () => {
 
         {/* Connection Quality Indicator */}
         <div className="connection-quality" title={`Latency: ${connectionStats.latency}ms`}>
+          <span className="call-timer" aria-label="Call duration">
+            {Math.floor(callDuration / 60)
+              .toString()
+              .padStart(2, '0')}
+            :{(callDuration % 60).toString().padStart(2, '0')}
+          </span>
           <div className="quality-bars">
             {[1, 2, 3, 4].map((bar) => (
               <div

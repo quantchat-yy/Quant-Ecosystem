@@ -340,12 +340,13 @@ export default function ThreadPage() {
           )}
           {!isLoading && !error && thread && (
             <>
-              {/* AI Summary Card */}
+              {/* Summarize error */}
               {summarizeError && (
                 <Card padding="md" className="mb-4 bg-red-50 border-red-200">
                   <p className="text-sm text-red-600">{summarizeError}</p>
                 </Card>
               )}
+              {/* AI Summary Card from main */}
               {summary && (
                 <Card padding="md" className="mb-4 bg-[var(--quant-muted)]">
                   <div className="flex items-center justify-between mb-2">
