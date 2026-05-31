@@ -214,6 +214,9 @@ importers:
       '@quant/privacy-ads':
         specifier: workspace:*
         version: link:../../packages/privacy-ads
+      '@quant/quant-economy':
+        specifier: workspace:*
+        version: link:../../packages/quant-economy
       '@quant/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime
@@ -2321,6 +2324,22 @@ importers:
         version: 2.1.9(@types/node@22.19.19)(jiti@2.6.1)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
 
   packages/quant-commerce:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^2
+        version: 2.1.9(@types/node@22.19.19)(jiti@2.6.1)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
+
+  packages/quant-economy:
+    dependencies:
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
