@@ -142,6 +142,47 @@ describe('useCreateEvent', () => {
       }),
     ).rejects.toThrow('Failed to create event');
   });
+
+  it('invalidates events query on success', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children);
+
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'e1',
+        title: 'New',
+        description: '',
+        start: '',
+        end: '',
+        calendarId: 'c1',
+        color: '',
+        isRecurring: false,
+        location: '',
+      }),
+    });
+
+    const { result } = renderHook(() => useCreateEvent(), { wrapper });
+
+    await result.current.mutateAsync({
+      title: 'New',
+      description: '',
+      start: '',
+      end: '',
+      calendarId: 'c1',
+      color: '',
+      isRecurring: false,
+      location: '',
+    });
+
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['events'] });
+    });
+  });
 });
 
 describe('useUpdateEvent', () => {
@@ -181,6 +222,38 @@ describe('useUpdateEvent', () => {
       'Failed to update event',
     );
   });
+
+  it('invalidates events query on success', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children);
+
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'e1',
+        title: 'Updated',
+        description: '',
+        start: '',
+        end: '',
+        calendarId: 'c1',
+        color: '',
+        isRecurring: false,
+        location: '',
+      }),
+    });
+
+    const { result } = renderHook(() => useUpdateEvent(), { wrapper });
+
+    await result.current.mutateAsync({ id: 'e1', title: 'Updated' });
+
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['events'] });
+    });
+  });
 });
 
 describe('useDeleteEvent', () => {
@@ -204,6 +277,25 @@ describe('useDeleteEvent', () => {
     const { result } = renderHook(() => useDeleteEvent(), { wrapper: createWrapper() });
 
     await expect(result.current.mutateAsync('event-123')).rejects.toThrow('Failed to delete event');
+  });
+
+  it('invalidates events query on success', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children);
+
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+
+    const { result } = renderHook(() => useDeleteEvent(), { wrapper });
+
+    await result.current.mutateAsync('event-99');
+
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['events'] });
+    });
   });
 });
 
@@ -256,6 +348,28 @@ describe('useCreateCalendar', () => {
       result.current.mutateAsync({ name: 'X', color: '', isVisible: true }),
     ).rejects.toThrow('Failed to create calendar');
   });
+
+  it('invalidates calendars query on success', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children);
+
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 'c2', name: 'Personal', color: '#ff0000', isVisible: true }),
+    });
+
+    const { result } = renderHook(() => useCreateCalendar(), { wrapper });
+
+    await result.current.mutateAsync({ name: 'Personal', color: '#ff0000', isVisible: true });
+
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['calendars'] });
+    });
+  });
 });
 
 describe('useUpdateCalendar', () => {
@@ -286,6 +400,28 @@ describe('useUpdateCalendar', () => {
       'Failed to update calendar',
     );
   });
+
+  it('invalidates calendars query on success', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children);
+
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 'c1', name: 'Updated', color: '#000', isVisible: true }),
+    });
+
+    const { result } = renderHook(() => useUpdateCalendar(), { wrapper });
+
+    await result.current.mutateAsync({ id: 'c1', name: 'Updated' });
+
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['calendars'] });
+    });
+  });
 });
 
 describe('useDeleteCalendar', () => {
@@ -311,5 +447,24 @@ describe('useDeleteCalendar', () => {
     await expect(result.current.mutateAsync('cal-456')).rejects.toThrow(
       'Failed to delete calendar',
     );
+  });
+
+  it('invalidates calendars query on success', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children);
+
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+
+    const { result } = renderHook(() => useDeleteCalendar(), { wrapper });
+
+    await result.current.mutateAsync('cal-789');
+
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['calendars'] });
+    });
   });
 });

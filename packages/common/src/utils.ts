@@ -53,7 +53,7 @@ export function formatRelativeTime(date: Date): string {
   if (minutes < 60) return `${minutes}m ago`;
   if (hours < 24) return `${hours}h ago`;
   if (days < 7) return `${days}d ago`;
-  if (weeks < 4) return `${weeks}w ago`;
+  if (days < 30) return `${weeks}w ago`;
   if (months < 12) return `${months}mo ago`;
   return `${years}y ago`;
 }

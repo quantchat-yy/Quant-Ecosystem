@@ -101,6 +101,37 @@ describe('formatRelativeTime', () => {
     const date = new Date('2022-06-15T12:00:00Z');
     expect(formatRelativeTime(date)).toBe('2y ago');
   });
+
+  // Boundary transition tests
+  it('returns "just now" at exactly 59 seconds', () => {
+    const date = new Date(Date.now() - 59 * 1000);
+    expect(formatRelativeTime(date)).toBe('just now');
+  });
+
+  it('returns "1m ago" at exactly 60 seconds', () => {
+    const date = new Date(Date.now() - 60 * 1000);
+    expect(formatRelativeTime(date)).toBe('1m ago');
+  });
+
+  it('returns "6d ago" at 6 days', () => {
+    const date = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+    expect(formatRelativeTime(date)).toBe('6d ago');
+  });
+
+  it('returns "1w ago" at 7 days', () => {
+    const date = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    expect(formatRelativeTime(date)).toBe('1w ago');
+  });
+
+  it('returns "4w ago" at 29 days', () => {
+    const date = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000);
+    expect(formatRelativeTime(date)).toBe('4w ago');
+  });
+
+  it('returns "1mo ago" at 30 days', () => {
+    const date = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    expect(formatRelativeTime(date)).toBe('1mo ago');
+  });
 });
 
 describe('formatDate', () => {
