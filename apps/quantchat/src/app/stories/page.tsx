@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { AppShell, TopBar, BottomNav } from '@quant/shared-ui';
 import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
 import { useStories } from '../../hooks/useStories';
 import { StoryViewer } from '../../components/StoryViewer';
 import { navItems, routes } from '../../lib/navigation';
+import { circleVariants, staggerContainer } from '../../lib/motion-variants';
 
 export default function StoriesPage() {
   const router = useRouter();
@@ -29,16 +31,23 @@ export default function StoriesPage() {
         ) : (
           <div className="p-4">
             {/* Story circles - horizontal scroll */}
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+            <motion.div
+              className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide"
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+            >
               {storyGroups.map((group, idx) => (
-                <button
+                <motion.button
                   key={group.userId}
+                  variants={circleVariants}
+                  whileTap={{ scale: 0.92 }}
                   onClick={() => {
                     setActiveGroupIndex(idx);
                     setCurrentStoryGroup(group.userId);
                     setViewerOpen(true);
                   }}
-                  className="flex flex-col items-center gap-1 flex-shrink-0"
+                  className="flex flex-col items-center gap-1 flex-shrink-0 min-w-touch min-h-touch"
                 >
                   <div
                     className={`w-16 h-16 rounded-full flex items-center justify-center ${
@@ -62,24 +71,31 @@ export default function StoriesPage() {
                   <span className="text-xs text-[var(--quant-foreground)] truncate max-w-[64px]">
                     {group.userName}
                   </span>
-                </button>
+                </motion.button>
               ))}
-            </div>
+            </motion.div>
 
             {/* Recent stories list */}
-            <div className="mt-6 space-y-3">
+            <motion.div
+              className="mt-6 space-y-3"
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+            >
               <h3 className="text-sm font-medium text-[var(--quant-muted-foreground)]">
                 Recent Updates
               </h3>
               {storyGroups.map((group, idx) => (
-                <button
+                <motion.button
                   key={group.userId}
+                  variants={circleVariants}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => {
                     setActiveGroupIndex(idx);
                     setCurrentStoryGroup(group.userId);
                     setViewerOpen(true);
                   }}
-                  className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-[var(--quant-muted)] transition-colors"
+                  className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-[var(--quant-muted)] transition-colors min-h-touch"
                 >
                   <div
                     className={`w-12 h-12 rounded-full flex items-center justify-center ${
@@ -100,9 +116,9 @@ export default function StoriesPage() {
                       {group.stories.length} {group.stories.length === 1 ? 'story' : 'stories'}
                     </p>
                   </div>
-                </button>
+                </motion.button>
               ))}
-            </div>
+            </motion.div>
           </div>
         )}
       </div>

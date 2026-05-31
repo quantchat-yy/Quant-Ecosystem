@@ -22,6 +22,7 @@
     "@quant/notifications": "workspace:*",
     "@quant/realtime": "workspace:*",
     "@quant/server-core": "workspace:*",
+    "@quant/brand": "workspace:*",
     "@quant/shared-ui": "workspace:*",
     "fastify": "^5.3.3",
     "livekit-server-sdk": "^2.15.3",

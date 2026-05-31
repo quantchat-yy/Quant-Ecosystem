@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { spring } from '@quant/brand';
 import { BottomNav } from '@quant/shared-ui';
 import { LoadingState } from '@quant/shared-ui';
 import { navItems, routes } from '../../lib/navigation';
@@ -28,6 +30,23 @@ const heatMapAreas = [
   { id: '3', top: '40%', left: '20%', size: 'w-20 h-20', color: 'bg-indigo-500/20' },
 ];
 
+const pageVariants = {
+  initial: { opacity: 0 },
+  enter: {
+    opacity: 1,
+    transition: { type: 'spring' as const, ...spring.gentle },
+  },
+};
+
+const pinVariants = {
+  hidden: { opacity: 0, scale: 0 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: { type: 'spring' as const, ...spring.bouncy },
+  },
+};
+
 export default function MapPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'friends' | 'explore'>('friends');
@@ -50,7 +69,12 @@ export default function MapPage() {
   if (loading) return <LoadingState variant="skeleton" text="Loading map..." />;
 
   return (
-    <div className="relative h-screen w-full overflow-hidden">
+    <motion.div
+      className="relative h-screen w-full overflow-hidden"
+      variants={pageVariants}
+      initial="initial"
+      animate="enter"
+    >
       {/* Map background placeholder */}
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-900 via-teal-800 to-slate-900">
         {/* Map grid lines for visual effect */}
@@ -74,7 +98,7 @@ export default function MapPage() {
 
       {/* Search bar */}
       <div className="absolute top-4 left-4 right-4 z-20">
-        <div className="bg-[var(--quant-card)]/90 backdrop-blur-md rounded-xl px-4 py-3 flex items-center gap-3 shadow-lg border border-[var(--quant-border)]">
+        <div className="bg-[var(--quant-card)]/90 backdrop-blur-md rounded-xl px-4 py-3 flex items-center gap-3 shadow-lg border border-[var(--quant-border)] min-h-touch">
           <span className="text-[var(--quant-muted-foreground)]">&#128270;</span>
           <input
             type="text"
@@ -89,7 +113,7 @@ export default function MapPage() {
         <div className="flex bg-black/40 backdrop-blur-sm rounded-full p-1">
           <button
             onClick={() => setActiveTab('friends')}
-            className={`flex-1 py-2 text-sm font-medium rounded-full transition-colors ${
+            className={`flex-1 py-2 text-sm font-medium rounded-full transition-colors min-h-touch flex items-center justify-center ${
               activeTab === 'friends'
                 ? 'bg-emerald-500 text-white'
                 : 'text-white/70 hover:text-white'
@@ -99,7 +123,7 @@ export default function MapPage() {
           </button>
           <button
             onClick={() => setActiveTab('explore')}
-            className={`flex-1 py-2 text-sm font-medium rounded-full transition-colors ${
+            className={`flex-1 py-2 text-sm font-medium rounded-full transition-colors min-h-touch flex items-center justify-center ${
               activeTab === 'explore'
                 ? 'bg-emerald-500 text-white'
                 : 'text-white/70 hover:text-white'
@@ -122,11 +146,15 @@ export default function MapPage() {
 
       {/* Friend avatars */}
       {activeTab === 'friends' &&
-        friends.map((friend) => (
-          <div
+        friends.map((friend, idx) => (
+          <motion.div
             key={friend.id}
             className="absolute z-10 flex flex-col items-center gap-1"
             style={{ top: friend.top, left: friend.left }}
+            variants={pinVariants}
+            initial="hidden"
+            animate="visible"
+            transition={{ delay: idx * 0.08 }}
           >
             <div
               className={`w-10 h-10 ${friend.color} rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg border-2 border-white`}
@@ -136,12 +164,12 @@ export default function MapPage() {
             <span className="text-xs text-white bg-black/50 px-2 py-0.5 rounded-full">
               {friend.name}
             </span>
-          </div>
+          </motion.div>
         ))}
 
       {/* My Location button */}
       <div className="absolute bottom-24 right-4 z-20">
-        <button className="w-12 h-12 bg-white dark:bg-slate-800 rounded-full shadow-lg flex items-center justify-center text-lg border border-[var(--quant-border)]">
+        <button className="w-12 h-12 bg-white dark:bg-slate-800 rounded-full shadow-lg flex items-center justify-center text-lg border border-[var(--quant-border)] min-w-touch min-h-touch">
           &#128205;
         </button>
       </div>
@@ -157,6 +185,6 @@ export default function MapPage() {
           }}
         />
       </div>
-    </div>
+    </motion.div>
   );
 }
