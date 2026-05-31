@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "feat",
   "description": "Add Playwright E2E specs for core user journeys - expand the existing e2e/tests/ directory with specs for calendar, meet, and drive flows. Also expand the accessibility spec to cover more routes across the ecosystem apps.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create e2e/tests/calendar/create-event.spec.ts with a Playwright test that navigates to the calendar app, opens the create event form, fills it out, submits, and verifies the event appears on the calendar grid. Use the auth-helpers fixture pattern from e2e/fixtures/auth-helpers.ts.",
     "Create e2e/tests/meet/join-meeting.spec.ts with a Playwright test that navigates to quantmeet, creates a room, lands on the pre-join lobby, and verifies the control bar is rendered with expected buttons (mic, cam, share, leave).",
@@ -18,5 +18,5 @@
   ],
   "verification": ["cd /projects/sandbox/Quant-Ecosystem/e2e && npx tsc --noEmit"],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "e2e directory is not part of pnpm workspace (not in pnpm-workspace.yaml). Used npm install --no-package-lock to install e2e/node_modules for tsc verification. Prettier ran via lint-staged on commit. All 4 spec files compile cleanly. a11y ROUTES_TO_TEST expanded from 4 to 11 entries."
 }
