@@ -1,6 +1,8 @@
 'use client';
 
 import { Button } from '@quant/shared-ui';
+import { motion } from 'framer-motion';
+import { spring } from '@quant/brand';
 import type { FileItem } from '../hooks/useFiles';
 
 interface FilePreviewProps {
@@ -29,19 +31,28 @@ function formatDate(dateStr: string): string {
 
 export function FilePreview({ file, onClose, onShare }: FilePreviewProps) {
   return (
-    <aside
-      className="w-full md:w-80 border-l border-[var(--quant-border)] bg-[var(--quant-background)] p-4 overflow-y-auto flex-shrink-0"
+    <motion.aside
+      initial={{ x: '100%', opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: '100%', opacity: 0 }}
+      transition={{ type: 'spring', ...spring.gentle }}
+      className="w-full md:w-80 border-l border-[var(--quant-border)] bg-[var(--quant-card)] p-4 overflow-y-auto flex-shrink-0"
       aria-label="File preview panel"
     >
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold truncate">{file.name}</h2>
-        <button
+        <h2 className="text-sm font-semibold truncate text-[var(--quant-card-foreground)]">
+          {file.name}
+        </h2>
+        <motion.button
           onClick={onClose}
-          className="p-1 rounded-md text-[var(--quant-muted-foreground)] hover:text-[var(--quant-foreground)] hover:bg-[var(--quant-muted)] transition-colors"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          transition={{ type: 'spring', ...spring.snappy }}
+          className="p-1 rounded-md text-[var(--quant-muted-foreground)] hover:text-[var(--quant-foreground)] hover:bg-[var(--quant-muted)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)]"
           aria-label="Close preview"
         >
           &#10005;
-        </button>
+        </motion.button>
       </div>
 
       <div className="bg-[var(--quant-muted)] rounded-lg h-40 flex items-center justify-center mb-4">
@@ -53,23 +64,29 @@ export function FilePreview({ file, onClose, onShare }: FilePreviewProps) {
       <dl className="space-y-3 text-sm">
         <div>
           <dt className="text-[var(--quant-muted-foreground)]">Type</dt>
-          <dd className="font-medium">{file.mimeType}</dd>
+          <dd className="font-medium text-[var(--quant-card-foreground)]">{file.mimeType}</dd>
         </div>
         <div>
           <dt className="text-[var(--quant-muted-foreground)]">Size</dt>
-          <dd className="font-medium">{formatFileSize(file.size)}</dd>
+          <dd className="font-medium text-[var(--quant-card-foreground)]">
+            {formatFileSize(file.size)}
+          </dd>
         </div>
         <div>
           <dt className="text-[var(--quant-muted-foreground)]">Created</dt>
-          <dd className="font-medium">{formatDate(file.createdAt)}</dd>
+          <dd className="font-medium text-[var(--quant-card-foreground)]">
+            {formatDate(file.createdAt)}
+          </dd>
         </div>
         <div>
           <dt className="text-[var(--quant-muted-foreground)]">Modified</dt>
-          <dd className="font-medium">{formatDate(file.updatedAt)}</dd>
+          <dd className="font-medium text-[var(--quant-card-foreground)]">
+            {formatDate(file.updatedAt)}
+          </dd>
         </div>
         <div>
           <dt className="text-[var(--quant-muted-foreground)]">Location</dt>
-          <dd className="font-medium">{file.path || '/'}</dd>
+          <dd className="font-medium text-[var(--quant-card-foreground)]">{file.path || '/'}</dd>
         </div>
       </dl>
 
@@ -78,6 +95,6 @@ export function FilePreview({ file, onClose, onShare }: FilePreviewProps) {
           Share
         </Button>
       </div>
-    </aside>
+    </motion.aside>
   );
 }

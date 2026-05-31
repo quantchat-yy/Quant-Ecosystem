@@ -10,6 +10,13 @@
         "pre_existing_issues": "Backend tsconfig fails due to @quant/database dist not existing. Frontend tsconfig passes cleanly.",
         "verification": "Frontend tsc --noEmit passes. eslint passes. Prettier applied by lint-staged."
       }
+    },
+    {
+      "id": "FEAT-003",
+      "title": "Polish and wire QuantDrive",
+      "status": "completed",
+      "app": "@quant/quantdrive",
+      "path": "apps/quantdrive"
     }
   ]
 }
