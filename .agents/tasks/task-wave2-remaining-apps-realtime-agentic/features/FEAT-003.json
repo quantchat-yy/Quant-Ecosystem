@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Agentic Command Palette: Wire CommandPaletteUI + AskQuant AI button into apps via shared AppProviders pattern",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Step 1 - Create CommandPalette provider in shared-ui: Add packages/shared-ui/src/components/CommandPaletteUI/CommandPaletteProvider.tsx that: (a) listens for Cmd+K / Ctrl+K globally, (b) manages open state, (c) provides registerCommand/unregisterCommand context API for apps to register app-specific commands, (d) includes built-in cross-app navigation commands (Go to Mail, Go to Chat, Go to AI, etc), (e) includes 'Ask Quant' command that opens AISidePanel.",
     "Step 2 - Create AskQuant integration: Add a hook packages/shared-ui/src/hooks/useAskQuant.ts that connects to QuantAI's cross-app orchestrator at /api/ai/orchestrate (POST with {query, context, appId}). Returns streaming response. Wire this into the AISidePanel component (already exists at packages/shared-ui/src/components/Shell/AISidePanel.tsx).",

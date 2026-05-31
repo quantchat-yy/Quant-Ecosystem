@@ -335,6 +335,16 @@ export type { Orientation } from './hooks/useOrientation';
 export { CommandPaletteUI } from './components/CommandPaletteUI';
 export type { CommandPaletteUIProps, CommandPaletteItem } from './components/CommandPaletteUI';
 
+// CommandPaletteProvider
+export {
+  CommandPaletteProvider,
+  useCommandPalette,
+} from './components/CommandPaletteUI/CommandPaletteProvider';
+
+// useAskQuant hook
+export { useAskQuant } from './hooks/useAskQuant';
+export type { AskQuantMessage, UseAskQuantOptions, UseAskQuantReturn } from './hooks/useAskQuant';
+
 // ThemeProvider component
 export { ThemeProvider, useThemeMode } from './components/ThemeProvider';
 export type {
