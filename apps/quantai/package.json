@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@quant/ai-memory": "workspace:*",
+    "@quant/quant-tools": "workspace:*",
     "@quant/auth": "workspace:*",
     "@quant/ai": "workspace:*",
     "@quant/brand": "workspace:*",

@@ -281,6 +281,9 @@ importers:
       '@quant/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@quant/quant-tools':
+        specifier: workspace:*
+        version: link:../../packages/quant-tools
       '@quant/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime
