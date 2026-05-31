@@ -1,5 +1,7 @@
 'use client';
 
+import { AnimatePresence, motion } from 'framer-motion';
+import { spring } from '@quant/brand';
 import type { ParticipantGridProps } from '../types/components';
 import { VideoTile } from './VideoTile';
 
@@ -24,11 +26,20 @@ export function ParticipantGrid({
         </div>
         {others.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-2">
-            {others.map((p) => (
-              <div key={p.participantId} className="w-40 flex-shrink-0">
-                <VideoTile {...p} />
-              </div>
-            ))}
+            <AnimatePresence mode="popLayout">
+              {others.map((p) => (
+                <motion.div
+                  key={p.participantId}
+                  className="w-40 flex-shrink-0"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ type: 'spring', ...spring.gentle }}
+                >
+                  <VideoTile {...p} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         )}
       </div>
@@ -46,11 +57,20 @@ export function ParticipantGrid({
         </div>
         {others.length > 0 && (
           <div className="w-48 flex flex-col gap-2 overflow-y-auto">
-            {others.map((p) => (
-              <div key={p.participantId} className="flex-shrink-0">
-                <VideoTile {...p} />
-              </div>
-            ))}
+            <AnimatePresence mode="popLayout">
+              {others.map((p) => (
+                <motion.div
+                  key={p.participantId}
+                  className="flex-shrink-0"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ type: 'spring', ...spring.gentle }}
+                >
+                  <VideoTile {...p} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         )}
       </div>
@@ -62,14 +82,30 @@ export function ParticipantGrid({
 
   return (
     <div
-      className={`grid gap-2 p-2 h-full auto-rows-fr`}
+      className="grid gap-2 p-2 h-full auto-rows-fr"
       style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
       role="region"
       aria-label="Participant grid"
     >
-      {participants.map((p) => (
-        <VideoTile key={p.participantId} {...p} />
-      ))}
+      <AnimatePresence mode="popLayout">
+        {participants.map((p) => (
+          <motion.div
+            key={p.participantId}
+            layout
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ type: 'spring', ...spring.gentle }}
+            className={
+              p.participantId === activeSpeakerId
+                ? 'ring-2 ring-[var(--brand-app-color)] rounded-xl'
+                : ''
+            }
+          >
+            <VideoTile {...p} />
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }
