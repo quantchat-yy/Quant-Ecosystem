@@ -226,6 +226,11 @@ export {
   SharingModal,
   ProfileCard,
   AISidePanel,
+  UniversalSearch,
+  NotificationPanel,
+  QuickActions,
+  UndoToast,
+  OfflineIndicator,
 } from './components/Shell';
 export type {
   GlobalNavProps,
@@ -250,6 +255,17 @@ export type {
   ProfileCardUser,
   AISidePanelProps,
   AISidePanelMessage,
+  UniversalSearchProps,
+  SearchResult,
+  SearchResultGroup,
+  NotificationPanelProps,
+  NotificationItem,
+  NotificationAction,
+  QuickActionsProps,
+  QuickAction,
+  UndoToastProps,
+  OfflineIndicatorProps,
+  ConnectionStatus,
 } from './components/Shell';
 
 // State components
@@ -330,6 +346,18 @@ export { useBreakpoint } from './hooks/useBreakpoint';
 export type { BreakpointName } from './hooks/useBreakpoint';
 export { useOrientation } from './hooks/useOrientation';
 export type { Orientation } from './hooks/useOrientation';
+
+// Keyboard Shortcuts hook
+export { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+export type {
+  ShortcutDefinition,
+  UseKeyboardShortcutsOptions,
+  UseKeyboardShortcutsReturn,
+} from './hooks/useKeyboardShortcuts';
+
+// Drag and Drop hook
+export { useDragDrop } from './hooks/useDragDrop';
+export type { UseDragDropOptions, UseDragDropReturn } from './hooks/useDragDrop';
 
 // CommandPaletteUI component
 export { CommandPaletteUI } from './components/CommandPaletteUI';
