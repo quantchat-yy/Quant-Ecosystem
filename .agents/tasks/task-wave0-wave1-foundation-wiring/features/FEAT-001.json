@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "QuantSync API routes + AppShell integration. QuantSync is the most broken app (0 Next.js API routes, all frontend fetches hit /api/* paths that 404). Build all critical API route handlers that proxy to the backend, and integrate the AppShell with Sidebar navigation so users can navigate between feed, trending, communities, spaces, bookmarks, notifications, and profile.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create apps/quantsync/src/app/api/feed/route.ts - GET handler proxying to backend /feed with mode, cursor, limit params. Follow pattern from apps/quantchat/src/app/api/messages/[id]/route.ts (const BACKEND_URL from env, forward Authorization header).",
     "Create apps/quantsync/src/app/api/posts/route.ts - GET (list) and POST (create) handlers proxying to backend /posts.",
@@ -33,5 +33,5 @@
     "pnpm turbo test --filter=@quant/quantsync"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Typecheck passes. Tests pass (93/93). Build fails with pre-existing shared-ui issue (components like FeedCard.tsx, ChatInput.tsx, AgentCreator.tsx missing 'use client' directive) - verified by stashing changes and running build on base branch which has same failure. The pnpm-lock.yaml was modified by pnpm install but was not staged since it is unrelated to the feature changes."
 }
