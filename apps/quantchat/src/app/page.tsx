@@ -1,10 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { AppShell, TopBar, BottomNav, ChatList } from '@quant/shared-ui';
 import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
 import { useConversations } from '../hooks/useConversations';
 import { navItems, routes } from '../lib/navigation';
+import { listContainerVariants, listItemVariants } from '../lib/motion-variants';
 
 export default function ChatListPage() {
   const router = useRouter();
@@ -40,14 +42,21 @@ export default function ChatListPage() {
 
   return (
     <AppShell topBar={<TopBar title="QuantChat" />}>
-      <div className="flex flex-col h-full pb-16">
-        <ChatList
-          items={chatItems}
-          onSelect={(id) => {
-            router.push(`/chat/${id}`);
-          }}
-        />
-      </div>
+      <motion.div
+        className="flex flex-col h-full pb-16"
+        variants={listContainerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <motion.div variants={listItemVariants}>
+          <ChatList
+            items={chatItems}
+            onSelect={(id) => {
+              router.push(`/chat/${id}`);
+            }}
+          />
+        </motion.div>
+      </motion.div>
       <BottomNav
         items={navItems}
         activeId="chats"

@@ -2,6 +2,8 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { spring } from '@quant/brand';
 import { BottomNav } from '@quant/shared-ui';
 import { navItems, routes } from '../../lib/navigation';
 
@@ -14,6 +16,14 @@ const filters = [
   { id: 'vivid', label: 'Vivid', color: 'from-pink-500 to-purple-700' },
   { id: 'emerald', label: 'Emerald', color: 'from-emerald-600 to-teal-800' },
 ];
+
+const pageVariants = {
+  initial: { opacity: 0 },
+  enter: {
+    opacity: 1,
+    transition: { type: 'spring' as const, ...spring.gentle },
+  },
+};
 
 export default function CameraPage() {
   const router = useRouter();
@@ -51,7 +61,12 @@ export default function CameraPage() {
   };
 
   return (
-    <div className="relative h-screen w-full overflow-hidden">
+    <motion.div
+      className="relative h-screen w-full overflow-hidden"
+      variants={pageVariants}
+      initial="initial"
+      animate="enter"
+    >
       {/* Camera viewfinder placeholder */}
       <div
         className={`absolute inset-0 bg-gradient-to-b ${activeFilterObj.color} transition-all duration-300`}
@@ -85,7 +100,7 @@ export default function CameraPage() {
         {/* Flash toggle */}
         <button
           onClick={() => setFlashOn(!flashOn)}
-          className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-sm ${
+          className={`w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-sm min-w-touch min-h-touch ${
             flashOn ? 'bg-yellow-500/80 text-white' : 'bg-black/30 text-white'
           }`}
           aria-label={flashOn ? 'Flash on' : 'Flash off'}
@@ -96,7 +111,7 @@ export default function CameraPage() {
         {/* Flip camera */}
         <button
           onClick={() => setFrontCamera(!frontCamera)}
-          className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center text-white"
+          className="w-11 h-11 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center text-white min-w-touch min-h-touch"
           aria-label="Flip camera"
         >
           &#128260;
@@ -117,7 +132,7 @@ export default function CameraPage() {
             <button
               key={filter.id}
               onClick={() => setActiveFilter(filter.id)}
-              className={`flex-shrink-0 w-16 h-16 rounded-xl bg-gradient-to-br ${filter.color} border-2 transition-all ${
+              className={`flex-shrink-0 w-16 h-16 rounded-xl bg-gradient-to-br ${filter.color} border-2 transition-all min-w-touch min-h-touch ${
                 activeFilter === filter.id
                   ? 'border-emerald-400 scale-110'
                   : 'border-transparent opacity-70'
@@ -171,6 +186,6 @@ export default function CameraPage() {
           }}
         />
       </div>
-    </div>
+    </motion.div>
   );
 }

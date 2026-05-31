@@ -4,23 +4,23 @@
 
 :root {
   /* Brand System */
-  --brand-primary: #4F46E5;
-  --brand-primary-hover: #4338CA;
-  --brand-accent: #F59E0B;
-  --brand-accent-hover: #D97706;
-  --brand-app-color: #10B981;
-  --app-color: #10B981;
+  --brand-primary: #4f46e5;
+  --brand-primary-hover: #4338ca;
+  --brand-accent: #f59e0b;
+  --brand-accent-hover: #d97706;
+  --brand-app-color: #10b981;
+  --app-color: #10b981;
 
   /* QuantChat brand tokens */
-  --quant-primary: #10B981;
+  --quant-primary: #10b981;
   --quant-secondary: #8b5cf6;
-  --quant-surface: #FFFFFF;
-  --quant-text: #0F172A;
-  --quant-background: #F8FAFC;
-  --quant-foreground: #0F172A;
+  --quant-surface: #ffffff;
+  --quant-text: #0f172a;
+  --quant-background: #f8fafc;
+  --quant-foreground: #0f172a;
   --quant-muted: #f1f5f9;
   --quant-muted-foreground: #64748b;
-  --quant-border: #E2E8F0;
+  --quant-border: #e2e8f0;
   --quant-ring: var(--quant-primary);
   --quant-radius: 0.5rem;
   --quant-card: #ffffff;
@@ -34,12 +34,12 @@
 }
 
 .dark {
-  --quant-primary: #34D399;
-  --quant-surface: #0F0F14;
-  --quant-text: #F8FAFC;
-  --quant-background: #16161D;
-  --quant-foreground: #F8FAFC;
-  --quant-muted: #16161D;
+  --quant-primary: #34d399;
+  --quant-surface: #0f0f14;
+  --quant-text: #f8fafc;
+  --quant-background: #16161d;
+  --quant-foreground: #f8fafc;
+  --quant-muted: #16161d;
   --quant-muted-foreground: #94a3b8;
   --quant-border: #334155;
   --quant-card: #1a1a24;
@@ -54,13 +54,27 @@
 }
 
 html {
-  transition: background-color 0.3s ease, color 0.2s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.2s ease;
 }
 
 @layer base {
   body {
     @apply bg-[var(--quant-background)] text-[var(--quant-foreground)] antialiased;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+      env(safe-area-inset-left);
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-[var(--quant-ring)] ring-offset-2 ring-offset-[var(--quant-background)] rounded-sm;
+  }
+}
+
+@layer utilities {
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
@@ -107,9 +121,19 @@ html {
 
 /* Optimistic rollback shake animation */
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 50%, 90% { transform: translateX(-3px); }
-  30%, 70% { transform: translateX(3px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  50%,
+  90% {
+    transform: translateX(-3px);
+  }
+  30%,
+  70% {
+    transform: translateX(3px);
+  }
 }
 
 .animate-shake {
