@@ -4,8 +4,11 @@
 // ============================================================================
 
 import React, { useState, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
+import { spring } from '@quant/brand';
 import { useTemplates } from '../hooks/useTemplates';
+import { PageTransition } from '../components/PageTransition';
 
 interface Template {
   id: string;
@@ -143,133 +146,135 @@ const TemplateBrowser: React.FC = () => {
   if (error) return <ErrorState message={error.message} onRetry={() => void refetch()} />;
 
   return (
-    <div className="template-browser">
-      <header className="browser-header">
-        <h1>Templates</h1>
-      </header>
+    <PageTransition>
+      <div className="template-browser">
+        <header className="browser-header">
+          <h1>Templates</h1>
+        </header>
 
-      <div className="category-tabs">
-        {CATEGORIES.map((cat) => (
-          <button
-            key={cat.id}
-            className={`category-tab ${selectedCategory === cat.id ? 'active' : ''}`}
-            onClick={() => setSelectedCategory(cat.id)}
-          >
-            <span className="cat-icon">{cat.icon}</span>
-            <span className="cat-label">{cat.label}</span>
-          </button>
-        ))}
-      </div>
+        <div className="category-tabs">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              className={`category-tab ${selectedCategory === cat.id ? 'active' : ''}`}
+              onClick={() => setSelectedCategory(cat.id)}
+            >
+              <span className="cat-icon">{cat.icon}</span>
+              <span className="cat-label">{cat.label}</span>
+            </button>
+          ))}
+        </div>
 
-      <div className="filter-bar">
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Search templates..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <div className="filter-group">
-          <label>Aspect Ratio</label>
-          <div className="ratio-filter">
-            {ASPECT_RATIOS.map((ratio) => (
-              <button
-                key={ratio}
-                className={`ratio-btn ${selectedRatio === ratio ? 'active' : ''}`}
-                onClick={() => setSelectedRatio(ratio)}
-              >
-                {ratio === 'all' ? 'All' : ratio}
-              </button>
-            ))}
+        <div className="filter-bar">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search templates..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <div className="filter-group">
+            <label>Aspect Ratio</label>
+            <div className="ratio-filter">
+              {ASPECT_RATIOS.map((ratio) => (
+                <button
+                  key={ratio}
+                  className={`ratio-btn ${selectedRatio === ratio ? 'active' : ''}`}
+                  onClick={() => setSelectedRatio(ratio)}
+                >
+                  {ratio === 'all' ? 'All' : ratio}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="filter-group">
+            <label>Duration</label>
+            <select
+              value={selectedDuration}
+              onChange={(e) => setSelectedDuration(parseInt(e.target.value))}
+            >
+              {DURATION_FILTERS.map((d, i) => (
+                <option key={i} value={i}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="filter-group">
+            <label>Sort by</label>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+              <option value="popular">Most Popular</option>
+              <option value="newest">Newest</option>
+              <option value="rating">Highest Rated</option>
+            </select>
           </div>
         </div>
-        <div className="filter-group">
-          <label>Duration</label>
-          <select
-            value={selectedDuration}
-            onChange={(e) => setSelectedDuration(parseInt(e.target.value))}
-          >
-            {DURATION_FILTERS.map((d, i) => (
-              <option key={i} value={i}>
-                {d.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label>Sort by</label>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
-            <option value="popular">Most Popular</option>
-            <option value="newest">Newest</option>
-            <option value="rating">Highest Rated</option>
-          </select>
-        </div>
-      </div>
 
-      <div className="templates-count">
-        <span>{filteredTemplates.length} templates found</span>
-      </div>
+        <div className="templates-count">
+          <span>{filteredTemplates.length} templates found</span>
+        </div>
 
-      <div className="templates-grid">
-        {filteredTemplates.length === 0 ? (
-          <EmptyState
-            title="No templates found"
-            description="Try adjusting your filters or search terms"
-          />
-        ) : (
-          filteredTemplates.map((template) => (
-            <TemplateCard
-              key={template.id}
-              template={template}
-              onUse={handleUseTemplate}
-              onPreview={handlePreview}
+        <div className="templates-grid">
+          {filteredTemplates.length === 0 ? (
+            <EmptyState
+              title="No templates found"
+              description="Try adjusting your filters or search terms"
             />
-          ))
-        )}
-      </div>
-
-      {previewTemplate && (
-        <div className="preview-modal-overlay" onClick={() => setPreviewTemplate(null)}>
-          <div className="preview-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="preview-header">
-              <h2>{previewTemplate.title}</h2>
-              <button className="close-btn" onClick={() => setPreviewTemplate(null)}>
-                X
-              </button>
-            </div>
-            <div className="preview-content">
-              <video
-                src={previewTemplate.previewUrl}
-                autoPlay
-                loop
-                className="preview-full-video"
-                controls
+          ) : (
+            filteredTemplates.map((template) => (
+              <TemplateCard
+                key={template.id}
+                template={template}
+                onUse={handleUseTemplate}
+                onPreview={handlePreview}
               />
-            </div>
-            <div className="preview-details">
-              <p>{previewTemplate.description}</p>
-              <div className="preview-specs">
-                <span>Aspect Ratio: {previewTemplate.aspectRatio}</span>
-                <span>Duration: {previewTemplate.duration}s</span>
-                <span>Scenes: {previewTemplate.scenes}</span>
-                <span>Creator: {previewTemplate.creator}</span>
+            ))
+          )}
+        </div>
+
+        {previewTemplate && (
+          <div className="preview-modal-overlay" onClick={() => setPreviewTemplate(null)}>
+            <div className="preview-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="preview-header">
+                <h2>{previewTemplate.title}</h2>
+                <button className="close-btn" onClick={() => setPreviewTemplate(null)}>
+                  X
+                </button>
+              </div>
+              <div className="preview-content">
+                <video
+                  src={previewTemplate.previewUrl}
+                  autoPlay
+                  loop
+                  className="preview-full-video"
+                  controls
+                />
+              </div>
+              <div className="preview-details">
+                <p>{previewTemplate.description}</p>
+                <div className="preview-specs">
+                  <span>Aspect Ratio: {previewTemplate.aspectRatio}</span>
+                  <span>Duration: {previewTemplate.duration}s</span>
+                  <span>Scenes: {previewTemplate.scenes}</span>
+                  <span>Creator: {previewTemplate.creator}</span>
+                </div>
+              </div>
+              <div className="preview-actions">
+                <button
+                  className="use-btn"
+                  onClick={() => {
+                    handleUseTemplate(previewTemplate.id);
+                    setPreviewTemplate(null);
+                  }}
+                >
+                  Use This Template
+                </button>
               </div>
             </div>
-            <div className="preview-actions">
-              <button
-                className="use-btn"
-                onClick={() => {
-                  handleUseTemplate(previewTemplate.id);
-                  setPreviewTemplate(null);
-                }}
-              >
-                Use This Template
-              </button>
-            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </PageTransition>
   );
 };
 

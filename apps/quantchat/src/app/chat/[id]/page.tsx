@@ -1,11 +1,13 @@
 'use client';
 
 import { use, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { ChatBubble, ChatInput, TypingIndicator, TopBar } from '@quant/shared-ui';
 import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
 import { useMessages } from '../../../hooks/useMessages';
 import { useSendMessage } from '../../../hooks/useSendMessage';
 import { useRealtimeChat } from '../../../hooks/useRealtimeChat';
+import { messageListVariants, messageVariants } from '../../../lib/motion-variants';
 
 export default function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -72,15 +74,23 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
             description="Send a message to start the conversation"
           />
         ) : (
-          messages.map((msg) => (
-            <ChatBubble
-              key={msg.id}
-              message={msg.content}
-              sender={msg.sender === 'self' ? 'self' : 'other'}
-              timestamp={msg.timestamp}
-              status={msg.status}
-            />
-          ))
+          <motion.div
+            variants={messageListVariants}
+            initial="hidden"
+            animate="visible"
+            className="space-y-3"
+          >
+            {messages.map((msg) => (
+              <motion.div key={msg.id} variants={messageVariants}>
+                <ChatBubble
+                  message={msg.content}
+                  sender={msg.sender === 'self' ? 'self' : 'other'}
+                  timestamp={msg.timestamp}
+                  status={msg.status}
+                />
+              </motion.div>
+            ))}
+          </motion.div>
         )}
         <TypingIndicator users={typingUsers} />
       </div>

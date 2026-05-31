@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { Card, Button, LoadingState, ErrorState } from '@quant/shared-ui';
+import { spring } from '@quant/brand';
 import { quantAdsAPI } from '../../services/api-client';
 
 type DateRange = '7d' | '14d' | '30d' | '90d';
@@ -14,15 +16,43 @@ const DATE_RANGES: { id: DateRange; label: string }[] = [
   { id: '90d', label: '90 Days' },
 ];
 
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.06 },
+  },
+};
+
+const staggerItem = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', ...spring.gentle } },
+};
+
 function MetricCard({ label, value, subtext }: { label: string; value: string; subtext?: string }) {
   return (
-    <Card className="p-4">
-      <p className="text-xs text-[var(--quant-muted-foreground)] uppercase tracking-wide">
-        {label}
-      </p>
-      <p className="text-2xl font-bold mt-1">{value}</p>
-      {subtext && <p className="text-xs text-[var(--quant-muted-foreground)] mt-1">{subtext}</p>}
-    </Card>
+    <motion.div variants={staggerItem}>
+      <Card className="p-4">
+        <p className="text-xs text-[var(--quant-muted-foreground)] uppercase tracking-wide">
+          {label}
+        </p>
+        <p className="text-2xl font-bold mt-1">{value}</p>
+        {subtext && <p className="text-xs text-[var(--quant-muted-foreground)] mt-1">{subtext}</p>}
+      </Card>
+    </motion.div>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="animate-pulse space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-20 rounded-lg bg-[var(--quant-muted)]" />
+        ))}
+      </div>
+      <div className="h-40 rounded-lg bg-[var(--quant-muted)]" />
+    </div>
   );
 }
 
@@ -71,7 +101,7 @@ export default function AnalyticsPage() {
             <button
               key={range.id}
               onClick={() => setDateRange(range.id)}
-              className={`py-1.5 px-3 rounded-md text-xs font-medium transition-colors ${
+              className={`py-1.5 px-3 rounded-md text-xs font-medium transition-colors min-h-[44px] focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)] focus-visible:outline-none ${
                 dateRange === range.id
                   ? 'bg-[var(--quant-background)] text-[var(--quant-foreground)] shadow-sm'
                   : 'text-[var(--quant-muted-foreground)] hover:text-[var(--quant-foreground)]'
@@ -83,7 +113,7 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {isLoading && <LoadingState text="Loading analytics..." />}
+      {isLoading && <LoadingSkeleton />}
 
       {isError && (
         <ErrorState
@@ -94,7 +124,12 @@ export default function AnalyticsPage() {
 
       {!isLoading && !isError && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
+          <motion.div
+            className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8"
+            variants={staggerContainer}
+            initial="hidden"
+            animate="show"
+          >
             <MetricCard label="Impressions" value={totalImpressions.toLocaleString()} />
             <MetricCard
               label="Clicks"
@@ -119,43 +154,56 @@ export default function AnalyticsPage() {
                   : '$0.00'
               }
             />
-          </div>
+          </motion.div>
 
           <h2 className="text-lg font-semibold mb-3">Conversion Funnel</h2>
-          <Card className="p-6 mb-6">
-            <div className="flex items-center justify-between text-center">
-              <div className="flex-1">
-                <p className="text-2xl font-bold">{totalImpressions.toLocaleString()}</p>
-                <p className="text-xs text-[var(--quant-muted-foreground)] mt-1">Impressions</p>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: 'spring', ...spring.gentle, delay: 0.3 }}
+          >
+            <Card className="p-6 mb-6">
+              <div className="flex items-center justify-between text-center">
+                <div className="flex-1">
+                  <p className="text-2xl font-bold">{totalImpressions.toLocaleString()}</p>
+                  <p className="text-xs text-[var(--quant-muted-foreground)] mt-1">Impressions</p>
+                </div>
+                <div className="text-[var(--quant-muted-foreground)]">&rarr;</div>
+                <div className="flex-1">
+                  <p className="text-2xl font-bold">{totalClicks.toLocaleString()}</p>
+                  <p className="text-xs text-[var(--quant-muted-foreground)] mt-1">Clicks</p>
+                </div>
+                <div className="text-[var(--quant-muted-foreground)]">&rarr;</div>
+                <div className="flex-1">
+                  <p className="text-2xl font-bold">{totalConversions.toLocaleString()}</p>
+                  <p className="text-xs text-[var(--quant-muted-foreground)] mt-1">Conversions</p>
+                </div>
               </div>
-              <div className="text-[var(--quant-muted-foreground)]">&rarr;</div>
-              <div className="flex-1">
-                <p className="text-2xl font-bold">{totalClicks.toLocaleString()}</p>
-                <p className="text-xs text-[var(--quant-muted-foreground)] mt-1">Clicks</p>
-              </div>
-              <div className="text-[var(--quant-muted-foreground)]">&rarr;</div>
-              <div className="flex-1">
-                <p className="text-2xl font-bold">{totalConversions.toLocaleString()}</p>
-                <p className="text-xs text-[var(--quant-muted-foreground)] mt-1">Conversions</p>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </motion.div>
 
           <h2 className="text-lg font-semibold mb-3">Top Campaigns</h2>
           {campaigns && campaigns.length > 0 ? (
-            <div className="space-y-2">
+            <motion.div
+              className="space-y-2"
+              variants={staggerContainer}
+              initial="hidden"
+              animate="show"
+            >
               {campaigns
                 .sort((a, b) => b.metrics.conversions - a.metrics.conversions)
                 .slice(0, 5)
                 .map((campaign) => (
-                  <Card key={campaign.id} className="p-3 flex items-center justify-between">
-                    <span className="font-medium text-sm">{campaign.name}</span>
-                    <span className="text-xs text-[var(--quant-muted-foreground)]">
-                      {campaign.metrics.conversions} conversions
-                    </span>
-                  </Card>
+                  <motion.div key={campaign.id} variants={staggerItem}>
+                    <Card className="p-3 flex items-center justify-between">
+                      <span className="font-medium text-sm">{campaign.name}</span>
+                      <span className="text-xs text-[var(--quant-muted-foreground)]">
+                        {campaign.metrics.conversions} conversions
+                      </span>
+                    </Card>
+                  </motion.div>
                 ))}
-            </div>
+            </motion.div>
           ) : (
             <p className="text-[var(--quant-muted-foreground)] text-sm">
               No campaign data to display.

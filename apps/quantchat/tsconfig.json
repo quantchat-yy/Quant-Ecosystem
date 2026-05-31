@@ -19,7 +19,8 @@
       "@quant/shared-ui": ["../../packages/shared-ui/src/index.ts"],
       "@quant/shared-ui/*": ["../../packages/shared-ui/src/*"],
       "@quant/common": ["../../packages/common/src/index.ts"],
-      "@quant/common/*": ["../../packages/common/src/*"]
+      "@quant/common/*": ["../../packages/common/src/*"],
+      "@quant/brand": ["../../packages/brand/src/index.ts"]
     }
   },
   "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx", ".next/types/**/*.ts"],

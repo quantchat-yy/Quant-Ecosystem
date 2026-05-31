@@ -83,7 +83,7 @@ export function MiniCalendar({
       <div className="flex items-center justify-between mb-2">
         <button
           onClick={handlePrevMonth}
-          className="p-1 rounded hover:bg-[var(--quant-muted)] transition-colors"
+          className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded hover:bg-[var(--quant-muted)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)]"
           aria-label="Previous month"
         >
           &#9664;
@@ -91,7 +91,7 @@ export function MiniCalendar({
         <span className="text-sm font-medium">{monthLabel}</span>
         <button
           onClick={handleNextMonth}
-          className="p-1 rounded hover:bg-[var(--quant-muted)] transition-colors"
+          className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded hover:bg-[var(--quant-muted)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)]"
           aria-label="Next month"
         >
           &#9654;
@@ -111,11 +111,11 @@ export function MiniCalendar({
           <button
             key={index}
             onClick={() => onDateSelect(date)}
-            className={`text-xs p-1 rounded-full w-7 h-7 flex items-center justify-center transition-colors ${
+            className={`text-xs p-1 rounded-full w-7 h-7 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)] ${
               !isCurrentMonth ? 'text-[var(--quant-muted-foreground)] opacity-50' : ''
-            } ${isToday(date) ? 'bg-quant-primary text-white font-bold' : ''} ${
+            } ${isToday(date) ? 'bg-[var(--quant-primary)] text-white font-bold' : ''} ${
               isSelected(date) && !isToday(date)
-                ? 'bg-[var(--quant-muted)] font-semibold ring-1 ring-quant-primary'
+                ? 'bg-[var(--quant-muted)] font-semibold ring-1 ring-[var(--quant-primary)]'
                 : ''
             } ${!isToday(date) && !isSelected(date) ? 'hover:bg-[var(--quant-muted)]' : ''}`}
             aria-label={date.toLocaleDateString()}

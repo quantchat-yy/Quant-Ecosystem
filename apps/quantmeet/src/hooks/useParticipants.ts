@@ -21,5 +21,6 @@ export function useParticipants(roomId: string) {
       return response.json();
     },
     enabled: !!roomId,
+    refetchInterval: 5000,
   });
 }

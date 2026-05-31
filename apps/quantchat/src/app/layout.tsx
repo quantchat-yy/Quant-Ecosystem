@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '../providers/query-provider';
 import { AppProviders } from '../providers/app-providers';
+import { BrandProvider } from '../providers/brand-provider';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
   title: 'QuantChat | Quant',
   description: 'Snapchat-like messaging with stories, snaps, calls, AR filters, and AI integration',
   icons: {
-    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="%2310B981"/><text x="16" y="22" font-size="18" font-weight="bold" text-anchor="middle" fill="white">Q</text></svg>',
+    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path d="M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 0 1-4.255-.96L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8Z" stroke="%2310B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="12" r="1" fill="%2310B981"/><circle cx="12" cy="12" r="1" fill="%2310B981"/><circle cx="16" cy="12" r="1" fill="%2310B981"/></svg>',
   },
 };
 
@@ -19,7 +20,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <QueryProvider>
-          <AppProviders>{children}</AppProviders>
+          <BrandProvider>
+            <AppProviders>{children}</AppProviders>
+          </BrandProvider>
         </QueryProvider>
       </body>
     </html>

@@ -15,7 +15,8 @@
     "noUnusedParameters": false,
     "noUncheckedIndexedAccess": false,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@quant/brand": ["../../packages/brand/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "backend/**/*.ts", "next-env.d.ts"],

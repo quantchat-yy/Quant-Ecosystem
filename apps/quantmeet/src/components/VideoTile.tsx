@@ -1,9 +1,13 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
+import { spring } from '@quant/brand';
 import type { VideoTileProps } from '../types/components';
 
 export function VideoTile({
   participantId,
+  stream,
   displayName,
   audioEnabled,
   videoEnabled,
@@ -11,6 +15,8 @@ export function VideoTile({
   isPinned,
   isScreenShare,
 }: VideoTileProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
   const initials = displayName
     .split(' ')
     .map((n) => n[0])
@@ -18,16 +24,32 @@ export function VideoTile({
     .toUpperCase()
     .slice(0, 2);
 
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
   return (
-    <div
+    <motion.div
       className={`relative rounded-xl overflow-hidden bg-gray-900 aspect-video ${
         isSpeaking ? 'ring-2 ring-green-400' : ''
       }`}
       data-participant-id={participantId}
       role="group"
       aria-label={`${displayName}${isScreenShare ? ' screen share' : ''}`}
+      animate={{ scale: isSpeaking ? 1.02 : 1 }}
+      transition={{ type: 'spring', ...spring.snappy }}
     >
-      {videoEnabled ? (
+      {videoEnabled && stream ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      ) : videoEnabled ? (
         <div className="absolute inset-0 bg-gray-800 flex items-center justify-center">
           <span className="text-gray-500 text-xs">Video</span>
         </div>
@@ -67,6 +89,6 @@ export function VideoTile({
           </span>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
