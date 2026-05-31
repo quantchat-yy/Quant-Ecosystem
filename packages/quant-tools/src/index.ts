@@ -13,6 +13,9 @@ export type {
   AuditEntry,
   UndoAction,
   MCPToolEntry,
+  ParsedIntent,
+  WorkflowExecutionOptions,
+  WorkflowResult,
 } from './types.js';
 
 // Registry
@@ -20,10 +23,13 @@ export { ToolRegistry } from './registry/tool-registry.js';
 
 // Planner
 export { IntentRouter } from './planner/intent-router.js';
+export { IntentParser } from './planner/intent-parser.js';
 export { MultiStepPlanner } from './planner/multi-step-planner.js';
 
 // Executor
 export { ToolExecutor } from './executor/tool-executor.js';
+export { WorkflowExecutor } from './executor/workflow-executor.js';
+export type { WorkflowEventType, WorkflowEvent, WorkflowListener } from './executor/workflow-executor.js';
 
 // Permissions
 export { PermissionEngine } from './permissions/permission-engine.js';

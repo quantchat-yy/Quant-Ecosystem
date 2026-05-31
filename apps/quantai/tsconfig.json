@@ -17,6 +17,8 @@
     "paths": {
       "@/*": ["./src/app/*"],
       "@quant/quant-tools": ["../../packages/quant-tools/src/index.ts"],
+      "@quant/ai": ["../../packages/ai/src/index.ts"],
+      "@quant/ai/*": ["../../packages/ai/src/*"],
       "@quant/shared-ui": ["../../packages/shared-ui/src/index.ts"],
       "@quant/shared-ui/*": ["../../packages/shared-ui/src/*"],
       "@quant/common": ["../../packages/common/src/index.ts"],

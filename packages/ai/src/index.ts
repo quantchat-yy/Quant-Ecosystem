@@ -55,4 +55,11 @@ export * from './assistant/types';
 export { SpeechToTextService } from './voice/speech-to-text';
 export { TextToSpeechService } from './voice/text-to-speech';
 export { VoiceCommander } from './voice/voice-commander';
+export { VoiceIntentBridge } from './voice/voice-intent-bridge';
+export type {
+  VoiceIntentResult,
+  VoiceBridgeEventType,
+  VoiceBridgeEvent,
+  VoiceBridgeListener,
+} from './voice/voice-intent-bridge';
 export type { VoiceConfig, TranscriptionResult, TTSRequest, TTSResponse } from './voice/types';

@@ -1,8 +1,10 @@
 import { IntentRouter } from '../planner/intent-router.js';
+import { IntentParser } from '../planner/intent-parser.js';
 import { MultiStepPlanner } from '../planner/multi-step-planner.js';
 import { ToolExecutor } from '../executor/tool-executor.js';
+import { WorkflowExecutor } from '../executor/workflow-executor.js';
 import { ContextManager } from './context-manager.js';
-import type { ToolDefinition, ToolPlan, ToolResult } from '../types.js';
+import type { ToolDefinition, ToolPlan, ToolPlanStep, ToolResult, WorkflowResult } from '../types.js';
 
 export type OrchestratorEventType =
   | 'plan_created'
@@ -10,7 +12,11 @@ export type OrchestratorEventType =
   | 'step_complete'
   | 'step_failed'
   | 'execution_complete'
-  | 'error';
+  | 'error'
+  | 'confirmation_required'
+  | 'rollback_start'
+  | 'rollback_complete'
+  | 'step_retry';
 
 export interface OrchestratorEvent {
   type: OrchestratorEventType;
@@ -162,6 +168,78 @@ export class CrossAppOrchestrator {
     });
 
     return results;
+  }
+
+  async processNaturalLanguage(
+    input: string,
+    options: OrchestratorOptions & {
+      confirmationCallback?: (step: ToolPlanStep) => Promise<boolean>;
+      enableRollback?: boolean;
+    },
+  ): Promise<WorkflowResult> {
+    const intentParser = new IntentParser();
+    const intents = intentParser.parse(input, {
+      currentApp: undefined,
+      currentItem: undefined,
+    });
+
+    const plan = this.planner.planFromParsedIntents(intents, this.tools);
+
+    this.emit({
+      type: 'plan_created',
+      timestamp: Date.now(),
+      data: { plan },
+    });
+
+    if (plan.steps.length === 0) {
+      const result: WorkflowResult = {
+        success: false,
+        results: [],
+        plan,
+        totalLatencyMs: 0,
+      };
+      this.emit({
+        type: 'execution_complete',
+        timestamp: Date.now(),
+        data: { results: [] },
+      });
+      return result;
+    }
+
+    const workflowExecutor = new WorkflowExecutor(this.executor, this.tools);
+
+    // Forward workflow events to orchestrator listeners
+    workflowExecutor.on((event) => {
+      this.emit({
+        type: event.type as OrchestratorEventType,
+        timestamp: event.timestamp,
+        data: {
+          stepId: event.data?.stepId,
+          toolId: event.data?.toolId,
+          result: event.data?.result,
+          error: event.data?.error,
+        },
+      });
+    });
+
+    const executionOptions = {
+      userId: options.userId,
+      sessionId: options.sessionId,
+      permissions: plan.requiredPermission,
+      dryRun: options.dryRun ?? false,
+      confirmationCallback: options.confirmationCallback,
+      enableRollback: options.enableRollback,
+    };
+
+    const workflowResult = await workflowExecutor.execute(plan, executionOptions);
+
+    this.emit({
+      type: 'execution_complete',
+      timestamp: Date.now(),
+      data: { results: workflowResult.results },
+    });
+
+    return workflowResult;
   }
 
   private emit(event: OrchestratorEvent): void {

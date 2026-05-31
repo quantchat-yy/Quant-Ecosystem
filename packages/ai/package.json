@@ -24,6 +24,7 @@
     "@ai-sdk/togetherai": "^2.0.53",
     "@anthropic-ai/sdk": "^0.32.0",
     "@quant/common": "workspace:*",
+    "@quant/quant-tools": "workspace:*",
     "ai": "^5.0.52",
     "js-yaml": "^4.1.0",
     "ollama-ai-provider": "^1.2.0",

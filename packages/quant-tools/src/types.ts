@@ -99,3 +99,32 @@ export interface MCPToolEntry {
   inputSchema: ToolInputSchema;
   permissionTier: PermissionTier;
 }
+
+export interface ParsedIntent {
+  action: string;
+  entities: Record<string, string>;
+  temporal?: { startTime?: string; endTime?: string; duration?: number };
+  rawSegment: string;
+  confidence: number;
+  targetApp?: string;
+}
+
+export interface WorkflowExecutionOptions {
+  userId: string;
+  sessionId: string;
+  permissions: PermissionTier;
+  dryRun: boolean;
+  confirmationCallback?: (step: ToolPlanStep) => Promise<boolean>;
+  maxRetries?: number;
+  stepTimeoutMs?: number;
+  enableRollback?: boolean;
+  metadata?: Record<string, string>;
+}
+
+export interface WorkflowResult {
+  success: boolean;
+  results: ToolResult[];
+  rollbackResults?: ToolResult[];
+  plan: ToolPlan;
+  totalLatencyMs: number;
+}
