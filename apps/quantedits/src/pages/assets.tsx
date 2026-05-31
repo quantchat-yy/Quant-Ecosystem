@@ -6,6 +6,7 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
 import { useAssets } from '../hooks/useAssets';
+import { PageTransition } from '../components/PageTransition';
 
 interface Asset {
   id: string;
@@ -164,179 +165,183 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ projectId, onDragToTimeline
   }
 
   return (
-    <div className="asset-library">
-      <div className="library-tabs">
-        {[
-          { id: 'uploads' as TabType, label: 'Uploads', icon: '📁' },
-          { id: 'stock' as TabType, label: 'Stock', icon: '🖼' },
-          { id: 'music' as TabType, label: 'Music', icon: '🎵' },
-          { id: 'stickers' as TabType, label: 'Stickers', icon: '✨' },
-          { id: 'fonts' as TabType, label: 'Fonts', icon: '🔤' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            className={`lib-tab ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            <span>{tab.icon}</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
-
-      <div
-        ref={dropZoneRef}
-        className={`upload-zone ${isDragging ? 'dragging' : ''}`}
-        onDrop={handleDrop}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragging(true);
-        }}
-        onDragLeave={() => setIsDragging(false)}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <div className="upload-content">
-          <div className="upload-icon">&#8682;</div>
-          <p>Drop files here or click to upload</p>
-          <span className="upload-formats">MP4, MOV, JPG, PNG, MP3, WAV, GIF, SVG</span>
-        </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept="video/*,image/*,audio/*,.ttf,.otf,.woff"
-          hidden
-          onChange={(e) => handleFileUpload(e.target.files)}
-        />
-      </div>
-
-      {uploadProgress.size > 0 && (
-        <div className="upload-progress-list">
-          {Array.from(uploadProgress.entries()).map(([name, progress]) => (
-            <div key={name} className="upload-progress-item">
-              <span className="upload-name">{name}</span>
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${progress}%` }} />
-              </div>
-              <span className="progress-percent">{progress}%</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="library-toolbar">
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Search assets..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <div className="quick-filters">
-          <button
-            className={`filter-btn ${showRecent ? 'active' : ''}`}
-            onClick={() => {
-              setShowRecent(!showRecent);
-              setShowFavorites(false);
-            }}
-          >
-            Recent
-          </button>
-          <button
-            className={`filter-btn ${showFavorites ? 'active' : ''}`}
-            onClick={() => {
-              setShowFavorites(!showFavorites);
-              setShowRecent(false);
-            }}
-          >
-            Favorites
-          </button>
-        </div>
-        <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
-          <option value="date">Newest</option>
-          <option value="name">Name</option>
-          <option value="size">Size</option>
-        </select>
-      </div>
-
-      <div className="library-sidebar">
-        <h4>Folders</h4>
-        <div className="folder-list">
-          {folders.map((folder) => (
+    <PageTransition>
+      <div className="asset-library">
+        <div className="library-tabs">
+          {[
+            { id: 'uploads' as TabType, label: 'Uploads', icon: '📁' },
+            { id: 'stock' as TabType, label: 'Stock', icon: '🖼' },
+            { id: 'music' as TabType, label: 'Music', icon: '🎵' },
+            { id: 'stickers' as TabType, label: 'Stickers', icon: '✨' },
+            { id: 'fonts' as TabType, label: 'Fonts', icon: '🔤' },
+          ].map((tab) => (
             <button
-              key={folder.id}
-              className={`folder-item ${selectedFolder === folder.id ? 'active' : ''}`}
-              onClick={() => setSelectedFolder(folder.id)}
+              key={tab.id}
+              className={`lib-tab ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
             >
-              <span className="folder-color" style={{ backgroundColor: folder.color }} />
-              <span className="folder-name">{folder.name}</span>
-              <span className="folder-count">{folder.assetCount}</span>
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
             </button>
           ))}
-          {showNewFolderInput ? (
-            <div className="new-folder-input">
-              <input
-                type="text"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                placeholder="Folder name"
-                autoFocus
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
-              />
-              <button onClick={handleCreateFolder}>+</button>
-            </div>
-          ) : (
-            <button className="add-folder-btn" onClick={() => setShowNewFolderInput(true)}>
-              + New Folder
+        </div>
+
+        <div
+          ref={dropZoneRef}
+          className={`upload-zone ${isDragging ? 'dragging' : ''}`}
+          onDrop={handleDrop}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <div className="upload-content">
+            <div className="upload-icon">&#8682;</div>
+            <p>Drop files here or click to upload</p>
+            <span className="upload-formats">MP4, MOV, JPG, PNG, MP3, WAV, GIF, SVG</span>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="video/*,image/*,audio/*,.ttf,.otf,.woff"
+            hidden
+            onChange={(e) => handleFileUpload(e.target.files)}
+          />
+        </div>
+
+        {uploadProgress.size > 0 && (
+          <div className="upload-progress-list">
+            {Array.from(uploadProgress.entries()).map(([name, progress]) => (
+              <div key={name} className="upload-progress-item">
+                <span className="upload-name">{name}</span>
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{ width: `${progress}%` }} />
+                </div>
+                <span className="progress-percent">{progress}%</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="library-toolbar">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search assets..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <div className="quick-filters">
+            <button
+              className={`filter-btn ${showRecent ? 'active' : ''}`}
+              onClick={() => {
+                setShowRecent(!showRecent);
+                setShowFavorites(false);
+              }}
+            >
+              Recent
             </button>
+            <button
+              className={`filter-btn ${showFavorites ? 'active' : ''}`}
+              onClick={() => {
+                setShowFavorites(!showFavorites);
+                setShowRecent(false);
+              }}
+            >
+              Favorites
+            </button>
+          </div>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+            <option value="date">Newest</option>
+            <option value="name">Name</option>
+            <option value="size">Size</option>
+          </select>
+        </div>
+
+        <div className="library-sidebar">
+          <h4>Folders</h4>
+          <div className="folder-list">
+            {folders.map((folder) => (
+              <button
+                key={folder.id}
+                className={`folder-item ${selectedFolder === folder.id ? 'active' : ''}`}
+                onClick={() => setSelectedFolder(folder.id)}
+              >
+                <span className="folder-color" style={{ backgroundColor: folder.color }} />
+                <span className="folder-name">{folder.name}</span>
+                <span className="folder-count">{folder.assetCount}</span>
+              </button>
+            ))}
+            {showNewFolderInput ? (
+              <div className="new-folder-input">
+                <input
+                  type="text"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="Folder name"
+                  autoFocus
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+                />
+                <button onClick={handleCreateFolder}>+</button>
+              </div>
+            ) : (
+              <button className="add-folder-btn" onClick={() => setShowNewFolderInput(true)}>
+                + New Folder
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="assets-grid">
+          {filteredAssets.length === 0 ? (
+            <EmptyState
+              title="No assets found"
+              description={
+                showFavorites ? 'No favorites yet' : 'Upload files or browse stock media'
+              }
+            />
+          ) : (
+            filteredAssets.map((asset) => (
+              <div
+                key={asset.id}
+                className="asset-item"
+                draggable
+                onDragStart={() => handleDragStart(asset)}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="asset-thumbnail">
+                  <img src={asset.thumbnail} alt={asset.name} />
+                  {asset.type === 'video' && asset.duration && (
+                    <span className="asset-duration">
+                      {Math.floor(asset.duration / 60)}:
+                      {(asset.duration % 60).toString().padStart(2, '0')}
+                    </span>
+                  )}
+                  {asset.type === 'audio' && <div className="audio-waveform">♪</div>}
+                </div>
+                <div className="asset-info">
+                  <span className="asset-name" title={asset.name}>
+                    {asset.name}
+                  </span>
+                  <span className="asset-size">{formatSize(asset.size)}</span>
+                </div>
+                <div className="asset-actions">
+                  <button className="fav-btn" onClick={() => handleToggleFavorite(asset.id)}>
+                    {asset.isFavorite ? '★' : '☆'}
+                  </button>
+                  <button className="delete-btn" onClick={() => handleDeleteAsset(asset.id)}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>
-
-      <div className="assets-grid">
-        {filteredAssets.length === 0 ? (
-          <EmptyState
-            title="No assets found"
-            description={showFavorites ? 'No favorites yet' : 'Upload files or browse stock media'}
-          />
-        ) : (
-          filteredAssets.map((asset) => (
-            <div
-              key={asset.id}
-              className="asset-item"
-              draggable
-              onDragStart={() => handleDragStart(asset)}
-              onDragEnd={handleDragEnd}
-            >
-              <div className="asset-thumbnail">
-                <img src={asset.thumbnail} alt={asset.name} />
-                {asset.type === 'video' && asset.duration && (
-                  <span className="asset-duration">
-                    {Math.floor(asset.duration / 60)}:
-                    {(asset.duration % 60).toString().padStart(2, '0')}
-                  </span>
-                )}
-                {asset.type === 'audio' && <div className="audio-waveform">♪</div>}
-              </div>
-              <div className="asset-info">
-                <span className="asset-name" title={asset.name}>
-                  {asset.name}
-                </span>
-                <span className="asset-size">{formatSize(asset.size)}</span>
-              </div>
-              <div className="asset-actions">
-                <button className="fav-btn" onClick={() => handleToggleFavorite(asset.id)}>
-                  {asset.isFavorite ? '★' : '☆'}
-                </button>
-                <button className="delete-btn" onClick={() => handleDeleteAsset(asset.id)}>
-                  ✕
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
+    </PageTransition>
   );
 };
 

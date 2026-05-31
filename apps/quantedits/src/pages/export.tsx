@@ -4,6 +4,7 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { PageTransition } from '../components/PageTransition';
 
 interface ExportJob {
   id: string;
@@ -244,279 +245,287 @@ const ExportPage: React.FC<ExportPageProps> = ({ projectId, projectName, duratio
   }, []);
 
   return (
-    <div className="export-page">
-      <header className="export-header">
-        <h1>Export Project</h1>
-        <p className="project-info">
-          {projectName} - {Math.floor(duration / 60)}:{(duration % 60).toString().padStart(2, '0')}
-        </p>
-      </header>
+    <PageTransition>
+      <div className="export-page">
+        <header className="export-header">
+          <h1>Export Project</h1>
+          <p className="project-info">
+            {projectName} - {Math.floor(duration / 60)}:
+            {(duration % 60).toString().padStart(2, '0')}
+          </p>
+        </header>
 
-      <div className="export-content">
-        <div className="export-settings">
-          <section className="settings-section">
-            <h3>Platform Presets</h3>
-            <div className="presets-grid">
-              {PLATFORM_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  className={`preset-card ${selectedPreset === preset.id ? 'active' : ''}`}
-                  onClick={() => handleApplyPreset(preset.id)}
-                >
-                  <span className="preset-platform">{preset.platform}</span>
-                  <span className="preset-name">{preset.name}</span>
-                  <span className="preset-specs">
-                    {preset.resolution.label} - {preset.format.toUpperCase()}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="settings-section">
-            <h3>Format</h3>
-            <div className="format-grid">
-              {(
-                Object.entries(FORMAT_INFO) as [ExportFormat, (typeof FORMAT_INFO)[ExportFormat]][]
-              ).map(([fmt, info]) => (
-                <button
-                  key={fmt}
-                  className={`format-option ${format === fmt ? 'active' : ''}`}
-                  onClick={() => {
-                    setFormat(fmt);
-                    setSelectedPreset(null);
-                  }}
-                >
-                  <span className="format-icon">{info.icon}</span>
-                  <span className="format-label">{info.label}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="settings-section">
-            <h3>Quality</h3>
-            <div className="quality-control">
-              <input
-                type="range"
-                min={10}
-                max={100}
-                value={quality}
-                onChange={(e) => {
-                  setQuality(parseInt(e.target.value));
-                  setSelectedPreset(null);
-                }}
-                className="quality-slider"
-              />
-              <div className="quality-labels">
-                <span>Low</span>
-                <span className="quality-value">{quality}%</span>
-                <span>Max</span>
-              </div>
-            </div>
-          </section>
-
-          <section className="settings-section">
-            <h3>Resolution</h3>
-            <div className="resolution-options">
-              {RESOLUTIONS.map((res) => (
-                <button
-                  key={res.label}
-                  className={`res-option ${!useCustomRes && resolution.label === res.label ? 'active' : ''}`}
-                  onClick={() => {
-                    setResolution(res);
-                    setUseCustomRes(false);
-                    setSelectedPreset(null);
-                  }}
-                >
-                  {res.label}
-                </button>
-              ))}
-              <button
-                className={`res-option ${useCustomRes ? 'active' : ''}`}
-                onClick={() => setUseCustomRes(true)}
-              >
-                Custom
-              </button>
-            </div>
-            {useCustomRes && (
-              <div className="custom-resolution">
-                <input
-                  type="number"
-                  value={customWidth}
-                  onChange={(e) => setCustomWidth(parseInt(e.target.value))}
-                  placeholder="Width"
-                />
-                <span>x</span>
-                <input
-                  type="number"
-                  value={customHeight}
-                  onChange={(e) => setCustomHeight(parseInt(e.target.value))}
-                  placeholder="Height"
-                />
-              </div>
-            )}
-          </section>
-
-          {(format === 'mp4' || format === 'mov' || format === 'gif') && (
+        <div className="export-content">
+          <div className="export-settings">
             <section className="settings-section">
-              <h3>Video Settings</h3>
-              <div className="setting-row">
-                <label>Frame Rate</label>
-                <select value={fps} onChange={(e) => setFps(parseInt(e.target.value))}>
-                  <option value={24}>24 fps</option>
-                  <option value={30}>30 fps</option>
-                  <option value={60}>60 fps</option>
-                </select>
-              </div>
-              <div className="setting-row">
-                <label>Include Audio</label>
-                <input
-                  type="checkbox"
-                  checked={includeAudio}
-                  onChange={(e) => setIncludeAudio(e.target.checked)}
-                />
-              </div>
-              {includeAudio && (
-                <div className="setting-row">
-                  <label>Audio Bitrate</label>
-                  <select
-                    value={audioBitrate}
-                    onChange={(e) => setAudioBitrate(parseInt(e.target.value))}
+              <h3>Platform Presets</h3>
+              <div className="presets-grid">
+                {PLATFORM_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    className={`preset-card ${selectedPreset === preset.id ? 'active' : ''}`}
+                    onClick={() => handleApplyPreset(preset.id)}
                   >
-                    <option value={128}>128 kbps</option>
-                    <option value={192}>192 kbps</option>
-                    <option value={320}>320 kbps</option>
-                  </select>
-                </div>
-              )}
-              <div className="setting-row">
-                <label>Export Range</label>
-                <select
-                  value={exportRange}
-                  onChange={(e) => setExportRange(e.target.value as 'full' | 'range')}
-                >
-                  <option value="full">Full Duration</option>
-                  <option value="range">Custom Range</option>
-                </select>
+                    <span className="preset-platform">{preset.platform}</span>
+                    <span className="preset-name">{preset.name}</span>
+                    <span className="preset-specs">
+                      {preset.resolution.label} - {preset.format.toUpperCase()}
+                    </span>
+                  </button>
+                ))}
               </div>
-              {exportRange === 'range' && (
-                <div className="range-inputs">
+            </section>
+
+            <section className="settings-section">
+              <h3>Format</h3>
+              <div className="format-grid">
+                {(
+                  Object.entries(FORMAT_INFO) as [
+                    ExportFormat,
+                    (typeof FORMAT_INFO)[ExportFormat],
+                  ][]
+                ).map(([fmt, info]) => (
+                  <button
+                    key={fmt}
+                    className={`format-option ${format === fmt ? 'active' : ''}`}
+                    onClick={() => {
+                      setFormat(fmt);
+                      setSelectedPreset(null);
+                    }}
+                  >
+                    <span className="format-icon">{info.icon}</span>
+                    <span className="format-label">{info.label}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="settings-section">
+              <h3>Quality</h3>
+              <div className="quality-control">
+                <input
+                  type="range"
+                  min={10}
+                  max={100}
+                  value={quality}
+                  onChange={(e) => {
+                    setQuality(parseInt(e.target.value));
+                    setSelectedPreset(null);
+                  }}
+                  className="quality-slider"
+                />
+                <div className="quality-labels">
+                  <span>Low</span>
+                  <span className="quality-value">{quality}%</span>
+                  <span>Max</span>
+                </div>
+              </div>
+            </section>
+
+            <section className="settings-section">
+              <h3>Resolution</h3>
+              <div className="resolution-options">
+                {RESOLUTIONS.map((res) => (
+                  <button
+                    key={res.label}
+                    className={`res-option ${!useCustomRes && resolution.label === res.label ? 'active' : ''}`}
+                    onClick={() => {
+                      setResolution(res);
+                      setUseCustomRes(false);
+                      setSelectedPreset(null);
+                    }}
+                  >
+                    {res.label}
+                  </button>
+                ))}
+                <button
+                  className={`res-option ${useCustomRes ? 'active' : ''}`}
+                  onClick={() => setUseCustomRes(true)}
+                >
+                  Custom
+                </button>
+              </div>
+              {useCustomRes && (
+                <div className="custom-resolution">
                   <input
                     type="number"
-                    value={startTime}
-                    onChange={(e) => setStartTime(parseFloat(e.target.value))}
-                    placeholder="Start (s)"
-                    min={0}
-                    max={duration}
+                    value={customWidth}
+                    onChange={(e) => setCustomWidth(parseInt(e.target.value))}
+                    placeholder="Width"
                   />
-                  <span>to</span>
+                  <span>x</span>
                   <input
                     type="number"
-                    value={endTime}
-                    onChange={(e) => setEndTime(parseFloat(e.target.value))}
-                    placeholder="End (s)"
-                    min={0}
-                    max={duration}
+                    value={customHeight}
+                    onChange={(e) => setCustomHeight(parseInt(e.target.value))}
+                    placeholder="Height"
                   />
                 </div>
               )}
             </section>
-          )}
 
-          <section className="settings-section">
-            <h3>Watermark</h3>
-            <label className="watermark-toggle">
-              <input
-                type="checkbox"
-                checked={watermark}
-                onChange={(e) => setWatermark(e.target.checked)}
-              />
-              Add Watermark
-            </label>
-            {watermark && (
-              <input
-                type="text"
-                value={watermarkText}
-                onChange={(e) => setWatermarkText(e.target.value)}
-                placeholder="Watermark text..."
-                className="watermark-input"
-              />
+            {(format === 'mp4' || format === 'mov' || format === 'gif') && (
+              <section className="settings-section">
+                <h3>Video Settings</h3>
+                <div className="setting-row">
+                  <label>Frame Rate</label>
+                  <select value={fps} onChange={(e) => setFps(parseInt(e.target.value))}>
+                    <option value={24}>24 fps</option>
+                    <option value={30}>30 fps</option>
+                    <option value={60}>60 fps</option>
+                  </select>
+                </div>
+                <div className="setting-row">
+                  <label>Include Audio</label>
+                  <input
+                    type="checkbox"
+                    checked={includeAudio}
+                    onChange={(e) => setIncludeAudio(e.target.checked)}
+                  />
+                </div>
+                {includeAudio && (
+                  <div className="setting-row">
+                    <label>Audio Bitrate</label>
+                    <select
+                      value={audioBitrate}
+                      onChange={(e) => setAudioBitrate(parseInt(e.target.value))}
+                    >
+                      <option value={128}>128 kbps</option>
+                      <option value={192}>192 kbps</option>
+                      <option value={320}>320 kbps</option>
+                    </select>
+                  </div>
+                )}
+                <div className="setting-row">
+                  <label>Export Range</label>
+                  <select
+                    value={exportRange}
+                    onChange={(e) => setExportRange(e.target.value as 'full' | 'range')}
+                  >
+                    <option value="full">Full Duration</option>
+                    <option value="range">Custom Range</option>
+                  </select>
+                </div>
+                {exportRange === 'range' && (
+                  <div className="range-inputs">
+                    <input
+                      type="number"
+                      value={startTime}
+                      onChange={(e) => setStartTime(parseFloat(e.target.value))}
+                      placeholder="Start (s)"
+                      min={0}
+                      max={duration}
+                    />
+                    <span>to</span>
+                    <input
+                      type="number"
+                      value={endTime}
+                      onChange={(e) => setEndTime(parseFloat(e.target.value))}
+                      placeholder="End (s)"
+                      min={0}
+                      max={duration}
+                    />
+                  </div>
+                )}
+              </section>
             )}
-          </section>
 
-          <div className="export-summary">
-            <div className="summary-item">
-              <span>Estimated Size:</span>
-              <strong>{formatSize(estimatedSize)}</strong>
+            <section className="settings-section">
+              <h3>Watermark</h3>
+              <label className="watermark-toggle">
+                <input
+                  type="checkbox"
+                  checked={watermark}
+                  onChange={(e) => setWatermark(e.target.checked)}
+                />
+                Add Watermark
+              </label>
+              {watermark && (
+                <input
+                  type="text"
+                  value={watermarkText}
+                  onChange={(e) => setWatermarkText(e.target.value)}
+                  placeholder="Watermark text..."
+                  className="watermark-input"
+                />
+              )}
+            </section>
+
+            <div className="export-summary">
+              <div className="summary-item">
+                <span>Estimated Size:</span>
+                <strong>{formatSize(estimatedSize)}</strong>
+              </div>
+              <div className="summary-item">
+                <span>Format:</span>
+                <strong>{format.toUpperCase()}</strong>
+              </div>
+              <div className="summary-item">
+                <span>Resolution:</span>
+                <strong>
+                  {useCustomRes ? `${customWidth}x${customHeight}` : resolution.label}
+                </strong>
+              </div>
             </div>
-            <div className="summary-item">
-              <span>Format:</span>
-              <strong>{format.toUpperCase()}</strong>
-            </div>
-            <div className="summary-item">
-              <span>Resolution:</span>
-              <strong>{useCustomRes ? `${customWidth}x${customHeight}` : resolution.label}</strong>
-            </div>
+
+            <button className="export-btn" onClick={handleStartExport} disabled={loading}>
+              Export Now
+            </button>
           </div>
 
-          <button className="export-btn" onClick={handleStartExport} disabled={loading}>
-            Export Now
-          </button>
-        </div>
-
-        <div className="export-queue">
-          <h3>Export Queue ({exportQueue.length})</h3>
-          {exportQueue.length === 0 ? (
-            <div className="queue-empty">
-              <p>No exports in queue</p>
-            </div>
-          ) : (
-            <div className="queue-list">
-              {exportQueue.map((job) => (
-                <div key={job.id} className={`queue-item status-${job.status}`}>
-                  <div className="queue-item-header">
-                    <span className="job-name">
-                      {job.projectName}.{job.format}
-                    </span>
-                    <span className={`job-status ${job.status}`}>{job.status}</span>
-                  </div>
-                  {(job.status === 'rendering' || job.status === 'encoding') && (
-                    <div className="job-progress">
-                      <div className="progress-bar">
-                        <div className="progress-fill" style={{ width: `${job.progress}%` }} />
-                      </div>
-                      <span className="progress-text">{Math.round(job.progress)}%</span>
+          <div className="export-queue">
+            <h3>Export Queue ({exportQueue.length})</h3>
+            {exportQueue.length === 0 ? (
+              <div className="queue-empty">
+                <p>No exports in queue</p>
+              </div>
+            ) : (
+              <div className="queue-list">
+                {exportQueue.map((job) => (
+                  <div key={job.id} className={`queue-item status-${job.status}`}>
+                    <div className="queue-item-header">
+                      <span className="job-name">
+                        {job.projectName}.{job.format}
+                      </span>
+                      <span className={`job-status ${job.status}`}>{job.status}</span>
                     </div>
-                  )}
-                  <div className="queue-item-meta">
-                    <span>{job.resolution.label}</span>
-                    <span>{formatSize(job.estimatedSize)}</span>
+                    {(job.status === 'rendering' || job.status === 'encoding') && (
+                      <div className="job-progress">
+                        <div className="progress-bar">
+                          <div className="progress-fill" style={{ width: `${job.progress}%` }} />
+                        </div>
+                        <span className="progress-text">{Math.round(job.progress)}%</span>
+                      </div>
+                    )}
+                    <div className="queue-item-meta">
+                      <span>{job.resolution.label}</span>
+                      <span>{formatSize(job.estimatedSize)}</span>
+                    </div>
+                    <div className="queue-item-actions">
+                      {job.status === 'complete' && (
+                        <button className="download-btn" onClick={() => handleDownload(job)}>
+                          Download
+                        </button>
+                      )}
+                      {(job.status === 'queued' ||
+                        job.status === 'rendering' ||
+                        job.status === 'encoding') && (
+                        <button className="cancel-btn" onClick={() => handleCancelExport(job.id)}>
+                          Cancel
+                        </button>
+                      )}
+                      {job.status === 'failed' && (
+                        <span className="error-msg">{job.error || 'Export failed'}</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="queue-item-actions">
-                    {job.status === 'complete' && (
-                      <button className="download-btn" onClick={() => handleDownload(job)}>
-                        Download
-                      </button>
-                    )}
-                    {(job.status === 'queued' ||
-                      job.status === 'rendering' ||
-                      job.status === 'encoding') && (
-                      <button className="cancel-btn" onClick={() => handleCancelExport(job.id)}>
-                        Cancel
-                      </button>
-                    )}
-                    {job.status === 'failed' && (
-                      <span className="error-msg">{job.error || 'Export failed'}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </PageTransition>
   );
 };
 
