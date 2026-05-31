@@ -226,6 +226,14 @@ export {
   SharingModal,
   ProfileCard,
   AISidePanel,
+  UniversalSearch,
+  NotificationPanel,
+  QuickActions,
+  UndoToast,
+  OfflineIndicator,
+  SettingsPanel,
+  CrossAppRelations,
+  ActivityFeed,
 } from './components/Shell';
 export type {
   GlobalNavProps,
@@ -250,15 +258,46 @@ export type {
   ProfileCardUser,
   AISidePanelProps,
   AISidePanelMessage,
+  UniversalSearchProps,
+  SearchResult,
+  SearchResultGroup,
+  NotificationPanelProps,
+  NotificationItem,
+  NotificationAction,
+  QuickActionsProps,
+  QuickAction,
+  UndoToastProps,
+  OfflineIndicatorProps,
+  ConnectionStatus,
+  SettingsPanelProps,
+  ThemeOption,
+  NotificationPreference,
+  ShortcutEntry,
+  ShortcutGroup,
+  CrossAppRelationsProps,
+  RelatedItem,
+  ActivityFeedProps,
+  ActivityItem,
 } from './components/Shell';
 
 // State components
-export { EmptyState, LoadingState, ErrorState, SuccessState } from './components/States';
+export {
+  EmptyState,
+  LoadingState,
+  ErrorState,
+  SuccessState,
+  SkeletonCard,
+  SkeletonGrid,
+  OptimisticWrapper,
+} from './components/States';
 export type {
   EmptyStateProps,
   LoadingStateProps,
   ErrorStateProps,
   SuccessStateProps,
+  SkeletonCardProps,
+  SkeletonGridProps,
+  OptimisticWrapperProps,
 } from './components/States';
 
 // Guards
@@ -273,6 +312,8 @@ export {
   WorkspaceSetupStep,
   ConnectAppsStep,
   AIPreferencesStep,
+  FullOnboardingWizard,
+  AppTourStep,
 } from './components/Onboarding';
 export type {
   OnboardingFlowProps,
@@ -282,7 +323,15 @@ export type {
   ConnectAppsStepProps,
   AppToggleItem,
   AIPreferencesStepProps,
+  FullOnboardingWizardProps,
+  OnboardingWizardData,
+  AppTourStepProps,
+  AppTourFeature,
 } from './components/Onboarding';
+
+// Auth components
+export { LoginPage, ConsentScreen } from './components/Auth';
+export type { LoginPageProps, ConsentScreenProps, Permission } from './components/Auth';
 
 // Motion / Animation primitives (union of phase-67/68 motion systems)
 export {
@@ -331,9 +380,31 @@ export type { BreakpointName } from './hooks/useBreakpoint';
 export { useOrientation } from './hooks/useOrientation';
 export type { Orientation } from './hooks/useOrientation';
 
+// Keyboard Shortcuts hook
+export { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+export type {
+  ShortcutDefinition,
+  UseKeyboardShortcutsOptions,
+  UseKeyboardShortcutsReturn,
+} from './hooks/useKeyboardShortcuts';
+
+// Drag and Drop hook
+export { useDragDrop } from './hooks/useDragDrop';
+export type { UseDragDropOptions, UseDragDropReturn } from './hooks/useDragDrop';
+
 // CommandPaletteUI component
 export { CommandPaletteUI } from './components/CommandPaletteUI';
 export type { CommandPaletteUIProps, CommandPaletteItem } from './components/CommandPaletteUI';
+
+// CommandPaletteProvider
+export {
+  CommandPaletteProvider,
+  useCommandPalette,
+} from './components/CommandPaletteUI/CommandPaletteProvider';
+
+// useAskQuant hook
+export { useAskQuant } from './hooks/useAskQuant';
+export type { AskQuantMessage, UseAskQuantOptions, UseAskQuantReturn } from './hooks/useAskQuant';
 
 // ThemeProvider component
 export { ThemeProvider, useThemeMode } from './components/ThemeProvider';

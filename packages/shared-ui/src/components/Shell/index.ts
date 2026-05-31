@@ -40,3 +40,37 @@ export type { ProfileCardProps, ProfileCardUser } from './ProfileCard';
 
 export { AISidePanel } from './AISidePanel';
 export type { AISidePanelProps, AISidePanelMessage } from './AISidePanel';
+
+export { UniversalSearch } from './UniversalSearch';
+export type { UniversalSearchProps, SearchResult, SearchResultGroup } from './UniversalSearch';
+
+export { NotificationPanel } from './NotificationPanel';
+export type {
+  NotificationPanelProps,
+  NotificationItem,
+  NotificationAction,
+} from './NotificationPanel';
+
+export { QuickActions } from './QuickActions';
+export type { QuickActionsProps, QuickAction } from './QuickActions';
+
+export { UndoToast } from './UndoToast';
+export type { UndoToastProps } from './UndoToast';
+
+export { OfflineIndicator } from './OfflineIndicator';
+export type { OfflineIndicatorProps, ConnectionStatus } from './OfflineIndicator';
+
+export { SettingsPanel } from './SettingsPanel';
+export type {
+  SettingsPanelProps,
+  ThemeOption,
+  NotificationPreference,
+  ShortcutEntry,
+  ShortcutGroup,
+} from './SettingsPanel';
+
+export { CrossAppRelations } from './CrossAppRelations';
+export type { CrossAppRelationsProps, RelatedItem } from './CrossAppRelations';
+
+export { ActivityFeed } from './ActivityFeed';
+export type { ActivityFeedProps, ActivityItem } from './ActivityFeed';

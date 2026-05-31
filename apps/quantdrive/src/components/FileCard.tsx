@@ -1,5 +1,7 @@
 'use client';
 
+import { motion } from 'framer-motion';
+import { spring } from '@quant/brand';
 import type { FileItem } from '../hooks/useFiles';
 
 interface FileCardProps {
@@ -36,9 +38,12 @@ function formatDate(dateStr: string): string {
 export function FileCard({ file, onClick, viewMode }: FileCardProps) {
   if (viewMode === 'list') {
     return (
-      <button
+      <motion.button
         onClick={onClick}
-        className="w-full flex items-center gap-4 px-4 py-3 hover:bg-[var(--quant-muted)] rounded-lg transition-colors text-left"
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.98 }}
+        transition={{ type: 'spring', ...spring.snappy }}
+        className="w-full flex items-center gap-4 px-4 py-3 min-h-[44px] hover:bg-[var(--quant-muted)] rounded-lg transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)] focus-visible:ring-offset-2"
         aria-label={`File: ${file.name}`}
       >
         <span className="text-2xl flex-shrink-0" aria-hidden="true">
@@ -51,19 +56,34 @@ export function FileCard({ file, onClick, viewMode }: FileCardProps) {
         <span className="text-xs text-[var(--quant-muted-foreground)] flex-shrink-0 hidden sm:inline">
           {formatDate(file.updatedAt)}
         </span>
-      </button>
+      </motion.button>
     );
   }
 
   return (
-    <button
+    <motion.button
       onClick={onClick}
-      className="flex flex-col items-center p-4 rounded-lg border border-[var(--quant-border)] hover:border-[var(--quant-primary)] hover:shadow-md transition-all text-center group"
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', ...spring.snappy }}
+      className="flex flex-col items-center p-4 min-h-[44px] rounded-lg border border-[var(--quant-border)] hover:border-[var(--quant-primary)] hover:shadow-md transition-colors text-center group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)] focus-visible:ring-offset-2"
       aria-label={`File: ${file.name}`}
     >
-      <span className="text-4xl mb-3" aria-hidden="true">
-        {getFileIcon(file.mimeType)}
-      </span>
+      {file.thumbnailUrl && file.mimeType.startsWith('image/') ? (
+        <div className="relative w-full h-16 mb-3 rounded overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-[var(--quant-muted)] to-[var(--quant-border)] blur-sm opacity-60" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={file.thumbnailUrl}
+            alt=""
+            className="relative w-full h-full object-cover rounded"
+          />
+        </div>
+      ) : (
+        <span className="text-4xl mb-3" aria-hidden="true">
+          {getFileIcon(file.mimeType)}
+        </span>
+      )}
       <span className="text-sm font-medium truncate w-full">{file.name}</span>
       <span className="text-xs text-[var(--quant-muted-foreground)] mt-1">
         {formatFileSize(file.size)}
@@ -71,6 +91,6 @@ export function FileCard({ file, onClick, viewMode }: FileCardProps) {
       <span className="text-xs text-[var(--quant-muted-foreground)]">
         {formatDate(file.updatedAt)}
       </span>
-    </button>
+    </motion.button>
   );
 }

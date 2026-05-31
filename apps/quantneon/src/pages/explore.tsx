@@ -4,6 +4,8 @@
 // ============================================================================
 
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { spring } from '@quant/brand';
 import { PageTransition, ErrorState, EmptyState } from '@quant/shared-ui';
 import { useExplore } from '../hooks/useExplore';
 
@@ -11,10 +13,7 @@ function ExploreSkeleton() {
   return (
     <div className="grid grid-cols-3 gap-0.5">
       {Array.from({ length: 9 }).map((_, i) => (
-        <div
-          key={i}
-          className="aspect-square bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"
-        />
+        <div key={i} className="aspect-square bg-[var(--quant-muted)] rounded-lg animate-pulse" />
       ))}
     </div>
   );
@@ -48,11 +47,11 @@ const ExplorePage: React.FC = () => {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-white dark:bg-[#0F0F14] text-gray-900 dark:text-gray-100">
+      <div className="min-h-screen bg-[var(--quant-background)] text-[var(--quant-foreground)]">
         <div className="px-4 max-w-7xl mx-auto py-4">
           <div className="mb-4">
             <input
-              className="h-11 w-full rounded-xl bg-gray-100 dark:bg-gray-800 px-4 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-shadow"
+              className="h-11 w-full rounded-xl bg-[var(--quant-card)] border border-[var(--quant-border)] px-4 text-sm text-[var(--quant-foreground)] placeholder-[var(--quant-muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] transition-shadow"
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -64,11 +63,23 @@ const ExplorePage: React.FC = () => {
           ) : filtered.length === 0 ? (
             <EmptyState title="Nothing found" description="Try a different search term" />
           ) : (
-            <div className="grid grid-cols-3 gap-0.5">
+            <motion.div
+              className="grid grid-cols-3 gap-0.5"
+              initial="hidden"
+              animate="visible"
+              variants={{
+                hidden: { opacity: 0 },
+                visible: { opacity: 1, transition: { staggerChildren: 0.03 } },
+              }}
+            >
               {filtered.map((post) => (
-                <div
+                <motion.div
                   key={post.id}
-                  className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-gray-800"
+                  variants={{
+                    hidden: { opacity: 0, y: 10 },
+                    visible: { opacity: 1, y: 0, transition: { type: 'spring', ...spring.gentle } },
+                  }}
+                  className="relative aspect-square overflow-hidden bg-[var(--quant-muted)]"
                 >
                   <img
                     className="w-full h-full object-cover hover:scale-[1.02] transition-transform"
@@ -81,9 +92,9 @@ const ExplorePage: React.FC = () => {
                       ▶
                     </span>
                   )}
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
       </div>

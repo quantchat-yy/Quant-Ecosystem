@@ -190,6 +190,9 @@ importers:
       '@quant/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@quant/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -281,6 +284,9 @@ importers:
       '@quant/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@quant/quant-tools':
+        specifier: workspace:*
+        version: link:../../packages/quant-tools
       '@quant/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime
@@ -947,6 +953,9 @@ importers:
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@quant/brand':
+        specifier: workspace:*
+        version: link:../../packages/brand
       '@quant/common':
         specifier: workspace:*
         version: link:../../packages/common
@@ -1011,6 +1020,9 @@ importers:
       '@quant/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@quant/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -1117,6 +1129,9 @@ importers:
       ioredis:
         specifier: ^5.6.1
         version: 5.10.1
+      next:
+        specifier: ^15.3.3
+        version: 15.5.18(@opentelemetry/api@1.9.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react:
         specifier: ^18.3.0
         version: 18.3.1
@@ -1330,6 +1345,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.0
         version: 19.2.3(@types/react@19.2.15)
+      next:
+        specifier: ^15.5.16
+        version: 15.5.18(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       react:
         specifier: ^19.0.0
         version: 19.2.6
@@ -12115,6 +12133,30 @@ snapshots:
 
   natural-compare@1.4.0: {}
 
+  next@15.5.18(@opentelemetry/api@1.9.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      '@next/env': 15.5.18
+      '@swc/helpers': 0.5.15
+      caniuse-lite: 1.0.30001793
+      postcss: 8.5.15
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      styled-jsx: 5.1.6(react@18.3.1)
+    optionalDependencies:
+      '@next/swc-darwin-arm64': 15.5.18
+      '@next/swc-darwin-x64': 15.5.18
+      '@next/swc-linux-arm64-gnu': 15.5.18
+      '@next/swc-linux-arm64-musl': 15.5.18
+      '@next/swc-linux-x64-gnu': 15.5.18
+      '@next/swc-linux-x64-musl': 15.5.18
+      '@next/swc-win32-arm64-msvc': 15.5.18
+      '@next/swc-win32-x64-msvc': 15.5.18
+      '@opentelemetry/api': 1.9.1
+      sharp: 0.34.5
+    transitivePeerDependencies:
+      - '@babel/core'
+      - babel-plugin-macros
+
   next@15.5.18(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
     dependencies:
       '@next/env': 15.5.18
@@ -12894,6 +12936,11 @@ snapshots:
 
   stubs@3.0.0:
     optional: true
+
+  styled-jsx@5.1.6(react@18.3.1):
+    dependencies:
+      client-only: 0.0.1
+      react: 18.3.1
 
   styled-jsx@5.1.6(react@19.2.6):
     dependencies:

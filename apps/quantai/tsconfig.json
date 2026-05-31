@@ -16,6 +16,7 @@
     "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./src/app/*"],
+      "@quant/quant-tools": ["../../packages/quant-tools/src/index.ts"],
       "@quant/shared-ui": ["../../packages/shared-ui/src/index.ts"],
       "@quant/shared-ui/*": ["../../packages/shared-ui/src/*"],
       "@quant/common": ["../../packages/common/src/index.ts"],
