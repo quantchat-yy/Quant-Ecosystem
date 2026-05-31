@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { spring } from '@quant/brand';
 import type { VideoTileProps } from '../types/components';
 
-export function VideoTile({
+export const VideoTile = memo(function VideoTile({
   participantId,
   stream,
   displayName,
@@ -91,4 +91,4 @@ export function VideoTile({
       )}
     </motion.div>
   );
-}
+});

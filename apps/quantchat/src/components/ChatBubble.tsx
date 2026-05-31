@@ -16,9 +16,15 @@ interface ChatBubbleProps {
   onPin: (messageId: string) => void;
 }
 
-export const ChatBubble: React.FC<ChatBubbleProps> = ({
-  message, isSent, onReaction, onReply, onEdit, onDelete, onPin,
-}) => {
+export const ChatBubble: React.FC<ChatBubbleProps> = React.memo(function ChatBubble({
+  message,
+  isSent,
+  onReaction,
+  onReply,
+  onEdit,
+  onDelete,
+  onPin,
+}) {
   const [showActions, setShowActions] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(message.content);
@@ -36,12 +42,18 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
 
   const getStatusIcon = (): string => {
     switch (message.status) {
-      case 'sending': return '⏳';
-      case 'sent': return '✓';
-      case 'delivered': return '✓✓';
-      case 'read': return '✓✓';
-      case 'failed': return '⚠️';
-      default: return '';
+      case 'sending':
+        return '⏳';
+      case 'sent':
+        return '✓';
+      case 'delivered':
+        return '✓✓';
+      case 'read':
+        return '✓✓';
+      case 'failed':
+        return '⚠️';
+      default:
+        return '';
     }
   };
 
@@ -110,7 +122,12 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
   return (
     <div
       className={`chat-bubble ${isSent ? 'sent' : 'received'} ${message.isPinned ? 'pinned' : ''}`}
-      onContextMenu={(e) => { e.preventDefault(); handleLongPress(); }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        handleLongPress();
+      }}
+      role="article"
+      aria-label={`Message from ${isSent ? 'you' : 'other'} at ${formatTime(message.createdAt)}`}
     >
       {message.isPinned && <div className="pin-indicator">📌 Pinned</div>}
 
@@ -121,9 +138,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
         </div>
       )}
 
-      <div className="bubble-content">
-        {renderContent()}
-      </div>
+      <div className="bubble-content">{renderContent()}</div>
 
       <div className="bubble-footer">
         {message.isEdited && <span className="edited-label">edited</span>}
@@ -151,25 +166,62 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
       {showActions && (
         <div className="actions-overlay" onClick={() => setShowActions(false)}>
           <div className="quick-reactions">
-            {['❤️', '😂', '😮', '😢', '🙏', '🔥'].map(emoji => (
-              <button key={emoji} onClick={() => { onReaction(message.id, emoji); setShowActions(false); }}>
+            {['❤️', '😂', '😮', '😢', '🙏', '🔥'].map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => {
+                  onReaction(message.id, emoji);
+                  setShowActions(false);
+                }}
+              >
                 {emoji}
               </button>
             ))}
           </div>
           <div className="message-actions-menu">
-            <button onClick={() => { onReply(message); setShowActions(false); }}>Reply</button>
-            {isSent && <button onClick={() => { setIsEditing(true); setShowActions(false); }}>Edit</button>}
-            <button onClick={() => { onPin(message.id); setShowActions(false); }}>
+            <button
+              onClick={() => {
+                onReply(message);
+                setShowActions(false);
+              }}
+            >
+              Reply
+            </button>
+            {isSent && (
+              <button
+                onClick={() => {
+                  setIsEditing(true);
+                  setShowActions(false);
+                }}
+              >
+                Edit
+              </button>
+            )}
+            <button
+              onClick={() => {
+                onPin(message.id);
+                setShowActions(false);
+              }}
+            >
               {message.isPinned ? 'Unpin' : 'Pin'}
             </button>
-            {isSent && <button className="danger" onClick={() => { onDelete(message.id); setShowActions(false); }}>Delete</button>}
+            {isSent && (
+              <button
+                className="danger"
+                onClick={() => {
+                  onDelete(message.id);
+                  setShowActions(false);
+                }}
+              >
+                Delete
+              </button>
+            )}
           </div>
         </div>
       )}
     </div>
   );
-};
+});
 
 function groupReactions(reactions: MessageReaction[]): Array<[string, number]> {
   const counts = new Map<string, number>();

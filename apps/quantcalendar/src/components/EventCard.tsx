@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { spring } from '@quant/brand';
 import type { CalendarEvent } from '../hooks/useEvents';
@@ -10,7 +11,11 @@ interface EventCardProps {
   compact?: boolean;
 }
 
-export function EventCard({ event, onClick, compact = false }: EventCardProps) {
+export const EventCard = memo(function EventCard({
+  event,
+  onClick,
+  compact = false,
+}: EventCardProps) {
   const startTime = new Date(event.start).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
@@ -69,4 +74,4 @@ export function EventCard({ event, onClick, compact = false }: EventCardProps) {
       </div>
     </motion.button>
   );
-}
+});
