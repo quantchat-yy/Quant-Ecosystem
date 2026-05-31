@@ -3,6 +3,7 @@ import type { CoinTransaction, Wallet } from '../types.js';
 export class CoinWallet {
   private wallets = new Map<string, Wallet>();
   private transactions: CoinTransaction[] = [];
+  private processedKeys = new Map<string, CoinTransaction>();
 
   createWallet(userId: string): Wallet {
     if (this.wallets.has(userId)) {
@@ -40,6 +41,13 @@ export class CoinWallet {
     }
 
     const key = idempotencyKey ?? `credit-${crypto.randomUUID()}`;
+
+    // If this key was already processed, return the existing transaction
+    const existing = this.processedKeys.get(key);
+    if (existing) {
+      return existing;
+    }
+
     wallet.balance += amount;
 
     const tx: CoinTransaction = {
@@ -52,6 +60,7 @@ export class CoinWallet {
       timestamp: new Date(),
     };
     this.transactions.push(tx);
+    this.processedKeys.set(key, tx);
     return tx;
   }
 
@@ -73,6 +82,13 @@ export class CoinWallet {
     }
 
     const key = idempotencyKey ?? `debit-${crypto.randomUUID()}`;
+
+    // If this key was already processed, return the existing transaction
+    const existing = this.processedKeys.get(key);
+    if (existing) {
+      return existing;
+    }
+
     wallet.balance -= amount;
 
     const tx: CoinTransaction = {
@@ -85,6 +101,7 @@ export class CoinWallet {
       timestamp: new Date(),
     };
     this.transactions.push(tx);
+    this.processedKeys.set(key, tx);
     return tx;
   }
 

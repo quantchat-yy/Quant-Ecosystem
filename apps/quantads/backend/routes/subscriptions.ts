@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
-import { SubscriptionManager, EntitlementService } from '@quant/quant-economy';
+import { subscriptionManager, entitlementService } from '../services/economy-container.js';
 
 const subscribeSchema = z.object({
   userId: z.string().min(1),
@@ -14,9 +14,6 @@ const upgradeSchema = z.object({
 });
 
 export default async function subscriptionsRoutes(fastify: FastifyInstance) {
-  const subscriptionManager = new SubscriptionManager();
-  const entitlementService = new EntitlementService(subscriptionManager);
-
   fastify.post('/subscribe', async (request, reply) => {
     const parseResult = subscribeSchema.safeParse(request.body);
     if (!parseResult.success) {

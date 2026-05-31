@@ -2,10 +2,10 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
 import {
-  CreatorListingService,
-  RevenueSplitEngine,
-  CreatorPayoutService,
-} from '@quant/quant-economy';
+  listingService,
+  revenueSplitEngine,
+  payoutService,
+} from '../services/economy-container.js';
 
 const createListingSchema = z.object({
   creatorId: z.string().min(1),
@@ -22,10 +22,6 @@ const payoutSchema = z.object({
 });
 
 export default async function creatorEconomyRoutes(fastify: FastifyInstance) {
-  const listingService = new CreatorListingService();
-  const revenueSplitEngine = new RevenueSplitEngine();
-  const payoutService = new CreatorPayoutService(revenueSplitEngine);
-
   fastify.post('/listing', async (request, reply) => {
     const parseResult = createListingSchema.safeParse(request.body);
     if (!parseResult.success) {

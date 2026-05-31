@@ -85,6 +85,7 @@ export class SubscriptionManager {
       return { success: false, message: 'Not a Family subscription' };
     }
     if (!sub.familyMembers) sub.familyMembers = [ownerId];
+    // Cap is 6 total members including the owner (owner + 5 additional members)
     if (sub.familyMembers.length >= 6) {
       return { success: false, message: 'Family plan limited to 6 members' };
     }

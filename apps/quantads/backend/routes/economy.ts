@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
-import { CoinWallet, BuyCoinService, EarnCoinService } from '@quant/quant-economy';
+import { wallet, buyCoinService, earnCoinService } from '../services/economy-container.js';
 
 const createWalletSchema = z.object({
   userId: z.string().min(1),
@@ -24,10 +24,6 @@ const referralSchema = z.object({
 });
 
 export default async function economyRoutes(fastify: FastifyInstance) {
-  const wallet = new CoinWallet();
-  const buyCoinService = new BuyCoinService(wallet);
-  const earnCoinService = new EarnCoinService(wallet);
-
   fastify.post('/', async (request, reply) => {
     const parseResult = createWalletSchema.safeParse(request.body);
     if (!parseResult.success) {
@@ -61,6 +57,7 @@ export default async function economyRoutes(fastify: FastifyInstance) {
 
     const { userId, amount, gateway, paymentRef } = parseResult.data;
 
+    // DEV ONLY: Replace with real Razorpay/Stripe adapter in production
     const mockAdapter = {
       createOrder: async (amt: number, currency: string) => ({
         orderId: `order-${crypto.randomUUID()}`,

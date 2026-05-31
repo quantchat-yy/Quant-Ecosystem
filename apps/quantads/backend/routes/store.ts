@@ -1,12 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
-import {
-  CoinWallet,
-  VirtualGoodsCatalog,
-  CrossAppInventory,
-  StorePurchaseService,
-} from '@quant/quant-economy';
+import { catalog, inventory, purchaseService } from '../services/economy-container.js';
 
 const purchaseSchema = z.object({
   userId: z.string().min(1),
@@ -20,11 +15,6 @@ const catalogQuerySchema = z.object({
 });
 
 export default async function storeRoutes(fastify: FastifyInstance) {
-  const wallet = new CoinWallet();
-  const catalog = new VirtualGoodsCatalog();
-  const inventory = new CrossAppInventory();
-  const purchaseService = new StorePurchaseService(wallet, catalog, inventory);
-
   fastify.get('/catalog', async (request, reply) => {
     const queryResult = catalogQuerySchema.safeParse(request.query);
     if (!queryResult.success) {

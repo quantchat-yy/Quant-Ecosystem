@@ -46,7 +46,7 @@ describe('Subscriptions', () => {
       expect(subManager.isFamilyMember('member-2')).toBe(true);
     });
 
-    it('should limit Family plan to 6 members', () => {
+    it('should limit Family plan to 6 total members (including owner)', () => {
       subManager.subscribe('owner', 'Family');
       for (let i = 1; i <= 5; i++) {
         subManager.addFamilyMember('owner', `member-${i}`);

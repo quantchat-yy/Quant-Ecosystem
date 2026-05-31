@@ -53,6 +53,14 @@ describe('CoinWallet', () => {
       wallet.creditCoins('user-1', 50, 'second');
       expect(wallet.getBalance('user-1')).toBe(150);
     });
+
+    it('should only credit once when the same idempotencyKey is used', () => {
+      wallet.createWallet('user-1');
+      const tx1 = wallet.creditCoins('user-1', 100, 'bonus', 'key-abc');
+      const tx2 = wallet.creditCoins('user-1', 100, 'bonus', 'key-abc');
+      expect(wallet.getBalance('user-1')).toBe(100);
+      expect(tx1.id).toBe(tx2.id);
+    });
   });
 
   describe('debitCoins', () => {

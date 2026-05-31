@@ -1,13 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
-import {
-  CoinWallet,
-  VirtualGoodsCatalog,
-  CrossAppInventory,
-  GiftingService,
-  TippingService,
-} from '@quant/quant-economy';
+import { giftingService, tippingService } from '../services/economy-container.js';
 
 const giftSchema = z.object({
   fromUserId: z.string().min(1),
@@ -22,12 +16,6 @@ const tipSchema = z.object({
 });
 
 export default async function giftingRoutes(fastify: FastifyInstance) {
-  const wallet = new CoinWallet();
-  const catalog = new VirtualGoodsCatalog();
-  const inventory = new CrossAppInventory();
-  const giftingService = new GiftingService(wallet, catalog, inventory);
-  const tippingService = new TippingService(wallet);
-
   fastify.post('/gift', async (request, reply) => {
     const parseResult = giftSchema.safeParse(request.body);
     if (!parseResult.success) {
