@@ -1,5 +1,26 @@
 // @quant/quant-mobile - Capacitor Mega-Shell
 
+// Components
+export { BottomNavigation } from './components/BottomNavigation.js';
+export { AppLauncherGrid } from './components/AppLauncherGrid.js';
+export { NotificationCenter } from './components/NotificationCenter.js';
+export { DeepLinkRouter } from './components/DeepLinkRouter.js';
+export { OfflineBanner } from './components/OfflineBanner.js';
+
+export type { BottomNavigationProps, TabId } from './components/BottomNavigation.js';
+export type {
+  AppLauncherGridProps,
+  AppGridItem,
+  QuickAction,
+} from './components/AppLauncherGrid.js';
+export type {
+  NotificationCenterProps,
+  MobileNotification,
+  NotificationType as MobileNotificationType,
+} from './components/NotificationCenter.js';
+export type { DeepLinkRouterProps, RoutePattern } from './components/DeepLinkRouter.js';
+export type { OfflineBannerProps } from './components/OfflineBanner.js';
+
 // Plugins
 export {
   PushNotificationService,
