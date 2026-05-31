@@ -1,7 +1,19 @@
 import { test, expect } from '@playwright/test';
 import { runAxeAnalysis } from './a11y-utils';
 
-const ROUTES_TO_TEST = ['/', '/auth/login', '/dashboard', '/compose'];
+const ROUTES_TO_TEST = [
+  '/',
+  '/auth/login',
+  '/dashboard',
+  '/compose',
+  '/calendar',
+  '/meet',
+  '/drive',
+  '/sync',
+  '/tube',
+  '/neon',
+  '/docs',
+];
 
 test.describe('Accessibility (axe-core)', () => {
   for (const route of ROUTES_TO_TEST) {
