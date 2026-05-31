@@ -2,6 +2,9 @@ import { NextRequest } from 'next/server';
 import { CrossAppOrchestrator, ContextManager, allTools } from '@quant/quant-tools';
 import type { OrchestratorEvent } from '@quant/quant-tools';
 
+const MAX_INPUT_LENGTH = 2000;
+const STREAM_TIMEOUT_MS = 30_000;
+
 interface AskRequestBody {
   input: string;
   userId?: string;
@@ -14,6 +17,18 @@ interface AskRequestBody {
 }
 
 export async function POST(request: NextRequest) {
+  // Auth check: require Bearer token in Authorization header
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ') || authHeader.length <= 7) {
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized: missing or invalid Bearer token' }),
+      {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
+  }
+
   const body = (await request.json()) as AskRequestBody;
 
   if (!body.input || typeof body.input !== 'string') {
@@ -21,6 +36,17 @@ export async function POST(request: NextRequest) {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
+  }
+
+  // Input length validation
+  if (body.input.length > MAX_INPUT_LENGTH) {
+    return new Response(
+      JSON.stringify({ error: `Input exceeds maximum length of ${MAX_INPUT_LENGTH} characters` }),
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
   }
 
   const userId = body.userId ?? 'anonymous';
@@ -44,6 +70,15 @@ export async function POST(request: NextRequest) {
         sendEvent(event.type, event.data);
       });
 
+      // Timeout guard: close stream if orchestrator stalls
+      let timedOut = false;
+      const timeout = setTimeout(() => {
+        timedOut = true;
+        sendEvent('error', { error: 'Stream timeout: orchestrator did not respond within 30s' });
+        unsubscribe();
+        controller.close();
+      }, STREAM_TIMEOUT_MS);
+
       try {
         const results = await orchestrator.execute(body.input, {
           userId,
@@ -51,13 +86,20 @@ export async function POST(request: NextRequest) {
           dryRun: body.dryRun,
         });
 
-        sendEvent('done', { results });
+        if (!timedOut) {
+          sendEvent('done', { results });
+        }
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        sendEvent('error', { error: message });
+        if (!timedOut) {
+          const message = err instanceof Error ? err.message : 'Unknown error';
+          sendEvent('error', { error: message });
+        }
       } finally {
-        unsubscribe();
-        controller.close();
+        clearTimeout(timeout);
+        if (!timedOut) {
+          unsubscribe();
+          controller.close();
+        }
       }
     },
   });

@@ -45,6 +45,7 @@ export const UniversalSearch: React.FC<UniversalSearchProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchGenerationRef = useRef(0);
 
   // Keyboard shortcut listener (Cmd+K / Ctrl+K or /)
   useEffect(() => {
@@ -98,11 +99,17 @@ export const UniversalSearch: React.FC<UniversalSearchProps> = ({
       clearTimeout(debounceRef.current);
     }
 
+    // Increment generation to detect stale responses
+    const generation = ++searchGenerationRef.current;
+
     debounceRef.current = setTimeout(async () => {
       const searchResults = await onSearch(query);
-      setResults(searchResults);
-      setIsLoading(false);
-      setActiveIndex(0);
+      // Only update state if this is still the latest request
+      if (searchGenerationRef.current === generation) {
+        setResults(searchResults);
+        setIsLoading(false);
+        setActiveIndex(0);
+      }
     }, 200);
 
     return () => {

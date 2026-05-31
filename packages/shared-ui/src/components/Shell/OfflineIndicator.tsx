@@ -10,25 +10,43 @@ export type ConnectionStatus = 'online' | 'offline' | 'syncing';
 export interface OfflineIndicatorProps {
   onStatusChange?: (status: ConnectionStatus) => void;
   syncMessage?: string;
+  /** When provided, controls the syncing state externally instead of using a hardcoded timeout. */
+  isSyncing?: boolean;
 }
 
 export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
   onStatusChange,
   syncMessage = 'Syncing changes...',
+  isSyncing,
 }) => {
   const [status, setStatus] = useState<ConnectionStatus>(
     typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'online',
   );
 
+  // Respond to external isSyncing prop changes
+  useEffect(() => {
+    if (isSyncing === undefined) return;
+    if (isSyncing && status !== 'offline') {
+      setStatus('syncing');
+      onStatusChange?.('syncing');
+    } else if (!isSyncing && status === 'syncing') {
+      setStatus('online');
+      onStatusChange?.('online');
+    }
+  }, [isSyncing]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleOnline = useCallback(() => {
     setStatus('syncing');
     onStatusChange?.('syncing');
-    // Simulate sync delay
-    setTimeout(() => {
-      setStatus('online');
-      onStatusChange?.('online');
-    }, 2000);
-  }, [onStatusChange]);
+    // If isSyncing prop is provided, let the parent control the transition.
+    // Otherwise fall back to a timeout for backward compat.
+    if (isSyncing === undefined) {
+      setTimeout(() => {
+        setStatus('online');
+        onStatusChange?.('online');
+      }, 2000);
+    }
+  }, [onStatusChange, isSyncing]);
 
   const handleOffline = useCallback(() => {
     setStatus('offline');
