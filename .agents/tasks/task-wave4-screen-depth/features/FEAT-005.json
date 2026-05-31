@@ -2,7 +2,7 @@
   "id": "FEAT-005",
   "type": "feat",
   "description": "QuantSync + QuantTube Core Screen Depth - QuantSync: infinite scroll feed with like/comment/repost/bookmark interactions, compose post modal, trending sidebar, community pages. QuantTube: video player with chapters/quality selector, comment section, recommendation sidebar, channel pages, upload flow.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "1. Enhance apps/quantsync/src/app/page.tsx feed: Add infinite scroll with intersection observer (load more when near bottom), like button with optimistic count update + heart animation, comment count that expands inline comment thread, repost with quote-repost option, bookmark with saved indicator, share button with copy-link toast.",
     "2. Create apps/quantsync/src/app/compose/page.tsx (or modal): Post composer with character counter (280 limit with color warning), media attachment (up to 4 images in grid), poll creator (2-4 options + duration), mention autocomplete (@username), hashtag suggestions, audience selector (public/followers/mutual).",
