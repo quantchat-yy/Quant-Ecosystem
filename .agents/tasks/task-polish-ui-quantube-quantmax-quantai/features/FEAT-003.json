@@ -2,7 +2,7 @@
   "id": "FEAT-003",
   "type": "feat",
   "description": "Polish QuantMax app: integrate @quant/brand, add Framer Motion spring-physics animations to SwipeCard/VideoFeed, dark mode, responsive layout, loading/empty/error states, staggered list entrances, haptic-style microinteractions.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Update apps/quantmax/src/pages/globals.css: Add complete brand CSS variables using the same pattern as quantai (brand colors, surfaces, motion, typography). Add dark mode vars under .dark class. Add responsive breakpoint variables 360-1440px.",
     "Update apps/quantmax/tailwind.config.ts: Extend theme with brand colors from CSS vars, add dark mode class strategy, add brand font families, include shared-ui content path.",
