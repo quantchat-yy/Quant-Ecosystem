@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { AppShell, Sidebar, SearchInput, PageTransition, FadeIn } from '@quant/shared-ui';
 import type { SidebarItem } from '@quant/shared-ui';
 import type { FileItem } from '../hooks/useFiles';
@@ -99,13 +100,15 @@ export default function DrivePage() {
           </PageTransition>
         </div>
 
-        {selectedFile && (
-          <FilePreview
-            file={selectedFile}
-            onClose={() => setSelectedFile(null)}
-            onShare={() => setShareDialogOpen(true)}
-          />
-        )}
+        <AnimatePresence>
+          {selectedFile && (
+            <FilePreview
+              file={selectedFile}
+              onClose={() => setSelectedFile(null)}
+              onShare={() => setShareDialogOpen(true)}
+            />
+          )}
+        </AnimatePresence>
       </div>
 
       {selectedFile && (
