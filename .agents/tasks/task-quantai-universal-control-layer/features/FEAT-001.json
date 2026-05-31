@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Enhance the universal tool registry with NLP-powered intent parsing, an AI-driven multi-step planner that handles natural language like 'schedule a meeting with the team tomorrow at 5pm and message them on chat', and a robust workflow executor with error handling, rollback support, and confirmation flow. Also add a voice-command-to-intent bridge in packages/ai that pipes speech transcription directly into the quant-tools orchestrator.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Step 1: In packages/quant-tools/src/planner/intent-parser.ts, create a new IntentParser class that takes natural language input and produces structured intents. It should: (a) use regex + keyword patterns to detect multiple tool intents in a single sentence (e.g. 'schedule meeting AND message them'), (b) extract temporal expressions (tomorrow, at 5pm, next Monday) into ISO timestamps, (c) extract entity references (team, John, project-x) from input, (d) resolve pronouns/references ('them', 'it') using ContextManager. Export this from index.ts.",
     "Step 2: In packages/quant-tools/src/planner/multi-step-planner.ts, extend MultiStepPlanner to add a method planFromParsedIntents(intents: ParsedIntent[], availableTools: ToolDefinition[]): ToolPlan that: (a) matches each parsed intent to the best-fit tool by combining tag/name/description scoring with the parsed action verb and entity types, (b) auto-wires dependencies (output of calendar.create feeds into chat.send as reference), (c) sets appropriate params from extracted entities/timestamps, (d) validates the resulting plan.",
@@ -37,5 +37,5 @@
     "pnpm --filter @quant/quantai test"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Pre-existing issue: @quant/database module not built causes tsconfig.backend.json typecheck failure and 4 backend test suites to fail (chat.service, session.service, agent-marketplace.service, tool.service). These are unaffected by our changes. The first tsconfig (main) passes cleanly for our code. All 73 quant-tools tests pass, all 193 ai tests pass, all 142 relevant quantai tests pass including ask-route.test.ts (4), ask-quant-panel.test.tsx (11), and tool-call-card.test.tsx (12). Added @quant/ai path mapping to apps/quantai/tsconfig.json to resolve import resolution for the route file."
 }
