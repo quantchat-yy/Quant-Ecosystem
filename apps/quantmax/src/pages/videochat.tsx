@@ -5,6 +5,9 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { spring } from '@quant/brand';
+import { ErrorState } from '@quant/shared-ui';
 
 interface ChatMessage {
   id: string;
@@ -33,9 +36,25 @@ interface ConnectionStats {
 }
 
 const SUGGESTED_INTERESTS = [
-  'Music', 'Gaming', 'Travel', 'Tech', 'Sports', 'Art', 'Movies',
-  'Cooking', 'Fitness', 'Books', 'Photography', 'Dance', 'Comedy',
-  'Fashion', 'Science', 'Nature', 'Languages', 'Anime', 'Coding',
+  'Music',
+  'Gaming',
+  'Travel',
+  'Tech',
+  'Sports',
+  'Art',
+  'Movies',
+  'Cooking',
+  'Fitness',
+  'Books',
+  'Photography',
+  'Dance',
+  'Comedy',
+  'Fashion',
+  'Science',
+  'Nature',
+  'Languages',
+  'Anime',
+  'Coding',
 ];
 
 const VideoChatPage: React.FC = () => {
@@ -87,7 +106,7 @@ const VideoChatPage: React.FC = () => {
     if (connectionState === 'connected' && autoSkipEnabled) {
       setAutoSkipTimer(autoSkipSeconds);
       autoSkipRef.current = setInterval(() => {
-        setAutoSkipTimer(prev => {
+        setAutoSkipTimer((prev) => {
           if (prev <= 1) {
             handleSkip();
             return 0;
@@ -104,7 +123,7 @@ const VideoChatPage: React.FC = () => {
   useEffect(() => {
     if (connectionState === 'connected') {
       statsRef.current = setInterval(() => {
-        setConnectionStats(prev => ({
+        setConnectionStats((prev) => ({
           ...prev,
           latency: Math.max(10, prev.latency + Math.floor(Math.random() * 20) - 10),
           packetLoss: Math.max(0, Math.min(5, prev.packetLoss + (Math.random() - 0.5) * 0.5)),
@@ -124,7 +143,7 @@ const VideoChatPage: React.FC = () => {
     setSearchDuration(0);
 
     searchTimerRef.current = setInterval(() => {
-      setSearchDuration(prev => prev + 1);
+      setSearchDuration((prev) => prev + 1);
     }, 1000);
 
     // Simulate finding a match
@@ -135,7 +154,7 @@ const VideoChatPage: React.FC = () => {
 
       setTimeout(() => {
         const userInterests = ['Music', 'Gaming', 'Travel', 'Tech', 'Sports'];
-        const matched = interests.filter(i => userInterests.includes(i));
+        const matched = interests.filter((i) => userInterests.includes(i));
         setMatchedInterests(matched.length > 0 ? matched : []);
         setMatchedUser({
           id: `user-${Date.now()}`,
@@ -145,7 +164,7 @@ const VideoChatPage: React.FC = () => {
           country: ['US', 'UK', 'DE', 'FR', 'JP', 'BR', 'IN'][Math.floor(Math.random() * 7)],
         });
         setConnectionState('connected');
-        setSessionCount(prev => prev + 1);
+        setSessionCount((prev) => prev + 1);
       }, 1000);
     }, searchTime);
   }, [interests]);
@@ -178,32 +197,40 @@ const VideoChatPage: React.FC = () => {
       timestamp: Date.now(),
       isOwn: true,
     };
-    setMessages(prev => [...prev, newMsg]);
+    setMessages((prev) => [...prev, newMsg]);
     setMessageInput('');
 
     // Simulate reply
-    setTimeout(() => {
-      const reply: ChatMessage = {
-        id: `msg-reply-${Date.now()}`,
-        senderId: matchedUser?.id || 'other',
-        text: ['Hey!', 'Nice to meet you!', 'Cool, what are you into?', 'Thats awesome!', 'haha'][Math.floor(Math.random() * 5)],
-        timestamp: Date.now(),
-        isOwn: false,
-      };
-      setMessages(prev => [...prev, reply]);
-    }, 1500 + Math.random() * 2000);
+    setTimeout(
+      () => {
+        const reply: ChatMessage = {
+          id: `msg-reply-${Date.now()}`,
+          senderId: matchedUser?.id || 'other',
+          text: ['Hey!', 'Nice to meet you!', 'Cool, what are you into?', 'Thats awesome!', 'haha'][
+            Math.floor(Math.random() * 5)
+          ],
+          timestamp: Date.now(),
+          isOwn: false,
+        };
+        setMessages((prev) => [...prev, reply]);
+      },
+      1500 + Math.random() * 2000,
+    );
   }, [messageInput, connectionState, matchedUser]);
 
-  const handleAddInterest = useCallback((interest: string) => {
-    const trimmed = interest.trim();
-    if (trimmed && !interests.includes(trimmed) && interests.length < 10) {
-      setInterests(prev => [...prev, trimmed]);
-      setInterestInput('');
-    }
-  }, [interests]);
+  const handleAddInterest = useCallback(
+    (interest: string) => {
+      const trimmed = interest.trim();
+      if (trimmed && !interests.includes(trimmed) && interests.length < 10) {
+        setInterests((prev) => [...prev, trimmed]);
+        setInterestInput('');
+      }
+    },
+    [interests],
+  );
 
   const handleRemoveInterest = useCallback((interest: string) => {
-    setInterests(prev => prev.filter(i => i !== interest));
+    setInterests((prev) => prev.filter((i) => i !== interest));
   }, []);
 
   const handleReport = useCallback(() => {
@@ -215,95 +242,143 @@ const VideoChatPage: React.FC = () => {
 
   const getQualityBars = useMemo(() => {
     switch (connectionStats.quality) {
-      case 'excellent': return 4;
-      case 'good': return 3;
-      case 'fair': return 2;
-      case 'poor': return 1;
-      default: return 0;
+      case 'excellent':
+        return 4;
+      case 'good':
+        return 3;
+      case 'fair':
+        return 2;
+      case 'poor':
+        return 1;
+      default:
+        return 0;
     }
   }, [connectionStats.quality]);
 
   const qualityColor = useMemo(() => {
     switch (connectionStats.quality) {
-      case 'excellent': return '#00ff00';
-      case 'good': return '#88ff00';
-      case 'fair': return '#ffaa00';
-      case 'poor': return '#ff0000';
-      default: return '#888888';
+      case 'excellent':
+        return '#00ff00';
+      case 'good':
+        return '#88ff00';
+      case 'fair':
+        return '#ffaa00';
+      case 'poor':
+        return '#ff0000';
+      default:
+        return '#888888';
     }
   }, [connectionStats.quality]);
 
   // Idle state - interest selection and start
   if (connectionState === 'idle') {
     return (
-      <div className="videochat-page">
-        <div className="videochat-lobby">
-          <h1 className="lobby-title">Video Chat</h1>
-          <p className="lobby-subtitle">Meet new people with shared interests</p>
+      <div className="min-h-screen bg-[var(--quant-background)] text-[var(--quant-foreground)]">
+        <div className="max-w-md mx-auto px-4 py-8">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: 'spring', ...spring.gentle }}
+            className="text-center mb-8"
+          >
+            <h1 className="text-2xl font-bold mb-2">Video Chat</h1>
+            <p className="text-sm text-[var(--quant-muted-foreground)]">
+              Meet new people with shared interests
+            </p>
+          </motion.div>
 
-          <div className="interests-section">
-            <h3 className="interests-title">Your Interests</h3>
-            <div className="interests-input-row">
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-[var(--quant-muted-foreground)] mb-3">
+              Your Interests
+            </h3>
+            <div className="flex gap-2 mb-3">
               <input
-                className="interest-input"
+                className="flex-1 h-11 px-4 rounded-lg bg-[var(--quant-card)] border border-[var(--quant-border)] text-sm text-[var(--quant-foreground)] placeholder-[var(--quant-muted-foreground)] focus:outline-none focus:border-[var(--brand-primary)]"
                 placeholder="Add an interest..."
                 value={interestInput}
                 onChange={(e) => setInterestInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddInterest(interestInput)}
               />
-              <button className="add-interest-btn" onClick={() => handleAddInterest(interestInput)}>+</button>
+              <button
+                className="h-11 w-11 rounded-lg bg-[var(--brand-primary)] text-white font-bold flex items-center justify-center"
+                onClick={() => handleAddInterest(interestInput)}
+              >
+                +
+              </button>
             </div>
-            <div className="selected-interests">
-              {interests.map(interest => (
-                <span key={interest} className="interest-tag selected">
-                  {interest}
-                  <button className="remove-interest" onClick={() => handleRemoveInterest(interest)}>x</button>
-                </span>
-              ))}
-            </div>
-            <div className="suggested-interests">
-              <h4>Suggested</h4>
-              <div className="suggestions-grid">
-                {SUGGESTED_INTERESTS.filter(s => !interests.includes(s)).map(suggestion => (
-                  <button
-                    key={suggestion}
-                    className="suggestion-tag"
-                    onClick={() => handleAddInterest(suggestion)}
+            {interests.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {interests.map((interest) => (
+                  <span
+                    key={interest}
+                    className="flex items-center gap-1 px-3 py-1 rounded-full bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] text-sm font-medium border border-[var(--brand-primary)]/30"
                   >
-                    {suggestion}
-                  </button>
+                    {interest}
+                    <button
+                      className="ml-0.5 text-xs hover:opacity-70"
+                      onClick={() => handleRemoveInterest(interest)}
+                    >
+                      &#10005;
+                    </button>
+                  </span>
                 ))}
+              </div>
+            )}
+            <div className="mb-4">
+              <h4 className="text-xs font-medium text-[var(--quant-muted-foreground)] mb-2">
+                Suggested
+              </h4>
+              <div className="flex flex-wrap gap-1.5">
+                {SUGGESTED_INTERESTS.filter((s) => !interests.includes(s))
+                  .slice(0, 12)
+                  .map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      className="px-3 py-1 rounded-full text-xs font-medium bg-[var(--quant-card)] border border-[var(--quant-border)] text-[var(--quant-muted-foreground)] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
+                      onClick={() => handleAddInterest(suggestion)}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
               </div>
             </div>
           </div>
 
-          <div className="auto-skip-setting">
-            <label className="auto-skip-label">
+          <div className="flex items-center gap-2 mb-6 text-sm text-[var(--quant-muted-foreground)]">
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={autoSkipEnabled}
                 onChange={(e) => setAutoSkipEnabled(e.target.checked)}
+                className="rounded border-[var(--quant-border)]"
               />
               Auto-skip after
-              <input
-                type="number"
-                className="auto-skip-input"
-                value={autoSkipSeconds}
-                onChange={(e) => setAutoSkipSeconds(Number(e.target.value))}
-                min={10}
-                max={120}
-              />
-              seconds
             </label>
+            <input
+              type="number"
+              className="w-14 h-8 px-2 rounded bg-[var(--quant-card)] border border-[var(--quant-border)] text-center text-[var(--quant-foreground)] text-sm"
+              value={autoSkipSeconds}
+              onChange={(e) => setAutoSkipSeconds(Number(e.target.value))}
+              min={10}
+              max={120}
+            />
+            <span>seconds</span>
           </div>
 
-          <button className="start-match-btn" onClick={startSearch}>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="w-full py-3 min-h-[44px] rounded-xl bg-[var(--brand-primary)] text-white font-semibold text-base hover:opacity-90 transition-opacity"
+            onClick={startSearch}
+          >
             Start Matching
-          </button>
+          </motion.button>
 
-          <div className="session-stats">
-            <span className="stat-item">Sessions today: {sessionCount}</span>
-          </div>
+          {sessionCount > 0 && (
+            <p className="text-center text-xs text-[var(--quant-muted-foreground)] mt-4">
+              Sessions today: {sessionCount}
+            </p>
+          )}
         </div>
       </div>
     );
@@ -312,21 +387,49 @@ const VideoChatPage: React.FC = () => {
   // Searching state
   if (connectionState === 'searching') {
     return (
-      <div className="videochat-page">
-        <div className="searching-screen">
-          <div className="searching-animation">
-            <div className="pulse-ring ring-1" />
-            <div className="pulse-ring ring-2" />
-            <div className="pulse-ring ring-3" />
-            <div className="search-icon">🔍</div>
+      <div className="min-h-screen bg-[var(--quant-background)] flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', ...spring.gentle }}
+          className="flex flex-col items-center gap-4"
+        >
+          <div className="relative w-24 h-24">
+            <motion.div
+              className="absolute inset-0 rounded-full border-2 border-[var(--brand-primary)] opacity-30"
+              animate={{ scale: [1, 1.8], opacity: [0.3, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            />
+            <motion.div
+              className="absolute inset-2 rounded-full border-2 border-[var(--brand-primary)] opacity-30"
+              animate={{ scale: [1, 1.6], opacity: [0.3, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity, delay: 0.3 }}
+            />
+            <motion.div
+              className="absolute inset-4 rounded-full border-2 border-[var(--brand-primary)] opacity-30"
+              animate={{ scale: [1, 1.4], opacity: [0.3, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity, delay: 0.6 }}
+            />
+            <div className="absolute inset-0 flex items-center justify-center text-3xl">
+              &#128269;
+            </div>
           </div>
-          <h2 className="searching-title">Finding someone...</h2>
-          <p className="searching-time">Searching for {searchDuration}s</p>
+          <h2 className="text-xl font-bold text-[var(--quant-foreground)]">Finding someone...</h2>
+          <p className="text-sm text-[var(--quant-muted-foreground)]">
+            Searching for {searchDuration}s
+          </p>
           {interests.length > 0 && (
-            <p className="searching-interests">Looking for: {interests.join(', ')}</p>
+            <p className="text-xs text-[var(--quant-muted-foreground)]">
+              Looking for: {interests.join(', ')}
+            </p>
           )}
-          <button className="cancel-search-btn" onClick={handleDisconnect}>Cancel</button>
-        </div>
+          <button
+            className="mt-4 px-6 py-2 min-h-[44px] text-sm font-medium border border-[var(--quant-border)] rounded-lg text-[var(--quant-foreground)] hover:bg-[var(--quant-card)] transition-colors"
+            onClick={handleDisconnect}
+          >
+            Cancel
+          </button>
+        </motion.div>
       </div>
     );
   }
@@ -334,16 +437,34 @@ const VideoChatPage: React.FC = () => {
   // Connecting state
   if (connectionState === 'connecting') {
     return (
-      <div className="videochat-page">
-        <div className="connecting-screen">
-          <div className="connecting-animation">
-            <div className="connect-dot dot-1" />
-            <div className="connect-dot dot-2" />
-            <div className="connect-dot dot-3" />
+      <div className="min-h-screen bg-[var(--quant-background)] flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', ...spring.gentle }}
+          className="flex flex-col items-center gap-4"
+        >
+          <div className="relative w-32 h-24 rounded-xl bg-[var(--quant-muted)] overflow-hidden">
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--quant-card)] to-transparent"
+              animate={{ x: ['-100%', '100%'] }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+            />
           </div>
-          <h2 className="connecting-title">Connecting...</h2>
-          <p className="connecting-subtitle">Establishing secure connection</p>
-        </div>
+          <h2 className="text-lg font-semibold text-[var(--quant-foreground)]">Connecting...</h2>
+          <p className="text-sm text-[var(--quant-muted-foreground)]">
+            Establishing secure connection
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (connectionState === 'error') {
+    return (
+      <div className="min-h-screen bg-[var(--quant-background)] flex items-center justify-center">
+        <ErrorState message="Connection failed. Please try again." onRetry={startSearch} />
       </div>
     );
   }
@@ -375,7 +496,7 @@ const VideoChatPage: React.FC = () => {
         {/* Connection Quality Indicator */}
         <div className="connection-quality" title={`Latency: ${connectionStats.latency}ms`}>
           <div className="quality-bars">
-            {[1, 2, 3, 4].map(bar => (
+            {[1, 2, 3, 4].map((bar) => (
               <div
                 key={bar}
                 className={`quality-bar ${bar <= getQualityBars ? 'active' : ''}`}
@@ -390,8 +511,10 @@ const VideoChatPage: React.FC = () => {
         {matchedInterests.length > 0 && (
           <div className="matched-interests-banner">
             <span className="match-label">Common interests:</span>
-            {matchedInterests.map(interest => (
-              <span key={interest} className="matched-interest-tag">{interest}</span>
+            {matchedInterests.map((interest) => (
+              <span key={interest} className="matched-interest-tag">
+                {interest}
+              </span>
             ))}
           </div>
         )}
@@ -400,7 +523,13 @@ const VideoChatPage: React.FC = () => {
         {autoSkipEnabled && autoSkipTimer > 0 && (
           <div className="auto-skip-indicator">
             <span className="skip-timer">Auto-skip in {autoSkipTimer}s</span>
-            <button className="cancel-auto-skip" onClick={() => { setAutoSkipEnabled(false); if (autoSkipRef.current) clearInterval(autoSkipRef.current); }}>
+            <button
+              className="cancel-auto-skip"
+              onClick={() => {
+                setAutoSkipEnabled(false);
+                if (autoSkipRef.current) clearInterval(autoSkipRef.current);
+              }}
+            >
               Cancel
             </button>
           </div>
@@ -412,17 +541,22 @@ const VideoChatPage: React.FC = () => {
         <div className="chat-sidebar">
           <div className="chat-header">
             <h4 className="chat-title">Chat</h4>
-            <button className="minimize-chat" onClick={() => setShowChat(false)}>&#8722;</button>
+            <button className="minimize-chat" onClick={() => setShowChat(false)}>
+              &#8722;
+            </button>
           </div>
           <div className="chat-messages">
             {messages.length === 0 && (
               <p className="chat-empty">Say hi to start the conversation!</p>
             )}
-            {messages.map(msg => (
+            {messages.map((msg) => (
               <div key={msg.id} className={`chat-message ${msg.isOwn ? 'own' : 'other'}`}>
                 <span className="message-text">{msg.text}</span>
                 <span className="message-time">
-                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(msg.timestamp).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </span>
               </div>
             ))}
@@ -436,7 +570,9 @@ const VideoChatPage: React.FC = () => {
               onChange={(e) => setMessageInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
             />
-            <button className="send-msg-btn" onClick={handleSendMessage}>Send</button>
+            <button className="send-msg-btn" onClick={handleSendMessage}>
+              Send
+            </button>
           </div>
         </div>
       )}
@@ -449,11 +585,17 @@ const VideoChatPage: React.FC = () => {
 
       {/* Control Bar */}
       <div className="videochat-controls">
-        <button className={`control-btn ${!isCameraOn ? 'off' : ''}`} onClick={() => setIsCameraOn(!isCameraOn)}>
+        <button
+          className={`control-btn ${!isCameraOn ? 'off' : ''}`}
+          onClick={() => setIsCameraOn(!isCameraOn)}
+        >
           <span className="control-icon">{isCameraOn ? '📷' : '📷'}</span>
           <span className="control-label">{isCameraOn ? 'Cam On' : 'Cam Off'}</span>
         </button>
-        <button className={`control-btn ${!isMicOn ? 'off' : ''}`} onClick={() => setIsMicOn(!isMicOn)}>
+        <button
+          className={`control-btn ${!isMicOn ? 'off' : ''}`}
+          onClick={() => setIsMicOn(!isMicOn)}
+        >
           <span className="control-icon">{isMicOn ? '🎤' : '🔇'}</span>
           <span className="control-label">{isMicOn ? 'Mic On' : 'Mic Off'}</span>
         </button>
@@ -477,19 +619,25 @@ const VideoChatPage: React.FC = () => {
           <div className="report-modal" onClick={(e) => e.stopPropagation()}>
             <h3 className="report-title">Report User</h3>
             <div className="report-reasons">
-              {['Inappropriate content', 'Harassment', 'Spam', 'Underage user', 'Other'].map(reason => (
-                <button
-                  key={reason}
-                  className={`report-reason-btn ${reportReason === reason ? 'selected' : ''}`}
-                  onClick={() => setReportReason(reason)}
-                >
-                  {reason}
-                </button>
-              ))}
+              {['Inappropriate content', 'Harassment', 'Spam', 'Underage user', 'Other'].map(
+                (reason) => (
+                  <button
+                    key={reason}
+                    className={`report-reason-btn ${reportReason === reason ? 'selected' : ''}`}
+                    onClick={() => setReportReason(reason)}
+                  >
+                    {reason}
+                  </button>
+                ),
+              )}
             </div>
             <div className="report-actions">
-              <button className="cancel-report" onClick={() => setShowReportModal(false)}>Cancel</button>
-              <button className="submit-report" onClick={handleReport} disabled={!reportReason}>Report & Skip</button>
+              <button className="cancel-report" onClick={() => setShowReportModal(false)}>
+                Cancel
+              </button>
+              <button className="submit-report" onClick={handleReport} disabled={!reportReason}>
+                Report & Skip
+              </button>
             </div>
           </div>
         </div>

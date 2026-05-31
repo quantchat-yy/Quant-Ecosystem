@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "feat",
   "description": "UI/UX Excellence Pass: Loading states, empty states, error boundaries, spring animations, and dark mode consistency across all wired apps",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Step 1 - Create reusable state components in shared-ui if not already present: Verify/add SkeletonLoader (configurable rows/shapes), EmptyState (illustration + title + description + CTA button), ErrorState (icon + message + retry button), OptimisticWrapper (shows optimistic value with rollback). Check packages/shared-ui/src/components/States/ directory.",
     "Step 2 - QuantTube UI polish: In key pages (src/pages/index.tsx, src/pages/watch/[id].tsx, src/pages/music.tsx, src/pages/shorts.tsx), add: Skeleton loading states during data fetch, branded empty states when no content, error boundaries with retry, spring page transitions (already in _app.tsx), framer-motion stagger animations for lists/grids.",

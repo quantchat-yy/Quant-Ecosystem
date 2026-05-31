@@ -944,6 +944,9 @@ importers:
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@quant/brand':
+        specifier: workspace:*
+        version: link:../../packages/brand
       '@quant/common':
         specifier: workspace:*
         version: link:../../packages/common

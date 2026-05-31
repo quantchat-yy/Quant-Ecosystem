@@ -46,12 +46,12 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
 
   const textContent = (
     <>
-      <h3 className="text-lg font-semibold text-gray-900 mb-1">{title}</h3>
-      <p className="text-sm text-gray-500 max-w-sm mb-4">{message}</p>
+      <h3 className="text-lg font-semibold text-[var(--quant-foreground)] mb-1">{title}</h3>
+      <p className="text-sm text-[var(--quant-muted-foreground)] max-w-sm mb-4">{message}</p>
       {onRetry && (
         <button
           onClick={onRetry}
-          className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+          className="px-4 py-2 text-sm font-medium text-white bg-[var(--quant-destructive)] rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--quant-destructive)] focus:ring-offset-2"
         >
           {retryLabel}
         </button>

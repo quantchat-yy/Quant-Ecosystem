@@ -253,12 +253,23 @@ export type {
 } from './components/Shell';
 
 // State components
-export { EmptyState, LoadingState, ErrorState, SuccessState } from './components/States';
+export {
+  EmptyState,
+  LoadingState,
+  ErrorState,
+  SuccessState,
+  SkeletonCard,
+  SkeletonGrid,
+  OptimisticWrapper,
+} from './components/States';
 export type {
   EmptyStateProps,
   LoadingStateProps,
   ErrorStateProps,
   SuccessStateProps,
+  SkeletonCardProps,
+  SkeletonGridProps,
+  OptimisticWrapperProps,
 } from './components/States';
 
 // Guards
