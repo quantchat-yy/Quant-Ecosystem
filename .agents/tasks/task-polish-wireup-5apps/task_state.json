@@ -1,0 +1,11 @@
+{
+  "task_id": "task-polish-wireup-5apps",
+  "features": {
+    "FEAT-003": {
+      "title": "Polish and wire QuantDrive",
+      "status": "in_progress",
+      "app": "@quant/quantdrive",
+      "path": "apps/quantdrive"
+    }
+  }
+}
