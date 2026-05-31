@@ -12,6 +12,7 @@ import {
 } from '@quant/shared-ui';
 import type { SidebarItem } from '@quant/shared-ui';
 import { DocList } from '../components/DocList';
+import { TemplateGallery } from '../components/TemplateGallery';
 import { useCreateDocument } from '../hooks/useDocuments';
 
 const NAV_ITEMS: SidebarItem[] = [
@@ -25,12 +26,27 @@ const NAV_ITEMS: SidebarItem[] = [
 
 export default function DocsPage() {
   const [activeFilter, setActiveFilter] = useState('all');
+  const [showTemplates, setShowTemplates] = useState(false);
   const router = useRouter();
   const createDoc = useCreateDocument();
 
   const handleNewDocument = () => {
     createDoc.mutate(
       { title: 'Untitled Document' },
+      {
+        onSuccess: (data: { id: string }) => {
+          router.push(`/doc/${data.id}`);
+        },
+      },
+    );
+  };
+
+  const handleTemplateSelect = (templateId: string) => {
+    setShowTemplates(false);
+    createDoc.mutate(
+      {
+        title: templateId === 'blank' ? 'Untitled Document' : `New ${templateId.replace('-', ' ')}`,
+      },
       {
         onSuccess: (data: { id: string }) => {
           router.push(`/doc/${data.id}`);
@@ -70,6 +86,14 @@ export default function DocsPage() {
               >
                 New Document
               </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowTemplates(true)}
+                className="min-h-[44px] w-full focus-visible:ring-2 focus-visible:ring-[var(--brand-ring)]"
+              >
+                New from Template
+              </Button>
             </div>
           }
           aria-label="Document navigation"
@@ -78,7 +102,14 @@ export default function DocsPage() {
       aria-label="QuantDocs application"
     >
       <PageTransition>
-        <DocList filter={activeFilter} />
+        {showTemplates ? (
+          <TemplateGallery
+            onSelectTemplate={handleTemplateSelect}
+            onClose={() => setShowTemplates(false)}
+          />
+        ) : (
+          <DocList filter={activeFilter} />
+        )}
       </PageTransition>
     </AppShell>
   );

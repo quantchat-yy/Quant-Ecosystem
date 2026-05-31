@@ -1,9 +1,18 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@quant/shared-ui';
 import { spring } from '@quant/brand';
 import type { ControlBarProps } from '../types/components';
+
+const REACTION_EMOJIS = [
+  { id: 'thumbsup', emoji: '\u{1F44D}', label: 'Thumbs up' },
+  { id: 'clap', emoji: '\u{1F44F}', label: 'Clap' },
+  { id: 'heart', emoji: '\u2764\uFE0F', label: 'Heart' },
+  { id: 'laugh', emoji: '\u{1F602}', label: 'Laugh' },
+  { id: 'surprised', emoji: '\u{1F62E}', label: 'Surprised' },
+];
 
 function ControlButton({ children, ...props }: React.ComponentProps<typeof Button>) {
   return (
@@ -19,6 +28,14 @@ function ControlButton({ children, ...props }: React.ComponentProps<typeof Butto
   );
 }
 
+interface ExtendedControlBarProps extends ControlBarProps {
+  onHandRaise?: () => void;
+  handRaised?: boolean;
+  onReaction?: (emoji: string) => void;
+  onBreakoutRooms?: () => void;
+  onWhiteboard?: () => void;
+}
+
 export function ControlBar({
   audioEnabled,
   videoEnabled,
@@ -31,7 +48,14 @@ export function ControlBar({
   onLeave,
   onOpenChat,
   onOpenTranscript,
-}: ControlBarProps) {
+  onHandRaise,
+  handRaised = false,
+  onReaction,
+  onBreakoutRooms,
+  onWhiteboard,
+}: ExtendedControlBarProps) {
+  const [showReactions, setShowReactions] = useState(false);
+
   return (
     <div
       className="flex items-center justify-center gap-2 md:gap-3 p-3 bg-[var(--quant-card)]/95 backdrop-blur-sm border-t border-[var(--quant-border)]"
@@ -74,12 +98,93 @@ export function ControlBar({
         {recordingActive ? 'Rec' : 'Record'}
       </ControlButton>
 
+      {/* Hand Raise */}
+      <motion.div
+        whileTap={{ scale: 0.9 }}
+        whileHover={{ scale: 1.05 }}
+        transition={{ type: 'spring', ...spring.snappy }}
+      >
+        <Button
+          variant={handRaised ? 'primary' : 'secondary'}
+          onClick={onHandRaise}
+          aria-label={handRaised ? 'Lower hand' : 'Raise hand'}
+          aria-pressed={handRaised}
+          className="min-w-[44px] min-h-[44px]"
+        >
+          <motion.span
+            animate={handRaised ? { rotate: [0, -10, 10, -10, 0] } : {}}
+            transition={{ duration: 0.5, repeat: handRaised ? Infinity : 0, repeatDelay: 2 }}
+          >
+            {handRaised ? '\u270B' : '\u270B'}
+          </motion.span>
+        </Button>
+      </motion.div>
+
+      {/* Reactions */}
+      <div className="relative">
+        <motion.div
+          whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.05 }}
+          transition={{ type: 'spring', ...spring.snappy }}
+        >
+          <Button
+            variant="secondary"
+            onClick={() => setShowReactions(!showReactions)}
+            aria-label="Reactions"
+            aria-expanded={showReactions}
+            className="min-w-[44px] min-h-[44px]"
+          >
+            &#x1F600;
+          </Button>
+        </motion.div>
+        <AnimatePresence>
+          {showReactions && (
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.9 }}
+              transition={{ type: 'spring', ...spring.snappy }}
+              className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 flex gap-1 p-2 rounded-lg bg-[var(--quant-card)] border border-[var(--quant-border)] shadow-lg"
+              role="menu"
+              aria-label="Reaction emojis"
+            >
+              {REACTION_EMOJIS.map((item) => (
+                <motion.button
+                  key={item.id}
+                  whileHover={{ scale: 1.2 }}
+                  whileTap={{ scale: 0.85 }}
+                  onClick={() => {
+                    onReaction?.(item.emoji);
+                    setShowReactions(false);
+                  }}
+                  className="p-1.5 rounded-md hover:bg-[var(--quant-muted)] text-xl min-w-[36px] min-h-[36px] flex items-center justify-center"
+                  aria-label={item.label}
+                  role="menuitem"
+                >
+                  {item.emoji}
+                </motion.button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
       <ControlButton variant="secondary" onClick={onOpenChat} aria-label="Open chat">
         Chat
       </ControlButton>
 
       <ControlButton variant="secondary" onClick={onOpenTranscript} aria-label="Show participants">
         People
+      </ControlButton>
+
+      {/* Breakout Rooms */}
+      <ControlButton variant="secondary" onClick={onBreakoutRooms} aria-label="Breakout rooms">
+        Rooms
+      </ControlButton>
+
+      {/* Whiteboard */}
+      <ControlButton variant="secondary" onClick={onWhiteboard} aria-label="Open whiteboard">
+        Board
       </ControlButton>
 
       <ControlButton

@@ -15,6 +15,20 @@ interface DeviceOption {
   label: string;
 }
 
+interface VirtualBackground {
+  id: string;
+  label: string;
+  thumbnail: string;
+}
+
+const VIRTUAL_BACKGROUNDS: VirtualBackground[] = [
+  { id: 'none', label: 'None', thumbnail: '' },
+  { id: 'blur', label: 'Blur', thumbnail: '' },
+  { id: 'office', label: 'Office', thumbnail: '' },
+  { id: 'beach', label: 'Beach', thumbnail: '' },
+  { id: 'space', label: 'Space', thumbnail: '' },
+];
+
 export function PreJoinLobby({ onJoin, meetingTitle }: PreJoinLobbyProps) {
   const [displayName, setDisplayName] = useState('');
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -26,7 +40,12 @@ export function PreJoinLobby({ onJoin, meetingTitle }: PreJoinLobbyProps) {
   const [selectedMic, setSelectedMic] = useState('');
   const [selectedSpeaker, setSelectedSpeaker] = useState('');
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
+  const [selectedBackground, setSelectedBackground] = useState('none');
+  const [audioLevel, setAudioLevel] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animFrameRef = useRef<number>(0);
 
   useEffect(() => {
     async function enumerateDevices() {
@@ -102,6 +121,62 @@ export function PreJoinLobby({ onJoin, meetingTitle }: PreJoinLobbyProps) {
     }
   }, [previewStream]);
 
+  // Audio level meter
+  useEffect(() => {
+    if (!audioEnabled || !selectedMic || selectedMic === 'none') {
+      setAudioLevel(0);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function startAudioAnalysis() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { deviceId: selectedMic ? { exact: selectedMic } : undefined },
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
+        const audioContext = new AudioContext();
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+
+        audioContextRef.current = audioContext;
+        analyserRef.current = analyser;
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        function tick() {
+          if (cancelled) return;
+          analyser.getByteFrequencyData(dataArray);
+          const avg = dataArray.reduce((sum, val) => sum + val, 0) / dataArray.length;
+          setAudioLevel(avg / 255);
+          animFrameRef.current = requestAnimationFrame(tick);
+        }
+
+        tick();
+      } catch {
+        // Audio not available
+      }
+    }
+
+    startAudioAnalysis();
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(animFrameRef.current);
+      if (audioContextRef.current) {
+        void audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+    };
+  }, [audioEnabled, selectedMic]);
+
   useEffect(() => {
     return () => {
       if (previewStream) {
@@ -114,6 +189,10 @@ export function PreJoinLobby({ onJoin, meetingTitle }: PreJoinLobbyProps) {
     if (displayName.trim()) {
       if (previewStream) {
         previewStream.getTracks().forEach((t) => t.stop());
+      }
+      cancelAnimationFrame(animFrameRef.current);
+      if (audioContextRef.current) {
+        void audioContextRef.current.close();
       }
       onJoin(displayName.trim());
     }
@@ -138,6 +217,7 @@ export function PreJoinLobby({ onJoin, meetingTitle }: PreJoinLobbyProps) {
           </motion.h1>
         )}
 
+        {/* Camera Preview */}
         <motion.div
           className="relative w-full aspect-video rounded-xl bg-gray-900 flex items-center justify-center overflow-hidden"
           aria-label="Camera preview"
@@ -163,9 +243,44 @@ export function PreJoinLobby({ onJoin, meetingTitle }: PreJoinLobbyProps) {
               <span className="text-gray-400 text-sm">Camera off</span>
             </div>
           )}
+          {selectedBackground !== 'none' && (
+            <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-black/50 text-white text-xs">
+              {VIRTUAL_BACKGROUNDS.find((b) => b.id === selectedBackground)?.label}
+            </div>
+          )}
         </motion.div>
 
-        <div className="flex justify-center gap-3">
+        {/* Virtual Background Selector */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium">Virtual Background</p>
+          <div className="flex gap-2" role="radiogroup" aria-label="Select virtual background">
+            {VIRTUAL_BACKGROUNDS.map((bg) => (
+              <motion.button
+                key={bg.id}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: 'spring', ...spring.snappy }}
+                onClick={() => setSelectedBackground(bg.id)}
+                className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-colors min-h-[44px] ${
+                  selectedBackground === bg.id
+                    ? 'border-[var(--quant-primary)] bg-blue-50 dark:bg-blue-950'
+                    : 'border-[var(--quant-border)] hover:border-[var(--quant-muted-foreground)]'
+                }`}
+                role="radio"
+                aria-checked={selectedBackground === bg.id}
+                aria-label={bg.label}
+              >
+                <div className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs">
+                  {bg.id === 'none' ? '\u2716' : bg.id === 'blur' ? '\u{1F300}' : bg.label[0]}
+                </div>
+                <span className="text-xs">{bg.label}</span>
+              </motion.button>
+            ))}
+          </div>
+        </div>
+
+        {/* Audio/Video toggle + Audio Level Meter */}
+        <div className="flex items-center justify-center gap-3">
           <motion.div whileTap={{ scale: 0.95 }} transition={{ type: 'spring', ...spring.snappy }}>
             <Button
               variant={audioEnabled ? 'primary' : 'secondary'}
@@ -188,8 +303,32 @@ export function PreJoinLobby({ onJoin, meetingTitle }: PreJoinLobbyProps) {
               {videoEnabled ? 'Cam On' : 'Cam Off'}
             </Button>
           </motion.div>
+
+          {/* Audio Level Meter */}
+          {audioEnabled && (
+            <div
+              className="flex items-end gap-0.5 h-6"
+              aria-label={`Audio level: ${Math.round(audioLevel * 100)}%`}
+              role="meter"
+              aria-valuenow={Math.round(audioLevel * 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              {[0.15, 0.3, 0.45, 0.6, 0.8].map((threshold, i) => (
+                <motion.div
+                  key={i}
+                  className={`w-1 rounded-sm ${
+                    audioLevel >= threshold ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                  animate={{ height: audioLevel >= threshold ? `${12 + i * 3}px` : '4px' }}
+                  transition={{ type: 'spring', ...spring.snappy }}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
+        {/* Device Selectors */}
         <div className="space-y-3">
           <div>
             <label htmlFor="camera-select" className="block text-sm font-medium mb-1">

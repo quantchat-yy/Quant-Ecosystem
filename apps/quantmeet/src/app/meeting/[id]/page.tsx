@@ -12,6 +12,8 @@ import { ControlBar } from '../../../components/ControlBar';
 import { ChatPanel } from '../../../components/ChatPanel';
 import { ParticipantList } from '../../../components/ParticipantList';
 import { MeetingEnded } from '../../../components/MeetingEnded';
+import { ReactionsOverlay } from '../../../components/ReactionsOverlay';
+import { ScreenShareOverlay } from '../../../components/ScreenShareOverlay';
 import type { VideoTileProps, ChatMessage } from '../../../types/components';
 
 type MeetingState = 'lobby' | 'connecting' | 'meeting' | 'ended';
@@ -35,6 +37,8 @@ export default function MeetingPage() {
   const [showParticipants, setShowParticipants] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [localParticipantId] = useState(() => crypto.randomUUID());
+  const [handRaised, setHandRaised] = useState(false);
+  const [sharePaused, setSharePaused] = useState(false);
 
   const liveKit = useLiveKit({ roomId, token });
 
@@ -117,6 +121,24 @@ export default function MeetingPage() {
 
   return (
     <div className="flex flex-col h-screen bg-[var(--quant-background)]">
+      {/* Screen Share Overlay */}
+      {screenShareEnabled && (
+        <ScreenShareOverlay
+          isPresenter={true}
+          isPaused={sharePaused}
+          onPauseShare={() => setSharePaused(true)}
+          onResumeShare={() => setSharePaused(false)}
+          onStopShare={() => {
+            liveKit.toggleScreenShare();
+            setScreenShareEnabled(false);
+            setSharePaused(false);
+          }}
+        />
+      )}
+
+      {/* Reactions Overlay */}
+      <ReactionsOverlay />
+
       <div className="flex flex-1 min-h-0">
         <main className="flex-1 min-w-0">
           <ParticipantGrid
@@ -167,6 +189,11 @@ export default function MeetingPage() {
           setShowParticipants((prev) => !prev);
           setShowChat(false);
         }}
+        handRaised={handRaised}
+        onHandRaise={() => setHandRaised((prev) => !prev)}
+        onReaction={() => {}}
+        onBreakoutRooms={() => {}}
+        onWhiteboard={() => {}}
       />
     </div>
   );
