@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Polish QuantAI app: integrate @quant/brand system into theme, add Framer Motion page transitions and staggered animations, enhance ChatInterface/page components with proper dark mode, loading skeletons, responsive layout, and motion tokens. Wire existing React Query hooks with the brand system theming.",
-  "status": "pending",
+  "status": "completed",
   "steps": [
     "Update apps/quantai/src/app/globals.css to import and use @quant/brand CSS variables via generateBrandCSS() and generateAppCSS('quantai') and generateThemeCSS('dark'). Add dark mode toggle support with proper theme variables. Ensure responsive 360-1440px coverage is maintained.",
     "Update apps/quantai/tailwind.config.ts to extend theme colors from brand CSS variables (primary, accent, surface, semantic colors). Add brand font families and motion-related utilities.",
@@ -28,5 +28,5 @@
   ],
   "verification": ["Run pnpm --filter @quant/quantai typecheck and confirm it passes"],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "All changes compile cleanly with npx tsc --noEmit (exit 0). Pre-commit hooks (prettier) ran successfully and reformatted code. ThemeProvider uses localStorage key 'quantai-theme' and system preference. Brand CSS variables applied in globals.css for both light and dark modes. Framer Motion spring tokens from @quant/brand used throughout. LoadingSkeleton has chat-message, sidebar-item, and model-card variants."
 }
