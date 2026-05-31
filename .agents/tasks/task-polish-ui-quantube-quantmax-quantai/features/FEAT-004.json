@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "feat",
   "description": "Polish QuantTube app: Add tailwind + brand system CSS, Framer Motion animations, dark mode, responsive layout, loading/empty/error states across all pages. QuantTube has React components but no Next.js/tailwind setup currently - add minimal tailwind config and globals.css.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Create apps/quantube/tailwind.config.ts: Content pointing to src/**/*.{ts,tsx}, dark mode class strategy, extend theme with brand CSS vars for colors/fonts/motion.",
     "Create apps/quantube/postcss.config.js: Standard tailwind + autoprefixer config.",
