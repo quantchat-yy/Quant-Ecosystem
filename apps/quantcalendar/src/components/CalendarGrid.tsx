@@ -40,6 +40,8 @@ export function CalendarGrid({ view, events, currentDate, onEventClick }: Calend
         exit={{ opacity: 0, y: -8 }}
         transition={{ type: 'spring', ...spring.snappy }}
         className="h-full"
+        role="region"
+        aria-label={`Calendar ${view} view`}
       >
         {renderView()}
       </motion.div>

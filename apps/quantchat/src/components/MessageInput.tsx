@@ -16,7 +16,12 @@ interface MessageInputProps {
 }
 
 export const MessageInput: React.FC<MessageInputProps> = ({
-  onSend, onTyping, replyingTo, onCancelReply, placeholder = 'Message...', disabled = false,
+  onSend,
+  onTyping,
+  replyingTo,
+  onCancelReply,
+  placeholder = 'Message...',
+  disabled = false,
 }) => {
   const [text, setText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -51,7 +56,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     setIsRecording(true);
     setRecordingDuration(0);
     recordingRef.current = setInterval(() => {
-      setRecordingDuration(prev => prev + 1);
+      setRecordingDuration((prev) => prev + 1);
     }, 1000);
   };
 
@@ -74,7 +79,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   const handleEmojiSelect = (emoji: string) => {
-    setText(prev => prev + emoji);
+    setText((prev) => prev + emoji);
     inputRef.current?.focus();
   };
 
@@ -89,7 +94,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             <span className="reply-label">Replying to:</span>
             <span className="reply-text">{replyingTo.content.substring(0, 60)}</span>
           </div>
-          <button className="cancel-reply" onClick={onCancelReply}>✕</button>
+          <button className="cancel-reply" onClick={onCancelReply}>
+            ✕
+          </button>
         </div>
       )}
 
@@ -98,17 +105,32 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         <div className="recording-ui">
           <span className="rec-indicator">● Recording</span>
           <span className="rec-duration">{formatDuration(recordingDuration)}</span>
-          <button className="cancel-recording" onClick={() => { setIsRecording(false); if (recordingRef.current) clearInterval(recordingRef.current); setRecordingDuration(0); }}>
+          <button
+            className="cancel-recording"
+            onClick={() => {
+              setIsRecording(false);
+              if (recordingRef.current) clearInterval(recordingRef.current);
+              setRecordingDuration(0);
+            }}
+          >
             Cancel
           </button>
-          <button className="stop-recording" onClick={handleStopRecording}>Send</button>
+          <button className="stop-recording" onClick={handleStopRecording}>
+            Send
+          </button>
         </div>
       )}
 
       {/* Main input area */}
       {!isRecording && (
         <div className="input-bar">
-          <button className="attach-btn" onClick={() => setShowAttachMenu(!showAttachMenu)} disabled={disabled}>
+          <button
+            className="attach-btn"
+            onClick={() => setShowAttachMenu(!showAttachMenu)}
+            disabled={disabled}
+            aria-label="Attach file"
+            aria-expanded={showAttachMenu}
+          >
             +
           </button>
 
@@ -122,15 +144,27 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               placeholder={placeholder}
               disabled={disabled}
               className="message-text-input"
+              aria-label="Type a message"
             />
           </div>
 
-          <button className="emoji-btn" onClick={() => setShowEmojiPicker(!showEmojiPicker)} disabled={disabled}>
+          <button
+            className="emoji-btn"
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            disabled={disabled}
+            aria-label="Toggle emoji picker"
+            aria-expanded={showEmojiPicker}
+          >
             😀
           </button>
 
           {text.trim() ? (
-            <button className="send-btn" onClick={handleSend} disabled={disabled}>
+            <button
+              className="send-btn"
+              onClick={handleSend}
+              disabled={disabled}
+              aria-label="Send message"
+            >
               ➤
             </button>
           ) : (
@@ -139,6 +173,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               onPointerDown={handleStartRecording}
               onPointerUp={handleStopRecording}
               disabled={disabled}
+              aria-label="Record voice message"
             >
               🎤
             </button>
@@ -162,8 +197,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       {showEmojiPicker && (
         <div className="emoji-picker">
           <div className="quick-emojis">
-            {quickEmojis.map(emoji => (
-              <button key={emoji} onClick={() => handleEmojiSelect(emoji)}>{emoji}</button>
+            {quickEmojis.map((emoji) => (
+              <button key={emoji} onClick={() => handleEmojiSelect(emoji)}>
+                {emoji}
+              </button>
             ))}
           </div>
         </div>
