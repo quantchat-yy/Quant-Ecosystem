@@ -19,6 +19,7 @@
     "@quant/ai": "workspace:*",
     "@quant/brand": "workspace:*",
     "@quant/common": "workspace:*",
+    "@quant/quant-economy": "workspace:*",
     "@quant/database": "workspace:*",
     "@quant/privacy-ads": "workspace:*",
     "@quant/realtime": "workspace:*",

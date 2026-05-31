@@ -214,6 +214,9 @@ importers:
       '@quant/privacy-ads':
         specifier: workspace:*
         version: link:../../packages/privacy-ads
+      '@quant/quant-economy':
+        specifier: workspace:*
+        version: link:../../packages/quant-economy
       '@quant/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime
