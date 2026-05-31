@@ -16,6 +16,14 @@ export default function ThreadPage() {
   const threadId = (params?.id as string) || '';
   const { data: thread, isLoading, error, refetch } = useThread(threadId);
   const [expandedMessages, setExpandedMessages] = useState<Set<number>>(new Set());
+  const [showReplyForm, setShowReplyForm] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [isSendingReply, setIsSendingReply] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [showSummary, setShowSummary] = useState(true);
+  const [summarizeError, setSummarizeError] = useState<string | null>(null);
+  const [replyError, setReplyError] = useState<string | null>(null);
 
   const toggleMessage = useCallback((index: number) => {
     setExpandedMessages((prev) => {
@@ -45,8 +53,49 @@ export default function ThreadPage() {
   }, [thread, router]);
 
   const handleReply = useCallback(() => {
-    router.push(`/compose?replyTo=${threadId}`);
-  }, [router, threadId]);
+    setShowReplyForm((prev) => !prev);
+  }, []);
+
+  const handleSendReply = useCallback(async () => {
+    if (!replyText.trim() || isSendingReply) return;
+    setIsSendingReply(true);
+    setReplyError(null);
+    try {
+      const res = await apiClient.replyToEmail(threadId, replyText);
+      if (!res.success) {
+        setReplyError(res.error?.message || 'Failed to send reply');
+        return;
+      }
+      setReplyText('');
+      setShowReplyForm(false);
+      refetch();
+    } catch {
+      setReplyError('Failed to send reply');
+    } finally {
+      setIsSendingReply(false);
+    }
+  }, [replyText, isSendingReply, threadId, refetch]);
+
+  const handleSummarize = useCallback(async () => {
+    if (!thread?.messages?.[0] || isSummarizing) return;
+    setIsSummarizing(true);
+    setSummarizeError(null);
+    try {
+      const res = await apiClient.aiSummarize(thread.messages[0].id);
+      if (!res.success) {
+        setSummarizeError(res.error?.message || 'Failed to summarize thread');
+        return;
+      }
+      if (res.data?.summary) {
+        setSummary(res.data.summary);
+        setShowSummary(true);
+      }
+    } catch {
+      setSummarizeError('Failed to summarize thread');
+    } finally {
+      setIsSummarizing(false);
+    }
+  }, [thread, isSummarizing]);
 
   const handleForward = useCallback(
     (emailId: string) => {
@@ -70,6 +119,9 @@ export default function ThreadPage() {
           </Button>
           {thread && (
             <div className="flex items-center gap-2 ml-auto">
+              <Button variant="secondary" onClick={handleSummarize} disabled={isSummarizing}>
+                {isSummarizing ? 'Summarizing...' : 'Summarize'}
+              </Button>
               <Button variant="secondary" onClick={handleArchive}>
                 Archive
               </Button>
@@ -98,6 +150,28 @@ export default function ThreadPage() {
           )}
           {!isLoading && !error && thread && (
             <>
+              {/* AI Summary Card */}
+              {summarizeError && (
+                <Card padding="md" className="mb-4 bg-red-50 border-red-200">
+                  <p className="text-sm text-red-600">{summarizeError}</p>
+                </Card>
+              )}
+              {summary && (
+                <Card padding="md" className="mb-4 bg-[var(--quant-muted)]">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold">AI Summary</span>
+                    <Button variant="secondary" onClick={() => setShowSummary((s) => !s)}>
+                      {showSummary ? 'Hide' : 'Show'}
+                    </Button>
+                  </div>
+                  {showSummary && (
+                    <p className="text-sm text-[var(--quant-muted-foreground)] leading-relaxed">
+                      {summary}
+                    </p>
+                  )}
+                </Card>
+              )}
+
               <h1 className="text-xl md:text-2xl font-bold mb-4">{thread.subject}</h1>
               <div className="flex items-center gap-2 mb-6 text-sm text-[var(--quant-muted-foreground)]">
                 <span>{thread.messageCount} messages</span>
@@ -173,12 +247,41 @@ export default function ThreadPage() {
                 })}
               </div>
 
+              {/* Inline Reply Form */}
+              {showReplyForm && (
+                <div className="mt-4">
+                  <Card padding="md">
+                    {replyError && <p className="text-sm text-red-600 mb-2">{replyError}</p>}
+                    <textarea
+                      className="w-full min-h-[120px] p-3 rounded-md border border-[var(--quant-border)] bg-[var(--quant-background)] text-sm resize-y focus:outline-none focus:ring-2 focus:ring-[var(--quant-primary)]"
+                      placeholder="Write your reply..."
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                    />
+                    <div className="flex gap-2 mt-3">
+                      <Button
+                        variant="primary"
+                        onClick={handleSendReply}
+                        disabled={isSendingReply || !replyText.trim()}
+                      >
+                        {isSendingReply ? 'Sending...' : 'Send Reply'}
+                      </Button>
+                      <Button variant="secondary" onClick={() => setShowReplyForm(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </Card>
+                </div>
+              )}
+
               {/* Reply footer */}
-              <div className="mt-6 pt-4 border-t border-[var(--quant-border)]">
-                <Button variant="primary" onClick={handleReply}>
-                  Reply to thread
-                </Button>
-              </div>
+              {!showReplyForm && (
+                <div className="mt-6 pt-4 border-t border-[var(--quant-border)]">
+                  <Button variant="primary" onClick={handleReply}>
+                    Reply to thread
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </div>

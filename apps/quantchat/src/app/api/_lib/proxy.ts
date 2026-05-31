@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.QUANTMAIL_BACKEND_URL || 'http://localhost:3010';
+const BACKEND_URL = process.env.QUANTCHAT_BACKEND_URL || 'http://localhost:3002';
 
 export async function proxyToBackend(
   request: NextRequest,
