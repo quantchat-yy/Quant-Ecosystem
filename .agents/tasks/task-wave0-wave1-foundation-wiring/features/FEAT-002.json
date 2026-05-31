@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "QuantAds API routes + AppShell integration. QuantAds has 0 Next.js API routes, so all frontend API calls 404. Build the critical route handlers that proxy to the backend, and integrate AppShell with Sidebar for navigation between campaigns, audiences, creatives, analytics, and billing.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create apps/quantads/src/app/api/campaigns/route.ts - GET (list) and POST (create) proxying to BACKEND_URL. Pattern: const BACKEND_URL = process.env.QUANTADS_BACKEND_URL || 'http://localhost:3004'; forward Authorization header.",
     "Create apps/quantads/src/app/api/campaigns/[id]/route.ts - GET, PUT, DELETE for individual campaigns.",
@@ -32,5 +32,5 @@
     "pnpm turbo test --filter=@quant/quantads"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Typecheck passes. Tests pass (102/102). Build passes. Had to fix pre-existing bug where generateFaviconSvg was called with quantads.color (#059669) instead of quantads.id. Removed conflicting legacy pages/ files (billing.tsx, creatives.tsx) that blocked the Next.js build when app router pages existed at the same paths. The pnpm-lock.yaml was modified by pnpm install but is unrelated to the feature."
 }
