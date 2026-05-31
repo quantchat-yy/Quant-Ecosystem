@@ -6,10 +6,11 @@ import {
   Button,
   LoadingState,
   ErrorState,
+  EmptyState,
   PageTransition,
   FadeIn,
 } from '@quant/shared-ui';
-import { useEvents } from '../hooks/useEvents';
+import { useEvents, useCreateEvent, useUpdateEvent } from '../hooks/useEvents';
 import { useCalendars } from '../hooks/useCalendars';
 import { CalendarSidebar } from '../components/CalendarSidebar';
 import { CalendarGrid } from '../components/CalendarGrid';
@@ -32,6 +33,8 @@ export default function CalendarPage() {
 
   const { data: events, isLoading: eventsLoading, error: eventsError, refetch } = useEvents();
   const { data: calendars, isLoading: calendarsLoading } = useCalendars();
+  const createEvent = useCreateEvent();
+  const updateEvent = useUpdateEvent();
 
   const handlePrev = useCallback(() => {
     setCurrentDate((prev) => {
@@ -88,10 +91,18 @@ export default function CalendarPage() {
     setSelectedEvent(null);
   }, []);
 
-  const handleEventSubmit = useCallback(() => {
-    setIsEventFormOpen(false);
-    setSelectedEvent(null);
-  }, []);
+  const handleEventSubmit = useCallback(
+    (data: Partial<CalendarEvent>) => {
+      if (selectedEvent?.id) {
+        updateEvent.mutate({ id: selectedEvent.id, ...data });
+      } else {
+        createEvent.mutate(data as CalendarEvent);
+      }
+      setIsEventFormOpen(false);
+      setSelectedEvent(null);
+    },
+    [selectedEvent, createEvent, updateEvent],
+  );
 
   const getDateRangeLabel = () => {
     if (currentView === 'month') {
@@ -120,6 +131,8 @@ export default function CalendarPage() {
     return <ErrorState message={eventsError.message} onRetry={() => void refetch()} />;
   }
 
+  const hasEvents = events && events.length > 0;
+
   return (
     <AppShell
       sidebar={
@@ -137,14 +150,31 @@ export default function CalendarPage() {
       <div className="flex flex-col h-full">
         <FadeIn direction="down">
           <header className="flex flex-wrap items-center gap-2 p-3 border-b border-[var(--quant-border)]">
-            <Button variant="secondary" size="sm" onClick={handleToday}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleToday}
+              className="min-h-[44px] focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)]"
+            >
               Today
             </Button>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={handlePrev} aria-label="Previous">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handlePrev}
+                aria-label="Previous"
+                className="min-h-[44px] min-w-[44px] focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)]"
+              >
                 &#9664;
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleNext} aria-label="Next">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleNext}
+                aria-label="Next"
+                className="min-h-[44px] min-w-[44px] focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)]"
+              >
                 &#9654;
               </Button>
             </div>
@@ -160,9 +190,9 @@ export default function CalendarPage() {
                   role="tab"
                   aria-selected={currentView === tab.id}
                   onClick={() => setCurrentView(tab.id)}
-                  className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                  className={`px-3 py-2 text-sm font-medium transition-colors min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)] ${
                     currentView === tab.id
-                      ? 'bg-quant-primary text-white'
+                      ? 'bg-[var(--quant-primary)] text-white'
                       : 'hover:bg-[var(--quant-muted)]'
                   }`}
                 >
@@ -174,12 +204,19 @@ export default function CalendarPage() {
         </FadeIn>
         <PageTransition>
           <div className="flex-1 overflow-hidden">
-            <CalendarGrid
-              view={currentView}
-              events={events ?? []}
-              currentDate={currentDate}
-              onEventClick={handleEventClick}
-            />
+            {hasEvents ? (
+              <CalendarGrid
+                view={currentView}
+                events={events ?? []}
+                currentDate={currentDate}
+                onEventClick={handleEventClick}
+              />
+            ) : (
+              <EmptyState
+                title="No events yet"
+                description="Create your first event to get started with QuantCalendar."
+              />
+            )}
           </div>
         </PageTransition>
       </div>

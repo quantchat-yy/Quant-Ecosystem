@@ -1,5 +1,7 @@
 'use client';
 
+import { motion } from 'framer-motion';
+import { spring } from '@quant/brand';
 import type { CalendarEvent } from '../hooks/useEvents';
 
 interface EventCardProps {
@@ -20,21 +22,27 @@ export function EventCard({ event, onClick, compact = false }: EventCardProps) {
 
   if (compact) {
     return (
-      <button
+      <motion.button
         onClick={() => onClick?.(event)}
-        className="w-full text-left text-xs px-1.5 py-0.5 rounded truncate transition-opacity hover:opacity-80"
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.97 }}
+        transition={{ type: 'spring', ...spring.snappy }}
+        className="w-full text-left text-xs px-1.5 py-1 rounded truncate min-h-[28px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)]"
         style={{ backgroundColor: `${event.color}20`, borderLeft: `3px solid ${event.color}` }}
         aria-label={`${event.title} at ${startTime}`}
       >
         <span className="font-medium">{event.title}</span>
-      </button>
+      </motion.button>
     );
   }
 
   return (
-    <button
+    <motion.button
       onClick={() => onClick?.(event)}
-      className="w-full text-left p-2 rounded-lg border border-[var(--quant-border)] hover:shadow-sm transition-shadow cursor-pointer"
+      whileHover={{ scale: 1.01, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ type: 'spring', ...spring.snappy }}
+      className="w-full text-left p-3 rounded-lg border border-[var(--quant-border)] min-h-[44px] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)]"
       style={{ borderLeftWidth: '4px', borderLeftColor: event.color }}
       aria-label={`${event.title}, ${startTime} to ${endTime}`}
     >
@@ -59,6 +67,6 @@ export function EventCard({ event, onClick, compact = false }: EventCardProps) {
           </span>
         )}
       </div>
-    </button>
+    </motion.button>
   );
 }

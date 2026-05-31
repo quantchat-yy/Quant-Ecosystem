@@ -3,20 +3,30 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '../providers/query-provider';
 import { AppProviders } from '../providers/app-providers';
+import { quantcalendar, generateFaviconSvg } from '@quant/brand';
 
 const inter = Inter({ subsets: ['latin'] });
 
+const faviconSvg = generateFaviconSvg('quantcalendar');
+const faviconDataUri = `data:image/svg+xml,${encodeURIComponent(faviconSvg)}`;
+
 export const metadata: Metadata = {
-  title: 'QuantCalendar | Quant',
-  description: 'Smart calendar with AI scheduling for the Quant Ecosystem',
+  title: `${quantcalendar.name} | Quant`,
+  description: quantcalendar.description,
   icons: {
-    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="%23F97316"/><text x="16" y="22" font-size="18" font-weight="bold" text-anchor="middle" fill="white">Q</text></svg>',
+    icon: faviconDataUri,
+  },
+  other: {
+    'theme-color': quantcalendar.color,
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <meta name="theme-color" content={quantcalendar.color} />
+      </head>
       <body className={inter.className}>
         <QueryProvider>
           <AppProviders>{children}</AppProviders>
