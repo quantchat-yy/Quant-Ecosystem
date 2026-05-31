@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { use, useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { spring } from '@quant/brand';
 import { ChatBubble, ChatInput, TypingIndicator, TopBar } from '@quant/shared-ui';
@@ -120,6 +120,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const [replyTo, setReplyTo] = useState<{ id: string; content: string; sender: string } | null>(
     null,
   );
+
   const lastMarkedRef = useRef<string | null>(null);
 
   const messages: EnhancedMessage[] = useMemo(() => {
@@ -210,13 +211,6 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     [id, sendMessage, sendRealtimeMessage, setTyping],
   );
 
-  const handleTyping = useCallback(
-    (isTyping: boolean) => {
-      setTyping(isTyping);
-    },
-    [setTyping],
-  );
-
   const handleVoiceRecording = useCallback(
     (durationMs: number) => {
       sendMessage.mutate({
@@ -226,6 +220,13 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
       });
     },
     [id, sendMessage],
+  );
+
+  const handleTyping = useCallback(
+    (isTyping: boolean) => {
+      setTyping(isTyping);
+    },
+    [setTyping],
   );
 
   if (isLoading) return <LoadingState variant="skeleton" text="Loading messages..." />;

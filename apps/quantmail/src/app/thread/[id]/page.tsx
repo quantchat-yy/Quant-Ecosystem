@@ -273,7 +273,7 @@ export default function ThreadPage() {
           </Button>
           {thread && (
             <div className="flex items-center gap-2 ml-auto flex-wrap">
-              {/* AI Summarize chip */}
+              {/* AI Summarize chip (gradient) */}
               <button
                 className="flex items-center gap-1.5 px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-full bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 text-purple-600 hover:from-purple-500/20 hover:to-blue-500/20 transition-colors"
                 onClick={handleAISummarize}
@@ -282,6 +282,7 @@ export default function ThreadPage() {
                 <span>{aiSummarizing ? '\u2699\uFE0F' : '\u2728'}</span>
                 {aiSummarizing ? 'Summarizing...' : 'AI Summarize'}
               </button>
+              {/* Standard Summarize button */}
               <Button variant="secondary" onClick={handleSummarize} disabled={isSummarizing}>
                 {isSummarizing ? 'Summarizing...' : 'Summarize'}
               </Button>
@@ -434,7 +435,7 @@ export default function ThreadPage() {
               {/* Inline quick-reply */}
               <InlineReply threadId={threadId} onSent={() => refetch()} />
 
-              {/* Inline Reply Form */}
+              {/* Inline Reply Form (toggleable with more features) */}
               {showReplyForm && (
                 <div className="mt-4">
                   <Card padding="md">
