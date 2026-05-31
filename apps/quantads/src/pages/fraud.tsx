@@ -4,6 +4,8 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { spring } from '@quant/brand';
 
 interface FraudMetrics {
   invalidTrafficRate: number;
@@ -177,10 +179,15 @@ const FraudPage: React.FC<FraudPageProps> = ({ accountId: _accountId }) => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 min-h-screen">
+    <motion.div
+      className="max-w-7xl mx-auto p-6 min-h-screen"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', ...spring.gentle }}
+    >
       <header className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Fraud Detection</h1>
+          <h1 className="text-3xl font-bold text-[var(--quant-foreground)]">Fraud Detection</h1>
           <p className="text-gray-500 text-sm mt-1">
             Protecting your ad spend from invalid traffic
           </p>
@@ -487,7 +494,7 @@ const FraudPage: React.FC<FraudPageProps> = ({ accountId: _accountId }) => {
           ))}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

@@ -4,6 +4,8 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { spring } from '@quant/brand';
 
 interface BlocklistEntry {
   id: string;
@@ -312,9 +314,14 @@ const BrandSafetyPage: React.FC<BrandSafetyPageProps> = ({ accountId: _accountId
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 min-h-screen">
+    <motion.div
+      className="max-w-7xl mx-auto p-6 min-h-screen"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', ...spring.gentle }}
+    >
       <header className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Brand Safety</h1>
+        <h1 className="text-3xl font-bold text-[var(--quant-foreground)]">Brand Safety</h1>
         <p className="text-gray-500 text-sm mt-1">
           Protect your brand reputation across all ad placements
         </p>
@@ -610,7 +617,7 @@ const BrandSafetyPage: React.FC<BrandSafetyPageProps> = ({ accountId: _accountId
           ))}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

@@ -2,9 +2,24 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { Card, Button, Badge, Avatar, LoadingState, ErrorState } from '@quant/shared-ui';
+import { spring } from '@quant/brand';
 import { quantAdsAPI } from '../../services/api-client';
 import type { Campaign } from '../../types';
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05 },
+  },
+};
+
+const staggerItem = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', ...spring.gentle } },
+};
 
 function CampaignCard({
   campaign,
@@ -19,43 +34,64 @@ function CampaignCard({
     campaign.status === 'active' ? 'success' : campaign.status === 'paused' ? 'warning' : 'default';
 
   return (
-    <Card className="p-4 mb-3">
-      <div className="flex items-start gap-3">
-        <Avatar src={undefined} alt={campaign.name} size="md" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-sm truncate">{campaign.name}</h3>
-            <Badge variant={statusVariant}>{campaign.status}</Badge>
-          </div>
-          <p className="text-xs text-[var(--quant-muted-foreground)] mt-1">
-            {campaign.objective} &middot; Budget: ${campaign.budget.amount.toLocaleString()} (
-            {campaign.budget.type})
-          </p>
-          <div className="flex items-center gap-4 mt-3 text-xs text-[var(--quant-muted-foreground)]">
-            <span>{campaign.metrics.impressions.toLocaleString()} impressions</span>
-            <span>{campaign.metrics.clicks.toLocaleString()} clicks</span>
-            <span>{(campaign.metrics.ctr * 100).toFixed(2)}% CTR</span>
-          </div>
-          <div className="flex items-center gap-2 mt-3">
-            {campaign.status === 'active' ? (
-              <Button variant="secondary" size="sm" onClick={() => onPause(campaign.id, 'paused')}>
-                Pause
+    <motion.div variants={staggerItem}>
+      <Card className="p-4 mb-3">
+        <div className="flex items-start gap-3">
+          <Avatar src={undefined} alt={campaign.name} size="md" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-sm truncate">{campaign.name}</h3>
+              <Badge variant={statusVariant}>{campaign.status}</Badge>
+            </div>
+            <p className="text-xs text-[var(--quant-muted-foreground)] mt-1">
+              {campaign.objective} &middot; Budget: ${campaign.budget.amount.toLocaleString()} (
+              {campaign.budget.type})
+            </p>
+            <div className="flex items-center gap-4 mt-3 text-xs text-[var(--quant-muted-foreground)]">
+              <span>{campaign.metrics.impressions.toLocaleString()} impressions</span>
+              <span>{campaign.metrics.clicks.toLocaleString()} clicks</span>
+              <span>{(campaign.metrics.ctr * 100).toFixed(2)}% CTR</span>
+            </div>
+            <div className="flex items-center gap-2 mt-3">
+              {campaign.status === 'active' ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => onPause(campaign.id, 'paused')}
+                  className="min-h-[44px] focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)]"
+                >
+                  Pause
+                </Button>
+              ) : campaign.status === 'paused' ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => onPause(campaign.id, 'active')}
+                  className="min-h-[44px] focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)]"
+                >
+                  Resume
+                </Button>
+              ) : null}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="min-h-[44px] focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)]"
+              >
+                Edit
               </Button>
-            ) : campaign.status === 'paused' ? (
-              <Button variant="secondary" size="sm" onClick={() => onPause(campaign.id, 'active')}>
-                Resume
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(campaign.id)}
+                className="min-h-[44px] focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)]"
+              >
+                Delete
               </Button>
-            ) : null}
-            <Button variant="ghost" size="sm">
-              Edit
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => onDelete(campaign.id)}>
-              Delete
-            </Button>
+            </div>
           </div>
         </div>
-      </div>
-    </Card>
+      </Card>
+    </motion.div>
   );
 }
 
@@ -122,7 +158,11 @@ export default function CampaignsPage() {
     <main className="max-w-4xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Campaigns</h1>
-        <Button variant="primary" size="sm">
+        <Button
+          variant="primary"
+          size="sm"
+          className="min-h-[44px] focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)]"
+        >
           Create Campaign
         </Button>
       </div>
@@ -151,7 +191,12 @@ export default function CampaignsPage() {
       )}
 
       {!isLoading && !isError && campaigns && campaigns.length > 0 && (
-        <div>
+        <motion.div
+          variants={staggerContainer}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 gap-0"
+        >
           {campaigns.map((campaign) => (
             <CampaignCard
               key={campaign.id}
@@ -160,7 +205,7 @@ export default function CampaignsPage() {
               onDelete={handleDelete}
             />
           ))}
-        </div>
+        </motion.div>
       )}
     </main>
   );

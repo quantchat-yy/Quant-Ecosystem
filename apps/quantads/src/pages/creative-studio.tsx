@@ -4,6 +4,8 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { spring } from '@quant/brand';
 
 interface Template {
   id: string;
@@ -270,7 +272,12 @@ const CreativeStudioPage: React.FC<CreativeStudioPageProps> = ({ accountId: _acc
   }
 
   return (
-    <div className="min-h-screen">
+    <motion.div
+      className="min-h-screen"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', ...spring.gentle }}
+    >
       {activeView === 'gallery' && (
         <div className="max-w-7xl mx-auto p-6">
           <header className="flex items-center justify-between mb-6">
@@ -692,7 +699,7 @@ const CreativeStudioPage: React.FC<CreativeStudioPageProps> = ({ accountId: _acc
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 
