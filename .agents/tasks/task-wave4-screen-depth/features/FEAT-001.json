@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "QuantMail Gmail-Killer Screen Depth - Enhance inbox with virtualized list, swipe actions, 3-pane desktop layout. Upgrade compose with rich text toolbar, schedule send, undo send. Upgrade thread view with collapsible quotes, inline reply, AI summarize chips, attachment gallery. Add full-text search with advanced filters. Add labels/folders sidebar with drag-to-label and custom label creation.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "1. Enhance apps/quantmail/src/app/page.tsx inbox: Add desktop 3-pane layout (sidebar | list | preview), virtualized email list using react-virtuoso for performance, swipe-to-archive/delete on mobile with framer-motion gesture detection, mark-as-read batch action in toolbar.",
     "2. Upgrade apps/quantmail/src/components/EmailComposer.tsx: Add a formatting toolbar row (bold/italic/underline/lists/link/code), AI tone buttons (Professional/Friendly/Concise/Expand), drag-drop attachment zone with progress indicator, schedule send with date/time picker dropdown, undo-send countdown toast (5s timer).",
@@ -26,5 +26,5 @@
     "pnpm turbo lint --filter=@quant/quantmail"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Pre-existing typecheck errors in .next/types/ referencing missing API routes (forward, summarize, batch, reply). Resolved by deleting stale .next/types directory. Prettier reformatted files during lint-staged. All 246 tests pass. Build produces /search route successfully."
 }
