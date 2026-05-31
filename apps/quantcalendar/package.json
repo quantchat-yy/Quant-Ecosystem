@@ -16,6 +16,7 @@
   "dependencies": {
     "@quant/auth": "workspace:*",
     "@quant/ai": "workspace:*",
+    "@quant/brand": "workspace:*",
     "@quant/common": "workspace:*",
     "@quant/database": "workspace:*",
     "@quant/realtime": "workspace:*",
