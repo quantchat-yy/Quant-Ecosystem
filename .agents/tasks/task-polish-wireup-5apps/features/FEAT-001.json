@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Polish and wire QuantCalendar - integrate @quant/brand, wire real API via React Query, add Framer Motion spring animations, loading/empty/error/success states, responsive 360-1440px, dark mode, performance, accessibility.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "1. Add @quant/brand to package.json dependencies and add path mappings to tsconfig.json (copy pattern from quantads tsconfig.json which already has @quant/brand paths)",
     "2. Update src/app/globals.css to import brand tokens: use @quant/brand colors for CSS vars, ensure dark mode vars match brand dark theme",
@@ -33,5 +33,5 @@
     "pnpm --filter @quant/quantcalendar lint"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Pre-existing typecheck failures: (1) packages/server-core references @quant/database which has no dist output, causing backend tsconfig check to fail on both base and feature branch. (2) CSS side-effect import in layout.tsx triggers TS2882 without .next/types generated. Both issues exist on base commit and are not caused by this feature. Frontend tsc --noEmit passes with only the pre-existing CSS error. Lint passes clean."
 }
