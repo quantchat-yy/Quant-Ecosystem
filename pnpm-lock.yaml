@@ -133,7 +133,7 @@ importers:
         version: 3.4.19(tsx@4.22.3)(yaml@2.9.0)
       vitest:
         specifier: ^2
-        version: 2.1.9(@types/node@25.9.1)(jiti@1.21.7)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
+        version: 2.1.9(@types/node@25.9.1)(jiti@2.6.1)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
 
   apps/marketing:
     dependencies:
@@ -406,6 +406,9 @@ importers:
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@quant/brand':
+        specifier: workspace:*
+        version: link:../../packages/brand
       '@quant/common':
         specifier: workspace:*
         version: link:../../packages/common
@@ -622,6 +625,9 @@ importers:
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@quant/brand':
+        specifier: workspace:*
+        version: link:../../packages/brand
       '@quant/common':
         specifier: workspace:*
         version: link:../../packages/common
@@ -643,6 +649,9 @@ importers:
       fastify:
         specifier: ^5.3.3
         version: 5.8.5
+      framer-motion:
+        specifier: ^11.0.0
+        version: 11.18.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       ioredis:
         specifier: ^5.6.1
         version: 5.10.1
@@ -676,7 +685,7 @@ importers:
         version: 3.4.19(tsx@4.22.3)(yaml@2.9.0)
       vitest:
         specifier: ^2
-        version: 2.1.9(@types/node@25.9.1)(jiti@2.6.1)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
+        version: 2.1.9(@types/node@25.9.1)(jiti@1.21.7)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
 
   apps/quantmail:
     dependencies:
@@ -686,6 +695,9 @@ importers:
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@quant/brand':
+        specifier: workspace:*
+        version: link:../../packages/brand
       '@quant/common':
         specifier: workspace:*
         version: link:../../packages/common
@@ -10226,6 +10238,22 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 1.2.0
 
+  '@vitest/mocker@2.1.9(vite@6.4.2(@types/node@22.19.19)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0))':
+    dependencies:
+      '@vitest/spy': 2.1.9
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 6.4.2(@types/node@22.19.19)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
+
+  '@vitest/mocker@2.1.9(vite@6.4.2(@types/node@25.9.1)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0))':
+    dependencies:
+      '@vitest/spy': 2.1.9
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 6.4.2(@types/node@25.9.1)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0)
+
   '@vitest/mocker@2.1.9(vite@6.4.2(@types/node@25.9.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 2.1.9
@@ -13189,7 +13217,7 @@ snapshots:
   vitest@2.1.9(@types/node@22.19.19)(jiti@2.6.1)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@6.4.2(@types/node@25.9.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0))
+      '@vitest/mocker': 2.1.9(vite@6.4.2(@types/node@22.19.19)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
@@ -13228,7 +13256,7 @@ snapshots:
   vitest@2.1.9(@types/node@25.9.1)(jiti@1.21.7)(jsdom@29.1.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@6.4.2(@types/node@25.9.1)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0))
+      '@vitest/mocker': 2.1.9(vite@6.4.2(@types/node@25.9.1)(jiti@1.21.7)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
