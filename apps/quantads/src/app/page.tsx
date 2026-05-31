@@ -1,18 +1,35 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { Card, Button, LoadingState, ErrorState } from '@quant/shared-ui';
+import { spring } from '@quant/brand';
 import { quantAdsAPI } from '../services/api-client';
 import type { Campaign } from '../types';
 
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.06 },
+  },
+};
+
+const staggerItem = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', ...spring.gentle } },
+};
+
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <Card className="p-4">
-      <p className="text-xs text-[var(--quant-muted-foreground)] uppercase tracking-wide">
-        {label}
-      </p>
-      <p className="text-2xl font-bold mt-1">{value}</p>
-    </Card>
+    <motion.div variants={staggerItem}>
+      <Card className="p-4">
+        <p className="text-xs text-[var(--quant-muted-foreground)] uppercase tracking-wide">
+          {label}
+        </p>
+        <p className="text-2xl font-bold mt-1">{value}</p>
+      </Card>
+    </motion.div>
   );
 }
 
@@ -25,20 +42,39 @@ function CampaignRow({ campaign }: { campaign: Campaign }) {
         : 'text-[var(--quant-muted-foreground)]';
 
   return (
-    <Card className="p-4 mb-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-semibold text-sm">{campaign.name}</h3>
-          <p className="text-xs text-[var(--quant-muted-foreground)] mt-0.5">
-            {campaign.objective} &middot; <span className={statusColor}>{campaign.status}</span>
-          </p>
+    <motion.div variants={staggerItem}>
+      <Card className="p-4 mb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-sm">{campaign.name}</h3>
+            <p className="text-xs text-[var(--quant-muted-foreground)] mt-0.5">
+              {campaign.objective} &middot; <span className={statusColor}>{campaign.status}</span>
+            </p>
+          </div>
+          <div className="text-right text-xs text-[var(--quant-muted-foreground)]">
+            <p>${campaign.budget.spent.toLocaleString()} spent</p>
+            <p>{campaign.metrics.impressions.toLocaleString()} impressions</p>
+          </div>
         </div>
-        <div className="text-right text-xs text-[var(--quant-muted-foreground)]">
-          <p>${campaign.budget.spent.toLocaleString()} spent</p>
-          <p>{campaign.metrics.impressions.toLocaleString()} impressions</p>
-        </div>
+      </Card>
+    </motion.div>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="animate-pulse space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-20 rounded-lg bg-[var(--quant-muted)]" />
+        ))}
       </div>
-    </Card>
+      <div className="space-y-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-16 rounded-lg bg-[var(--quant-muted)]" />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -76,7 +112,7 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {isLoading && <LoadingState text="Loading dashboard..." />}
+      {isLoading && <LoadingSkeleton />}
 
       {isError && (
         <ErrorState
@@ -87,13 +123,18 @@ export default function DashboardPage() {
 
       {!isLoading && !isError && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+          <motion.div
+            className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8"
+            variants={staggerContainer}
+            initial="hidden"
+            animate="show"
+          >
             <MetricCard label="Total Spend" value={`$${totalSpend.toLocaleString()}`} />
             <MetricCard label="Impressions" value={totalImpressions.toLocaleString()} />
             <MetricCard label="Clicks" value={totalClicks.toLocaleString()} />
             <MetricCard label="Avg CTR" value={`${avgCtr}%`} />
             <MetricCard label="Active Campaigns" value={String(activeCampaigns.length)} />
-          </div>
+          </motion.div>
 
           <h2 className="text-lg font-semibold mb-3">Recent Campaigns</h2>
 
@@ -106,11 +147,11 @@ export default function DashboardPage() {
           )}
 
           {campaigns && campaigns.length > 0 && (
-            <div>
+            <motion.div variants={staggerContainer} initial="hidden" animate="show">
               {campaigns.slice(0, 10).map((campaign) => (
                 <CampaignRow key={campaign.id} campaign={campaign} />
               ))}
-            </div>
+            </motion.div>
           )}
         </>
       )}

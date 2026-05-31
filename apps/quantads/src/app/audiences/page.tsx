@@ -1,9 +1,24 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { Card, Button, Badge, LoadingState, ErrorState } from '@quant/shared-ui';
+import { spring } from '@quant/brand';
 import { quantAdsAPI } from '../../services/api-client';
 import type { CustomAudience } from '../../types';
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05 },
+  },
+};
+
+const staggerItem = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', ...spring.gentle } },
+};
 
 function AudienceCard({ audience }: { audience: CustomAudience }) {
   const sourceLabel =
@@ -16,25 +31,35 @@ function AudienceCard({ audience }: { audience: CustomAudience }) {
           : 'App Activity';
 
   return (
-    <Card className="p-4 mb-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-semibold text-sm">{audience.name}</h3>
-          <p className="text-xs text-[var(--quant-muted-foreground)] mt-1">
-            {audience.size.toLocaleString()} users &middot;{' '}
-            <Badge variant="default">{sourceLabel}</Badge>
-          </p>
+    <motion.div variants={staggerItem}>
+      <Card className="p-4 mb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-sm">{audience.name}</h3>
+            <p className="text-xs text-[var(--quant-muted-foreground)] mt-1">
+              {audience.size.toLocaleString()} users &middot;{' '}
+              <Badge variant="default">{sourceLabel}</Badge>
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="min-h-[44px] focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)]"
+            >
+              Edit
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="min-h-[44px] focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)]"
+            >
+              Use in Campaign
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" size="sm">
-            Edit
-          </Button>
-          <Button variant="secondary" size="sm">
-            Use in Campaign
-          </Button>
-        </div>
-      </div>
-    </Card>
+      </Card>
+    </motion.div>
   );
 }
 
@@ -60,7 +85,11 @@ export default function AudiencesPage() {
     <main className="max-w-4xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Audiences</h1>
-        <Button variant="primary" size="sm">
+        <Button
+          variant="primary"
+          size="sm"
+          className="min-h-[44px] focus-visible:ring-2 focus-visible:ring-[var(--quant-ring)]"
+        >
           Create Audience
         </Button>
       </div>
@@ -83,11 +112,11 @@ export default function AudiencesPage() {
       )}
 
       {!isLoading && !isError && audiences && audiences.length > 0 && (
-        <div>
+        <motion.div variants={staggerContainer} initial="hidden" animate="show">
           {audiences.map((audience) => (
             <AudienceCard key={audience.id} audience={audience} />
           ))}
-        </div>
+        </motion.div>
       )}
     </main>
   );

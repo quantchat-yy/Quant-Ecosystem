@@ -4,6 +4,8 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { spring } from '@quant/brand';
 
 interface PaymentMethod {
   id: string;
@@ -218,9 +220,14 @@ const BillingPage: React.FC<BillingPageProps> = ({ accountId: _accountId }) => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 min-h-screen">
+    <motion.div
+      className="max-w-6xl mx-auto p-6 min-h-screen"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', ...spring.gentle }}
+    >
       <header className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Billing</h1>
+        <h1 className="text-3xl font-bold text-[var(--quant-foreground)]">Billing</h1>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -472,7 +479,7 @@ const BillingPage: React.FC<BillingPageProps> = ({ accountId: _accountId }) => {
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

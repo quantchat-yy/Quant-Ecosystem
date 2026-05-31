@@ -4,6 +4,8 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { spring } from '@quant/brand';
 
 interface Pixel {
   id: string;
@@ -255,9 +257,14 @@ const PixelsPage: React.FC<PixelsPageProps> = ({ accountId: _accountId }) => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 min-h-screen">
+    <motion.div
+      className="max-w-7xl mx-auto p-6 min-h-screen"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', ...spring.gentle }}
+    >
       <header className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Pixels & Tracking</h1>
+        <h1 className="text-3xl font-bold text-[var(--quant-foreground)]">Pixels & Tracking</h1>
         <button
           onClick={() => setShowCreatePixel(true)}
           className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600"
@@ -518,7 +525,7 @@ const PixelsPage: React.FC<PixelsPageProps> = ({ accountId: _accountId }) => {
           <p className="text-gray-500">Create a pixel to start tracking conversions.</p>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 
