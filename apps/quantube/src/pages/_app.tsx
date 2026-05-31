@@ -1,6 +1,9 @@
 import '../styles/globals.css';
+import { useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { spring } from '@quant/brand';
+import { CommandPaletteProvider, useCommandPalette } from '@quant/shared-ui';
+import type { CommandPaletteItem } from '@quant/shared-ui';
 import { QueryProvider } from '../providers/query-provider';
 import { ThemeProvider } from '../providers/theme-provider';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -22,6 +25,26 @@ const reducedMotionTransition = {
   exit: { opacity: 0, transition: { duration: 0 } },
 };
 
+const QUANTUBE_COMMANDS: CommandPaletteItem[] = [
+  { id: 'search-videos', label: 'Search videos', group: 'QuantTube', action: () => {} },
+  { id: 'upload-video', label: 'Upload video', group: 'QuantTube', action: () => {} },
+  { id: 'go-to-music', label: 'Go to Music', group: 'QuantTube', action: () => {} },
+  { id: 'go-to-library', label: 'Go to Library', group: 'QuantTube', action: () => {} },
+  { id: 'toggle-dark-mode', label: 'Toggle Dark Mode', group: 'Settings', action: () => {} },
+  { id: 'ask-quant', label: 'Ask Quant', group: 'AI', action: () => {} },
+];
+
+function QuantTubeCommandRegistrar() {
+  const { registerCommand } = useCommandPalette();
+
+  useEffect(() => {
+    const unregisters = QUANTUBE_COMMANDS.map((cmd) => registerCommand(cmd));
+    return () => unregisters.forEach((unregister) => unregister());
+  }, [registerCommand]);
+
+  return null;
+}
+
 export default function App({ Component, pageProps }: AppProps) {
   const prefersReducedMotion = useReducedMotion();
   const variants = prefersReducedMotion ? reducedMotionTransition : pageTransition;
@@ -30,17 +53,20 @@ export default function App({ Component, pageProps }: AppProps) {
     <ErrorBoundary>
       <QueryProvider>
         <ThemeProvider>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={Component.displayName || Component.name || 'page'}
-              variants={variants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              <Component {...pageProps} />
-            </motion.div>
-          </AnimatePresence>
+          <CommandPaletteProvider appName="QuantTube">
+            <QuantTubeCommandRegistrar />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={Component.displayName || Component.name || 'page'}
+                variants={variants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+              >
+                <Component {...pageProps} />
+              </motion.div>
+            </AnimatePresence>
+          </CommandPaletteProvider>
         </ThemeProvider>
       </QueryProvider>
     </ErrorBoundary>

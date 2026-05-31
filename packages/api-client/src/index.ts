@@ -2,14 +2,23 @@
 // @quant/api-client - Typed React Query API Client SDK
 // ============================================================================
 
+// Proxy utility for Next.js API routes
+export { proxyToBackend } from './proxy';
+export type { ProxyOptions } from './proxy';
+
 // Core
 export { HttpClient } from './core/http-client';
+export { TokenManager } from './core/token-manager';
+export type { TokenManagerConfig } from './core/token-manager';
+export { createApiClient } from './core/create-client';
+export type { CreateApiClientConfig, ApiClientInstance } from './core/create-client';
 export type {
   APIResponse,
   APIError,
   PaginatedResponse,
   RequestConfig,
   QueryOptions,
+  RefreshConfig,
 } from './core/types';
 
 // Hooks

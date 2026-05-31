@@ -1,13 +1,35 @@
 import './globals.css';
+import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { AnimatePresence } from 'framer-motion';
-import { MotionProvider } from '@quant/shared-ui';
+import { MotionProvider, CommandPaletteProvider, useCommandPalette } from '@quant/shared-ui';
+import type { CommandPaletteItem } from '@quant/shared-ui';
 import { QueryProvider } from '../providers/query-provider';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
 interface AppProps {
   Component: React.ComponentType<Record<string, unknown>>;
   pageProps: Record<string, unknown>;
+}
+
+const QUANTNEON_COMMANDS: CommandPaletteItem[] = [
+  { id: 'post-photo', label: 'Post photo', group: 'QuantNeon', action: () => {} },
+  { id: 'create-reel', label: 'Create reel', group: 'QuantNeon', action: () => {} },
+  { id: 'explore', label: 'Explore', group: 'QuantNeon', action: () => {} },
+  { id: 'shop', label: 'Shop', group: 'QuantNeon', action: () => {} },
+  { id: 'ar-filters', label: 'AR Filters', group: 'QuantNeon', action: () => {} },
+  { id: 'ask-quant', label: 'Ask Quant', group: 'AI', action: () => {} },
+];
+
+function QuantNeonCommandRegistrar() {
+  const { registerCommand } = useCommandPalette();
+
+  useEffect(() => {
+    const unregisters = QUANTNEON_COMMANDS.map((cmd) => registerCommand(cmd));
+    return () => unregisters.forEach((unregister) => unregister());
+  }, [registerCommand]);
+
+  return null;
 }
 
 export default function App({ Component, pageProps }: AppProps) {
@@ -17,9 +39,12 @@ export default function App({ Component, pageProps }: AppProps) {
     <ErrorBoundary>
       <QueryProvider>
         <MotionProvider>
-          <AnimatePresence mode="wait">
-            <Component key={router.asPath} {...pageProps} />
-          </AnimatePresence>
+          <CommandPaletteProvider appName="QuantNeon">
+            <QuantNeonCommandRegistrar />
+            <AnimatePresence mode="wait">
+              <Component key={router.asPath} {...pageProps} />
+            </AnimatePresence>
+          </CommandPaletteProvider>
         </MotionProvider>
       </QueryProvider>
     </ErrorBoundary>

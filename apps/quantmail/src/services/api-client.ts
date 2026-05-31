@@ -59,7 +59,7 @@ export class QuantMailApiClient {
   private onTokenRefresh?: (tokens: { accessToken: string; refreshToken: string }) => void;
   private onAuthError?: () => void;
 
-  constructor(baseUrl: string = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3010') {
+  constructor(baseUrl: string = process.env.NEXT_PUBLIC_API_URL || '/api') {
     this.baseUrl = baseUrl;
   }
 
@@ -532,13 +532,32 @@ export class QuantMailApiClient {
     body?: unknown,
     options?: RequestOptions,
   ): Promise<ApiResponse<T>> {
-    const url = new URL(path, this.baseUrl);
-    if (options?.params) {
-      for (const [key, value] of Object.entries(options.params)) {
-        if (value !== undefined && value !== null) {
-          url.searchParams.set(key, String(value));
+    // Support both relative (/api) and absolute (http://...) base URLs
+    const isAbsolute = this.baseUrl.startsWith('http://') || this.baseUrl.startsWith('https://');
+    let urlStr: string;
+
+    if (isAbsolute) {
+      const url = new URL(path, this.baseUrl);
+      if (options?.params) {
+        for (const [key, value] of Object.entries(options.params)) {
+          if (value !== undefined && value !== null) {
+            url.searchParams.set(key, String(value));
+          }
         }
       }
+      urlStr = url.toString();
+    } else {
+      const base = `${this.baseUrl}${path}`;
+      const paramEntries = Object.entries(options?.params || {}).filter(
+        ([, v]) => v !== undefined && v !== null,
+      );
+      const qs = paramEntries.length
+        ? '?' +
+          paramEntries
+            .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+            .join('&')
+        : '';
+      urlStr = `${base}${qs}`;
     }
 
     const headers: Record<string, string> = {
@@ -551,14 +570,12 @@ export class QuantMailApiClient {
     }
 
     try {
-      const response = await fetch(url.toString(), {
+      const response = await fetch(urlStr, {
         method,
         headers,
         body: body ? JSON.stringify(body) : undefined,
         signal: options?.signal,
       });
-
-      const data = (await response.json()) as ApiResponse<T>;
 
       if (response.status === 401 && this.refreshToken) {
         // Try to refresh the token
@@ -566,7 +583,7 @@ export class QuantMailApiClient {
         if (refreshed) {
           // Retry the original request
           headers['Authorization'] = `Bearer ${this.accessToken}`;
-          const retryResponse = await fetch(url.toString(), {
+          const retryResponse = await fetch(urlStr, {
             method,
             headers,
             body: body ? JSON.stringify(body) : undefined,
@@ -574,9 +591,14 @@ export class QuantMailApiClient {
           return (await retryResponse.json()) as ApiResponse<T>;
         } else {
           this.onAuthError?.();
+          return {
+            success: false,
+            error: { code: 'AUTH_ERROR', message: 'Authentication failed', statusCode: 401 },
+          };
         }
       }
 
+      const data = (await response.json()) as ApiResponse<T>;
       return data;
     } catch (error) {
       return {

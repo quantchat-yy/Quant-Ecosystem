@@ -37,6 +37,17 @@ export { AuditLog } from './audit/audit-log.js';
 // MCP
 export { MCPServerAdapter } from './mcp/mcp-server.js';
 
+// Orchestrator
+export { CrossAppOrchestrator } from './orchestrator/index.js';
+export type {
+  OrchestratorEvent,
+  OrchestratorEventType,
+  OrchestratorListener,
+  OrchestratorOptions,
+} from './orchestrator/index.js';
+export { ContextManager } from './orchestrator/index.js';
+export type { AppContext, ResolvedReference } from './orchestrator/index.js';
+
 // Tool definitions
 export {
   allTools,

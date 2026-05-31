@@ -55,7 +55,7 @@ function ExploreSkeleton() {
       {Array.from({ length: 12 }).map((_, i) => (
         <div
           key={i}
-          className={`bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse ${
+          className={`bg-[var(--quant-muted)] rounded-lg animate-pulse ${
             i % 5 === 0
               ? 'row-span-2 aspect-[1/2]'
               : i % 7 === 0
@@ -132,12 +132,12 @@ const ExplorePage: React.FC = () => {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-white dark:bg-[#0F0F14] text-gray-900 dark:text-gray-100">
+      <div className="min-h-screen bg-[var(--quant-background)] text-[var(--quant-foreground)]">
         <div className="px-4 max-w-7xl mx-auto py-4">
           {/* Search Bar with Autocomplete */}
           <div className="relative mb-4">
             <input
-              className="h-11 w-full rounded-xl bg-gray-100 dark:bg-gray-800 px-4 pl-10 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-shadow"
+              className="h-11 w-full rounded-xl bg-[var(--quant-card)] border border-[var(--quant-border)] px-4 pl-10 text-sm text-[var(--quant-foreground)] placeholder-[var(--quant-muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] transition-shadow"
               placeholder="Search people, tags, places..."
               value={searchQuery}
               onChange={(e) => {
@@ -238,7 +238,7 @@ const ExplorePage: React.FC = () => {
             ))}
           </div>
 
-          {/* Content Grid - Masonry Layout */}
+          {/* Content Grid - Masonry Layout with stagger animation */}
           {isLoading ? (
             <ExploreSkeleton />
           ) : filtered.length === 0 ? (
@@ -247,13 +247,23 @@ const ExplorePage: React.FC = () => {
               description="Try a different search term or category"
             />
           ) : (
-            <div className="grid grid-cols-3 auto-rows-[150px] gap-0.5">
+            <motion.div
+              className="grid grid-cols-3 auto-rows-[150px] gap-0.5"
+              initial="hidden"
+              animate="visible"
+              variants={{
+                hidden: { opacity: 0 },
+                visible: { opacity: 1, transition: { staggerChildren: 0.03 } },
+              }}
+            >
               {filtered.map((post) => (
                 <motion.div
                   key={post.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className={`relative overflow-hidden bg-gray-100 dark:bg-gray-800 rounded-sm ${
+                  variants={{
+                    hidden: { opacity: 0, y: 10 },
+                    visible: { opacity: 1, y: 0, transition: { type: 'spring', ...spring.gentle } },
+                  }}
+                  className={`relative overflow-hidden bg-[var(--quant-muted)] rounded-sm ${
                     post.span === 'tall' ? 'row-span-2' : post.span === 'wide' ? 'col-span-2' : ''
                   }`}
                   role="article"
@@ -278,7 +288,7 @@ const ExplorePage: React.FC = () => {
                   </div>
                 </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
       </div>

@@ -2,17 +2,16 @@
 
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { spring } from '@quant/brand';
 import { FileUpload, Button } from '@quant/shared-ui';
-
-const springGentle = { damping: 20, stiffness: 100, mass: 1 };
-const springSnappy = { damping: 30, stiffness: 400, mass: 0.8 };
+import { useUploadFile } from '../hooks/useFiles';
 
 interface UploadFile {
   id: string;
   name: string;
   size: number;
   progress: number;
-  status: 'uploading' | 'complete' | 'cancelled';
+  status: 'uploading' | 'complete' | 'cancelled' | 'error';
 }
 
 function formatFileSize(bytes: number): string {
@@ -24,35 +23,57 @@ function formatFileSize(bytes: number): string {
 
 export function UploadArea() {
   const [uploads, setUploads] = useState<UploadFile[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const uploadMutation = useUploadFile();
 
-  const handleUpload = useCallback((files: File[]) => {
-    const newUploads: UploadFile[] = files.map((file) => ({
-      id: `${Date.now()}-${Math.random()}`,
-      name: file.name,
-      size: file.size,
-      progress: 0,
-      status: 'uploading' as const,
-    }));
+  const handleFiles = useCallback(
+    async (files: FileList | File[]) => {
+      const fileArray = Array.from(files);
+      if (fileArray.length === 0) return;
 
-    setUploads((prev) => [...prev, ...newUploads]);
+      const newUploads: UploadFile[] = fileArray.map((file) => ({
+        id: `${Date.now()}-${Math.random()}`,
+        name: file.name,
+        size: file.size,
+        progress: 0,
+        status: 'uploading' as const,
+      }));
 
-    // Simulate upload progress
-    newUploads.forEach((upload) => {
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += Math.random() * 20;
-        if (progress >= 100) {
-          progress = 100;
-          clearInterval(interval);
+      setUploads((prev) => [...prev, ...newUploads]);
+
+      // Upload each file using the mutation
+      for (let i = 0; i < fileArray.length; i++) {
+        const upload = newUploads[i];
+        try {
+          const formData = new FormData();
+          formData.append('file', fileArray[i]);
+
+          // Simulate progress while uploading
+          const progressInterval = setInterval(() => {
+            setUploads((prev) =>
+              prev.map((u) =>
+                u.id === upload.id && u.status === 'uploading'
+                  ? { ...u, progress: Math.min(u.progress + Math.random() * 20, 90) }
+                  : u,
+              ),
+            );
+          }, 300);
+
+          await uploadMutation.mutateAsync(formData);
+
+          clearInterval(progressInterval);
           setUploads((prev) =>
             prev.map((u) => (u.id === upload.id ? { ...u, progress: 100, status: 'complete' } : u)),
           );
-        } else {
-          setUploads((prev) => prev.map((u) => (u.id === upload.id ? { ...u, progress } : u)));
+        } catch {
+          setUploads((prev) =>
+            prev.map((u) => (u.id === upload.id ? { ...u, status: 'error' } : u)),
+          );
         }
-      }, 500);
-    });
-  }, []);
+      }
+    },
+    [uploadMutation],
+  );
 
   const cancelUpload = useCallback((uploadId: string) => {
     setUploads((prev) =>
@@ -63,6 +84,37 @@ export function UploadArea() {
   const clearCompleted = useCallback(() => {
     setUploads((prev) => prev.filter((u) => u.status === 'uploading'));
   }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
+      if (e.dataTransfer.files.length > 0) {
+        void handleFiles(e.dataTransfer.files);
+      }
+    },
+    [handleFiles],
+  );
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  }, []);
+
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files.length > 0) {
+        void handleFiles(e.target.files);
+        e.target.value = '';
+      }
+    },
+    [handleFiles],
+  );
 
   return (
     <div className="space-y-3">
@@ -82,14 +134,36 @@ export function UploadArea() {
             Clear completed
           </Button>
         )}
-        <input id="drive-upload-input" type="file" multiple className="hidden" aria-hidden="true" />
+        <input
+          id="drive-upload-input"
+          type="file"
+          multiple
+          className="hidden"
+          aria-hidden="true"
+          onChange={handleInputChange}
+        />
       </div>
-      <FileUpload
-        multiple
-        onUpload={handleUpload}
+
+      <motion.div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        animate={{
+          scale: isDragOver ? 1.02 : 1,
+          borderColor: isDragOver ? 'var(--quant-primary)' : 'var(--quant-border)',
+        }}
+        transition={{ type: 'spring', ...spring.snappy }}
+        className={`relative min-h-[80px] rounded-lg border-2 border-dashed flex items-center justify-center p-4 transition-colors ${
+          isDragOver
+            ? 'bg-[var(--quant-primary)]/5 shadow-[0_0_0_3px_var(--quant-primary)/20]'
+            : 'bg-[var(--quant-muted)]/30'
+        }`}
         aria-label="Drop files to upload"
-        className="min-h-[80px]"
-      />
+      >
+        <p className="text-sm text-[var(--quant-muted-foreground)] text-center">
+          {isDragOver ? 'Drop files here' : 'Drag and drop files here, or click Upload'}
+        </p>
+      </motion.div>
 
       {/* Upload progress list */}
       <AnimatePresence>
@@ -98,7 +172,7 @@ export function UploadArea() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ type: 'spring', ...springGentle }}
+            transition={{ type: 'spring', ...spring.gentle }}
             className="space-y-2"
           >
             <ul aria-label="Upload progress" className="space-y-2">
@@ -108,7 +182,7 @@ export function UploadArea() {
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 8 }}
-                  transition={{ type: 'spring', ...springSnappy }}
+                  transition={{ type: 'spring', ...spring.snappy }}
                   className="flex items-center gap-3 p-2 rounded-md bg-[var(--quant-muted)]"
                 >
                   <div className="flex-1 min-w-0">
@@ -126,11 +200,13 @@ export function UploadArea() {
                               ? 'bg-green-500'
                               : upload.status === 'cancelled'
                                 ? 'bg-gray-400'
-                                : 'bg-[var(--quant-primary)]'
+                                : upload.status === 'error'
+                                  ? 'bg-red-500'
+                                  : 'bg-[var(--quant-primary)]'
                           }`}
                           initial={{ width: 0 }}
                           animate={{ width: `${upload.progress}%` }}
-                          transition={{ type: 'spring', ...springSnappy }}
+                          transition={{ type: 'spring', ...spring.snappy }}
                         />
                       </div>
                       <span className="text-xs text-[var(--quant-muted-foreground)] w-8 text-right">
@@ -138,7 +214,9 @@ export function UploadArea() {
                           ? '\u2713'
                           : upload.status === 'cancelled'
                             ? '\u2717'
-                            : `${Math.round(upload.progress)}%`}
+                            : upload.status === 'error'
+                              ? '\u2717'
+                              : `${Math.round(upload.progress)}%`}
                       </span>
                     </div>
                   </div>

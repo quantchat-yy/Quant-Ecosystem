@@ -1,7 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@quant/shared-ui', '@quant/common'],
+  transpilePackages: ['@quant/shared-ui', '@quant/common', '@quant/quant-tools'],
   output: 'standalone',
+  webpack(config) {
+    // Allow .js extension in imports to resolve to .ts source files
+    // (required for @quant/quant-tools which uses ESM .js extension convention)
+    config.resolve.extensionAlias = {
+      '.js': ['.ts', '.tsx', '.js'],
+      '.mjs': ['.mts', '.mjs'],
+    };
+    return config;
+  },
   async headers() {
     return [
       {

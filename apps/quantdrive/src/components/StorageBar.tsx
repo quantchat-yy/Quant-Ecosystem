@@ -1,5 +1,7 @@
 'use client';
 
+import { motion } from 'framer-motion';
+import { spring } from '@quant/brand';
 import { useStorageQuota } from '../hooks/useStorageQuota';
 
 export function StorageBar() {
@@ -17,9 +19,9 @@ export function StorageBar() {
   const percentage = quota.total > 0 ? (quota.used / quota.total) * 100 : 0;
 
   const getBarColor = () => {
-    if (percentage >= 90) return 'bg-red-500';
-    if (percentage >= 70) return 'bg-yellow-500';
-    return 'bg-green-500';
+    if (percentage >= 90) return 'var(--quant-destructive)';
+    if (percentage >= 70) return 'var(--quant-warning)';
+    return 'var(--quant-success)';
   };
 
   return (
@@ -32,9 +34,12 @@ export function StorageBar() {
       aria-label="Storage usage"
     >
       <div className="h-2 rounded-full bg-[var(--quant-muted)] overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-300 ${getBarColor()}`}
-          style={{ width: `${Math.min(percentage, 100)}%` }}
+        <motion.div
+          className="h-full rounded-full"
+          style={{ backgroundColor: getBarColor() }}
+          initial={{ width: 0 }}
+          animate={{ width: `${Math.min(percentage, 100)}%` }}
+          transition={{ type: 'spring', ...spring.gentle }}
         />
       </div>
       <p className="text-xs text-[var(--quant-muted-foreground)]">

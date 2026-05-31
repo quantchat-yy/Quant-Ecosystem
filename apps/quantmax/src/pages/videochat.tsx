@@ -5,6 +5,9 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { spring } from '@quant/brand';
+import { ErrorState } from '@quant/shared-ui';
 
 interface ChatMessage {
   id: string;
@@ -288,81 +291,112 @@ const VideoChatPage: React.FC = () => {
   // Idle state - interest selection and start
   if (connectionState === 'idle') {
     return (
-      <div className="videochat-page">
-        <div className="videochat-lobby">
-          <h1 className="lobby-title">Video Chat</h1>
-          <p className="lobby-subtitle">Meet new people with shared interests</p>
+      <div className="min-h-screen bg-[var(--quant-background)] text-[var(--quant-foreground)]">
+        <div className="max-w-md mx-auto px-4 py-8">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: 'spring', ...spring.gentle }}
+            className="text-center mb-8"
+          >
+            <h1 className="text-2xl font-bold mb-2">Video Chat</h1>
+            <p className="text-sm text-[var(--quant-muted-foreground)]">
+              Meet new people with shared interests
+            </p>
+          </motion.div>
 
-          <div className="interests-section">
-            <h3 className="interests-title">Your Interests</h3>
-            <div className="interests-input-row">
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-[var(--quant-muted-foreground)] mb-3">
+              Your Interests
+            </h3>
+            <div className="flex gap-2 mb-3">
               <input
-                className="interest-input"
+                className="flex-1 h-11 px-4 rounded-lg bg-[var(--quant-card)] border border-[var(--quant-border)] text-sm text-[var(--quant-foreground)] placeholder-[var(--quant-muted-foreground)] focus:outline-none focus:border-[var(--brand-primary)]"
                 placeholder="Add an interest..."
                 value={interestInput}
                 onChange={(e) => setInterestInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddInterest(interestInput)}
               />
-              <button className="add-interest-btn" onClick={() => handleAddInterest(interestInput)}>
+              <button
+                className="h-11 w-11 rounded-lg bg-[var(--brand-primary)] text-white font-bold flex items-center justify-center"
+                onClick={() => handleAddInterest(interestInput)}
+              >
                 +
               </button>
             </div>
-            <div className="selected-interests">
-              {interests.map((interest) => (
-                <span key={interest} className="interest-tag selected">
-                  {interest}
-                  <button
-                    className="remove-interest"
-                    onClick={() => handleRemoveInterest(interest)}
+            {interests.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {interests.map((interest) => (
+                  <span
+                    key={interest}
+                    className="flex items-center gap-1 px-3 py-1 rounded-full bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] text-sm font-medium border border-[var(--brand-primary)]/30"
                   >
-                    x
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="suggested-interests">
-              <h4>Suggested</h4>
-              <div className="suggestions-grid">
-                {SUGGESTED_INTERESTS.filter((s) => !interests.includes(s)).map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    className="suggestion-tag"
-                    onClick={() => handleAddInterest(suggestion)}
-                  >
-                    {suggestion}
-                  </button>
+                    {interest}
+                    <button
+                      className="ml-0.5 text-xs hover:opacity-70"
+                      onClick={() => handleRemoveInterest(interest)}
+                    >
+                      &#10005;
+                    </button>
+                  </span>
                 ))}
+              </div>
+            )}
+            <div className="mb-4">
+              <h4 className="text-xs font-medium text-[var(--quant-muted-foreground)] mb-2">
+                Suggested
+              </h4>
+              <div className="flex flex-wrap gap-1.5">
+                {SUGGESTED_INTERESTS.filter((s) => !interests.includes(s))
+                  .slice(0, 12)
+                  .map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      className="px-3 py-1 rounded-full text-xs font-medium bg-[var(--quant-card)] border border-[var(--quant-border)] text-[var(--quant-muted-foreground)] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
+                      onClick={() => handleAddInterest(suggestion)}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
               </div>
             </div>
           </div>
 
-          <div className="auto-skip-setting">
-            <label className="auto-skip-label">
+          <div className="flex items-center gap-2 mb-6 text-sm text-[var(--quant-muted-foreground)]">
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={autoSkipEnabled}
                 onChange={(e) => setAutoSkipEnabled(e.target.checked)}
+                className="rounded border-[var(--quant-border)]"
               />
               Auto-skip after
-              <input
-                type="number"
-                className="auto-skip-input"
-                value={autoSkipSeconds}
-                onChange={(e) => setAutoSkipSeconds(Number(e.target.value))}
-                min={10}
-                max={120}
-              />
-              seconds
             </label>
+            <input
+              type="number"
+              className="w-14 h-8 px-2 rounded bg-[var(--quant-card)] border border-[var(--quant-border)] text-center text-[var(--quant-foreground)] text-sm"
+              value={autoSkipSeconds}
+              onChange={(e) => setAutoSkipSeconds(Number(e.target.value))}
+              min={10}
+              max={120}
+            />
+            <span>seconds</span>
           </div>
 
-          <button className="start-match-btn" onClick={startSearch}>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="w-full py-3 min-h-[44px] rounded-xl bg-[var(--brand-primary)] text-white font-semibold text-base hover:opacity-90 transition-opacity"
+            onClick={startSearch}
+          >
             Start Matching
-          </button>
+          </motion.button>
 
-          <div className="session-stats">
-            <span className="stat-item">Sessions today: {sessionCount}</span>
-          </div>
+          {sessionCount > 0 && (
+            <p className="text-center text-xs text-[var(--quant-muted-foreground)] mt-4">
+              Sessions today: {sessionCount}
+            </p>
+          )}
         </div>
       </div>
     );
@@ -371,23 +405,49 @@ const VideoChatPage: React.FC = () => {
   // Searching state
   if (connectionState === 'searching') {
     return (
-      <div className="videochat-page">
-        <div className="searching-screen">
-          <div className="searching-animation">
-            <div className="pulse-ring ring-1" />
-            <div className="pulse-ring ring-2" />
-            <div className="pulse-ring ring-3" />
-            <div className="search-icon">🔍</div>
+      <div className="min-h-screen bg-[var(--quant-background)] flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', ...spring.gentle }}
+          className="flex flex-col items-center gap-4"
+        >
+          <div className="relative w-24 h-24">
+            <motion.div
+              className="absolute inset-0 rounded-full border-2 border-[var(--brand-primary)] opacity-30"
+              animate={{ scale: [1, 1.8], opacity: [0.3, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            />
+            <motion.div
+              className="absolute inset-2 rounded-full border-2 border-[var(--brand-primary)] opacity-30"
+              animate={{ scale: [1, 1.6], opacity: [0.3, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity, delay: 0.3 }}
+            />
+            <motion.div
+              className="absolute inset-4 rounded-full border-2 border-[var(--brand-primary)] opacity-30"
+              animate={{ scale: [1, 1.4], opacity: [0.3, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity, delay: 0.6 }}
+            />
+            <div className="absolute inset-0 flex items-center justify-center text-3xl">
+              &#128269;
+            </div>
           </div>
-          <h2 className="searching-title">Finding someone...</h2>
-          <p className="searching-time">Searching for {searchDuration}s</p>
+          <h2 className="text-xl font-bold text-[var(--quant-foreground)]">Finding someone...</h2>
+          <p className="text-sm text-[var(--quant-muted-foreground)]">
+            Searching for {searchDuration}s
+          </p>
           {interests.length > 0 && (
-            <p className="searching-interests">Looking for: {interests.join(', ')}</p>
+            <p className="text-xs text-[var(--quant-muted-foreground)]">
+              Looking for: {interests.join(', ')}
+            </p>
           )}
-          <button className="cancel-search-btn" onClick={handleDisconnect}>
+          <button
+            className="mt-4 px-6 py-2 min-h-[44px] text-sm font-medium border border-[var(--quant-border)] rounded-lg text-[var(--quant-foreground)] hover:bg-[var(--quant-card)] transition-colors"
+            onClick={handleDisconnect}
+          >
             Cancel
           </button>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -395,16 +455,34 @@ const VideoChatPage: React.FC = () => {
   // Connecting state
   if (connectionState === 'connecting') {
     return (
-      <div className="videochat-page">
-        <div className="connecting-screen">
-          <div className="connecting-animation">
-            <div className="connect-dot dot-1" />
-            <div className="connect-dot dot-2" />
-            <div className="connect-dot dot-3" />
+      <div className="min-h-screen bg-[var(--quant-background)] flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', ...spring.gentle }}
+          className="flex flex-col items-center gap-4"
+        >
+          <div className="relative w-32 h-24 rounded-xl bg-[var(--quant-muted)] overflow-hidden">
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--quant-card)] to-transparent"
+              animate={{ x: ['-100%', '100%'] }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+            />
           </div>
-          <h2 className="connecting-title">Connecting...</h2>
-          <p className="connecting-subtitle">Establishing secure connection</p>
-        </div>
+          <h2 className="text-lg font-semibold text-[var(--quant-foreground)]">Connecting...</h2>
+          <p className="text-sm text-[var(--quant-muted-foreground)]">
+            Establishing secure connection
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (connectionState === 'error') {
+    return (
+      <div className="min-h-screen bg-[var(--quant-background)] flex items-center justify-center">
+        <ErrorState message="Connection failed. Please try again." onRetry={startSearch} />
       </div>
     );
   }

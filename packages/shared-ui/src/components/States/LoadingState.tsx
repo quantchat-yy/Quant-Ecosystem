@@ -40,7 +40,7 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
       {variant === 'spinner' &&
         (shouldAnimate ? (
           <motion.svg
-            className={`${sizeMap[size]} text-blue-600`}
+            className={`${sizeMap[size]} text-[var(--brand-primary)]`}
             fill="none"
             viewBox="0 0 24 24"
             animate={{ rotate: 360 }}
@@ -61,7 +61,11 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
             />
           </motion.svg>
         ) : (
-          <svg className={`${sizeMap[size]} text-blue-600`} fill="none" viewBox="0 0 24 24">
+          <svg
+            className={`${sizeMap[size]} text-[var(--brand-primary)]`}
+            fill="none"
+            viewBox="0 0 24 24"
+          >
             <circle
               className="opacity-25"
               cx="12"
@@ -80,13 +84,13 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
       {variant === 'skeleton' && (
         <div className="w-full max-w-sm space-y-3">
           <div
-            className={`h-4 bg-gray-200 rounded w-3/4${shouldAnimate ? ' animate-pulse' : ''}`}
+            className={`h-4 bg-[var(--quant-muted)] rounded w-3/4${shouldAnimate ? ' animate-pulse' : ''}`}
           />
           <div
-            className={`h-4 bg-gray-200 rounded w-full${shouldAnimate ? ' animate-pulse' : ''}`}
+            className={`h-4 bg-[var(--quant-muted)] rounded w-full${shouldAnimate ? ' animate-pulse' : ''}`}
           />
           <div
-            className={`h-4 bg-gray-200 rounded w-2/3${shouldAnimate ? ' animate-pulse' : ''}`}
+            className={`h-4 bg-[var(--quant-muted)] rounded w-2/3${shouldAnimate ? ' animate-pulse' : ''}`}
           />
         </div>
       )}
@@ -96,7 +100,7 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
             {[0, 1, 2].map((i) => (
               <motion.span
                 key={i}
-                className="w-2 h-2 bg-blue-600 rounded-full"
+                className="w-2 h-2 bg-[var(--brand-primary)] rounded-full"
                 animate={{ y: [0, -6, 0] }}
                 transition={{
                   duration: 0.6,
@@ -109,12 +113,12 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
           </div>
         ) : (
           <div className="flex items-center gap-1">
-            <span className="w-2 h-2 bg-blue-600 rounded-full" />
-            <span className="w-2 h-2 bg-blue-600 rounded-full" />
-            <span className="w-2 h-2 bg-blue-600 rounded-full" />
+            <span className="w-2 h-2 bg-[var(--brand-primary)] rounded-full" />
+            <span className="w-2 h-2 bg-[var(--brand-primary)] rounded-full" />
+            <span className="w-2 h-2 bg-[var(--brand-primary)] rounded-full" />
           </div>
         ))}
-      {text && <p className="mt-3 text-sm text-gray-500">{text}</p>}
+      {text && <p className="mt-3 text-sm text-[var(--quant-muted-foreground)]">{text}</p>}
     </div>
   );
 };

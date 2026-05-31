@@ -3,6 +3,8 @@
 import { Select, EmptyState, LoadingState, ErrorState } from '@quant/shared-ui';
 import type { SelectOption } from '@quant/shared-ui';
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { spring } from '@quant/brand';
 import { useFiles } from '../hooks/useFiles';
 import type { FileItem } from '../hooks/useFiles';
 import { FileCard } from './FileCard';
@@ -22,6 +24,58 @@ const SORT_OPTIONS: SelectOption[] = [
   { value: 'size', label: 'Size' },
 ];
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.04,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', ...spring.gentle },
+  },
+};
+
+function LoadingSkeleton({ viewMode }: { viewMode: 'grid' | 'list' }) {
+  const items = Array.from({ length: 8 }, (_, i) => i);
+
+  if (viewMode === 'list') {
+    return (
+      <div className="space-y-1">
+        {items.map((i) => (
+          <div key={i} className="flex items-center gap-4 px-4 py-3 rounded-lg animate-pulse">
+            <div className="w-8 h-8 rounded bg-[var(--quant-muted)]" />
+            <div className="flex-1 h-4 rounded bg-[var(--quant-muted)]" />
+            <div className="w-16 h-3 rounded bg-[var(--quant-muted)]" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+      {items.map((i) => (
+        <div
+          key={i}
+          className="flex flex-col items-center p-4 rounded-lg border border-[var(--quant-border)] animate-pulse"
+        >
+          <div className="w-12 h-12 rounded bg-[var(--quant-muted)] mb-3" />
+          <div className="w-full h-4 rounded bg-[var(--quant-muted)]" />
+          <div className="w-2/3 h-3 rounded bg-[var(--quant-muted)] mt-1" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function FileBrowser({
   currentPath,
   viewMode,
@@ -33,7 +87,7 @@ export function FileBrowser({
   const [sortBy, setSortBy] = useState('name');
 
   if (isLoading) {
-    return <LoadingState text="Loading files..." />;
+    return <LoadingSkeleton viewMode={viewMode} />;
   }
 
   if (error) {
@@ -112,45 +166,71 @@ export function FileBrowser({
         </div>
       </div>
 
-      {viewMode === 'grid' ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-          {folders.map((folder) => (
-            <FolderCard
-              key={folder.id}
-              folder={folder}
-              onClick={() => onFolderOpen(folder.path)}
-              viewMode="grid"
-            />
-          ))}
-          {fileItems.map((file) => (
-            <FileCard
-              key={file.id}
-              file={file}
-              onClick={() => onFileSelect(file)}
-              viewMode="grid"
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-1">
-          {folders.map((folder) => (
-            <FolderCard
-              key={folder.id}
-              folder={folder}
-              onClick={() => onFolderOpen(folder.path)}
-              viewMode="list"
-            />
-          ))}
-          {fileItems.map((file) => (
-            <FileCard
-              key={file.id}
-              file={file}
-              onClick={() => onFileSelect(file)}
-              viewMode="list"
-            />
-          ))}
-        </div>
-      )}
+      <AnimatePresence mode="wait">
+        {viewMode === 'grid' ? (
+          <motion.div
+            key="grid"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3"
+          >
+            {folders.map((folder) => (
+              <motion.div
+                key={folder.id}
+                variants={itemVariants}
+                style={{ contentVisibility: 'auto' }}
+              >
+                <FolderCard
+                  folder={folder}
+                  onClick={() => onFolderOpen(folder.path)}
+                  viewMode="grid"
+                />
+              </motion.div>
+            ))}
+            {fileItems.map((file) => (
+              <motion.div
+                key={file.id}
+                variants={itemVariants}
+                style={{ contentVisibility: 'auto' }}
+              >
+                <FileCard file={file} onClick={() => onFileSelect(file)} viewMode="grid" />
+              </motion.div>
+            ))}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="list"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="space-y-1"
+          >
+            {folders.map((folder) => (
+              <motion.div
+                key={folder.id}
+                variants={itemVariants}
+                style={{ contentVisibility: 'auto' }}
+              >
+                <FolderCard
+                  folder={folder}
+                  onClick={() => onFolderOpen(folder.path)}
+                  viewMode="list"
+                />
+              </motion.div>
+            ))}
+            {fileItems.map((file) => (
+              <motion.div
+                key={file.id}
+                variants={itemVariants}
+                style={{ contentVisibility: 'auto' }}
+              >
+                <FileCard file={file} onClick={() => onFileSelect(file)} viewMode="list" />
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
