@@ -3,11 +3,12 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '../providers/query-provider';
 import { AppProviders } from '../providers/app-providers';
+import { AppLayout } from '../components/AppLayout';
 import { quantads, generateFaviconSvg } from '@quant/brand';
 
 const inter = Inter({ subsets: ['latin'] });
 
-const faviconSvg = generateFaviconSvg(quantads.color);
+const faviconSvg = generateFaviconSvg(quantads.id);
 
 export const metadata: Metadata = {
   title: 'QuantAds | Quant',
@@ -28,7 +29,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={inter.className}>
         <QueryProvider>
-          <AppProviders>{children}</AppProviders>
+          <AppProviders>
+            <AppLayout>{children}</AppLayout>
+          </AppProviders>
         </QueryProvider>
       </body>
     </html>
