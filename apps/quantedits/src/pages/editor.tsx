@@ -4,8 +4,11 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
+import { spring } from '@quant/brand';
 import { useProjectById } from '../hooks/useProjectById';
+import { PageTransition } from '../components/PageTransition';
 
 interface Clip {
   id: string;
@@ -300,381 +303,393 @@ const TimelineEditor: React.FC<EditorProps> = ({ projectId = 'default' }) => {
     return <EmptyState title="Project not found" description="Could not load the project data" />;
 
   return (
-    <div className="timeline-editor">
-      <div className="editor-toolbar">
-        <div className="toolbar-left">
-          <button
-            className={`tool-btn ${activeTool === 'select' ? 'active' : ''}`}
-            onClick={() => setActiveTool('select')}
-            title="Select (V)"
-          >
-            &#9654;
-          </button>
-          <button
-            className={`tool-btn ${activeTool === 'cut' ? 'active' : ''}`}
-            onClick={() => setActiveTool('cut')}
-            title="Cut (C)"
-          >
-            &#9986;
-          </button>
-          <button
-            className={`tool-btn ${activeTool === 'text' ? 'active' : ''}`}
-            onClick={() => setActiveTool('text')}
-            title="Text (T)"
-          >
-            T
-          </button>
-          <button
-            className={`tool-btn ${activeTool === 'draw' ? 'active' : ''}`}
-            onClick={() => setActiveTool('draw')}
-            title="Draw (D)"
-          >
-            &#9998;
-          </button>
-          <button
-            className={`tool-btn ${activeTool === 'crop' ? 'active' : ''}`}
-            onClick={() => setActiveTool('crop')}
-            title="Crop (R)"
-          >
-            &#9634;
-          </button>
-          <div className="toolbar-divider" />
-          <button
-            className="tool-btn"
-            onClick={handleCut}
-            disabled={!selectedClip}
-            title="Split (S)"
-          >
-            &#8967;
-          </button>
-          <button className="tool-btn" onClick={handleCopy} disabled={!selectedClip} title="Copy">
-            &#128203;
-          </button>
-          <button className="tool-btn" onClick={handlePaste} disabled={!clipboard} title="Paste">
-            &#128204;
-          </button>
-          <button
-            className="tool-btn"
-            onClick={handleDeleteClip}
-            disabled={!selectedClip}
-            title="Delete"
-          >
-            &#128465;
-          </button>
-        </div>
-        <div className="toolbar-center">
-          <button
-            className="tool-btn"
-            onClick={handleUndo}
-            disabled={undoStack.length === 0}
-            title="Undo"
-          >
-            &#8630;
-          </button>
-          <button
-            className="tool-btn"
-            onClick={handleRedo}
-            disabled={redoStack.length === 0}
-            title="Redo"
-          >
-            &#8631;
-          </button>
-          <span className="history-count">{undoStack.length} changes</span>
-        </div>
-        <div className="toolbar-right">
-          <label className="snap-toggle">
-            <input
-              type="checkbox"
-              checked={snapEnabled}
-              onChange={(e) => setSnapEnabled(e.target.checked)}
-            />
-            Snap
-          </label>
-          <div className="zoom-control">
-            <button onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))}>-</button>
-            <span>{Math.round(zoom * 100)}%</span>
-            <button onClick={() => setZoom((z) => Math.min(4, z + 0.25))}>+</button>
-          </div>
-        </div>
-      </div>
-
-      <div className="editor-main">
-        <div className="preview-panel">
-          <div className="preview-window" ref={previewRef}>
-            <div className={`preview-canvas aspect-${aspectRatio.replace(':', '-')}`}>
-              <div className="preview-content">
-                {selectedClip && selectedClip.type === 'video' && (
-                  <img src={selectedClip.thumbnail} alt="Preview" className="preview-frame" />
-                )}
-                {selectedClip && selectedClip.type === 'text' && (
-                  <div
-                    className="preview-text"
-                    style={{
-                      left: `${selectedClip.position.x * 100}%`,
-                      top: `${selectedClip.position.y * 100}%`,
-                    }}
-                  >
-                    {selectedClip.name}
-                  </div>
-                )}
-                {!selectedClip && (
-                  <div className="preview-placeholder">Select a clip to preview</div>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="preview-controls">
-            <div className="aspect-ratio-selector">
-              {(['16:9', '9:16', '1:1', '4:5', '4:3'] as AspectRatio[]).map((ratio) => (
-                <button
-                  key={ratio}
-                  className={`ratio-btn ${aspectRatio === ratio ? 'active' : ''}`}
-                  onClick={() => setAspectRatio(ratio)}
-                >
-                  {ratio}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {showProperties && selectedClip && (
-          <div className="properties-panel">
-            <div className="properties-header">
-              <h3>Properties</h3>
-              <button className="close-panel-btn" onClick={() => setShowProperties(false)}>
-                x
-              </button>
-            </div>
-            <div className="property-group">
-              <label>Name</label>
-              <span className="property-value">{selectedClip.name}</span>
-            </div>
-            <div className="property-group">
-              <label>Rotation</label>
-              <input
-                type="range"
-                min={0}
-                max={360}
-                value={selectedClip.rotation}
-                onChange={(e) => updateClipProperty('rotation', parseInt(e.target.value))}
-              />
-              <span>{selectedClip.rotation}deg</span>
-            </div>
-            <div className="property-group">
-              <label>Opacity</label>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={selectedClip.opacity}
-                onChange={(e) => updateClipProperty('opacity', parseFloat(e.target.value))}
-              />
-              <span>{Math.round(selectedClip.opacity * 100)}%</span>
-            </div>
-            <div className="property-group">
-              <label>Volume</label>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={selectedClip.volume}
-                onChange={(e) => updateClipProperty('volume', parseFloat(e.target.value))}
-              />
-              <span>{Math.round(selectedClip.volume * 100)}%</span>
-            </div>
-            <h4>Filters</h4>
-            <div className="property-group">
-              <label>Brightness</label>
-              <input
-                type="range"
-                min={-100}
-                max={100}
-                value={selectedClip.filters.brightness}
-                onChange={(e) => updateClipProperty('filter.brightness', parseInt(e.target.value))}
-              />
-            </div>
-            <div className="property-group">
-              <label>Contrast</label>
-              <input
-                type="range"
-                min={-100}
-                max={100}
-                value={selectedClip.filters.contrast}
-                onChange={(e) => updateClipProperty('filter.contrast', parseInt(e.target.value))}
-              />
-            </div>
-            <div className="property-group">
-              <label>Saturation</label>
-              <input
-                type="range"
-                min={-100}
-                max={100}
-                value={selectedClip.filters.saturation}
-                onChange={(e) => updateClipProperty('filter.saturation', parseInt(e.target.value))}
-              />
-            </div>
-            <div className="property-group">
-              <label>Blur</label>
-              <input
-                type="range"
-                min={0}
-                max={20}
-                value={selectedClip.filters.blur}
-                onChange={(e) => updateClipProperty('filter.blur', parseInt(e.target.value))}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="playback-bar">
-        <div className="playback-controls">
-          <button className="playback-btn" onClick={() => setPlayhead(0)} title="Start">
-            |&lt;
-          </button>
-          <button
-            className="playback-btn"
-            onClick={() => setPlayhead((p) => Math.max(0, p - 5))}
-            title="Back 5s"
-          >
-            &lt;&lt;
-          </button>
-          {isPlaying ? (
-            <button className="playback-btn play-btn" onClick={handlePause} title="Pause">
-              &#9646;&#9646;
-            </button>
-          ) : (
-            <button className="playback-btn play-btn" onClick={handlePlay} title="Play">
+    <PageTransition>
+      <div className="timeline-editor">
+        <div className="editor-toolbar">
+          <div className="toolbar-left">
+            <button
+              className={`tool-btn ${activeTool === 'select' ? 'active' : ''}`}
+              onClick={() => setActiveTool('select')}
+              title="Select (V)"
+            >
               &#9654;
             </button>
-          )}
-          <button
-            className="playback-btn"
-            onClick={() => setPlayhead((p) => Math.min(duration, p + 5))}
-            title="Forward 5s"
-          >
-            &gt;&gt;
-          </button>
-          <button className="playback-btn" onClick={() => setPlayhead(duration)} title="End">
-            &gt;|
-          </button>
-        </div>
-        <div className="time-display">
-          <span className="current-time">{formatTime(playhead)}</span>
-          <span className="time-separator">/</span>
-          <span className="total-time">{formatTime(duration)}</span>
-        </div>
-        <div className="speed-control">
-          <select
-            value={playbackSpeed}
-            onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
-          >
-            <option value={0.25}>0.25x</option>
-            <option value={0.5}>0.5x</option>
-            <option value={1}>1x</option>
-            <option value={1.5}>1.5x</option>
-            <option value={2}>2x</option>
-          </select>
-        </div>
-        <div className="volume-control">
-          <button onClick={() => setIsMuted(!isMuted)}>{isMuted ? '🔇' : '🔊'}</button>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={isMuted ? 0 : volume}
-            onChange={(e) => {
-              setVolume(parseFloat(e.target.value));
-              setIsMuted(false);
-            }}
-          />
-        </div>
-      </div>
-
-      <div className="timeline-panel" ref={timelineRef} onClick={handleTimelineClick}>
-        <div className="time-ruler">
-          {Array.from({ length: Math.ceil(duration * zoom) }, (_, i) => (
-            <div
-              key={i}
-              className="time-marker"
-              style={{ left: `${(i / (duration * zoom)) * 100}%` }}
+            <button
+              className={`tool-btn ${activeTool === 'cut' ? 'active' : ''}`}
+              onClick={() => setActiveTool('cut')}
+              title="Cut (C)"
             >
-              <span className="time-label">{formatTime(i / zoom)}</span>
+              &#9986;
+            </button>
+            <button
+              className={`tool-btn ${activeTool === 'text' ? 'active' : ''}`}
+              onClick={() => setActiveTool('text')}
+              title="Text (T)"
+            >
+              T
+            </button>
+            <button
+              className={`tool-btn ${activeTool === 'draw' ? 'active' : ''}`}
+              onClick={() => setActiveTool('draw')}
+              title="Draw (D)"
+            >
+              &#9998;
+            </button>
+            <button
+              className={`tool-btn ${activeTool === 'crop' ? 'active' : ''}`}
+              onClick={() => setActiveTool('crop')}
+              title="Crop (R)"
+            >
+              &#9634;
+            </button>
+            <div className="toolbar-divider" />
+            <button
+              className="tool-btn"
+              onClick={handleCut}
+              disabled={!selectedClip}
+              title="Split (S)"
+            >
+              &#8967;
+            </button>
+            <button className="tool-btn" onClick={handleCopy} disabled={!selectedClip} title="Copy">
+              &#128203;
+            </button>
+            <button className="tool-btn" onClick={handlePaste} disabled={!clipboard} title="Paste">
+              &#128204;
+            </button>
+            <button
+              className="tool-btn"
+              onClick={handleDeleteClip}
+              disabled={!selectedClip}
+              title="Delete"
+            >
+              &#128465;
+            </button>
+          </div>
+          <div className="toolbar-center">
+            <button
+              className="tool-btn"
+              onClick={handleUndo}
+              disabled={undoStack.length === 0}
+              title="Undo"
+            >
+              &#8630;
+            </button>
+            <button
+              className="tool-btn"
+              onClick={handleRedo}
+              disabled={redoStack.length === 0}
+              title="Redo"
+            >
+              &#8631;
+            </button>
+            <span className="history-count">{undoStack.length} changes</span>
+          </div>
+          <div className="toolbar-right">
+            <label className="snap-toggle">
+              <input
+                type="checkbox"
+                checked={snapEnabled}
+                onChange={(e) => setSnapEnabled(e.target.checked)}
+              />
+              Snap
+            </label>
+            <div className="zoom-control">
+              <button onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))}>-</button>
+              <span>{Math.round(zoom * 100)}%</span>
+              <button onClick={() => setZoom((z) => Math.min(4, z + 0.25))}>+</button>
             </div>
-          ))}
+          </div>
         </div>
-        <div className="playhead-line" style={{ left: `${(playhead / duration) * 100}%` }}>
-          <div className="playhead-handle" />
-        </div>
-        <div className="tracks-container">
-          {tracks.map((track) => (
-            <div
-              key={track.id}
-              className={`track ${track.locked ? 'locked' : ''} ${!track.visible ? 'hidden' : ''}`}
-              style={{ height: track.height }}
-            >
-              <div className="track-header">
-                <span className="track-name">{track.name}</span>
-                <div className="track-controls">
-                  <button
-                    className="track-btn"
-                    onClick={() => handleToggleTrackVisibility(track.id)}
-                    title={track.visible ? 'Hide' : 'Show'}
-                  >
-                    {track.visible ? '👁' : '👁‍🗨'}
-                  </button>
-                  <button
-                    className="track-btn"
-                    onClick={() => handleToggleTrackLock(track.id)}
-                    title={track.locked ? 'Unlock' : 'Lock'}
-                  >
-                    {track.locked ? '🔒' : '🔓'}
-                  </button>
+
+        <div className="editor-main">
+          <div className="preview-panel">
+            <div className="preview-window" ref={previewRef}>
+              <div className={`preview-canvas aspect-${aspectRatio.replace(':', '-')}`}>
+                <div className="preview-content">
+                  {selectedClip && selectedClip.type === 'video' && (
+                    <img src={selectedClip.thumbnail} alt="Preview" className="preview-frame" />
+                  )}
+                  {selectedClip && selectedClip.type === 'text' && (
+                    <div
+                      className="preview-text"
+                      style={{
+                        left: `${selectedClip.position.x * 100}%`,
+                        top: `${selectedClip.position.y * 100}%`,
+                      }}
+                    >
+                      {selectedClip.name}
+                    </div>
+                  )}
+                  {!selectedClip && (
+                    <div className="preview-placeholder">Select a clip to preview</div>
+                  )}
                 </div>
               </div>
-              <div className="track-content">
-                {track.clips.map((clip) => (
-                  <div
-                    key={clip.id}
-                    className={`clip clip-${clip.type} ${selectedClip?.id === clip.id ? 'selected' : ''}`}
-                    style={{
-                      left: `${(clip.startTime / duration) * 100}%`,
-                      width: `${(clip.duration / duration) * 100}%`,
-                      opacity: clip.opacity,
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleClipSelect(clip);
-                    }}
+            </div>
+            <div className="preview-controls">
+              <div className="aspect-ratio-selector">
+                {(['16:9', '9:16', '1:1', '4:5', '4:3'] as AspectRatio[]).map((ratio) => (
+                  <button
+                    key={ratio}
+                    className={`ratio-btn ${aspectRatio === ratio ? 'active' : ''}`}
+                    onClick={() => setAspectRatio(ratio)}
                   >
-                    <div className="clip-content">
-                      {clip.type === 'video' && clip.thumbnail && (
-                        <img src={clip.thumbnail} alt="" className="clip-thumb" />
-                      )}
-                      <span className="clip-name">{clip.name}</span>
-                    </div>
-                    <div className="clip-handles">
-                      <div className="handle handle-left" />
-                      <div className="handle handle-right" />
-                    </div>
-                  </div>
+                    {ratio}
+                  </button>
                 ))}
               </div>
             </div>
-          ))}
+          </div>
+
+          {showProperties && selectedClip && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ type: 'spring', ...spring.snappy }}
+              className="properties-panel"
+            >
+              <div className="properties-header">
+                <h3>Properties</h3>
+                <button className="close-panel-btn" onClick={() => setShowProperties(false)}>
+                  x
+                </button>
+              </div>
+              <div className="property-group">
+                <label>Name</label>
+                <span className="property-value">{selectedClip.name}</span>
+              </div>
+              <div className="property-group">
+                <label>Rotation</label>
+                <input
+                  type="range"
+                  min={0}
+                  max={360}
+                  value={selectedClip.rotation}
+                  onChange={(e) => updateClipProperty('rotation', parseInt(e.target.value))}
+                />
+                <span>{selectedClip.rotation}deg</span>
+              </div>
+              <div className="property-group">
+                <label>Opacity</label>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={selectedClip.opacity}
+                  onChange={(e) => updateClipProperty('opacity', parseFloat(e.target.value))}
+                />
+                <span>{Math.round(selectedClip.opacity * 100)}%</span>
+              </div>
+              <div className="property-group">
+                <label>Volume</label>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={selectedClip.volume}
+                  onChange={(e) => updateClipProperty('volume', parseFloat(e.target.value))}
+                />
+                <span>{Math.round(selectedClip.volume * 100)}%</span>
+              </div>
+              <h4>Filters</h4>
+              <div className="property-group">
+                <label>Brightness</label>
+                <input
+                  type="range"
+                  min={-100}
+                  max={100}
+                  value={selectedClip.filters.brightness}
+                  onChange={(e) =>
+                    updateClipProperty('filter.brightness', parseInt(e.target.value))
+                  }
+                />
+              </div>
+              <div className="property-group">
+                <label>Contrast</label>
+                <input
+                  type="range"
+                  min={-100}
+                  max={100}
+                  value={selectedClip.filters.contrast}
+                  onChange={(e) => updateClipProperty('filter.contrast', parseInt(e.target.value))}
+                />
+              </div>
+              <div className="property-group">
+                <label>Saturation</label>
+                <input
+                  type="range"
+                  min={-100}
+                  max={100}
+                  value={selectedClip.filters.saturation}
+                  onChange={(e) =>
+                    updateClipProperty('filter.saturation', parseInt(e.target.value))
+                  }
+                />
+              </div>
+              <div className="property-group">
+                <label>Blur</label>
+                <input
+                  type="range"
+                  min={0}
+                  max={20}
+                  value={selectedClip.filters.blur}
+                  onChange={(e) => updateClipProperty('filter.blur', parseInt(e.target.value))}
+                />
+              </div>
+            </motion.div>
+          )}
         </div>
-        <div className="add-track-bar">
-          <button onClick={() => handleAddTrack('video')}>+ Video</button>
-          <button onClick={() => handleAddTrack('audio')}>+ Audio</button>
-          <button onClick={() => handleAddTrack('text')}>+ Text</button>
-          <button onClick={() => handleAddTrack('effects')}>+ Effects</button>
+
+        <div className="playback-bar">
+          <div className="playback-controls">
+            <button className="playback-btn" onClick={() => setPlayhead(0)} title="Start">
+              |&lt;
+            </button>
+            <button
+              className="playback-btn"
+              onClick={() => setPlayhead((p) => Math.max(0, p - 5))}
+              title="Back 5s"
+            >
+              &lt;&lt;
+            </button>
+            {isPlaying ? (
+              <button className="playback-btn play-btn" onClick={handlePause} title="Pause">
+                &#9646;&#9646;
+              </button>
+            ) : (
+              <button className="playback-btn play-btn" onClick={handlePlay} title="Play">
+                &#9654;
+              </button>
+            )}
+            <button
+              className="playback-btn"
+              onClick={() => setPlayhead((p) => Math.min(duration, p + 5))}
+              title="Forward 5s"
+            >
+              &gt;&gt;
+            </button>
+            <button className="playback-btn" onClick={() => setPlayhead(duration)} title="End">
+              &gt;|
+            </button>
+          </div>
+          <div className="time-display">
+            <span className="current-time">{formatTime(playhead)}</span>
+            <span className="time-separator">/</span>
+            <span className="total-time">{formatTime(duration)}</span>
+          </div>
+          <div className="speed-control">
+            <select
+              value={playbackSpeed}
+              onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
+            >
+              <option value={0.25}>0.25x</option>
+              <option value={0.5}>0.5x</option>
+              <option value={1}>1x</option>
+              <option value={1.5}>1.5x</option>
+              <option value={2}>2x</option>
+            </select>
+          </div>
+          <div className="volume-control">
+            <button onClick={() => setIsMuted(!isMuted)}>{isMuted ? '🔇' : '🔊'}</button>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={isMuted ? 0 : volume}
+              onChange={(e) => {
+                setVolume(parseFloat(e.target.value));
+                setIsMuted(false);
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="timeline-panel" ref={timelineRef} onClick={handleTimelineClick}>
+          <div className="time-ruler">
+            {Array.from({ length: Math.ceil(duration * zoom) }, (_, i) => (
+              <div
+                key={i}
+                className="time-marker"
+                style={{ left: `${(i / (duration * zoom)) * 100}%` }}
+              >
+                <span className="time-label">{formatTime(i / zoom)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="playhead-line" style={{ left: `${(playhead / duration) * 100}%` }}>
+            <div className="playhead-handle" />
+          </div>
+          <div className="tracks-container">
+            {tracks.map((track) => (
+              <div
+                key={track.id}
+                className={`track ${track.locked ? 'locked' : ''} ${!track.visible ? 'hidden' : ''}`}
+                style={{ height: track.height }}
+              >
+                <div className="track-header">
+                  <span className="track-name">{track.name}</span>
+                  <div className="track-controls">
+                    <button
+                      className="track-btn"
+                      onClick={() => handleToggleTrackVisibility(track.id)}
+                      title={track.visible ? 'Hide' : 'Show'}
+                    >
+                      {track.visible ? '👁' : '👁‍🗨'}
+                    </button>
+                    <button
+                      className="track-btn"
+                      onClick={() => handleToggleTrackLock(track.id)}
+                      title={track.locked ? 'Unlock' : 'Lock'}
+                    >
+                      {track.locked ? '🔒' : '🔓'}
+                    </button>
+                  </div>
+                </div>
+                <div className="track-content">
+                  {track.clips.map((clip) => (
+                    <div
+                      key={clip.id}
+                      className={`clip clip-${clip.type} ${selectedClip?.id === clip.id ? 'selected' : ''}`}
+                      style={{
+                        left: `${(clip.startTime / duration) * 100}%`,
+                        width: `${(clip.duration / duration) * 100}%`,
+                        opacity: clip.opacity,
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleClipSelect(clip);
+                      }}
+                    >
+                      <div className="clip-content">
+                        {clip.type === 'video' && clip.thumbnail && (
+                          <img src={clip.thumbnail} alt="" className="clip-thumb" />
+                        )}
+                        <span className="clip-name">{clip.name}</span>
+                      </div>
+                      <div className="clip-handles">
+                        <div className="handle handle-left" />
+                        <div className="handle handle-right" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="add-track-bar">
+            <button onClick={() => handleAddTrack('video')}>+ Video</button>
+            <button onClick={() => handleAddTrack('audio')}>+ Audio</button>
+            <button onClick={() => handleAddTrack('text')}>+ Text</button>
+            <button onClick={() => handleAddTrack('effects')}>+ Effects</button>
+          </div>
         </div>
       </div>
-    </div>
+    </PageTransition>
   );
 };
 

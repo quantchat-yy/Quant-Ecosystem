@@ -1,5 +1,6 @@
 import './globals.css';
 import { QueryProvider } from '../providers/query-provider';
+import { BrandProvider } from '../providers/brand-provider';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
 interface AppProps {
@@ -10,9 +11,11 @@ interface AppProps {
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <ErrorBoundary>
-      <QueryProvider>
-        <Component {...pageProps} />
-      </QueryProvider>
+      <BrandProvider>
+        <QueryProvider>
+          <Component {...pageProps} />
+        </QueryProvider>
+      </BrandProvider>
     </ErrorBoundary>
   );
 }
