@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Input, PageTransition, FadeIn, StaggerList } from '@quant/shared-ui';
+import { motion } from 'framer-motion';
+import { Button, Input, PageTransition, FadeIn } from '@quant/shared-ui';
+import { spring, quantmeet } from '@quant/brand';
 
 interface RecentMeeting {
   id: string;
@@ -53,7 +55,9 @@ export default function MeetHomePage() {
         <div className="w-full max-w-md space-y-8">
           <FadeIn>
             <div className="text-center space-y-2">
-              <h1 className="text-3xl font-bold">QuantMeet</h1>
+              <h1 className="text-3xl font-bold" style={{ color: quantmeet.color }}>
+                {quantmeet.name}
+              </h1>
               <p className="text-[var(--quant-muted-foreground)]">
                 Video conferencing with AI-powered collaboration
               </p>
@@ -64,9 +68,14 @@ export default function MeetHomePage() {
             <h2 id="new-meeting-heading" className="sr-only">
               Create a new meeting
             </h2>
-            <Button variant="primary" onClick={handleNewMeeting} className="w-full">
-              New Meeting
-            </Button>
+            <motion.div
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', ...spring.snappy }}
+            >
+              <Button variant="primary" onClick={handleNewMeeting} className="w-full min-h-[44px]">
+                New Meeting
+              </Button>
+            </motion.div>
           </section>
 
           <div className="relative">
@@ -92,7 +101,12 @@ export default function MeetHomePage() {
                 placeholder="Enter meeting ID"
                 aria-label="Meeting ID"
               />
-              <Button variant="secondary" onClick={handleJoin} disabled={!meetingId.trim()}>
+              <Button
+                variant="secondary"
+                onClick={handleJoin}
+                disabled={!meetingId.trim()}
+                className="min-h-[44px]"
+              >
                 Join
               </Button>
             </div>
@@ -106,29 +120,32 @@ export default function MeetHomePage() {
               >
                 Recent Meetings
               </h2>
-              <StaggerList
-                as="ul"
-                className="divide-y divide-[var(--quant-border)] rounded-lg border border-[var(--quant-border)]"
-              >
-                {recentMeetings.map((meeting) => (
-                  <button
+              <ul className="divide-y divide-[var(--quant-border)] rounded-lg border border-[var(--quant-border)]">
+                {recentMeetings.map((meeting, index) => (
+                  <motion.li
                     key={meeting.id}
-                    className="w-full text-left px-4 py-3 hover:bg-[var(--quant-muted)] transition-colors"
-                    onClick={() => router.push(`/meeting/${meeting.id}`)}
-                    aria-label={`Rejoin ${meeting.title}`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ type: 'spring', ...spring.gentle, delay: index * 0.05 }}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium truncate">{meeting.title}</span>
+                    <button
+                      className="w-full text-left px-4 py-3 hover:bg-[var(--quant-muted)] transition-colors"
+                      onClick={() => router.push(`/meeting/${meeting.id}`)}
+                      aria-label={`Rejoin ${meeting.title}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium truncate">{meeting.title}</span>
+                        <span className="text-xs text-[var(--quant-muted-foreground)]">
+                          {meeting.participantCount} participants
+                        </span>
+                      </div>
                       <span className="text-xs text-[var(--quant-muted-foreground)]">
-                        {meeting.participantCount} participants
+                        {meeting.date}
                       </span>
-                    </div>
-                    <span className="text-xs text-[var(--quant-muted-foreground)]">
-                      {meeting.date}
-                    </span>
-                  </button>
+                    </button>
+                  </motion.li>
                 ))}
-              </StaggerList>
+              </ul>
             </section>
           )}
         </div>

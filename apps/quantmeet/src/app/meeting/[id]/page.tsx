@@ -2,8 +2,10 @@
 
 import { useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useMeeting } from '../../../hooks/useMeeting';
+import { LoadingState } from '@quant/shared-ui';
+import { useMeeting, useJoinRoom } from '../../../hooks/useMeeting';
 import { useParticipants } from '../../../hooks/useParticipants';
+import { useLiveKit } from '../../../hooks/useLiveKit';
 import { PreJoinLobby } from '../../../components/PreJoinLobby';
 import { ParticipantGrid } from '../../../components/ParticipantGrid';
 import { ControlBar } from '../../../components/ControlBar';
@@ -12,7 +14,7 @@ import { ParticipantList } from '../../../components/ParticipantList';
 import { MeetingEnded } from '../../../components/MeetingEnded';
 import type { VideoTileProps, ChatMessage } from '../../../types/components';
 
-type MeetingState = 'lobby' | 'meeting' | 'ended';
+type MeetingState = 'lobby' | 'connecting' | 'meeting' | 'ended';
 
 export default function MeetingPage() {
   const params = useParams();
@@ -21,8 +23,10 @@ export default function MeetingPage() {
 
   const { data: meeting } = useMeeting(roomId);
   const { data: participants } = useParticipants(roomId);
+  const joinRoom = useJoinRoom();
 
   const [meetingState, setMeetingState] = useState<MeetingState>('lobby');
+  const [token, setToken] = useState<string | undefined>(undefined);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [screenShareEnabled, setScreenShareEnabled] = useState(false);
@@ -32,13 +36,26 @@ export default function MeetingPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [localParticipantId] = useState(() => crypto.randomUUID());
 
-  const handleJoin = useCallback(() => {
-    setMeetingState('meeting');
-  }, []);
+  const liveKit = useLiveKit({ roomId, token });
+
+  const handleJoin = useCallback(
+    async (displayName: string) => {
+      setMeetingState('connecting');
+      try {
+        const result = await joinRoom.mutateAsync({ roomId, displayName });
+        setToken(result.token);
+        setMeetingState('meeting');
+      } catch {
+        setMeetingState('meeting');
+      }
+    },
+    [roomId, joinRoom],
+  );
 
   const handleLeave = useCallback(() => {
+    liveKit.disconnect();
     setMeetingState('ended');
-  }, []);
+  }, [liveKit]);
 
   const handleSendMessage = useCallback(
     (content: string) => {
@@ -55,6 +72,7 @@ export default function MeetingPage() {
   );
 
   const handleRejoin = useCallback(() => {
+    setToken(undefined);
     setMeetingState('lobby');
   }, []);
 
@@ -64,6 +82,14 @@ export default function MeetingPage() {
 
   if (meetingState === 'lobby') {
     return <PreJoinLobby onJoin={handleJoin} meetingTitle={meeting?.title} />;
+  }
+
+  if (meetingState === 'connecting') {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingState text="Connecting to meeting..." />
+      </div>
+    );
   }
 
   if (meetingState === 'ended') {
@@ -80,7 +106,7 @@ export default function MeetingPage() {
 
   const videoParticipants: VideoTileProps[] = (participants ?? []).map((p) => ({
     participantId: p.id,
-    stream: null,
+    stream: p.id === localParticipantId ? liveKit.localStream : null,
     displayName: p.displayName,
     audioEnabled: p.audioEnabled,
     videoEnabled: p.videoEnabled,
@@ -90,7 +116,7 @@ export default function MeetingPage() {
   }));
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900">
+    <div className="flex flex-col h-screen bg-[var(--quant-background)]">
       <div className="flex flex-1 min-h-0">
         <main className="flex-1 min-w-0">
           <ParticipantGrid
@@ -119,9 +145,18 @@ export default function MeetingPage() {
         videoEnabled={videoEnabled}
         screenShareEnabled={screenShareEnabled}
         recordingActive={recordingActive}
-        onToggleAudio={() => setAudioEnabled((prev) => !prev)}
-        onToggleVideo={() => setVideoEnabled((prev) => !prev)}
-        onToggleScreenShare={() => setScreenShareEnabled((prev) => !prev)}
+        onToggleAudio={() => {
+          liveKit.toggleAudio();
+          setAudioEnabled((prev) => !prev);
+        }}
+        onToggleVideo={() => {
+          liveKit.toggleVideo();
+          setVideoEnabled((prev) => !prev);
+        }}
+        onToggleScreenShare={() => {
+          liveKit.toggleScreenShare();
+          setScreenShareEnabled((prev) => !prev);
+        }}
         onToggleRecording={() => setRecordingActive((prev) => !prev)}
         onLeave={handleLeave}
         onOpenChat={() => {
