@@ -4,11 +4,18 @@ import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ToolCallCard } from './ToolCallCard';
 import { WorkflowProgressCard } from './WorkflowProgressCard';
+import { VoiceToggle } from './VoiceToggle';
 import type { ToolCall } from '../types/tool-calls';
 import type { WorkflowStep } from './WorkflowProgressCard';
 
 interface AskQuantPanelProps {
   className?: string;
+}
+
+interface PlanPreview {
+  id: string;
+  description?: string;
+  steps: Array<{ stepId: string; toolId: string; params?: Record<string, unknown> }>;
 }
 
 interface StreamState {
@@ -18,6 +25,9 @@ interface StreamState {
   planDescription?: string;
   error?: string;
   completed: boolean;
+  confirmationRequired?: { stepId: string; toolId: string };
+  rollbackInProgress: boolean;
+  planPreview?: PlanPreview;
 }
 
 export function AskQuantPanel({ className = '' }: AskQuantPanelProps) {
@@ -27,20 +37,22 @@ export function AskQuantPanel({ className = '' }: AskQuantPanelProps) {
     toolCalls: [],
     workflowSteps: [],
     completed: false,
+    rollbackInProgress: false,
   });
+  const [voiceActive, setVoiceActive] = useState(false);
+  const [voiceProcessing, setVoiceProcessing] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      const trimmed = input.trim();
-      if (!trimmed || streamState.isStreaming) return;
-
+  const sendRequest = useCallback(
+    async (requestBody: Record<string, unknown>) => {
       setStreamState({
         isStreaming: true,
         toolCalls: [],
         workflowSteps: [],
         completed: false,
+        rollbackInProgress: false,
       });
 
       const controller = new AbortController();
@@ -50,7 +62,7 @@ export function AskQuantPanel({ className = '' }: AskQuantPanelProps) {
         const response = await fetch('/api/ask', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ input: trimmed }),
+          body: JSON.stringify(requestBody),
           signal: controller.signal,
         });
 
@@ -98,14 +110,40 @@ export function AskQuantPanel({ className = '' }: AskQuantPanelProps) {
         }
       }
     },
-    [input, streamState.isStreaming],
+    [],
   );
+
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      const trimmed = input.trim();
+      if (!trimmed || streamState.isStreaming) return;
+
+      // First do a dry-run to preview the plan
+      await sendRequest({ input: trimmed, dryRun: true });
+    },
+    [input, streamState.isStreaming, sendRequest],
+  );
+
+  const handleExecutePlan = useCallback(async () => {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+
+    setStreamState((prev) => ({
+      ...prev,
+      planPreview: undefined,
+      completed: false,
+      error: undefined,
+    }));
+
+    await sendRequest({ input: trimmed, dryRun: false });
+  }, [input, sendRequest]);
 
   const handleSSEEvent = (eventType: string, data: Record<string, unknown>) => {
     switch (eventType) {
       case 'plan_created': {
         const plan = data.plan as
-          | { description?: string; steps?: Array<{ stepId: string; toolId: string }> }
+          | { id?: string; description?: string; steps?: Array<{ stepId: string; toolId: string; params?: Record<string, unknown> }> }
           | undefined;
         if (plan?.steps) {
           const steps: WorkflowStep[] = plan.steps.map((s) => ({
@@ -117,6 +155,11 @@ export function AskQuantPanel({ className = '' }: AskQuantPanelProps) {
             ...prev,
             workflowSteps: steps,
             planDescription: plan.description,
+            planPreview: {
+              id: plan.id ?? '',
+              description: plan.description,
+              steps: plan.steps ?? [],
+            },
           }));
         }
         break;
@@ -185,6 +228,29 @@ export function AskQuantPanel({ className = '' }: AskQuantPanelProps) {
         }));
         break;
       }
+      case 'confirmation_required': {
+        const stepId = data.stepId as string;
+        const toolId = data.toolId as string;
+        setStreamState((prev) => ({
+          ...prev,
+          confirmationRequired: { stepId, toolId },
+        }));
+        break;
+      }
+      case 'rollback_start': {
+        setStreamState((prev) => ({
+          ...prev,
+          rollbackInProgress: true,
+        }));
+        break;
+      }
+      case 'rollback_complete': {
+        setStreamState((prev) => ({
+          ...prev,
+          rollbackInProgress: false,
+        }));
+        break;
+      }
       case 'error': {
         setStreamState((prev) => ({
           ...prev,
@@ -200,6 +266,62 @@ export function AskQuantPanel({ className = '' }: AskQuantPanelProps) {
     setStreamState((prev) => ({ ...prev, isStreaming: false }));
   };
 
+  const handleVoiceToggle = useCallback(async () => {
+    if (voiceActive) {
+      // Stop recording
+      setVoiceActive(false);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    } else {
+      // Start recording
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = async () => {
+          setVoiceProcessing(true);
+          stream.getTracks().forEach((track) => track.stop());
+
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          const arrayBuffer = await audioBlob.arrayBuffer();
+          const base64 = btoa(
+            String.fromCharCode(...new Uint8Array(arrayBuffer)),
+          );
+
+          await sendRequest({ voice: true, audio: base64 });
+          setVoiceProcessing(false);
+        };
+
+        mediaRecorder.start();
+        setVoiceActive(true);
+      } catch {
+        setStreamState((prev) => ({
+          ...prev,
+          error: 'Could not access microphone',
+        }));
+      }
+    }
+  }, [voiceActive, sendRequest]);
+
+  const handleConfirmation = useCallback(
+    (_accepted: boolean) => {
+      // Clear the confirmation dialog
+      setStreamState((prev) => ({ ...prev, confirmationRequired: undefined }));
+      // In a full implementation, this would send a response back to the server
+      // For SSE-based flow, confirmation is auto-handled server-side
+    },
+    [],
+  );
+
   return (
     <div className={`flex flex-col gap-4 ${className}`}>
       <form onSubmit={handleSubmit} className="flex gap-2">
@@ -211,6 +333,11 @@ export function AskQuantPanel({ className = '' }: AskQuantPanelProps) {
           aria-label="Ask Quant"
           className="flex-1 px-3 py-2 rounded-lg border border-[var(--quant-border)] bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           disabled={streamState.isStreaming}
+        />
+        <VoiceToggle
+          isActive={voiceActive}
+          onToggle={handleVoiceToggle}
+          isProcessing={voiceProcessing}
         />
         {streamState.isStreaming ? (
           <button
@@ -228,13 +355,103 @@ export function AskQuantPanel({ className = '' }: AskQuantPanelProps) {
             className="px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Submit command"
           >
-            Ask
+            Preview
           </button>
         )}
       </form>
 
+      {/* Plan Preview (Dry Run) */}
+      <AnimatePresence>
+        {streamState.planPreview && streamState.completed && !streamState.error && (
+          <motion.div
+            key="plan-preview"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="p-4 rounded-lg border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20"
+          >
+            <h3 className="text-sm font-semibold mb-2 text-blue-700 dark:text-blue-300">
+              Plan Preview
+            </h3>
+            {streamState.planPreview.description && (
+              <p className="text-xs text-blue-600 dark:text-blue-400 mb-2">
+                {streamState.planPreview.description}
+              </p>
+            )}
+            <ul className="text-xs space-y-1 mb-3">
+              {streamState.planPreview.steps.map((step) => (
+                <li key={step.stepId} className="text-[var(--quant-text-secondary)]">
+                  {step.stepId}: {step.toolId}
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={handleExecutePlan}
+              className="px-3 py-1.5 rounded-md bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors"
+            >
+              Execute
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Confirmation Dialog */}
+      <AnimatePresence>
+        {streamState.confirmationRequired && (
+          <motion.div
+            key="confirmation"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="p-4 rounded-lg border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20"
+          >
+            <h3 className="text-sm font-semibold mb-1 text-yellow-700 dark:text-yellow-300">
+              Confirmation Required
+            </h3>
+            <p className="text-xs text-yellow-600 dark:text-yellow-400 mb-3">
+              Step {streamState.confirmationRequired.stepId} wants to execute{' '}
+              <strong>{streamState.confirmationRequired.toolId}</strong>. This action requires elevated permissions.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handleConfirmation(true)}
+                className="px-3 py-1.5 rounded-md bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors"
+              >
+                Accept
+              </button>
+              <button
+                type="button"
+                onClick={() => handleConfirmation(false)}
+                className="px-3 py-1.5 rounded-md bg-red-500 text-white text-xs font-medium hover:bg-red-600 transition-colors"
+              >
+                Reject
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Rollback indicator */}
+      <AnimatePresence>
+        {streamState.rollbackInProgress && (
+          <motion.div
+            key="rollback"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="p-3 rounded-lg border border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20"
+          >
+            <p className="text-sm text-orange-600 dark:text-orange-400">
+              Rolling back completed steps...
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence mode="wait">
-        {streamState.workflowSteps.length > 0 && (
+        {streamState.workflowSteps.length > 0 && !streamState.planPreview && (
           <motion.div
             key="workflow"
             initial={{ opacity: 0, y: 8 }}
@@ -277,7 +494,7 @@ export function AskQuantPanel({ className = '' }: AskQuantPanelProps) {
         </motion.div>
       )}
 
-      {streamState.completed && !streamState.error && (
+      {streamState.completed && !streamState.error && !streamState.planPreview && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

@@ -1264,6 +1264,9 @@ importers:
       '@quant/common':
         specifier: workspace:*
         version: link:../common
+      '@quant/quant-tools':
+        specifier: workspace:*
+        version: link:../quant-tools
       ai:
         specifier: ^5.0.52
         version: 5.0.52(zod@3.25.76)
