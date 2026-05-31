@@ -6,6 +6,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
+import { spring } from '@quant/brand';
 import { useProjects } from '../hooks/useProjects';
 import { useTemplates } from '../hooks/useTemplates';
 import { PageTransition } from '../components/PageTransition';
