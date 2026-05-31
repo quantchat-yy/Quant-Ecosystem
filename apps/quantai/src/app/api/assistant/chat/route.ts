@@ -40,6 +40,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (!backendResponse.ok) {
+      // Design decision: SSE routes return HTTP 200 even for backend errors.
+      // The error is delivered as a JSON payload within the SSE data frame.
+      // This is standard SSE practice - once the stream connection is established,
+      // errors are communicated in-band. The client's processSSEStream handler
+      // already parses and handles { error: ... } payloads from data frames.
       const errorText = await backendResponse.text().catch(() => 'Unknown error');
       const stream = new ReadableStream({
         start(controller) {

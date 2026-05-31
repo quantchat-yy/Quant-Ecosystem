@@ -35,6 +35,20 @@ export async function proxyToBackend(
   }
 
   const res = await fetch(url.toString(), fetchOptions);
-  const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  try {
+    const data = await res.json();
+    return NextResponse.json(data, { status: res.status });
+  } catch {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'INVALID_RESPONSE',
+          message: 'Backend returned non-JSON response',
+          statusCode: 502,
+        },
+      },
+      { status: 502 },
+    );
+  }
 }

@@ -577,8 +577,6 @@ export class QuantMailApiClient {
         signal: options?.signal,
       });
 
-      const data = (await response.json()) as ApiResponse<T>;
-
       if (response.status === 401 && this.refreshToken) {
         // Try to refresh the token
         const refreshed = await this.tryRefreshToken();
@@ -593,9 +591,14 @@ export class QuantMailApiClient {
           return (await retryResponse.json()) as ApiResponse<T>;
         } else {
           this.onAuthError?.();
+          return {
+            success: false,
+            error: { code: 'AUTH_ERROR', message: 'Authentication failed', statusCode: 401 },
+          };
         }
       }
 
+      const data = (await response.json()) as ApiResponse<T>;
       return data;
     } catch (error) {
       return {

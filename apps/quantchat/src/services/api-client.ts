@@ -479,8 +479,6 @@ export class QuantChatApiClient {
         signal: options?.signal,
       });
 
-      const data = (await response.json()) as ApiResponse<T>;
-
       if (response.status === 401 && this.refreshToken) {
         const refreshed = await this.refreshTokens();
         if (refreshed) {
@@ -490,11 +488,16 @@ export class QuantChatApiClient {
             headers,
             body: body ? JSON.stringify(body) : undefined,
           });
-          return retryResponse.json() as Promise<ApiResponse<T>>;
+          return (await retryResponse.json()) as ApiResponse<T>;
         }
         this.onAuthError?.();
+        return {
+          success: false,
+          error: { code: 'AUTH_ERROR', message: 'Authentication failed', statusCode: 401 },
+        };
       }
 
+      const data = (await response.json()) as ApiResponse<T>;
       return data;
     } catch (error) {
       return {

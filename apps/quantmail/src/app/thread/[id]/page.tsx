@@ -22,6 +22,8 @@ export default function ThreadPage() {
   const [summary, setSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [showSummary, setShowSummary] = useState(true);
+  const [summarizeError, setSummarizeError] = useState<string | null>(null);
+  const [replyError, setReplyError] = useState<string | null>(null);
 
   const toggleMessage = useCallback((index: number) => {
     setExpandedMessages((prev) => {
@@ -57,15 +59,18 @@ export default function ThreadPage() {
   const handleSendReply = useCallback(async () => {
     if (!replyText.trim() || isSendingReply) return;
     setIsSendingReply(true);
+    setReplyError(null);
     try {
-      await fetch(`/api/threads/${threadId}/reply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: replyText }),
-      });
+      const res = await apiClient.replyToEmail(threadId, replyText);
+      if (!res.success) {
+        setReplyError(res.error?.message || 'Failed to send reply');
+        return;
+      }
       setReplyText('');
       setShowReplyForm(false);
       refetch();
+    } catch {
+      setReplyError('Failed to send reply');
     } finally {
       setIsSendingReply(false);
     }
@@ -74,19 +79,19 @@ export default function ThreadPage() {
   const handleSummarize = useCallback(async () => {
     if (!thread?.messages?.[0] || isSummarizing) return;
     setIsSummarizing(true);
+    setSummarizeError(null);
     try {
-      const res = await fetch(`/api/emails/${thread.messages[0].id}/summarize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await res.json();
-      if (data.data?.summary) {
-        setSummary(data.data.summary);
-        setShowSummary(true);
-      } else if (data.summary) {
-        setSummary(data.summary);
+      const res = await apiClient.aiSummarize(thread.messages[0].id);
+      if (!res.success) {
+        setSummarizeError(res.error?.message || 'Failed to summarize thread');
+        return;
+      }
+      if (res.data?.summary) {
+        setSummary(res.data.summary);
         setShowSummary(true);
       }
+    } catch {
+      setSummarizeError('Failed to summarize thread');
     } finally {
       setIsSummarizing(false);
     }
@@ -146,6 +151,11 @@ export default function ThreadPage() {
           {!isLoading && !error && thread && (
             <>
               {/* AI Summary Card */}
+              {summarizeError && (
+                <Card padding="md" className="mb-4 bg-red-50 border-red-200">
+                  <p className="text-sm text-red-600">{summarizeError}</p>
+                </Card>
+              )}
               {summary && (
                 <Card padding="md" className="mb-4 bg-[var(--quant-muted)]">
                   <div className="flex items-center justify-between mb-2">
@@ -241,6 +251,7 @@ export default function ThreadPage() {
               {showReplyForm && (
                 <div className="mt-4">
                   <Card padding="md">
+                    {replyError && <p className="text-sm text-red-600 mb-2">{replyError}</p>}
                     <textarea
                       className="w-full min-h-[120px] p-3 rounded-md border border-[var(--quant-border)] bg-[var(--quant-background)] text-sm resize-y focus:outline-none focus:ring-2 focus:ring-[var(--quant-primary)]"
                       placeholder="Write your reply..."
