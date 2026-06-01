@@ -24,7 +24,7 @@
     "@types/mailparser": "^3.4.0",
     "@types/nodemailer": "^8.0.0",
     "@types/node": "^22.0.0",
-    "vitest": "^2",
+    "vitest": "^4",
     "typescript": "~5.5.0"
   }
 }
