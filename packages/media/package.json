@@ -23,7 +23,7 @@
   "devDependencies": {
     "@types/fluent-ffmpeg": "^2.1.26",
     "@types/node": "^22.0.0",
-    "vitest": "^2",
+    "vitest": "^4",
     "typescript": "~5.5.0"
   }
 }
