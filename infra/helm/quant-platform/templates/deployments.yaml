@@ -28,7 +28,8 @@ spec:
       {{- end }}
       securityContext:
         runAsNonRoot: true
-        fsGroup: 1001
+        runAsUser: {{ default 1001 $svc.runAsUser }}
+        fsGroup: {{ default 1001 $svc.fsGroup }}
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -58,6 +59,7 @@ spec:
               protocol: TCP
           securityContext:
             runAsNonRoot: true
+            runAsUser: {{ default 1001 $svc.runAsUser }}
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
             capabilities:
