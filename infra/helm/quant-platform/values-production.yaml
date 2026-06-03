@@ -45,7 +45,7 @@ ingress:
       - '*.quant.app'
 
 canary:
-  enabled: true
+  enabled: false
   prometheus:
     address: http://prometheus-server.monitoring:9090
   rollback:

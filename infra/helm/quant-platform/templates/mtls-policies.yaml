@@ -4,7 +4,7 @@
 # Enforces mutual TLS between all services in the mesh.
 # Requires Istio sidecar injection enabled on the namespace.
 # ============================================================================
-
+{{- if and .Values.istio .Values.istio.enabled }}
 ---
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
@@ -46,5 +46,6 @@ spec:
       baseEjectionTime: 30s
       maxEjectionPercent: 50
 ---
+{{- end }}
 {{- end }}
 {{- end }}

@@ -333,3 +333,9 @@ services:
         path: /health
         initialDelaySeconds: 5
         periodSeconds: 5
+
+istio:
+  enabled: false
+
+monitoring:
+  enabled: false
