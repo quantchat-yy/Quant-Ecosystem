@@ -1,7 +1,7 @@
 FROM node:22-slim AS deps
 RUN corepack enable && corepack prepare pnpm@10.28.1 --activate
 WORKDIR /app
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json turbo.json ./
 COPY packages/common/package.json ./packages/common/package.json
 COPY packages/auth/package.json ./packages/auth/package.json
 COPY packages/ai/package.json ./packages/ai/package.json

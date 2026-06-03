@@ -60,6 +60,8 @@ meilisearch:
 services:
   ws-gateway:
     replicaCount: 8
+    image:
+      repository: 650708167640.dkr.ecr.us-east-1.amazonaws.com/quant-ws-gateway
     resources:
       requests:
         cpu: 1000m
@@ -75,6 +77,8 @@ services:
 
   quantmail:
     replicaCount: 3
+    image:
+      repository: 650708167640.dkr.ecr.us-east-1.amazonaws.com/quant-quantmail
     resources:
       requests:
         cpu: 200m
@@ -90,6 +94,8 @@ services:
 
   quantchat:
     replicaCount: 3
+    image:
+      repository: 650708167640.dkr.ecr.us-east-1.amazonaws.com/quant-quantchat
     resources:
       requests:
         cpu: 200m
@@ -105,6 +111,8 @@ services:
 
   quantai:
     replicaCount: 3
+    image:
+      repository: 650708167640.dkr.ecr.us-east-1.amazonaws.com/quant-quantai
     resources:
       requests:
         cpu: 500m
@@ -120,6 +128,8 @@ services:
 
   admin:
     replicaCount: 3
+    image:
+      repository: 650708167640.dkr.ecr.us-east-1.amazonaws.com/quant-admin
     resources:
       requests:
         cpu: 200m
