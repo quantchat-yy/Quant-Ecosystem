@@ -34,6 +34,8 @@ spec:
       kind: "*"
     - group: policy
       kind: "*"
+    - group: external-secrets.io
+      kind: "*"
 
   roles:
     - name: admin
