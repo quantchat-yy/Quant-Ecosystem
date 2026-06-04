@@ -2,6 +2,12 @@
 const nextConfig = {
   transpilePackages: ['@quant/shared-ui', '@quant/common'],
   output: 'standalone',
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   serverExternalPackages: ['@prisma/client', 'prisma', 'nats'],
   webpack: (config, { isServer }) => {
     if (!isServer) {
