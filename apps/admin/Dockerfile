@@ -2,19 +2,11 @@ FROM node:22-slim AS deps
 RUN corepack enable && corepack prepare pnpm@10.28.1 --activate
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json ./
-COPY packages/common/package.json ./packages/common/package.json
-COPY packages/auth/package.json ./packages/auth/package.json
-COPY packages/database/package.json ./packages/database/package.json
-COPY packages/notifications/package.json ./packages/notifications/package.json
-COPY packages/search/package.json ./packages/search/package.json
-COPY packages/server-core/package.json ./packages/server-core/package.json
-COPY packages/shared-ui/package.json ./packages/shared-ui/package.json
-COPY apps/admin/package.json ./apps/admin/package.json
+COPY packages/ ./packages/
+COPY apps/admin/ ./apps/admin/
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
 FROM deps AS builder
-COPY packages/ ./packages/
-COPY apps/admin/ ./apps/admin/
 RUN pnpm turbo build --filter=@quant/admin
 
 FROM node:22-slim AS runner
