@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json turbo.json ./
 COPY packages/ ./packages/
 COPY apps/quantmail/ ./apps/quantmail/
-RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm install --frozen-lockfile --ignore-scripts --network-concurrency 1 --child-concurrency 1
 
 FROM deps AS builder
 ENV NODE_OPTIONS="--max-old-space-size=2048"

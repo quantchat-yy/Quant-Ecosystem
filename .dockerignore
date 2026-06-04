@@ -1,9 +1,9 @@
-node_modules
+**/node_modules
 .git
 .gitignore
-.next
-dist
-.turbo
+**/.next
+**/dist
+**/.turbo
 *.md
 !README.md
 .env*
