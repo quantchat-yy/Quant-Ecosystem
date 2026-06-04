@@ -72,6 +72,7 @@
     "turbo": "^2",
     "typescript": "~5.5.0",
     "typescript-eslint": "^8",
+    "@types/node": "^22.10.1",
     "vitest": "^4"
   }
 }
