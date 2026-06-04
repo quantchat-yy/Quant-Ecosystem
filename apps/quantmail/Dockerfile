@@ -7,7 +7,8 @@ COPY apps/quantmail/ ./apps/quantmail/
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
 FROM deps AS builder
-RUN pnpm turbo build --filter=@quant/quantmail
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+RUN pnpm turbo build --filter=@quant/quantmail --concurrency=1
 
 FROM node:22-slim AS runner
 RUN corepack enable && corepack prepare pnpm@10.28.1 --activate

@@ -7,7 +7,8 @@ COPY apps/quantchat/ ./apps/quantchat/
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
 FROM deps AS builder
-RUN pnpm turbo build --filter=@quant/quantchat
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+RUN pnpm turbo build --filter=@quant/quantchat --concurrency=1
 
 FROM node:22-slim AS runner
 RUN corepack enable && corepack prepare pnpm@10.28.1 --activate
