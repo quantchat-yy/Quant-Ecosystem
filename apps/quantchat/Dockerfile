@@ -17,6 +17,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3015
+ENV HOME=/tmp
 
 COPY --from=builder --chown=quantapp:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=quantapp:nodejs /app/packages/ ./packages/

@@ -27,7 +27,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       securityContext:
-        runAsNonRoot: true
+        runAsNonRoot: {{ if ne $svc.runAsNonRoot false }}true{{ else }}false{{ end }}
         runAsUser: {{ default 1001 $svc.runAsUser }}
         fsGroup: {{ default 1001 $svc.fsGroup }}
       affinity:
@@ -58,9 +58,9 @@ spec:
               containerPort: 9090
               protocol: TCP
           securityContext:
-            runAsNonRoot: true
+            runAsNonRoot: {{ if ne $svc.runAsNonRoot false }}true{{ else }}false{{ end }}
             runAsUser: {{ default 1001 $svc.runAsUser }}
-            readOnlyRootFilesystem: true
+            readOnlyRootFilesystem: {{ if eq $svc.readOnlyRootFilesystem false }}false{{ else }}true{{ end }}
             allowPrivilegeEscalation: false
             capabilities:
               drop:

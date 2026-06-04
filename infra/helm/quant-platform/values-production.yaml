@@ -147,6 +147,8 @@ services:
       minAvailable: 1
 
   triton-inference-server:
+    runAsNonRoot: false
+    readOnlyRootFilesystem: false
     replicaCount: 2
     resources:
       requests:
