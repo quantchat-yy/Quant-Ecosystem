@@ -5,9 +5,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+
   serverExternalPackages: ['nats'],
   webpack: (config, { isServer }) => {
     if (!isServer) {
