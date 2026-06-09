@@ -12,6 +12,8 @@ import reviewRoutes from './routes/reviews';
 import issueRoutes from './routes/issues';
 import ciRoutes from './routes/ci';
 import aiDevtoolsRoutes from './routes/ai-devtools';
+import { oauthRoutes } from './routes/oauth';
+import { authRoutes } from './routes/auth';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -39,6 +41,10 @@ export async function buildApp(config?: AppConfig) {
   const appConfig = config ?? getConfig();
   const app = await createApp(appConfig);
 
+  // Auth routes (Login, Register, OAuth2)
+  await app.register(authRoutes, { prefix: '/auth' });
+  await app.register(oauthRoutes, { prefix: '/oauth' });
+
   await app.register(emailsRoutes, { prefix: '/emails' });
   await app.register(threadsRoutes, { prefix: '/threads' });
   await app.register(foldersRoutes, { prefix: '/folders' });
@@ -49,20 +55,8 @@ export async function buildApp(config?: AppConfig) {
   await app.register(pullRequestRoutes, { prefix: '/api/v1/git' });
   await app.register(reviewRoutes, { prefix: '/api/v1/git' });
   await app.register(issueRoutes, { prefix: '/api/v1/git' });
-  await app.register(ciRoutes, { prefix: '/api/v1/git' });
-  await app.register(aiDevtoolsRoutes, { prefix: '/api/v1/devtools' });
+  await app.register(ciRoutes, { prefix: '/api/v1' });
+  await app.register(aiDevtoolsRoutes, { prefix: '/api/v1' });
 
   return app;
-}
-
-if (process.argv[1] && import.meta.url.endsWith(process.argv[1])) {
-  const config = getConfig();
-  buildApp(config).then((app) => {
-    app.listen({ port: config.port, host: config.host }, (err) => {
-      if (err) {
-        app.log.error(err);
-        process.exit(1);
-      }
-    });
-  });
 }

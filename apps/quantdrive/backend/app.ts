@@ -4,6 +4,7 @@ import filesRoutes from './routes/files';
 import foldersRoutes from './routes/folders';
 import sharingRoutes from './routes/sharing';
 import aiRoutes from './routes/ai';
+import uploadRoutes from './routes/upload';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -13,7 +14,7 @@ export function getConfig(): AppConfig {
   }
 
   return {
-    port: Number(process.env['PORT'] ?? 3050),
+    port: Number(process.env['PORT'] ?? 3005),
     host: process.env['HOST'] ?? '0.0.0.0',
     logLevel: process.env['LOG_LEVEL'] ?? 'info',
     corsOrigins: (process.env['CORS_ORIGINS'] ?? 'http://localhost:3000').split(','),
@@ -31,22 +32,11 @@ export async function buildApp(config?: AppConfig) {
   const appConfig = config ?? getConfig();
   const app = await createApp(appConfig);
 
-  await app.register(filesRoutes, { prefix: '/api/v1/files' });
-  await app.register(foldersRoutes, { prefix: '/api/v1/folders' });
-  await app.register(sharingRoutes, { prefix: '/api/v1/sharing' });
-  await app.register(aiRoutes, { prefix: '/api/v1/ai' });
+  await app.register(uploadRoutes, { prefix: '/upload' });
+  await app.register(filesRoutes, { prefix: '/files' });
+  await app.register(foldersRoutes, { prefix: '/folders' });
+  await app.register(sharingRoutes, { prefix: '/sharing' });
+  await app.register(aiRoutes, { prefix: '/ai' });
 
   return app;
-}
-
-if (process.argv[1] && import.meta.url.endsWith(process.argv[1])) {
-  const config = getConfig();
-  buildApp(config).then((app) => {
-    app.listen({ port: config.port, host: config.host }, (err) => {
-      if (err) {
-        app.log.error(err);
-        process.exit(1);
-      }
-    });
-  });
 }

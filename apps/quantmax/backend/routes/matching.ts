@@ -3,27 +3,27 @@ import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
 import { MatchingService } from '../services/matching.service';
 
-const compatibilitySchema = z.object({
+const swipeSchema = z.object({
   targetUserId: z.string(),
+  liked: z.boolean(),
 });
 
 export default async function matchingRoutes(fastify: FastifyInstance) {
-  fastify.get('/potential', async (request, reply) => {
+  const prisma = (fastify as any).prisma;
+  const matchingService = new MatchingService(prisma);
+
+  fastify.get('/matches', async (request, reply) => {
     const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
     if (!userId) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const { limit } = request.query as { limit?: string };
-    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
-    const service = new MatchingService(prisma as never);
-    const profiles = await service.getPotentialMatches(userId, limit ? Number(limit) : 10);
-
-    return reply.send({ success: true, data: profiles });
+    const matches = await matchingService.findMatches(userId);
+    return reply.send(matches);
   });
 
-  fastify.post('/compatibility', async (request, reply) => {
-    const parseResult = compatibilitySchema.safeParse(request.body);
+  fastify.post('/swipe', async (request, reply) => {
+    const parseResult = swipeSchema.safeParse(request.body);
     if (!parseResult.success) {
       throw parseResult.error;
     }
@@ -33,23 +33,12 @@ export default async function matchingRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
-    const service = new MatchingService(prisma as never);
-    const result = await service.calculateCompatibility(userId, parseResult.data.targetUserId);
+    const result = await matchingService.recordSwipe(
+      userId,
+      parseResult.data.targetUserId,
+      parseResult.data.liked,
+    );
 
-    return reply.send({ success: true, data: result });
-  });
-
-  fastify.get('/matches', async (request, reply) => {
-    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
-    if (!userId) {
-      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
-    }
-
-    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
-    const service = new MatchingService(prisma as never);
-    const matches = await service.getMatches(userId);
-
-    return reply.send({ success: true, data: matches });
+    return reply.send(result);
   });
 }

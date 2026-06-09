@@ -1,13 +1,27 @@
 import { createApp } from '@quant/server-core';
 import type { AppConfig } from '@quant/server-core';
-import sessionsRoutes from './routes/sessions';
 import chatRoutes from './routes/chat';
-import toolsRoutes from './routes/tools';
 import agentsRoutes from './routes/agents';
-import usageRoutes from './routes/usage';
+import sessionsRoutes from './routes/sessions';
 import orchestrationRoutes from './routes/orchestration';
+import toolsRoutes from './routes/tools';
 import memoryRoutes from './routes/memory';
-import askRoutes from './routes/ask';
+import usageRoutes from './routes/usage';
+import agenticRoutes from './routes/agentic';
+import quantosRoutes from './routes/quantos';
+import personalAgentRoutes from './routes/personal-agent';
+import healthRoutes from './routes/health';
+import marketplaceRoutes from './routes/marketplace';
+import templatesRoutes from './routes/templates';
+import analyticsRoutes from './routes/analytics';
+import versioningRoutes from './routes/versioning';
+import permissionsRoutes from './routes/permissions';
+import collaborationRoutes from './routes/collaboration';
+import trainingRoutes from './routes/training';
+import federationRoutes from './routes/federation';
+import agentHealthRoutes from './routes/agent-health';
+import agentLogsRoutes from './routes/agent-logs';
+import { AIEngine } from './services/ai-engine';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -17,7 +31,7 @@ export function getConfig(): AppConfig {
   }
 
   return {
-    port: Number(process.env['PORT'] ?? 3020),
+    port: Number(process.env['PORT'] ?? 3004),
     host: process.env['HOST'] ?? '0.0.0.0',
     logLevel: process.env['LOG_LEVEL'] ?? 'info',
     corsOrigins: (process.env['CORS_ORIGINS'] ?? 'http://localhost:3000').split(','),
@@ -35,26 +49,31 @@ export async function buildApp(config?: AppConfig) {
   const appConfig = config ?? getConfig();
   const app = await createApp(appConfig);
 
-  await app.register(sessionsRoutes, { prefix: '/sessions' });
-  await app.register(chatRoutes, { prefix: '/sessions' });
-  await app.register(toolsRoutes, { prefix: '/tools' });
+  // AI Engine
+  const aiEngine = new AIEngine();
+  (app as any).aiEngine = aiEngine;
+
+  await app.register(chatRoutes, { prefix: '/chat' });
   await app.register(agentsRoutes, { prefix: '/agents' });
-  await app.register(usageRoutes, { prefix: '/usage' });
-  await app.register(orchestrationRoutes, { prefix: '/api/v1/orchestrate' });
+  await app.register(sessionsRoutes, { prefix: '/sessions' });
+  await app.register(orchestrationRoutes, { prefix: '/orchestration' });
+  await app.register(toolsRoutes, { prefix: '/tools' });
   await app.register(memoryRoutes, { prefix: '/memory' });
-  await app.register(askRoutes, { prefix: '/api' });
+  await app.register(usageRoutes, { prefix: '/usage' });
+  await app.register(agenticRoutes, { prefix: '/agentic' });
+  await app.register(quantosRoutes, { prefix: '/quantos' });
+  await app.register(personalAgentRoutes, { prefix: '/personal-agent' });
+  await app.register(healthRoutes, { prefix: '/health' });
+  await app.register(marketplaceRoutes, { prefix: '/marketplace' });
+  await app.register(templatesRoutes, { prefix: '/templates' });
+  await app.register(analyticsRoutes, { prefix: '/analytics' });
+  await app.register(versioningRoutes, { prefix: '/versioning' });
+  await app.register(permissionsRoutes, { prefix: '/permissions' });
+  await app.register(collaborationRoutes, { prefix: '/collaboration' });
+  await app.register(trainingRoutes, { prefix: '/training' });
+  await app.register(federationRoutes, { prefix: '/federation' });
+  await app.register(agentHealthRoutes, { prefix: '/agent-health' });
+  await app.register(agentLogsRoutes, { prefix: '/agent-logs' });
 
   return app;
-}
-
-if (process.argv[1] && import.meta.url.endsWith(process.argv[1])) {
-  const config = getConfig();
-  buildApp(config).then((app) => {
-    app.listen({ port: config.port, host: config.host }, (err) => {
-      if (err) {
-        app.log.error(err);
-        process.exit(1);
-      }
-    });
-  });
 }

@@ -3,10 +3,9 @@ version: '3.8'
 services:
   postgres:
     image: ankane/pgvector:latest
-    container_name: quant-postgres
     environment:
       POSTGRES_USER: quant
-      POSTGRES_PASSWORD: quant
+      POSTGRES_PASSWORD: quant_secret
       POSTGRES_DB: quantdb
     ports:
       - '5432:5432'
@@ -17,10 +16,12 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - quant-network
 
   redis:
     image: redis:7-alpine
-    container_name: quant-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - '6379:6379'
     volumes:
@@ -30,107 +31,35 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
-  minio:
-    image: minio/minio
-    container_name: quant-minio
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    ports:
-      - '9000:9000'
-      - '9001:9001'
-    volumes:
-      - minio_data:/data
-
-  mailhog:
-    image: mailhog/mailhog
-    container_name: quant-mailhog
-    ports:
-      - '1025:1025'
-      - '8025:8025'
+    networks:
+      - quant-network
 
   meilisearch:
     image: getmeili/meilisearch:latest
-    container_name: quant-meilisearch
     environment:
-      MEILI_MASTER_KEY: masterKey
+      MEILI_MASTER_KEY: quant_meili_key
     ports:
       - '7700:7700'
     volumes:
-      - meilisearch_data:/meili_data
-
-  nats:
-    image: nats:latest
-    container_name: quant-nats
-    command: ['--jetstream', '--store_dir', '/data']
-    ports:
-      - '4222:4222'
-      - '8222:8222'
-    volumes:
-      - nats_data:/data
-
-  redpanda:
-    image: redpandadata/redpanda:latest
-    container_name: quant-redpanda
-    command:
-      - redpanda
-      - start
-      - --smp 1
-      - --memory 512M
-      - --overprovisioned
-      - --kafka-addr PLAINTEXT://0.0.0.0:9092
-      - --advertise-kafka-addr PLAINTEXT://localhost:9092
-      - --schema-registry-addr 0.0.0.0:8081
-    ports:
-      - '9092:9092'
-      - '8081:8081'
-      - '8082:8082'
-    volumes:
-      - redpanda_data:/var/lib/redpanda/data
+      - meili_data:/meili_data
+    networks:
+      - quant-network
 
   qdrant:
     image: qdrant/qdrant:latest
-    container_name: quant-qdrant
     ports:
       - '6333:6333'
-      - '6334:6334'
     volumes:
       - qdrant_data:/qdrant/storage
-
-  triton:
-    image: nvcr.io/nvidia/tritonserver:24.01-py3
-    container_name: quant-triton
-    command: tritonserver --model-repository=/models --strict-model-config=false
-    ports:
-      - '8000:8000'
-      - '8001:8001'
-      - '8002:8002'
-    volumes:
-      - ./models:/models
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8000/v2/health/ready']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  livekit:
-    image: livekit/livekit-server:latest
-    container_name: quant-livekit
-    command: --dev --bind 0.0.0.0
-    environment:
-      LIVEKIT_KEYS: 'devkey: devsecret'
-    ports:
-      - '7880:7880'
-      - '7881:7881'
-      - '7882:7882/udp'
+    networks:
+      - quant-network
 
 volumes:
   postgres_data:
   redis_data:
-  minio_data:
-  meilisearch_data:
-  nats_data:
-  redpanda_data:
+  meili_data:
   qdrant_data:
+
+networks:
+  quant-network:
+    driver: bridge

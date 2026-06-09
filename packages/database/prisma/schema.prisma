@@ -45,6 +45,9 @@ model User {
   oauthAccounts       OAuthAccount[]
   sessions            Session[]
   refreshTokens       RefreshToken[]
+  oauthClients        OAuthClient[]      @relation("UserOwnedClients")
+  oauthConsents       OAuthConsent[]
+  authorizationCodes  AuthorizationCode[]
   sentMessages        Message[]          @relation("MessageSender")
   conversations       ConversationMember[]
   emails              Email[]
