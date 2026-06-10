@@ -1,49 +1,69 @@
-export interface SandboxConfig {
-  maxExecutionTime: number;
-  maxMemoryMB: number;
-  allowedTools: string[];
-  networkAccess: boolean;
+import { EventEmitter } from 'events';
+
+export interface SandboxExecution {
+  id: string;
+  agentId: string;
+  task: string;
+  result: any;
+  safe: boolean;
+  violations: string[];
+  timestamp: Date;
 }
 
-export class AgentSandbox {
-  private config: SandboxConfig;
+export class AgentSandbox extends EventEmitter {
+  private executions: SandboxExecution[] = [];
+  private blockedPatterns: string[] = ['rm -rf', 'delete *', 'sudo', 'eval('];
 
-  constructor(config: Partial<SandboxConfig> = {}) {
-    this.config = {
-      maxExecutionTime: 30000, // 30 seconds
-      maxMemoryMB: 256,
-      allowedTools: [],
-      networkAccess: false,
-      ...config,
-    };
-  }
+  async executeInSandbox(
+    agentId: string,
+    task: string,
+    executionFn: () => Promise<any>,
+  ): Promise<SandboxExecution> {
+    const id = `sandbox-${Date.now()}`;
+    let safe = true;
+    const violations: string[] = [];
 
-  async executeInSandbox<T>(fn: () => Promise<T>, agentId: string): Promise<T> {
-    const startTime = Date.now();
-
-    // Simple sandboxing (in production, use proper isolation)
-    const timeout = setTimeout(() => {
-      throw new Error(`Agent ${agentId} exceeded max execution time`);
-    }, this.config.maxExecutionTime);
-
-    try {
-      const result = await fn();
-      clearTimeout(timeout);
-      return result;
-    } catch (error) {
-      clearTimeout(timeout);
-      throw error;
+    // Pre-execution safety check
+    for (const pattern of this.blockedPatterns) {
+      if (task.toLowerCase().includes(pattern)) {
+        safe = false;
+        violations.push(`Blocked pattern: ${pattern}`);
+      }
     }
+
+    let result: any = null;
+    if (safe) {
+      try {
+        result = await executionFn();
+      } catch (error) {
+        safe = false;
+        violations.push(`Execution error: ${error}`);
+      }
+    }
+
+    const execution: SandboxExecution = {
+      id,
+      agentId,
+      task,
+      result,
+      safe,
+      violations,
+      timestamp: new Date(),
+    };
+
+    this.executions.push(execution);
+    this.emit('sandbox:execution', execution);
+
+    return execution;
   }
 
-  isToolAllowed(toolName: string): boolean {
-    if (this.config.allowedTools.length === 0) return true;
-    return this.config.allowedTools.includes(toolName);
+  getSafeExecutions(agentId?: string): SandboxExecution[] {
+    let filtered = this.executions.filter((e) => e.safe);
+    if (agentId) filtered = filtered.filter((e) => e.agentId === agentId);
+    return filtered;
   }
 
-  getConfig(): SandboxConfig {
-    return { ...this.config };
+  getViolations(): SandboxExecution[] {
+    return this.executions.filter((e) => !e.safe);
   }
 }
-
-export const defaultSandbox = new AgentSandbox();
