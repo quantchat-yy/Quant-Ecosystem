@@ -111,3 +111,4 @@ export const QUANT_ECOSYSTEM_VERSION = '3.2.0';
 
 export * from './deployment/production-deployment';
 export { ProductionDeployment } from './deployment/production-deployment';
+export const QUANT_ECOSYSTEM_VERSION = '3.3.0';
