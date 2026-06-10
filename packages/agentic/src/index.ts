@@ -69,3 +69,6 @@ export { SwarmIntelligence } from './swarm/swarm-intelligence';
 
 export * from './federation/cross-app-federation';
 export { CrossAppFederation } from './federation/cross-app-federation';
+
+export * from './marketplace/agent-marketplace-v2';
+export { AgentMarketplaceV2 } from './marketplace/agent-marketplace-v2';
