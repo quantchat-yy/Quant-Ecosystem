@@ -99,3 +99,4 @@ export const QUANT_ECOSYSTEM_VERSION = '2.9.0';
 
 export * from './monitoring/production-monitoring';
 export { ProductionMonitoring } from './monitoring/production-monitoring';
+export const QUANT_ECOSYSTEM_VERSION = '3.0.0';
