@@ -92,3 +92,6 @@ export const QUANT_ECOSYSTEM_VERSION = '2.7.0';
 export * from './sandbox/agent-sandbox';
 export { AgentSandbox } from './sandbox/agent-sandbox';
 export const QUANT_ECOSYSTEM_VERSION = '2.8.0';
+
+export * from './network/global-federation-network';
+export { GlobalFederationNetwork } from './network/global-federation-network';
