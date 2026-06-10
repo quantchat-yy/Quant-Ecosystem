@@ -743,3 +743,6 @@ const TodayProgress = () => (
 
 // Add Streak Calendar
 import { StreakCalendar } from './components/streak/StreakCalendar';
+
+// Add Quick Actions
+import { QuickActions } from './components/quick/QuickActions';
