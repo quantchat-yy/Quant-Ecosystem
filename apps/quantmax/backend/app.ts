@@ -1,7 +1,7 @@
 import { createApp } from '@quant/server-core';
 import type { AppConfig } from '@quant/server-core';
-import profilesRoutes from './routes/profiles';
 import matchingRoutes from './routes/matching';
+import profilesRoutes from './routes/profiles';
 import swipesRoutes from './routes/swipes';
 import randomChatRoutes from './routes/random-chat';
 
@@ -13,7 +13,7 @@ export function getConfig(): AppConfig {
   }
 
   return {
-    port: Number(process.env['PORT'] ?? 3009),
+    port: Number(process.env['PORT'] ?? 3008),
     host: process.env['HOST'] ?? '0.0.0.0',
     logLevel: process.env['LOG_LEVEL'] ?? 'info',
     corsOrigins: (process.env['CORS_ORIGINS'] ?? 'http://localhost:3000').split(','),
@@ -31,22 +31,10 @@ export async function buildApp(config?: AppConfig) {
   const appConfig = config ?? getConfig();
   const app = await createApp(appConfig);
 
-  await app.register(profilesRoutes, { prefix: '/profiles' });
   await app.register(matchingRoutes, { prefix: '/matching' });
+  await app.register(profilesRoutes, { prefix: '/profiles' });
   await app.register(swipesRoutes, { prefix: '/swipes' });
   await app.register(randomChatRoutes, { prefix: '/random-chat' });
 
   return app;
-}
-
-if (process.argv[1] && import.meta.url.endsWith(process.argv[1])) {
-  const config = getConfig();
-  buildApp(config).then((app) => {
-    app.listen({ port: config.port, host: config.host }, (err) => {
-      if (err) {
-        app.log.error(err);
-        process.exit(1);
-      }
-    });
-  });
 }

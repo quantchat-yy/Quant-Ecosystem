@@ -1,7 +1,7 @@
 $REGISTRY="650708167640.dkr.ecr.us-east-1.amazonaws.com"
 
 Write-Host "Logging in to ECR..."
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REGISTRY
+cmd /c "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REGISTRY"
 
 Write-Host "Building and pushing quant-ws-gateway..."
 docker build -t $REGISTRY/quant-ws-gateway:latest -f services/ws-gateway/Dockerfile .

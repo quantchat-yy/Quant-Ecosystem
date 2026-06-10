@@ -1,10 +1,9 @@
 import { createApp } from '@quant/server-core';
 import type { AppConfig } from '@quant/server-core';
-import websocket from '@fastify/websocket';
 import roomsRoutes from './routes/rooms';
 import recordingsRoutes from './routes/recordings';
-import wsRoutes from './routes/ws';
 import webhooksRoutes from './routes/webhooks';
+import { signalingRoutes } from './routes/signaling';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -14,7 +13,7 @@ export function getConfig(): AppConfig {
   }
 
   return {
-    port: Number(process.env['PORT'] ?? 3022),
+    port: Number(process.env['PORT'] ?? 3006),
     host: process.env['HOST'] ?? '0.0.0.0',
     logLevel: process.env['LOG_LEVEL'] ?? 'info',
     corsOrigins: (process.env['CORS_ORIGINS'] ?? 'http://localhost:3000').split(','),
@@ -32,24 +31,10 @@ export async function buildApp(config?: AppConfig) {
   const appConfig = config ?? getConfig();
   const app = await createApp(appConfig);
 
-  await app.register(websocket);
-
+  await app.register(signalingRoutes, { prefix: '/signaling' });
   await app.register(roomsRoutes, { prefix: '/rooms' });
   await app.register(recordingsRoutes, { prefix: '/recordings' });
-  await app.register(wsRoutes, { prefix: '/ws' });
   await app.register(webhooksRoutes, { prefix: '/webhooks' });
 
   return app;
-}
-
-if (process.argv[1] && import.meta.url.endsWith(process.argv[1])) {
-  const config = getConfig();
-  buildApp(config).then((app) => {
-    app.listen({ port: config.port, host: config.host }, (err: Error | null) => {
-      if (err) {
-        app.log.error(err);
-        process.exit(1);
-      }
-    });
-  });
 }

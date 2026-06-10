@@ -5,20 +5,17 @@ import { FeedService } from '../services/feed.service';
 
 const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).optional(),
-  pageSize: z.coerce.number().int().min(1).max(100).optional(),
-});
-
-const trendingSchema = z.object({
-  timeframe: z.enum(['1h', '24h', '7d']).optional(),
-  page: z.coerce.number().int().min(1).optional(),
-  pageSize: z.coerce.number().int().min(1).max(100).optional(),
+  pageSize: z.coerce.number().int().min(1).max(50).optional(),
 });
 
 export default async function feedRoutes(fastify: FastifyInstance) {
+  const prisma = (fastify as any).prisma;
+  const feedService = new FeedService(prisma);
+
   fastify.get('/', async (request, reply) => {
-    const queryResult = paginationSchema.safeParse(request.query);
-    if (!queryResult.success) {
-      throw queryResult.error;
+    const parseResult = paginationSchema.safeParse(request.query);
+    if (!parseResult.success) {
+      throw parseResult.error;
     }
 
     const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
@@ -26,37 +23,21 @@ export default async function feedRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
-    const service = new FeedService(prisma as never);
-    const result = await service.getFeed(userId, queryResult.data);
+    const { page = 1, pageSize = 20 } = parseResult.data;
+    const posts = await feedService.getFeed(userId, page, pageSize);
 
-    return reply.send({ success: true, data: result });
-  });
-
-  fastify.get('/explore', async (request, reply) => {
-    const queryResult = paginationSchema.safeParse(request.query);
-    if (!queryResult.success) {
-      throw queryResult.error;
-    }
-
-    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
-    const service = new FeedService(prisma as never);
-    const result = await service.getExploreFeed(queryResult.data);
-
-    return reply.send({ success: true, data: result });
+    return reply.send(posts);
   });
 
   fastify.get('/trending', async (request, reply) => {
-    const queryResult = trendingSchema.safeParse(request.query);
-    if (!queryResult.success) {
-      throw queryResult.error;
+    const parseResult = paginationSchema.safeParse(request.query);
+    if (!parseResult.success) {
+      throw parseResult.error;
     }
 
-    const { timeframe, ...pagination } = queryResult.data;
-    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
-    const service = new FeedService(prisma as never);
-    const result = await service.getTrending(timeframe as '1h' | '24h' | '7d', pagination);
+    const { pageSize = 20 } = parseResult.data;
+    const posts = await feedService.getTrendingPosts(pageSize);
 
-    return reply.send({ success: true, data: result });
+    return reply.send(posts);
   });
 }

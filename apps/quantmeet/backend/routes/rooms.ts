@@ -1,86 +1,45 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
-import { RoomService, CreateRoomSchema, JoinParticipantSchema } from '../services/room.service';
+import { RoomService } from '../services/room.service';
 
-const roomIdParamSchema = z.object({
-  id: z.string().min(1),
-});
-
-const leaveBodySchema = z.object({
-  participantId: z.string().min(1),
+const createRoomSchema = z.object({
+  name: z.string().min(1).max(100),
+  isPrivate: z.boolean().optional(),
 });
 
 export default async function roomsRoutes(fastify: FastifyInstance) {
-  const roomService = new RoomService();
+  const prisma = (fastify as any).prisma;
+  const roomService = new RoomService(prisma);
 
   fastify.post('/', async (request, reply) => {
-    const parseResult = CreateRoomSchema.safeParse(request.body);
+    const parseResult = createRoomSchema.safeParse(request.body);
     if (!parseResult.success) {
-      throw createAppError('Invalid room data', 400, 'VALIDATION_ERROR');
+      throw parseResult.error;
     }
 
-    const room = roomService.createRoom(parseResult.data);
-    return reply.status(201).send({ success: true, data: room });
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const room = await roomService.createRoom(
+      userId,
+      parseResult.data.name,
+      parseResult.data.isPrivate,
+    );
+
+    return reply.send(room);
   });
 
-  fastify.post<{ Params: { id: string } }>('/:id/join', async (request, reply) => {
-    const paramResult = roomIdParamSchema.safeParse(request.params);
-    if (!paramResult.success) {
-      throw createAppError('Invalid room ID', 400, 'VALIDATION_ERROR');
+  fastify.get('/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const room = await roomService.getRoom(id);
+
+    if (!room) {
+      throw createAppError('Room not found', 404, 'NOT_FOUND');
     }
 
-    const bodyResult = JoinParticipantSchema.safeParse(request.body);
-    if (!bodyResult.success) {
-      throw createAppError('Invalid participant data', 400, 'VALIDATION_ERROR');
-    }
-
-    const room = roomService.joinRoom(paramResult.data.id, bodyResult.data);
-    return reply.send({ success: true, data: room });
-  });
-
-  fastify.post<{ Params: { id: string } }>('/:id/leave', async (request, reply) => {
-    const paramResult = roomIdParamSchema.safeParse(request.params);
-    if (!paramResult.success) {
-      throw createAppError('Invalid room ID', 400, 'VALIDATION_ERROR');
-    }
-
-    const bodyResult = leaveBodySchema.safeParse(request.body);
-    if (!bodyResult.success) {
-      throw createAppError('Invalid leave data', 400, 'VALIDATION_ERROR');
-    }
-
-    const room = roomService.leaveRoom(paramResult.data.id, bodyResult.data.participantId);
-    return reply.send({ success: true, data: room });
-  });
-
-  fastify.get<{ Params: { id: string } }>('/:id', async (request, reply) => {
-    const paramResult = roomIdParamSchema.safeParse(request.params);
-    if (!paramResult.success) {
-      throw createAppError('Invalid room ID', 400, 'VALIDATION_ERROR');
-    }
-
-    const room = roomService.getRoom(paramResult.data.id);
-    return reply.send({ success: true, data: room });
-  });
-
-  fastify.get<{ Params: { id: string } }>('/:id/participants', async (request, reply) => {
-    const paramResult = roomIdParamSchema.safeParse(request.params);
-    if (!paramResult.success) {
-      throw createAppError('Invalid room ID', 400, 'VALIDATION_ERROR');
-    }
-
-    const participants = roomService.listParticipants(paramResult.data.id);
-    return reply.send({ success: true, data: participants });
-  });
-
-  fastify.delete<{ Params: { id: string } }>('/:id', async (request, reply) => {
-    const paramResult = roomIdParamSchema.safeParse(request.params);
-    if (!paramResult.success) {
-      throw createAppError('Invalid room ID', 400, 'VALIDATION_ERROR');
-    }
-
-    roomService.closeRoom(paramResult.data.id);
-    return reply.send({ success: true, data: null });
+    return reply.send(room);
   });
 }

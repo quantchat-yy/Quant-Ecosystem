@@ -1,14 +1,17 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
-import { SwipeService } from '../services/swipe.service';
+import { MatchingService } from '../services/matching.service';
 
 const swipeSchema = z.object({
-  targetId: z.string(),
-  direction: z.enum(['LEFT', 'RIGHT', 'SUPER_LIKE']),
+  targetUserId: z.string(),
+  liked: z.boolean(),
 });
 
 export default async function swipesRoutes(fastify: FastifyInstance) {
+  const prisma = (fastify as any).prisma;
+  const matchingService = new MatchingService(prisma);
+
   fastify.post('/', async (request, reply) => {
     const parseResult = swipeSchema.safeParse(request.body);
     if (!parseResult.success) {
@@ -20,27 +23,12 @@ export default async function swipesRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
-    const service = new SwipeService(prisma as never);
-    const result = await service.swipe(
+    const result = await matchingService.recordSwipe(
       userId,
-      parseResult.data.targetId,
-      parseResult.data.direction,
+      parseResult.data.targetUserId,
+      parseResult.data.liked,
     );
 
-    return reply.status(201).send({ success: true, data: result });
-  });
-
-  fastify.get('/history', async (request, reply) => {
-    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
-    if (!userId) {
-      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
-    }
-
-    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
-    const service = new SwipeService(prisma as never);
-    const history = await service.getSwipeHistory(userId);
-
-    return reply.send({ success: true, data: history });
+    return reply.send(result);
   });
 }
