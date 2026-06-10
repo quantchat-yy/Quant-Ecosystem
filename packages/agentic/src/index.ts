@@ -88,3 +88,6 @@ export * from './ml/ml-powered-intelligence';
 export * from './reputation/agent-reputation';
 export { AgentReputationSystem } from './reputation/agent-reputation';
 export const QUANT_ECOSYSTEM_VERSION = '2.7.0';
+
+export * from './sandbox/agent-sandbox';
+export { AgentSandbox } from './sandbox/agent-sandbox';
