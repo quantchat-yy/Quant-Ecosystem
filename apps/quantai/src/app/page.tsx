@@ -17,6 +17,49 @@ import { PersonaSelector, DEFAULT_PERSONAS } from '../components/PersonaSelector
 import type { Persona } from '../components/PersonaSelector';
 
 export default function AIPage() {
+  /* === ADDICTIVE HEADER === */
+  const AddictiveHeader = () => (
+    <div className="sticky top-0 z-50 border-b border-zinc-800 bg-[#0a0a0f]/95 backdrop-blur-xl">
+      <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-2xl bg-white flex items-center justify-center">
+              <span className="text-black text-xl font-bold">Q</span>
+            </div>
+            <div>
+              <div className="font-semibold tracking-[-1px] text-2xl">QuantAI</div>
+              <div className="text-[10px] text-zinc-500 -mt-1">v3.3.0</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6 text-sm">
+            <div className="flex items-center gap-2 px-4 py-1.5 rounded-2xl bg-zinc-950 border border-zinc-800">
+              <span className="text-emerald-400">🔥</span>
+              <span className="font-mono text-emerald-400">47</span>
+              <span className="text-zinc-500 text-xs">DAY STREAK</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-amber-400">12,450</span>
+              <span className="text-zinc-500 text-xs">XP</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-purple-400">LVL 52</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="px-4 py-1.5 rounded-2xl bg-white/5 text-xs flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />8 agents online
+          </div>
+          <button className="px-5 py-2 rounded-2xl bg-white text-black text-sm font-medium hover:bg-white/90">
+            Upgrade
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   const { models, currentModel, switchModel } = useModelSelector();
   const {
     messages,
@@ -646,3 +689,18 @@ function ChatInput({
     </div>
   );
 }
+
+// Addictive Streak Header
+const StreakHeader = () => (
+  <div className="flex items-center gap-4 px-6 py-3 bg-zinc-950 border-b border-zinc-800">
+    <div className="flex items-center gap-2">
+      <div className="text-2xl">🔥</div>
+      <div>
+        <div className="text-emerald-400 font-mono text-xl">47</div>
+        <div className="text-[10px] text-zinc-500 -mt-1">DAY STREAK</div>
+      </div>
+    </div>
+    <div className="h-3 w-px bg-zinc-800" />
+    <div className="text-sm text-zinc-400">You&apos;re on fire. Keep the momentum!</div>
+  </div>
+);
