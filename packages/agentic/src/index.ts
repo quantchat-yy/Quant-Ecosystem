@@ -76,3 +76,6 @@ export { AgentMarketplaceV2 } from './marketplace/agent-marketplace-v2';
 export * from './training/agent-training-system';
 export { AgentTrainingSystem } from './training/agent-training-system';
 export const QUANT_ECOSYSTEM_VERSION = '2.4.0';
+
+export * from './economy/agent-economy';
+export { AgentEconomy } from './economy/agent-economy';
