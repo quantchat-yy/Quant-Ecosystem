@@ -1459,6 +1459,9 @@ importers:
 
   packages/auth:
     dependencies:
+      '@prisma/client':
+        specifier: ^6.19.3
+        version: 6.19.3(prisma@6.19.3(magicast@0.3.5)(typescript@5.9.3))(typescript@5.9.3)
       '@quant/common':
         specifier: workspace:*
         version: link:../common
@@ -1481,6 +1484,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.19
+      prisma:
+        specifier: ^6.19.3
+        version: 6.19.3(magicast@0.3.5)(typescript@5.9.3)
 
   packages/bharat-ai:
     devDependencies:

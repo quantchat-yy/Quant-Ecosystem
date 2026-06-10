@@ -141,9 +141,16 @@ export class TokenService {
     );
   }
 
-  async revokeToken(tokenId: string, reason: string = 'user_logout'): Promise<void> {
+  async revokeToken(tokenId: string, _reason: string = 'user_logout'): Promise<void> {
     await this.prisma.refreshToken.updateMany({
       where: { id: tokenId },
+      data: { isRevoked: true },
+    });
+  }
+
+  async revokeAllForUser(userId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId },
       data: { isRevoked: true },
     });
   }
@@ -154,9 +161,37 @@ export class TokenService {
         issuer: this.config.issuer,
         audience: this.config.audience,
       });
-      return payload as TokenPayload;
+      return payload as unknown as TokenPayload;
     } catch {
       return null;
     }
+  }
+
+  async initializeJWKS(): Promise<void> {
+    const { privateKey, publicKey } = await jose.generateKeyPair('RS256');
+    this.jwksKeyPair = { privateKey, publicKey };
+  }
+
+  async getJWKS(): Promise<jose.JSONWebKeySet> {
+    if (!this.jwksKeyPair) {
+      await this.initializeJWKS();
+    }
+    const publicJwk = await jose.exportJWK(this.jwksKeyPair!.publicKey);
+    publicJwk.alg = 'RS256';
+    publicJwk.use = 'sig';
+    publicJwk.kid = 'quant-primary';
+    return { keys: [publicJwk] };
+  }
+
+  async signWithPrivateKey(payload: Record<string, unknown>): Promise<string> {
+    if (!this.jwksKeyPair) {
+      await this.initializeJWKS();
+    }
+    return new jose.SignJWT(payload as jose.JWTPayload)
+      .setProtectedHeader({ alg: 'RS256', kid: 'quant-primary' })
+      .setIssuedAt()
+      .setExpirationTime('1h')
+      .setIssuer(this.config.issuer)
+      .sign(this.jwksKeyPair!.privateKey);
   }
 }

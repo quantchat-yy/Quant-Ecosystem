@@ -39,7 +39,7 @@ function mockRes() {
 
 describe('AuthMiddleware', () => {
   let middleware: AuthMiddleware;
-  let next: ReturnType<typeof vi.fn>;
+  let next: any;
   let validToken: string;
 
   beforeEach(async () => {
@@ -69,7 +69,11 @@ describe('AuthMiddleware', () => {
   describe('authenticate', () => {
     it('rejects requests with no token (401 AUTH_TOKEN_MISSING)', async () => {
       const res = mockRes();
-      await middleware.authenticate()(req(), res as unknown as AuthResponse, next as unknown as NextFunction);
+      await middleware.authenticate()(
+        req(),
+        res as unknown as AuthResponse,
+        next as unknown as NextFunction,
+      );
       expect(res.statusCode).toBe(401);
       expect((res.body as any).error.code).toBe('AUTH_TOKEN_MISSING');
       expect(next).not.toHaveBeenCalled();
@@ -78,7 +82,11 @@ describe('AuthMiddleware', () => {
     it('rejects an invalid token (401 AUTH_TOKEN_INVALID)', async () => {
       const res = mockRes();
       const r = req({ headers: { authorization: 'Bearer not-a-real-token' } });
-      await middleware.authenticate()(r, res as unknown as AuthResponse, next as unknown as NextFunction);
+      await middleware.authenticate()(
+        r,
+        res as unknown as AuthResponse,
+        next as unknown as NextFunction,
+      );
       expect(res.statusCode).toBe(401);
       expect((res.body as any).error.code).toBe('AUTH_TOKEN_INVALID');
     });
@@ -86,7 +94,11 @@ describe('AuthMiddleware', () => {
     it('accepts a valid token, attaches auth context, and calls next', async () => {
       const res = mockRes();
       const r = req({ headers: { authorization: `Bearer ${validToken}` } });
-      await middleware.authenticate()(r, res as unknown as AuthResponse, next as unknown as NextFunction);
+      await middleware.authenticate()(
+        r,
+        res as unknown as AuthResponse,
+        next as unknown as NextFunction,
+      );
       expect(next).toHaveBeenCalled();
       expect(r.auth?.userId).toBe('user-123');
       expect(r.auth?.email).toBe('test@quant.app');
@@ -120,7 +132,11 @@ describe('AuthMiddleware', () => {
     it('extracts the token from a cookie and from a query param', async () => {
       const res1 = mockRes();
       const r1 = req({ cookies: { access_token: validToken } });
-      await middleware.authenticate()(r1, res1 as unknown as AuthResponse, next as unknown as NextFunction);
+      await middleware.authenticate()(
+        r1,
+        res1 as unknown as AuthResponse,
+        next as unknown as NextFunction,
+      );
       expect(r1.auth?.userId).toBe('user-123');
 
       let flag2 = false;
@@ -137,7 +153,11 @@ describe('AuthMiddleware', () => {
   describe('requireRole', () => {
     it('401 when not authenticated', async () => {
       const res = mockRes();
-      await middleware.requireRole('admin')(req(), res as unknown as AuthResponse, next as unknown as NextFunction);
+      await middleware.requireRole('admin')(
+        req(),
+        res as unknown as AuthResponse,
+        next as unknown as NextFunction,
+      );
       expect(res.statusCode).toBe(401);
       expect((res.body as any).error.code).toBe('AUTH_NOT_AUTHENTICATED');
     });
@@ -146,7 +166,11 @@ describe('AuthMiddleware', () => {
       const res = mockRes();
       const r = req();
       r.auth = { role: 'user', scopes: [] } as unknown as AuthContext;
-      await middleware.requireRole('admin')(r, res as unknown as AuthResponse, next as unknown as NextFunction);
+      await middleware.requireRole('admin')(
+        r,
+        res as unknown as AuthResponse,
+        next as unknown as NextFunction,
+      );
       expect(res.statusCode).toBe(403);
       expect((res.body as any).error.code).toBe('AUTH_FORBIDDEN');
     });
@@ -202,21 +226,33 @@ describe('AuthMiddleware', () => {
   describe('optionalAuth', () => {
     it('continues without auth when no token', async () => {
       const r = req();
-      await middleware.optionalAuth()(r, mockRes() as unknown as AuthResponse, next as unknown as NextFunction);
+      await middleware.optionalAuth()(
+        r,
+        mockRes() as unknown as AuthResponse,
+        next as unknown as NextFunction,
+      );
       expect(next).toHaveBeenCalled();
       expect(r.auth).toBeUndefined();
     });
 
     it('attaches auth when a valid token is present', async () => {
       const r = req({ headers: { authorization: `Bearer ${validToken}` } });
-      await middleware.optionalAuth()(r, mockRes() as unknown as AuthResponse, next as unknown as NextFunction);
+      await middleware.optionalAuth()(
+        r,
+        mockRes() as unknown as AuthResponse,
+        next as unknown as NextFunction,
+      );
       expect(next).toHaveBeenCalled();
       expect(r.auth?.userId).toBe('user-123');
     });
 
     it('continues (no auth) when token is invalid', async () => {
       const r = req({ headers: { authorization: 'Bearer garbage' } });
-      await middleware.optionalAuth()(r, mockRes() as unknown as AuthResponse, next as unknown as NextFunction);
+      await middleware.optionalAuth()(
+        r,
+        mockRes() as unknown as AuthResponse,
+        next as unknown as NextFunction,
+      );
       expect(next).toHaveBeenCalled();
       expect(r.auth).toBeUndefined();
     });

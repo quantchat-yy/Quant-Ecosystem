@@ -42,6 +42,6 @@ export async function validateCodeChallenge(
  * Base64url encode a buffer (no padding)
  */
 function base64UrlEncode(buffer: Buffer | ArrayBuffer): string {
-  const buf = Buffer.from(buffer);
+  const buf = Buffer.from(buffer as any);
   return buf.toString('base64url');
 }

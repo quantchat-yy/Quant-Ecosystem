@@ -384,12 +384,12 @@ export class QuantMailProvider {
       return { success: false, error: 'Missing refresh_token' };
     }
 
-    const result = await this.tokenService.refreshTokens(request.refreshToken);
-    if (!result) {
-      return { success: false, error: 'Invalid or expired refresh token' };
+    try {
+      const result = await this.tokenService.refreshToken(request.refreshToken);
+      return { success: true, tokens: result };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Invalid or expired refresh token' };
     }
-
-    return { success: true, tokens: result };
   }
 
   /**

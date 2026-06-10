@@ -182,6 +182,60 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+model OAuthClient {
+  id               String   @id @default(cuid())
+  clientId         String   @unique
+  clientSecretHash String?
+  name             String
+  description      String?  @default("")
+  redirectUris     String[]
+  allowedScopes    String[]
+  isConfidential   Boolean  @default(true)
+  isFirstParty     Boolean  @default(false)
+  ownerId          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  owner            User?    @relation("UserOwnedClients", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([ownerId])
+  @@map("oauth_clients")
+}
+
+model OAuthConsent {
+  id        String   @id @default(cuid())
+  userId    String
+  clientId  String
+  scopes    String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId])
+  @@index([userId])
+  @@index([clientId])
+  @@map("oauth_consents")
+}
+
+model AuthorizationCode {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  clientId    String
+  userId      String
+  redirectUri String
+  scopes      String[]
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([code])
+  @@index([userId])
+  @@map("authorization_codes")
+}
+
 // ==================== MESSAGES (QuantChat) ====================
 
 model Conversation {

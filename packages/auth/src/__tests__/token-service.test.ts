@@ -158,7 +158,7 @@ describe('TokenService', () => {
     });
   });
 
-  describe('refreshTokens', () => {
+  describe('refreshToken', () => {
     it('should return a new token pair and invalidate old refresh token', async () => {
       const original = await tokenService.generateTokenPair(
         'user-refresh',
@@ -167,7 +167,7 @@ describe('TokenService', () => {
         'quantmail',
       );
 
-      const refreshed = await tokenService.refreshTokens(original.refreshToken);
+      const refreshed = await tokenService.refreshToken(original.refreshToken);
       expect(refreshed).not.toBeNull();
       expect(refreshed!.accessToken).toBeDefined();
       expect(refreshed!.refreshToken).toBeDefined();
@@ -175,8 +175,7 @@ describe('TokenService', () => {
       expect(refreshed!.refreshToken).not.toBe(original.refreshToken);
 
       // Old refresh token should no longer work
-      const reused = await tokenService.refreshTokens(original.refreshToken);
-      expect(reused).toBeNull();
+      await expect(tokenService.refreshToken(original.refreshToken)).rejects.toThrow();
     });
 
     it('should preserve user claims in refreshed access token', async () => {
@@ -187,7 +186,7 @@ describe('TokenService', () => {
         'quantchat',
       );
 
-      const refreshed = await tokenService.refreshTokens(original.refreshToken);
+      const refreshed = await tokenService.refreshToken(original.refreshToken);
       expect(refreshed).not.toBeNull();
 
       const payload = await tokenService.validateAccessToken(refreshed!.accessToken);
@@ -209,16 +208,14 @@ describe('TokenService', () => {
       );
 
       // First refresh works
-      const refreshed = await tokenService.refreshTokens(original.refreshToken);
+      const refreshed = await tokenService.refreshToken(original.refreshToken);
       expect(refreshed).not.toBeNull();
 
       // Attacker tries to use the old refresh token (reuse detection)
-      const stolen = await tokenService.refreshTokens(original.refreshToken);
-      expect(stolen).toBeNull();
+      await expect(tokenService.refreshToken(original.refreshToken)).rejects.toThrow();
 
       // Even the legitimate new token should no longer work (family revoked)
-      const legitimate = await tokenService.refreshTokens(refreshed!.refreshToken);
-      expect(legitimate).toBeNull();
+      await expect(tokenService.refreshToken(refreshed!.refreshToken)).rejects.toThrow();
     });
   });
 
