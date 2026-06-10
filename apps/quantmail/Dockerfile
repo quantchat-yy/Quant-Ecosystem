@@ -8,7 +8,7 @@ RUN pnpm install --frozen-lockfile --ignore-scripts --network-concurrency 1 --ch
 
 FROM deps AS builder
 ENV NODE_OPTIONS="--max-old-space-size=2048"
-RUN npx prisma generate --schema=packages/database/prisma/schema.prisma
+RUN pnpm exec prisma generate --schema=packages/database/prisma/schema.prisma
 RUN pnpm turbo build --filter=@quant/quantmail --concurrency=1
 
 FROM node:22-slim AS runner
