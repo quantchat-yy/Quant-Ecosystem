@@ -84,3 +84,6 @@ export const QUANT_ECOSYSTEM_VERSION = '2.5.0';
 export * from './ml/ml-powered-intelligence';
 export { MLPoweredIntelligence } from './ml/ml-powered-intelligence';
 export * from './ml/ml-powered-intelligence';
+
+export * from './reputation/agent-reputation';
+export { AgentReputationSystem } from './reputation/agent-reputation';
