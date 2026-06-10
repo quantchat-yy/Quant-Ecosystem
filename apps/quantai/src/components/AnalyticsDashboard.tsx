@@ -138,3 +138,6 @@ import { AchievementSystem } from './achievements/AchievementSystem';
 
 // Add Daily Quests
 import { DailyQuests } from './quests/DailyQuests';
+
+// Add Leaderboard
+import { Leaderboard } from './leaderboard/Leaderboard';
