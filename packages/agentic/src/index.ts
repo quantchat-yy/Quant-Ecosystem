@@ -1,4 +1,5 @@
 import { QuantOrchestrator } from './orchestrator/orchestrator';
+import { IntelligentOrchestrator } from './orchestrator/intelligent-orchestrator';
 import { QuantMailAgent } from './agents/quantmail.agent';
 import { QuantChatAgent } from './agents/quantchat.agent';
 import { QuantAIAgent } from './agents/quantai.agent';
@@ -13,6 +14,8 @@ export * from './tools/tool-registry';
 export * from './planning/planner';
 export * from './execution/executor';
 export * from './orchestrator/orchestrator';
+export * from './orchestrator/intelligent-orchestrator';
+export * from './swarm/swarm-intelligence';
 export * from './agents/quantmail.agent';
 export * from './agents/quantchat.agent';
 export * from './agents/quantai.agent';
@@ -21,13 +24,33 @@ export * from './agents/quantmeet.agent';
 export * from './agents/quantsync.agent';
 export * from './agents/personal.agent';
 
-export function createQuantEcosystemOrchestrator() {
+export function createQuantEcosystemOrchestrator(useIntelligent: boolean = true) {
+  if (useIntelligent) {
+    const orchestrator = new IntelligentOrchestrator({
+      maxConcurrentAgents: 25,
+      defaultModel: 'gpt-4o',
+      enableSelfHealing: true,
+      enableFederation: true,
+    });
+
+    // Register all agents with capabilities
+    orchestrator.registerAgent(new QuantMailAgent(), ['email', 'communication']);
+    orchestrator.registerAgent(new QuantChatAgent(), ['chat', 'realtime']);
+    orchestrator.registerAgent(new QuantAIAgent(), ['analysis', 'reasoning']);
+    orchestrator.registerAgent(new QuantDriveAgent(), ['storage', 'files']);
+    orchestrator.registerAgent(new QuantMeetAgent(), ['video', 'meeting']);
+    orchestrator.registerAgent(new QuantSyncAgent(), ['sync', 'collaboration']);
+    orchestrator.registerAgent(new PersonalAgent(), ['personal', 'memory']);
+
+    return orchestrator;
+  }
+
+  // Fallback to original
   const orchestrator = new QuantOrchestrator({
     maxConcurrentAgents: 20,
     defaultModel: 'gpt-4o',
   });
 
-  // Register all agents
   orchestrator.registerAgent(new QuantMailAgent());
   orchestrator.registerAgent(new QuantChatAgent());
   orchestrator.registerAgent(new QuantAIAgent());
@@ -38,11 +61,11 @@ export function createQuantEcosystemOrchestrator() {
   return orchestrator;
 }
 
-export const orchestrator = createQuantEcosystemOrchestrator();
+export const orchestrator = createQuantEcosystemOrchestrator(true);
 
-export * from './orchestrator/intelligent-orchestrator';
-export * from './swarm/swarm-intelligence';
-
-// v2.1 Advanced exports
+// v2.1+ Advanced exports
 export { IntelligentOrchestrator } from './orchestrator/intelligent-orchestrator';
 export { SwarmIntelligence } from './swarm/swarm-intelligence';
+
+export * from './federation/cross-app-federation';
+export { CrossAppFederation } from './federation/cross-app-federation';
