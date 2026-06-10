@@ -740,3 +740,6 @@ const TodayProgress = () => (
     </div>
   </div>
 );
+
+// Add Streak Calendar
+import { StreakCalendar } from './components/streak/StreakCalendar';
