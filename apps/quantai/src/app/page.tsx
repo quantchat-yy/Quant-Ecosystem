@@ -746,3 +746,6 @@ import { StreakCalendar } from './components/streak/StreakCalendar';
 
 // Add Quick Actions
 import { QuickActions } from './components/quick/QuickActions';
+
+// Add Trending Agents
+import { TrendingAgents } from './components/trending/TrendingAgents';
