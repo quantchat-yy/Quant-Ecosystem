@@ -104,3 +104,6 @@ export const QUANT_ECOSYSTEM_VERSION = '3.0.0';
 export * from './ml/real-ml-integration';
 export { RealMLIntegration } from './ml/real-ml-integration';
 export const QUANT_ECOSYSTEM_VERSION = '3.1.0';
+
+export * from './payments/agent-economy-payments';
+export { AgentEconomyPayments } from './payments/agent-economy-payments';
