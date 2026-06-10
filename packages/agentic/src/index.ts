@@ -108,3 +108,6 @@ export const QUANT_ECOSYSTEM_VERSION = '3.1.0';
 export * from './payments/agent-economy-payments';
 export { AgentEconomyPayments } from './payments/agent-economy-payments';
 export const QUANT_ECOSYSTEM_VERSION = '3.2.0';
+
+export * from './deployment/production-deployment';
+export { ProductionDeployment } from './deployment/production-deployment';
