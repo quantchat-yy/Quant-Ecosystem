@@ -103,3 +103,4 @@ export const QUANT_ECOSYSTEM_VERSION = '3.0.0';
 
 export * from './ml/real-ml-integration';
 export { RealMLIntegration } from './ml/real-ml-integration';
+export const QUANT_ECOSYSTEM_VERSION = '3.1.0';
