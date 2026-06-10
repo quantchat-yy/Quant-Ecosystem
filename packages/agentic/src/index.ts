@@ -79,3 +79,4 @@ export const QUANT_ECOSYSTEM_VERSION = '2.4.0';
 
 export * from './economy/agent-economy';
 export { AgentEconomy } from './economy/agent-economy';
+export const QUANT_ECOSYSTEM_VERSION = '2.5.0';
