@@ -39,3 +39,10 @@ export function createQuantEcosystemOrchestrator() {
 }
 
 export const orchestrator = createQuantEcosystemOrchestrator();
+
+export * from './orchestrator/intelligent-orchestrator';
+export * from './swarm/swarm-intelligence';
+
+// v2.1 Advanced exports
+export { IntelligentOrchestrator } from './orchestrator/intelligent-orchestrator';
+export { SwarmIntelligence } from './swarm/swarm-intelligence';
