@@ -749,3 +749,6 @@ import { QuickActions } from './components/quick/QuickActions';
 
 // Add Trending Agents
 import { TrendingAgents } from './components/trending/TrendingAgents';
+
+// Add Community Highlights
+import { CommunityHighlights } from './components/community/CommunityHighlights';
