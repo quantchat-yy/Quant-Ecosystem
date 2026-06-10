@@ -132,3 +132,6 @@ export const AnalyticsDashboard: React.FC = () => {
     </div>
   );
 };
+
+// Add Achievement System to Analytics
+import { AchievementSystem } from './achievements/AchievementSystem';
