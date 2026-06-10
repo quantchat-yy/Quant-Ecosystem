@@ -96,3 +96,6 @@ export const QUANT_ECOSYSTEM_VERSION = '2.8.0';
 export * from './network/global-federation-network';
 export { GlobalFederationNetwork } from './network/global-federation-network';
 export const QUANT_ECOSYSTEM_VERSION = '2.9.0';
+
+export * from './monitoring/production-monitoring';
+export { ProductionMonitoring } from './monitoring/production-monitoring';
