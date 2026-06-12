@@ -1,10 +1,15 @@
+// Auth helpers for k6 load tests.
+// JWT_SECRET must be provided via environment - there is no default secret.
 import encoding from 'k6/encoding';
 import crypto from 'k6/crypto';
 
-const DEFAULT_SECRET = __ENV.JWT_SECRET || 'dev-only-change-me-in-production!!!';
+const JWT_SECRET = __ENV.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required. Set it before running load tests.');
+}
 
 export function generateJWT(payload, secret) {
-  const sec = secret || DEFAULT_SECRET;
+  const sec = secret || JWT_SECRET;
   const header = { alg: 'HS256', typ: 'JWT' };
 
   const now = Math.floor(Date.now() / 1000);
