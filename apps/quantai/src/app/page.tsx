@@ -742,13 +742,13 @@ const TodayProgress = () => (
 );
 
 // Add Streak Calendar
-import { StreakCalendar } from './components/streak/StreakCalendar';
+import { StreakCalendar } from '../components/streak/StreakCalendar';
 
 // Add Quick Actions
-import { QuickActions } from './components/quick/QuickActions';
+import { QuickActions } from '../components/quick/QuickActions';
 
 // Add Trending Agents
-import { TrendingAgents } from './components/trending/TrendingAgents';
+import { TrendingAgents } from '../components/trending/TrendingAgents';
 
 // Add Community Highlights
-import { CommunityHighlights } from './components/community/CommunityHighlights';
+import { CommunityHighlights } from '../components/community/CommunityHighlights';
