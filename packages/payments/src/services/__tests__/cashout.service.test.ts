@@ -7,14 +7,14 @@ import { CashoutService } from '../cashout.service';
 
 describe('CashoutService', () => {
   let service: CashoutService;
-  let debitBalanceMock: ReturnType<typeof vi.fn>;
+  let debitBalanceMock: ReturnType<typeof vi.fn<(creatorId: string, amount: number) => void>>;
   let mockBalanceProvider: {
     getAvailableBalance: (creatorId: string) => number;
-    debitBalance: ReturnType<typeof vi.fn>;
+    debitBalance: ReturnType<typeof vi.fn<(creatorId: string, amount: number) => void>>;
   };
 
   beforeEach(() => {
-    debitBalanceMock = vi.fn();
+    debitBalanceMock = vi.fn<(creatorId: string, amount: number) => void>();
     mockBalanceProvider = {
       getAvailableBalance: (creatorId: string): number => {
         if (creatorId === 'creator_rich') return 1000;

@@ -11,13 +11,13 @@ describe('FindSimilarService', () => {
   let mockVectorClient: {
     search: ReturnType<typeof vi.fn>;
   };
-  let mockEmbedFn: ReturnType<typeof vi.fn>;
+  let mockEmbedFn: ReturnType<typeof vi.fn<(text: string) => Promise<number[]>>>;
 
   beforeEach(() => {
     mockVectorClient = {
       search: vi.fn().mockResolvedValue([]),
     };
-    mockEmbedFn = vi.fn().mockResolvedValue([0.1, 0.2, 0.3]);
+    mockEmbedFn = vi.fn<(text: string) => Promise<number[]>>().mockResolvedValue([0.1, 0.2, 0.3]);
     service = new FindSimilarService(mockVectorClient as unknown as VectorClient, mockEmbedFn);
   });
 

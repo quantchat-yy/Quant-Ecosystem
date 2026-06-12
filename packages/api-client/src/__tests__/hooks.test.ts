@@ -45,12 +45,14 @@ const useInfiniteQueryMock = vi.mocked(useInfiniteQuery);
 
 describe('HttpClient', () => {
   let client: HttpClient;
-  let mockFetch: ReturnType<typeof vi.fn>;
+  let mockFetch: ReturnType<
+    typeof vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<any>>
+  >;
 
   beforeEach(() => {
     client = new HttpClient({ baseUrl: 'https://api.quant.ai' });
-    mockFetch = vi.fn();
-    global.fetch = mockFetch;
+    mockFetch = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<any>>();
+    global.fetch = mockFetch as typeof global.fetch;
   });
 
   it('builds GET request URLs correctly', async () => {

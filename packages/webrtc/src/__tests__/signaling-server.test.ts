@@ -3,9 +3,9 @@ import { SignalingServer } from '../signaling-server.js';
 import { RoomManager } from '../room-manager.js';
 import type { ISocket } from '../types.js';
 
-function createMockSocket(): ISocket & { send: ReturnType<typeof vi.fn> } {
+function createMockSocket(): ISocket & { send: ReturnType<typeof vi.fn<ISocket['send']>> } {
   return {
-    send: vi.fn(),
+    send: vi.fn<ISocket['send']>(),
     readyState: 1,
   };
 }

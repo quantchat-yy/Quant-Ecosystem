@@ -8,7 +8,7 @@ import type { VectorClient } from './vector-client';
 
 describe('ProactiveSearch', () => {
   let mockVectorClient: VectorClient;
-  let mockEmbedFn: ReturnType<typeof vi.fn>;
+  let mockEmbedFn: ReturnType<typeof vi.fn<(text: string) => Promise<number[]>>>;
   let proactive: ProactiveSearch;
 
   beforeEach(() => {
@@ -18,7 +18,7 @@ describe('ProactiveSearch', () => {
       search: vi.fn(),
     } as unknown as VectorClient;
 
-    mockEmbedFn = vi.fn().mockResolvedValue([0.1, 0.2, 0.3]);
+    mockEmbedFn = vi.fn<(text: string) => Promise<number[]>>().mockResolvedValue([0.1, 0.2, 0.3]);
 
     proactive = new ProactiveSearch(mockVectorClient, mockEmbedFn);
   });

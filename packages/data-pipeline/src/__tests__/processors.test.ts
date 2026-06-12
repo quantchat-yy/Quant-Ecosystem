@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AnalyticsProcessor } from '../processors/analytics-processor.js';
-import { NotificationProcessor } from '../processors/notification-processor.js';
-import { IndexingProcessor } from '../processors/indexing-processor.js';
+import {
+  NotificationProcessor,
+  type NotificationMessage,
+  type UserPreferences,
+} from '../processors/notification-processor.js';
+import { IndexingProcessor, type IndexOperation } from '../processors/indexing-processor.js';
 import type { StreamEvent } from '../types.js';
 
 function createEvent(overrides: Partial<StreamEvent> = {}): StreamEvent {
@@ -85,13 +89,17 @@ describe('AnalyticsProcessor', () => {
 });
 
 describe('NotificationProcessor', () => {
-  let deliver: ReturnType<typeof vi.fn>;
-  let getPreferences: ReturnType<typeof vi.fn>;
+  let deliver: ReturnType<typeof vi.fn<(notifications: NotificationMessage[]) => Promise<void>>>;
+  let getPreferences: ReturnType<typeof vi.fn<(userId: string) => Promise<UserPreferences | null>>>;
   let processor: NotificationProcessor;
 
   beforeEach(() => {
-    deliver = vi.fn().mockResolvedValue(undefined);
-    getPreferences = vi.fn().mockResolvedValue({ channels: ['email', 'push'] });
+    deliver = vi
+      .fn<(notifications: NotificationMessage[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    getPreferences = vi
+      .fn<(userId: string) => Promise<UserPreferences | null>>()
+      .mockResolvedValue({ channels: ['email', 'push'] });
     processor = new NotificationProcessor({
       batchSize: 2,
       getPreferences,
@@ -186,11 +194,13 @@ describe('NotificationProcessor', () => {
 });
 
 describe('IndexingProcessor', () => {
-  let onBulkIndex: ReturnType<typeof vi.fn>;
+  let onBulkIndex: ReturnType<typeof vi.fn<(operations: IndexOperation[]) => Promise<void>>>;
   let processor: IndexingProcessor;
 
   beforeEach(() => {
-    onBulkIndex = vi.fn().mockResolvedValue(undefined);
+    onBulkIndex = vi
+      .fn<(operations: IndexOperation[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
     processor = new IndexingProcessor({
       bulkSize: 3,
       flushIntervalMs: 60000,

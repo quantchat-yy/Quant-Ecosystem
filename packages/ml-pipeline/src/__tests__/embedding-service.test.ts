@@ -7,21 +7,29 @@ import {
   type HttpClient,
 } from '../embedding-service';
 
-function createMockOpenAIBackend(): EmbeddingBackend & { embed: ReturnType<typeof vi.fn> } {
+function createMockOpenAIBackend(): EmbeddingBackend & {
+  embed: ReturnType<typeof vi.fn<EmbeddingBackend['embed']>>;
+} {
   return {
-    embed: vi.fn().mockResolvedValue([new Array(1536).fill(0.1)]),
+    embed: vi.fn<EmbeddingBackend['embed']>().mockResolvedValue([new Array(1536).fill(0.1)]),
   };
 }
 
-function createMockTritonBackend(): EmbeddingBackend & { embed: ReturnType<typeof vi.fn> } {
+function createMockTritonBackend(): EmbeddingBackend & {
+  embed: ReturnType<typeof vi.fn<EmbeddingBackend['embed']>>;
+} {
   return {
-    embed: vi.fn().mockResolvedValue([new Array(768).fill(0.2)]),
+    embed: vi.fn<EmbeddingBackend['embed']>().mockResolvedValue([new Array(768).fill(0.2)]),
   };
 }
 
-function createMockHttpClient(): HttpClient & { post: ReturnType<typeof vi.fn> } {
+function createMockHttpClient(): HttpClient & {
+  post: ReturnType<
+    typeof vi.fn<(url: string, body: unknown, headers?: Record<string, string>) => Promise<any>>
+  >;
+} {
   return {
-    post: vi.fn(),
+    post: vi.fn<(url: string, body: unknown, headers?: Record<string, string>) => Promise<any>>(),
   };
 }
 
