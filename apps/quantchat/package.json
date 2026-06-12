@@ -25,6 +25,7 @@
     "@quant/brand": "workspace:*",
     "@quant/shared-ui": "workspace:*",
     "fastify": "^5.3.3",
+    "@fastify/websocket": "^11.0.2",
     "livekit-server-sdk": "^2.15.3",
     "ioredis": "^5.6.1",
     "next": "^15.5.16",
