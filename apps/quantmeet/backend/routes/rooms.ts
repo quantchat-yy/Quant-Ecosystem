@@ -8,9 +8,17 @@ const createRoomSchema = z.object({
   isPrivate: z.boolean().optional(),
 });
 
+const DEFAULT_SETTINGS = {
+  maxParticipants: 50,
+  waitingRoom: false,
+  muteOnEntry: false,
+  allowScreenShare: true,
+  enableRecording: false,
+  enableTranscript: false,
+};
+
 export default async function roomsRoutes(fastify: FastifyInstance) {
-  const prisma = (fastify as any).prisma;
-  const roomService = new RoomService(prisma);
+  const roomService = new RoomService();
 
   fastify.post('/', async (request, reply) => {
     const parseResult = createRoomSchema.safeParse(request.body);
@@ -23,23 +31,25 @@ export default async function roomsRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const room = await roomService.createRoom(
-      userId,
-      parseResult.data.name,
-      parseResult.data.isPrivate,
-    );
+    const room = roomService.createRoom({
+      name: parseResult.data.name,
+      hostId: userId,
+      settings: {
+        ...DEFAULT_SETTINGS,
+        waitingRoom: parseResult.data.isPrivate ?? false,
+      },
+    });
 
     return reply.send(room);
   });
 
   fastify.get('/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const room = await roomService.getRoom(id);
-
-    if (!room) {
+    try {
+      const room = roomService.getRoom(id);
+      return reply.send(room);
+    } catch {
       throw createAppError('Room not found', 404, 'NOT_FOUND');
     }
-
-    return reply.send(room);
   });
 }

@@ -919,6 +919,9 @@ importers:
       '@quant/queue':
         specifier: workspace:*
         version: link:../../packages/queue
+      '@quant/realtime':
+        specifier: workspace:*
+        version: link:../../packages/realtime
       '@quant/server-core':
         specifier: workspace:*
         version: link:../../packages/server-core
