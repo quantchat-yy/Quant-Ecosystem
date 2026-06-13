@@ -14,6 +14,10 @@ vi.mock('@ai-sdk/anthropic', () => ({
   createAnthropic: vi.fn(() => (modelId: string) => ({ modelId, provider: 'anthropic' })),
 }));
 
+vi.mock('@ai-sdk/google', () => ({
+  createGoogleGenerativeAI: vi.fn(() => (modelId: string) => ({ modelId, provider: 'google' })),
+}));
+
 import { generateText, streamText } from 'ai';
 import { AIEngine } from '../core/engine';
 
@@ -187,8 +191,10 @@ describe('AIEngine', () => {
     it('throws when no API key is configured', async () => {
       vi.stubEnv('OPENAI_API_KEY', '');
       vi.stubEnv('ANTHROPIC_API_KEY', '');
+      vi.stubEnv('GOOGLE_API_KEY', '');
       delete process.env['OPENAI_API_KEY'];
       delete process.env['ANTHROPIC_API_KEY'];
+      delete process.env['GOOGLE_API_KEY'];
 
       const noKeyEngine = new AIEngine();
 
@@ -200,6 +206,38 @@ describe('AIEngine', () => {
           feature: 'chat',
         }),
       ).rejects.toThrow(/not configured/i);
+    });
+
+    it('initializes Google provider when GOOGLE_API_KEY is set', async () => {
+      const { createGoogleGenerativeAI } = await import('@ai-sdk/google');
+
+      vi.stubEnv('OPENAI_API_KEY', '');
+      vi.stubEnv('ANTHROPIC_API_KEY', '');
+      vi.stubEnv('GOOGLE_API_KEY', 'test-google-key');
+      delete process.env['OPENAI_API_KEY'];
+      delete process.env['ANTHROPIC_API_KEY'];
+
+      vi.mocked(generateText).mockClear();
+      vi.mocked(generateText).mockResolvedValue({
+        text: 'Google response',
+        usage: { promptTokens: 5, completionTokens: 10 },
+        finishReason: 'stop',
+      } as never);
+
+      const googleEngine = new AIEngine({
+        enableCaching: false,
+      });
+
+      await googleEngine.infer({
+        prompt: 'test',
+        model: 'gemini-2.5-flash',
+        userId: 'user1',
+        app: 'quantchat',
+        feature: 'chat',
+      });
+
+      expect(createGoogleGenerativeAI).toHaveBeenCalledWith({ apiKey: 'test-google-key' });
+      expect(generateText).toHaveBeenCalledTimes(1);
     });
   });
 });

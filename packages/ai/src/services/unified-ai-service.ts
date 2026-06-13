@@ -2,6 +2,7 @@
 // AI Services - Unified AI Service
 // ============================================================================
 
+import OpenAI from 'openai';
 import type {
   AIInferenceRequest,
   AIInferenceResponse,
@@ -121,11 +122,26 @@ export class UnifiedAIService {
 
   /**
    * Generate an embedding vector for the given text.
-   * TODO: Wire up real embedding provider (OpenAI text-embedding-3-large)
-   * For now, return deterministic mock embeddings.
+   * Uses OpenAI text-embedding-3-large when OPENAI_API_KEY is set.
+   * Falls back to mock embeddings when no provider is available.
    */
-  async generateEmbedding(_text: string): Promise<number[]> {
-    return generateMockEmbedding(1536);
+  async generateEmbedding(text: string): Promise<number[]> {
+    const apiKey = process.env['OPENAI_API_KEY'];
+    if (!apiKey) {
+      return generateMockEmbedding(1536);
+    }
+
+    try {
+      const client = new OpenAI({ apiKey });
+      const response = await client.embeddings.create({
+        model: 'text-embedding-3-large',
+        input: text,
+      });
+      return response.data[0]!.embedding;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Embedding generation failed: ${message}`);
+    }
   }
 
   /**

@@ -14,7 +14,23 @@ vi.mock('@ai-sdk/anthropic', () => ({
   createAnthropic: vi.fn(() => (modelId: string) => ({ modelId, provider: 'anthropic' })),
 }));
 
+vi.mock('@ai-sdk/google', () => ({
+  createGoogleGenerativeAI: vi.fn(() => (modelId: string) => ({ modelId, provider: 'google' })),
+}));
+
+const mockCreateEmbedding = vi.fn();
+
+function MockOpenAI(this: any, _config: { apiKey: string }) {
+  this.embeddings = { create: mockCreateEmbedding };
+}
+
+vi.mock('openai', () => ({
+  default: MockOpenAI,
+}));
+
+import { generateText } from 'ai';
 import { UnifiedAIService } from '../services/unified-ai-service';
+import { AIEngine } from '../core/engine';
 
 describe('UnifiedAIService', () => {
   let service: UnifiedAIService;
@@ -168,6 +184,116 @@ describe('UnifiedAIService', () => {
       const result = await service.moderateContent('Testing moderation');
 
       expect(result.overallScore).toBeLessThan(0.5);
+    });
+  });
+
+  describe('generateText (real mode)', () => {
+    let realService: UnifiedAIService;
+    let mockEngine: AIEngine;
+
+    beforeEach(() => {
+      vi.stubEnv('OPENAI_API_KEY', 'test-key');
+      vi.stubEnv('ANTHROPIC_API_KEY', '');
+      vi.stubEnv('GOOGLE_API_KEY', '');
+
+      mockEngine = new AIEngine();
+      vi.spyOn(mockEngine, 'infer').mockResolvedValue({
+        id: 'real_req_1',
+        content: 'Real engine response',
+        model: 'gpt-4o',
+        finishReason: 'stop',
+        usage: { promptTokens: 10, completionTokens: 20, totalTokens: 30, estimatedCost: 0 },
+        latencyMs: 200,
+        cached: false,
+      });
+
+      realService = new UnifiedAIService(mockEngine);
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.clearAllMocks();
+    });
+
+    it('calls AIEngine.infer() when OPENAI_API_KEY is set', async () => {
+      const response = await realService.generateText('What is TypeScript?');
+
+      expect(mockEngine.infer).toHaveBeenCalledTimes(1);
+      expect(mockEngine.infer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: 'What is TypeScript?',
+          userId: 'anonymous',
+          app: 'quantai',
+          feature: 'unified_text',
+        }),
+      );
+      expect(response.content).toBe('Real engine response');
+      expect(response.model).toBe('gpt-4o');
+    });
+
+    it('does not call generateText AI SDK directly', async () => {
+      await realService.generateText('Hello');
+
+      expect(generateText).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('generateEmbedding (real mode)', () => {
+    let realService: UnifiedAIService;
+
+    beforeEach(() => {
+      vi.stubEnv('OPENAI_API_KEY', 'test-key');
+      vi.stubEnv('ANTHROPIC_API_KEY', '');
+      vi.stubEnv('GOOGLE_API_KEY', '');
+
+      mockCreateEmbedding.mockResolvedValue({
+        data: [{ embedding: Array.from({ length: 1536 }, (_, i) => i / 1536) }],
+      });
+
+      realService = new UnifiedAIService();
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.clearAllMocks();
+    });
+
+    it('calls OpenAI embeddings.create with text-embedding-3-large', async () => {
+      const embedding = await realService.generateEmbedding('Test embedding text');
+
+      expect(mockCreateEmbedding).toHaveBeenCalledTimes(1);
+      expect(mockCreateEmbedding).toHaveBeenCalledWith({
+        model: 'text-embedding-3-large',
+        input: 'Test embedding text',
+      });
+      expect(Array.isArray(embedding)).toBe(true);
+      expect(embedding.length).toBe(1536);
+    });
+
+    it('returns the embedding array from the API response', async () => {
+      const expectedEmbedding = [0.1, 0.2, 0.3];
+      mockCreateEmbedding.mockResolvedValue({
+        data: [{ embedding: expectedEmbedding }],
+      });
+
+      const embedding = await realService.generateEmbedding('Test');
+
+      expect(embedding).toEqual(expectedEmbedding);
+    });
+
+    it('does not return mock embedding when API key is set', async () => {
+      const embedding = await realService.generateEmbedding('Some text');
+
+      expect(mockCreateEmbedding).toHaveBeenCalled();
+      expect(embedding.length).toBe(1536);
+    });
+
+    it('throws on API error', async () => {
+      mockCreateEmbedding.mockRejectedValue(new Error('API rate limit exceeded'));
+
+      await expect(realService.generateEmbedding('Test')).rejects.toThrow(
+        'Embedding generation failed: API rate limit exceeded',
+      );
     });
   });
 });

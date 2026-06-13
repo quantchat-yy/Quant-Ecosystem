@@ -5,6 +5,7 @@
 import { generateText, streamText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import type {
   AIEngineConfig,
   AIInferenceRequest,
@@ -53,6 +54,7 @@ export class AIEngine {
   private activeRequests: number = 0;
   private openaiProvider: ReturnType<typeof createOpenAI> | null = null;
   private anthropicProvider: ReturnType<typeof createAnthropic> | null = null;
+  private googleProvider: ReturnType<typeof createGoogleGenerativeAI> | null = null;
 
   constructor(config: Partial<AIEngineConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -82,6 +84,9 @@ export class AIEngine {
     if (anthropicKey) {
       this.anthropicProvider = createAnthropic({ apiKey: anthropicKey });
     }
+    if (process.env['GOOGLE_API_KEY']) {
+      this.googleProvider = createGoogleGenerativeAI({ apiKey: process.env['GOOGLE_API_KEY'] });
+    }
   }
 
   /**
@@ -103,6 +108,14 @@ export class AIEngine {
         );
       }
       return this.anthropicProvider(model.id);
+    }
+    if (model.provider === 'google') {
+      if (!this.googleProvider) {
+        throw new Error(
+          'GOOGLE_API_KEY not configured. Set the environment variable to use Google models.',
+        );
+      }
+      return this.googleProvider(model.id);
     }
     throw new Error(`Unsupported provider: ${model.provider}`);
   }

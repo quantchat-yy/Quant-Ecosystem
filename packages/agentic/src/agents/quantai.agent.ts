@@ -1,7 +1,10 @@
 import { Agent } from '../core/agent';
+import { UnifiedAIService } from '@quant/ai';
 
 export class QuantAIAgent extends Agent {
-  constructor() {
+  private aiService: UnifiedAIService;
+
+  constructor(aiService?: UnifiedAIService) {
     super({
       id: 'quantai-agent',
       name: 'QuantAI Agent',
@@ -15,6 +18,8 @@ export class QuantAIAgent extends Agent {
         'analysis',
       ],
     });
+
+    this.aiService = aiService ?? new UnifiedAIService();
 
     this.registerAITools();
   }
@@ -30,9 +35,13 @@ export class QuantAIAgent extends Agent {
       },
       execute: async (params: any) => {
         console.log('[QuantAIAgent] Processing chat:', params);
+        const result = await this.aiService.generateText(params.message, {
+          model: params.model,
+          temperature: params.temperature,
+        });
         return {
-          response: 'This is a simulated AI response.',
-          model: params.model || 'gpt-4o',
+          response: result.content,
+          model: result.model,
         };
       },
     });
