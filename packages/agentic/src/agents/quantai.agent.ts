@@ -28,7 +28,7 @@ export class QuantAIAgent extends Agent {
         model: 'string',
         temperature: 'number',
       },
-      execute: async (params) => {
+      execute: async (params: any) => {
         console.log('[QuantAIAgent] Processing chat:', params);
         return {
           response: 'This is a simulated AI response.',
@@ -44,7 +44,7 @@ export class QuantAIAgent extends Agent {
         problem: 'string',
         context: 'object',
       },
-      execute: async (params) => {
+      execute: async (params: any) => {
         return {
           reasoning: 'Step-by-step reasoning would go here',
           conclusion: 'Final conclusion based on reasoning',

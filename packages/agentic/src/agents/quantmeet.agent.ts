@@ -28,7 +28,7 @@ export class QuantMeetAgent extends Agent {
         participants: 'array',
         scheduledTime: 'string',
       },
-      execute: async (params) => {
+      execute: async (params: any) => {
         console.log('[QuantMeetAgent] Creating room:', params);
         return {
           success: true,
@@ -44,7 +44,7 @@ export class QuantMeetAgent extends Agent {
       parameters: {
         meetingId: 'string',
       },
-      execute: async (params) => {
+      execute: async (params: any) => {
         return {
           summary: 'Meeting summary would be generated here',
           actionItems: ['Follow up with team', 'Send notes'],

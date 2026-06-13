@@ -28,7 +28,7 @@ export class QuantSyncAgent extends Agent {
         visibility: 'string',
         communityId: 'string',
       },
-      execute: async (params) => {
+      execute: async (params: any) => {
         console.log('[QuantSyncAgent] Creating post:', params);
         return { success: true, postId: 'post_' + Date.now() };
       },

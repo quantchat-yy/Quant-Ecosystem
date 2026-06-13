@@ -31,7 +31,7 @@ export class PersonalAgent extends Agent {
         message: 'string',
         time: 'string',
       },
-      execute: async (params) => {
+      execute: async (params: any) => {
         await unifiedMemory.storeForUser(this.userId, {
           type: 'task',
           content: params,

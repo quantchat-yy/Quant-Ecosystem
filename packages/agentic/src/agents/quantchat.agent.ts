@@ -28,7 +28,7 @@ export class QuantChatAgent extends Agent {
         content: 'string',
         type: 'string',
       },
-      execute: async (params) => {
+      execute: async (params: any) => {
         console.log('[QuantChatAgent] Sending message:', params);
         return { success: true, messageId: 'msg_' + Date.now() };
       },
@@ -41,7 +41,7 @@ export class QuantChatAgent extends Agent {
         conversationId: 'string',
         lastMessage: 'string',
       },
-      execute: async (params) => {
+      execute: async (params: any) => {
         return {
           suggestions: [
             'Sounds good!',

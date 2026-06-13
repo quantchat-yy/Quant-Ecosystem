@@ -29,7 +29,7 @@ export class QuantMailAgent extends Agent {
         body: 'string',
         attachments: 'array',
       },
-      execute: async (params) => {
+      execute: async (params: any) => {
         // This will be connected to actual QuantMail backend
         console.log('[QuantMailAgent] Sending email:', params);
         return { success: true, messageId: 'msg_' + Date.now() };
@@ -44,7 +44,7 @@ export class QuantMailAgent extends Agent {
         limit: 'number',
         filter: 'object',
       },
-      execute: async (params) => {
+      execute: async (params: any) => {
         console.log('[QuantMailAgent] Reading emails:', params);
         return { emails: [], count: 0 };
       },

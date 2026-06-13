@@ -28,7 +28,7 @@ export class QuantDriveAgent extends Agent {
         content: 'string',
         folder: 'string',
       },
-      execute: async (params) => {
+      execute: async (params: any) => {
         console.log('[QuantDriveAgent] Uploading file:', params);
         return { success: true, fileId: 'file_' + Date.now() };
       },
@@ -41,7 +41,7 @@ export class QuantDriveAgent extends Agent {
         folderId: 'string',
         strategy: 'string',
       },
-      execute: async (params) => {
+      execute: async (params: any) => {
         return {
           organized: true,
           foldersCreated: 3,

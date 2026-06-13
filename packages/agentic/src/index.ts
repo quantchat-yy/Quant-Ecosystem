@@ -88,39 +88,31 @@ export { AgentMarketplaceV2 } from './marketplace/agent-marketplace-v2';
 
 export * from './training/agent-training-system';
 export { AgentTrainingSystem } from './training/agent-training-system';
-export const QUANT_ECOSYSTEM_VERSION = '2.4.0';
 
 export * from './economy/agent-economy';
 export { AgentEconomy } from './economy/agent-economy';
-export const QUANT_ECOSYSTEM_VERSION = '2.5.0';
 
 export * from './ml/ml-powered-intelligence';
 export { MLPoweredIntelligence } from './ml/ml-powered-intelligence';
-export * from './ml/ml-powered-intelligence';
 
 export * from './reputation/agent-reputation';
 export { AgentReputationSystem } from './reputation/agent-reputation';
-export const QUANT_ECOSYSTEM_VERSION = '2.7.0';
 
 export * from './sandbox/agent-sandbox';
 export { AgentSandbox } from './sandbox/agent-sandbox';
-export const QUANT_ECOSYSTEM_VERSION = '2.8.0';
 
 export { GlobalFederationNetwork } from './network/global-federation-network';
-export const QUANT_ECOSYSTEM_VERSION = '2.9.0';
 
 export * from './monitoring/production-monitoring';
 export { ProductionMonitoring } from './monitoring/production-monitoring';
-export const QUANT_ECOSYSTEM_VERSION = '3.0.0';
 
 export * from './ml/real-ml-integration';
 export { RealMLIntegration } from './ml/real-ml-integration';
-export const QUANT_ECOSYSTEM_VERSION = '3.1.0';
 
 export * from './payments/agent-economy-payments';
 export { AgentEconomyPayments } from './payments/agent-economy-payments';
-export const QUANT_ECOSYSTEM_VERSION = '3.2.0';
 
 export * from './deployment/production-deployment';
 export { ProductionDeployment } from './deployment/production-deployment';
+
 export const QUANT_ECOSYSTEM_VERSION = '3.3.0';
