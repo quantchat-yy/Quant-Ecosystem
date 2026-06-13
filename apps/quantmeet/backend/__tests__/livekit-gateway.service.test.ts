@@ -34,16 +34,20 @@ vi.mock('livekit-server-sdk', () => {
     status: 5,
   });
 
-  const RoomServiceClient = vi.fn().mockImplementation(() => ({
-    createRoom: mockCreateRoom,
-    deleteRoom: mockDeleteRoom,
-    listParticipants: mockListParticipants,
-  }));
+  const RoomServiceClient = vi.fn().mockImplementation(function () {
+    return {
+      createRoom: mockCreateRoom,
+      deleteRoom: mockDeleteRoom,
+      listParticipants: mockListParticipants,
+    };
+  });
 
-  const EgressClient = vi.fn().mockImplementation(() => ({
-    startRoomCompositeEgress: mockStartRoomCompositeEgress,
-    stopEgress: mockStopEgress,
-  }));
+  const EgressClient = vi.fn().mockImplementation(function () {
+    return {
+      startRoomCompositeEgress: mockStartRoomCompositeEgress,
+      stopEgress: mockStopEgress,
+    };
+  });
 
   const mockToJwt = vi
     .fn()
@@ -52,14 +56,18 @@ vi.mock('livekit-server-sdk', () => {
     );
   const mockAddGrant = vi.fn();
 
-  const AccessToken = vi.fn().mockImplementation(() => ({
-    addGrant: mockAddGrant,
-    toJwt: mockToJwt,
-  }));
+  const AccessToken = vi.fn().mockImplementation(function () {
+    return {
+      addGrant: mockAddGrant,
+      toJwt: mockToJwt,
+    };
+  });
 
-  const WebhookReceiver = vi.fn().mockImplementation(() => ({
-    receive: vi.fn(),
-  }));
+  const WebhookReceiver = vi.fn().mockImplementation(function () {
+    return {
+      receive: vi.fn(),
+    };
+  });
 
   // Mock protobuf classes used in egress
   class S3Upload {

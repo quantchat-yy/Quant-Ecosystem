@@ -4,9 +4,11 @@ import { LiveKitWebhookService } from '../services/livekit-webhook.service';
 vi.mock('livekit-server-sdk', () => {
   const mockReceive = vi.fn();
 
-  const WebhookReceiver = vi.fn().mockImplementation(() => ({
-    receive: mockReceive,
-  }));
+  const WebhookReceiver = vi.fn().mockImplementation(function () {
+    return {
+      receive: mockReceive,
+    };
+  });
 
   return {
     WebhookReceiver,
