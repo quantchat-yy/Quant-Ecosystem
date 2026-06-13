@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { QuantOrchestrator } from '../orchestrator/orchestrator';
+import { IntelligentOrchestrator } from '../orchestrator/intelligent-orchestrator';
 import { unifiedMemory } from '../memory/unified-memory';
 
 export interface WorkflowStep {
@@ -23,16 +24,16 @@ export interface Workflow {
 
 export class WorkflowEngine extends EventEmitter {
   private workflows: Map<string, Workflow> = new Map();
-  private orchestrator: QuantOrchestrator;
+  private orchestrator: QuantOrchestrator | IntelligentOrchestrator;
 
-  constructor(orchestrator: QuantOrchestrator) {
+  constructor(orchestrator: QuantOrchestrator | IntelligentOrchestrator) {
     super();
     this.orchestrator = orchestrator;
   }
 
   async createWorkflow(userId: string, name: string, goal: string): Promise<Workflow> {
     // Use the planner to break down the goal into steps
-    const plan = (await this.orchestrator['planner']?.createPlan(goal)) || {
+    const plan = (await (this.orchestrator as any)['planner']?.createPlan(goal)) || {
       steps: [{ action: 'general', description: goal }],
     };
 

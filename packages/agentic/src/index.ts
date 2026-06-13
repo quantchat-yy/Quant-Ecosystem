@@ -53,7 +53,7 @@ export function createQuantEcosystemOrchestrator(useIntelligent: boolean = true)
     orchestrator.registerAgent(new QuantDriveAgent(), ['storage', 'files']);
     orchestrator.registerAgent(new QuantMeetAgent(), ['video', 'meeting']);
     orchestrator.registerAgent(new QuantSyncAgent(), ['sync', 'collaboration']);
-    orchestrator.registerAgent(new PersonalAgent(), ['personal', 'memory']);
+    orchestrator.registerAgent(new PersonalAgent('system', 'System'), ['personal', 'memory']);
 
     return orchestrator;
   }

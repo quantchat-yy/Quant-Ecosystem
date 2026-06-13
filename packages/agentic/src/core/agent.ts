@@ -69,9 +69,7 @@ export class Agent extends EventEmitter {
     // Store outcome in memory
     await this.memory.store({
       type: 'execution_result',
-      input: plan,
-      output: result,
-      timestamp: new Date(),
+      content: { input: plan, output: result },
     });
 
     return result;
