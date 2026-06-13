@@ -23,6 +23,19 @@ export * from './agents/quantdrive.agent';
 export * from './agents/quantmeet.agent';
 export * from './agents/quantsync.agent';
 export * from './agents/personal.agent';
+export * from './monitoring/agent-health';
+export * from './logging/agent-logs';
+export * from './workflows/workflow-engine';
+export * from './collaboration/agent-collaboration';
+export * from './permissions/agent-permissions';
+export * from './analytics/agent-analytics';
+export * from './federation/agent-federation';
+export * from './marketplace/agent-marketplace';
+export * from './swarm/agent-swarm';
+export * from './templates/agent-templates';
+export * from './training/agent-training';
+export * from './versioning/agent-versioning';
+export * from './voice/agent-voice';
 
 export function createQuantEcosystemOrchestrator(useIntelligent: boolean = true) {
   if (useIntelligent) {
@@ -93,7 +106,6 @@ export * from './sandbox/agent-sandbox';
 export { AgentSandbox } from './sandbox/agent-sandbox';
 export const QUANT_ECOSYSTEM_VERSION = '2.8.0';
 
-export * from './network/global-federation-network';
 export { GlobalFederationNetwork } from './network/global-federation-network';
 export const QUANT_ECOSYSTEM_VERSION = '2.9.0';
 
