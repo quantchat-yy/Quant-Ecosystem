@@ -297,6 +297,9 @@ export interface ThemeBorderRadius {
 
 /** Permission scopes for OAuth */
 export type PermissionScope =
+  | 'openid'
+  | 'profile'
+  | 'email'
   | 'profile:read'
   | 'profile:write'
   | 'email:read'

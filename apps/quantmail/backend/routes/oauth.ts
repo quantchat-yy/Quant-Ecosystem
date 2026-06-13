@@ -17,6 +17,18 @@ export async function oauthRoutes(fastify: FastifyInstance) {
     lockoutDuration: 900,
   });
 
+  const requireAuth = async (request: any, reply: any) => {
+    const header = request.headers?.authorization as string | undefined;
+    if (!header || !header.startsWith("Bearer ")) {
+      return reply.code(401).send({ error: "unauthorized" });
+    }
+    const payload = await tokenService.validateAccessToken(header.slice(7));
+    if (!payload) {
+      return reply.code(401).send({ error: "invalid_token" });
+    }
+    (request as any).user = payload;
+  };
+
   // POST /oauth/token
   fastify.post('/oauth/token', async (request, reply) => {
     const body = request.body as any;
