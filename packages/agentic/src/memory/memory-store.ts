@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 export interface MemoryItem {
   id: string;
@@ -19,7 +19,7 @@ export class MemoryStore {
   }
 
   async store(item: Omit<MemoryItem, 'id' | 'timestamp'>): Promise<string> {
-    const id = uuidv4();
+    const id = randomUUID();
     const memoryItem: MemoryItem = {
       ...item,
       id,

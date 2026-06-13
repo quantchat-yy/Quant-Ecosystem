@@ -1,5 +1,5 @@
 import { MemoryStore } from './memory-store';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 export interface UnifiedMemoryItem {
   id: string;
