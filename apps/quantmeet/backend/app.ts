@@ -4,6 +4,7 @@ import roomsRoutes from './routes/rooms';
 import recordingsRoutes from './routes/recordings';
 import webhooksRoutes from './routes/webhooks';
 import { signalingRoutes } from './routes/signaling';
+import aiRoutes from './routes/ai';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -35,6 +36,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(roomsRoutes, { prefix: '/rooms' });
   await app.register(recordingsRoutes, { prefix: '/recordings' });
   await app.register(webhooksRoutes, { prefix: '/webhooks' });
+  await app.register(aiRoutes, { prefix: '/ai' });
 
   return app;
 }
