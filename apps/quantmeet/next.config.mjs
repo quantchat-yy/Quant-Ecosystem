@@ -2,6 +2,24 @@
 const nextConfig = {
   transpilePackages: ['@quant/shared-ui', '@quant/common'],
   output: 'standalone',
+  productionBrowserSourceMaps: false,
+  webpack(config, { isServer }) {
+    const TerserPlugin = config.optimization?.minimizer?.find(
+      (p) => p.constructor.name === 'TerserPlugin',
+    );
+    if (TerserPlugin) {
+      TerserPlugin.options.parallel = 1;
+    }
+    if (!isServer) {
+      config.optimization.splitChunks = {
+        ...config.optimization.splitChunks,
+        minSize: 30000,
+        maxSize: 500000,
+      };
+    }
+    config.parallelism = 2;
+    return config;
+  },
   async headers() {
     return [
       {
