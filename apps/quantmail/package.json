@@ -20,6 +20,7 @@
     "@quant/ai": "workspace:*",
     "@quant/common": "workspace:*",
     "@quant/database": "workspace:*",
+    "@prisma/client": "^6.19.3",
     "@quant/notifications": "workspace:*",
     "@quant/queue": "workspace:*",
     "@quant/realtime": "workspace:*",

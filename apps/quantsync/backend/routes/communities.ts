@@ -5,6 +5,7 @@ import { CommunityService } from '../services/community.service';
 
 const createCommunitySchema = z.object({
   name: z.string().min(3).max(50),
+  slug: z.string().min(1).max(50),
   description: z.string().max(500).optional(),
   isPrivate: z.boolean().optional(),
 });
@@ -24,12 +25,7 @@ export default async function communitiesRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const community = await communityService.createCommunity(
-      userId,
-      parseResult.data.name,
-      parseResult.data.description || '',
-      parseResult.data.isPrivate,
-    );
+    const community = await communityService.createCommunity(userId, parseResult.data);
 
     return reply.send(community);
   });

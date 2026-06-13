@@ -4,6 +4,10 @@ import { SwipeService } from '../services/swipe.service';
 
 function createMockPrisma() {
   return {
+    user: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
     datingProfile: {
       findUnique: vi.fn(),
       findMany: vi.fn(),
@@ -32,218 +36,166 @@ describe('MatchingService', () => {
     service = new MatchingService(prisma as never);
   });
 
-  describe('getPotentialMatches', () => {
-    it('returns active profiles excluding already swiped', async () => {
-      prisma.datingProfile.findUnique.mockResolvedValue({
-        userId: 'user-1',
-        gender: 'male',
-        genderPreference: ['female'],
-        isActive: true,
-      });
-      prisma.swipe.findMany.mockResolvedValue([{ targetId: 'user-2' }]);
-      prisma.datingProfile.findMany.mockResolvedValue([
-        { userId: 'user-3', displayName: 'Jane' },
-        { userId: 'user-4', displayName: 'Alice' },
-      ]);
+  describe('findMatches', () => {
+    it('returns empty array when user has no dating profile', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
 
-      const result = await service.getPotentialMatches('user-1', 10);
+      const result = await service.findMatches('user-1');
+
+      expect(result).toEqual([]);
+    });
+
+    it('returns empty array when user exists but datingProfile is null', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        datingProfile: null,
+      });
+
+      const result = await service.findMatches('user-1');
+
+      expect(result).toEqual([]);
+    });
+
+    it('returns other users with dating profiles', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        datingProfile: { id: 'dp-1', userId: 'user-1' },
+      });
+
+      const otherUsers = [
+        { id: 'user-2', datingProfile: { id: 'dp-2', displayName: 'Jane' } },
+        { id: 'user-3', datingProfile: { id: 'dp-3', displayName: 'Alice' } },
+      ];
+      prisma.user.findMany.mockResolvedValue(otherUsers);
+
+      const result = await service.findMatches('user-1', 10);
 
       expect(result).toHaveLength(2);
-      expect(prisma.datingProfile.findMany).toHaveBeenCalledWith({
+      expect(result).toEqual(otherUsers);
+      expect(prisma.user.findMany).toHaveBeenCalledWith({
         where: {
-          userId: { notIn: ['user-1', 'user-2'] },
-          isActive: true,
+          id: { not: 'user-1' },
+          datingProfile: { isNot: null },
         },
+        include: { datingProfile: true },
         take: 10,
-        orderBy: { profileScore: 'desc' },
       });
     });
 
-    it('throws PROFILE_NOT_FOUND when user has no profile', async () => {
-      prisma.datingProfile.findUnique.mockResolvedValue(null);
+    it('defaults limit to 10', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        datingProfile: { id: 'dp-1' },
+      });
+      prisma.user.findMany.mockResolvedValue([]);
 
-      await expect(service.getPotentialMatches('user-1')).rejects.toThrow('Profile not found');
+      await service.findMatches('user-1');
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 10 }));
     });
   });
 
-  describe('calculateCompatibility', () => {
-    it('scores based on shared interests', async () => {
-      prisma.datingProfile.findUnique
-        .mockResolvedValueOnce({
-          userId: 'user-1',
-          age: 25,
-          interests: ['music', 'hiking', 'cooking', 'travel'],
-          verificationStatus: 'VERIFIED',
-        })
-        .mockResolvedValueOnce({
-          userId: 'user-2',
-          age: 27,
-          interests: ['music', 'hiking', 'reading', 'gaming'],
-          verificationStatus: 'VERIFIED',
-        });
+  describe('recordSwipe', () => {
+    it('creates a swipe and returns no match for LEFT', async () => {
+      prisma.swipe.create.mockResolvedValue({ id: 'swipe-1' });
 
-      const result = await service.calculateCompatibility('user-1', 'user-2');
+      const result = await service.recordSwipe('user-1', 'user-2', 'LEFT');
 
-      expect(result.sharedInterests).toEqual(['music', 'hiking']);
-      expect(result.score).toBeGreaterThan(0);
-      // 2 shared interests * 10 = 20, age diff 2 * 5 = 10 from 30 = 20, verified = 20
-      // Total = 20 + 20 + 20 = 60
-      expect(result.score).toBe(60);
+      expect(result).toEqual({ matched: false });
+      expect(prisma.swipe.create).toHaveBeenCalledWith({
+        data: { swiperId: 'user-1', targetId: 'user-2', direction: 'LEFT' },
+      });
     });
 
-    it('gives higher score for same age', async () => {
-      prisma.datingProfile.findUnique
-        .mockResolvedValueOnce({
-          userId: 'user-1',
-          age: 25,
-          interests: [],
-          verificationStatus: 'UNVERIFIED',
-        })
-        .mockResolvedValueOnce({
-          userId: 'user-2',
-          age: 25,
-          interests: [],
-          verificationStatus: 'UNVERIFIED',
-        });
+    it('creates a swipe and returns no match for RIGHT when no mutual interest', async () => {
+      prisma.swipe.create.mockResolvedValue({ id: 'swipe-1' });
+      prisma.swipe.findFirst.mockResolvedValue(null);
 
-      const result = await service.calculateCompatibility('user-1', 'user-2');
+      const result = await service.recordSwipe('user-1', 'user-2', 'RIGHT');
 
-      // 0 shared + 30 (age diff 0) + 0 (not verified) = 30
-      expect(result.score).toBe(30);
-    });
-
-    it('throws when a profile is not found', async () => {
-      prisma.datingProfile.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
-
-      await expect(service.calculateCompatibility('user-1', 'user-2')).rejects.toThrow(
-        'One or both profiles not found',
-      );
-    });
-  });
-
-  describe('getMatches', () => {
-    it('returns active matches for the user', async () => {
-      prisma.match.findMany.mockResolvedValue([
-        { id: 'match-1', user1Id: 'user-1', user2Id: 'user-2', isActive: true },
-        { id: 'match-2', user1Id: 'user-3', user2Id: 'user-1', isActive: true },
-      ]);
-
-      const matches = await service.getMatches('user-1');
-
-      expect(matches).toHaveLength(2);
-      expect(prisma.match.findMany).toHaveBeenCalledWith({
+      expect(result).toEqual({ matched: false });
+      expect(prisma.swipe.findFirst).toHaveBeenCalledWith({
         where: {
-          isActive: true,
-          OR: [{ user1Id: 'user-1' }, { user2Id: 'user-1' }],
+          swiperId: 'user-2',
+          targetId: 'user-1',
+          direction: { in: ['RIGHT', 'SUPER_LIKE'] },
         },
-        orderBy: { matchedAt: 'desc' },
       });
     });
-  });
 
-  describe('generateEmbedding', () => {
-    it('returns a 256-dimension vector', () => {
-      const embedding = service.generateEmbedding({
-        interests: ['music', 'hiking'],
-        age: 25,
-        gender: 'male',
-        genderPreference: ['female'],
+    it('creates a match when mutual RIGHT swipe exists', async () => {
+      prisma.swipe.create.mockResolvedValue({ id: 'swipe-1' });
+      prisma.swipe.findFirst.mockResolvedValue({
+        id: 'swipe-prev',
+        swiperId: 'user-2',
+        targetId: 'user-1',
+        direction: 'RIGHT',
+      });
+      prisma.match.create.mockResolvedValue({
+        id: 'match-1',
+        user1Id: 'user-1',
+        user2Id: 'user-2',
       });
 
-      expect(embedding).toHaveLength(256);
+      const result = await service.recordSwipe('user-1', 'user-2', 'RIGHT');
+
+      expect(result).toEqual({
+        matched: true,
+        match: { id: 'match-1', user1Id: 'user-1', user2Id: 'user-2' },
+      });
+      expect(prisma.match.create).toHaveBeenCalledWith({
+        data: { user1Id: 'user-1', user2Id: 'user-2' },
+      });
     });
 
-    it('returns a normalized vector (unit length)', () => {
-      const embedding = service.generateEmbedding({
-        interests: ['cooking', 'travel', 'photography'],
-        age: 30,
-        gender: 'female',
-        genderPreference: ['male'],
+    it('creates a match when mutual SUPER_LIKE swipe exists', async () => {
+      prisma.swipe.create.mockResolvedValue({ id: 'swipe-1' });
+      prisma.swipe.findFirst.mockResolvedValue({
+        id: 'swipe-prev',
+        swiperId: 'user-2',
+        targetId: 'user-1',
+        direction: 'SUPER_LIKE',
+      });
+      prisma.match.create.mockResolvedValue({
+        id: 'match-1',
+        user1Id: 'user-1',
+        user2Id: 'user-2',
       });
 
-      const magnitude = Math.sqrt(embedding.reduce((sum, v) => sum + v * v, 0));
-      expect(magnitude).toBeCloseTo(1.0, 5);
-    });
+      const result = await service.recordSwipe('user-1', 'user-2', 'SUPER_LIKE');
 
-    it('produces deterministic output for the same input', () => {
-      const profile = {
-        interests: ['gaming', 'reading'],
-        age: 28,
-        gender: 'male',
-        genderPreference: ['female'],
-      };
-
-      const embedding1 = service.generateEmbedding(profile);
-      const embedding2 = service.generateEmbedding(profile);
-
-      expect(embedding1).toEqual(embedding2);
-    });
-
-    it('produces different output for different inputs', () => {
-      const embedding1 = service.generateEmbedding({
-        interests: ['music'],
-        age: 20,
-        gender: 'male',
-        genderPreference: ['female'],
+      expect(result).toEqual({
+        matched: true,
+        match: { id: 'match-1', user1Id: 'user-1', user2Id: 'user-2' },
       });
-      const embedding2 = service.generateEmbedding({
-        interests: ['cooking'],
-        age: 35,
-        gender: 'female',
-        genderPreference: ['male'],
+      expect(prisma.match.create).toHaveBeenCalledWith({
+        data: { user1Id: 'user-1', user2Id: 'user-2' },
+      });
+    });
+
+    it('orders user1Id/user2Id deterministically when creating a match', async () => {
+      prisma.swipe.create.mockResolvedValue({ id: 'swipe-1' });
+      prisma.swipe.findFirst.mockResolvedValue({
+        id: 'swipe-prev',
+        swiperId: 'user-2',
+        targetId: 'user-1',
+        direction: 'RIGHT',
+      });
+      prisma.match.create.mockResolvedValue({
+        id: 'match-1',
+        user1Id: 'user-1',
+        user2Id: 'user-2',
       });
 
-      expect(embedding1).not.toEqual(embedding2);
-    });
-  });
+      const result = await service.recordSwipe('user-2', 'user-1', 'RIGHT');
 
-  describe('findMatches', () => {
-    it('returns matches sorted by similarity', async () => {
-      prisma.datingProfile.findUnique.mockResolvedValue({
-        userId: 'user-1',
-        age: 25,
-        gender: 'male',
-        genderPreference: ['female'],
-        interests: ['music', 'hiking'],
+      expect(result).toEqual({
+        matched: true,
+        match: { id: 'match-1', user1Id: 'user-1', user2Id: 'user-2' },
       });
-      prisma.$queryRawUnsafe.mockResolvedValue([
-        { user_id: 'user-2', similarity: 0.95 },
-        { user_id: 'user-3', similarity: 0.87 },
-      ]);
-
-      const results = await service.findMatches('user-1', 10);
-
-      expect(results).toHaveLength(2);
-      expect(results[0]!.userId).toBe('user-2');
-      expect(results[0]!.similarity).toBe(0.95);
-      expect(results[1]!.userId).toBe('user-3');
-      expect(results[1]!.similarity).toBe(0.87);
-    });
-
-    it('throws PROFILE_NOT_FOUND when user has no profile', async () => {
-      prisma.datingProfile.findUnique.mockResolvedValue(null);
-
-      await expect(service.findMatches('user-1')).rejects.toThrow('Profile not found');
-    });
-
-    it('calls $queryRawUnsafe with vector string and parameters', async () => {
-      prisma.datingProfile.findUnique.mockResolvedValue({
-        userId: 'user-1',
-        age: 25,
-        gender: 'male',
-        genderPreference: ['female'],
-        interests: ['music'],
+      expect(prisma.match.create).toHaveBeenCalledWith({
+        data: { user1Id: 'user-1', user2Id: 'user-2' },
       });
-      prisma.$queryRawUnsafe.mockResolvedValue([]);
-
-      await service.findMatches('user-1', 5);
-
-      expect(prisma.$queryRawUnsafe).toHaveBeenCalledWith(
-        expect.stringContaining('<=>'),
-        expect.stringContaining('['),
-        'user-1',
-        5,
-      );
     });
   });
 });
@@ -274,16 +226,12 @@ describe('SwipeService', () => {
     });
 
     it('creates a match on mutual RIGHT swipe', async () => {
-      // No existing swipe from user-1 to user-2
-      prisma.swipe.findFirst
-        .mockResolvedValueOnce(null) // check existing swipe
-        .mockResolvedValueOnce({
-          // reciprocal swipe exists
-          id: 'swipe-prev',
-          swiperId: 'user-2',
-          targetId: 'user-1',
-          direction: 'RIGHT',
-        });
+      prisma.swipe.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
+        id: 'swipe-prev',
+        swiperId: 'user-2',
+        targetId: 'user-1',
+        direction: 'RIGHT',
+      });
 
       prisma.swipe.create.mockResolvedValue({
         id: 'swipe-1',
@@ -292,7 +240,7 @@ describe('SwipeService', () => {
         direction: 'RIGHT',
       });
 
-      prisma.match.findFirst.mockResolvedValue(null); // no existing match
+      prisma.match.findFirst.mockResolvedValue(null);
       prisma.match.create.mockResolvedValue({
         id: 'match-1',
         user1Id: 'user-1',

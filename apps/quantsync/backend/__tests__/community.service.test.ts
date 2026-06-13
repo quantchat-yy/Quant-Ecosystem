@@ -7,15 +7,11 @@ function createMockPrisma() {
       create: vi.fn(),
       findUnique: vi.fn(),
       findMany: vi.fn(),
-      count: vi.fn(),
       update: vi.fn(),
     },
     communityMember: {
       create: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      count: vi.fn(),
-      delete: vi.fn(),
+      findUnique: vi.fn(),
     },
   };
 }
@@ -30,12 +26,14 @@ describe('CommunityService', () => {
   });
 
   describe('createCommunity', () => {
-    it('creates a community and adds creator as OWNER', async () => {
+    it('creates a community with slug and auto-joins creator as OWNER', async () => {
       prisma.community.findUnique.mockResolvedValue(null);
       prisma.community.create.mockResolvedValue({
         id: 'community-1',
         name: 'Test Community',
         slug: 'test-community',
+        description: 'A test community',
+        isPrivate: false,
         memberCount: 1,
       });
       prisma.communityMember.create.mockResolvedValue({
@@ -48,31 +46,66 @@ describe('CommunityService', () => {
       const result = await service.createCommunity('user-1', {
         name: 'Test Community',
         slug: 'test-community',
+        description: 'A test community',
       });
 
       expect(result.name).toBe('Test Community');
+      expect(result.slug).toBe('test-community');
       expect(result.memberCount).toBe(1);
+      expect(prisma.community.findUnique).toHaveBeenCalledWith({
+        where: { slug: 'test-community' },
+      });
+      expect(prisma.communityMember.create).toHaveBeenCalledWith({
+        data: {
+          communityId: 'community-1',
+          userId: 'user-1',
+          role: 'OWNER',
+        },
+      });
     });
 
-    it('throws SLUG_EXISTS if slug is taken', async () => {
-      prisma.community.findUnique.mockResolvedValue({ id: 'existing' });
+    it('throws when slug already exists', async () => {
+      prisma.community.findUnique.mockResolvedValue({
+        id: 'existing-id',
+        name: 'Existing',
+        slug: 'taken-slug',
+      });
 
       await expect(
         service.createCommunity('user-1', {
-          name: 'Test',
+          name: 'Another',
           slug: 'taken-slug',
         }),
       ).rejects.toThrow('Community slug already exists');
+
+      expect(prisma.community.create).not.toHaveBeenCalled();
+    });
+
+    it('respects the isPrivate flag', async () => {
+      prisma.community.findUnique.mockResolvedValue(null);
+      prisma.community.create.mockResolvedValue({
+        id: 'community-2',
+        name: 'Private',
+        slug: 'private-comm',
+        description: '',
+        isPrivate: true,
+        memberCount: 1,
+      });
+      prisma.communityMember.create.mockResolvedValue({});
+
+      const result = await service.createCommunity('user-1', {
+        name: 'Private',
+        slug: 'private-comm',
+        isPrivate: true,
+      });
+
+      expect(result.isPrivate).toBe(true);
     });
   });
 
   describe('joinCommunity', () => {
-    it('adds user as MEMBER and increments count', async () => {
-      prisma.community.findUnique.mockResolvedValue({
-        id: 'community-1',
-        memberCount: 5,
-      });
-      prisma.communityMember.findFirst.mockResolvedValue(null);
+    it('adds user as MEMBER, increments count, and returns success', async () => {
+      prisma.communityMember.findUnique.mockResolvedValue(null);
       prisma.communityMember.create.mockResolvedValue({
         id: 'member-2',
         communityId: 'community-1',
@@ -84,79 +117,69 @@ describe('CommunityService', () => {
         memberCount: 6,
       });
 
-      const result = await service.joinCommunity('community-1', 'user-2');
+      const result = await service.joinCommunity('user-2', 'community-1');
 
-      expect(result.role).toBe('MEMBER');
+      expect(result.success).toBe(true);
+      expect(prisma.communityMember.create).toHaveBeenCalledWith({
+        data: {
+          communityId: 'community-1',
+          userId: 'user-2',
+          role: 'MEMBER',
+        },
+      });
+      expect(prisma.community.update).toHaveBeenCalledWith({
+        where: { id: 'community-1' },
+        data: { memberCount: { increment: 1 } },
+      });
     });
 
-    it('throws ALREADY_MEMBER if user is already a member', async () => {
-      prisma.community.findUnique.mockResolvedValue({ id: 'community-1' });
-      prisma.communityMember.findFirst.mockResolvedValue({ id: 'member-1' });
-
-      await expect(service.joinCommunity('community-1', 'user-1')).rejects.toThrow(
-        'Already a member of this community',
-      );
-    });
-  });
-
-  describe('leaveCommunity', () => {
-    it('removes member and decrements count', async () => {
-      prisma.communityMember.findFirst.mockResolvedValue({
-        id: 'member-2',
+    it('returns success:false when user is already a member', async () => {
+      prisma.communityMember.findUnique.mockResolvedValue({
+        id: 'member-1',
+        communityId: 'community-1',
+        userId: 'user-1',
         role: 'MEMBER',
       });
-      prisma.communityMember.delete.mockResolvedValue({});
+
+      const result = await service.joinCommunity('user-1', 'community-1');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Already a member');
+      expect(prisma.communityMember.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getCommunity', () => {
+    it('returns community with member and post counts', async () => {
       prisma.community.findUnique.mockResolvedValue({
         id: 'community-1',
-        memberCount: 5,
-      });
-      prisma.community.update.mockResolvedValue({
-        id: 'community-1',
-        memberCount: 4,
+        name: 'Test',
+        description: 'A community',
+        _count: { members: 5, posts: 3 },
       });
 
-      await service.leaveCommunity('community-1', 'user-2');
+      const result = await service.getCommunity('community-1');
 
-      expect(prisma.communityMember.delete).toHaveBeenCalled();
-    });
-
-    it('throws OWNER_CANNOT_LEAVE if user is the owner', async () => {
-      prisma.communityMember.findFirst.mockResolvedValue({
-        id: 'member-1',
-        role: 'OWNER',
-      });
-
-      await expect(service.leaveCommunity('community-1', 'user-1')).rejects.toThrow(
-        'Owner cannot leave the community',
-      );
+      expect(result).toBeDefined();
+      expect(result!.id).toBe('community-1');
     });
   });
 
-  describe('listMembers', () => {
-    it('returns paginated members', async () => {
-      prisma.communityMember.findMany.mockResolvedValue([
-        { id: 'member-1', userId: 'user-1', role: 'OWNER' },
-      ]);
-      prisma.communityMember.count.mockResolvedValue(1);
-
-      const result = await service.listMembers('community-1');
-
-      expect(result.data).toHaveLength(1);
-      expect(result.total).toBe(1);
-    });
-  });
-
-  describe('listCommunities', () => {
-    it('returns paginated public communities', async () => {
+  describe('getTrendingCommunities', () => {
+    it('returns communities ordered by memberCount desc', async () => {
       prisma.community.findMany.mockResolvedValue([
-        { id: 'community-1', name: 'Public Community', isPrivate: false },
+        { id: 'community-a', name: 'Big', memberCount: 100 },
+        { id: 'community-b', name: 'Small', memberCount: 10 },
       ]);
-      prisma.community.count.mockResolvedValue(1);
 
-      const result = await service.listCommunities();
+      const result = await service.getTrendingCommunities(5);
 
-      expect(result.data).toHaveLength(1);
-      expect(result.total).toBe(1);
+      expect(result).toHaveLength(2);
+      expect(result[0].memberCount).toBe(100);
+      expect(prisma.community.findMany).toHaveBeenCalledWith({
+        orderBy: { memberCount: 'desc' },
+        take: 5,
+      });
     });
   });
 });

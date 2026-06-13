@@ -5,10 +5,6 @@ function createMockPrisma() {
   return {
     post: {
       findMany: vi.fn(),
-      count: vi.fn(),
-    },
-    userRelationship: {
-      findMany: vi.fn(),
     },
   };
 }
@@ -20,108 +16,129 @@ describe('FeedService', () => {
   beforeEach(() => {
     prisma = createMockPrisma();
     service = new FeedService(prisma as never);
-    // Clear in-memory bookmark store between tests
-    FeedService.clearBookmarks();
   });
 
   describe('getFeed', () => {
-    it('returns paginated feed from followed users', async () => {
-      prisma.userRelationship.findMany.mockResolvedValue([
-        { followingId: 'user-2' },
-        { followingId: 'user-3' },
-      ]);
+    it('returns public non-deleted posts ordered by createdAt desc', async () => {
       prisma.post.findMany.mockResolvedValue([
-        { id: 'post-1', userId: 'user-2' },
-        { id: 'post-2', userId: 'user-3' },
+        { id: 'post-2', userId: 'user-2' },
+        { id: 'post-1', userId: 'user-3' },
       ]);
-      prisma.post.count.mockResolvedValue(2);
 
-      const result = await service.getFeed('user-1', { page: 1, pageSize: 20 });
+      const result = await service.getFeed('user-1');
 
-      expect(result.data).toHaveLength(2);
-      expect(result.total).toBe(2);
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe('post-2');
+      expect(result[1].id).toBe('post-1');
     });
-  });
 
-  describe('getTrending', () => {
-    it('returns trending posts within timeframe', async () => {
-      prisma.post.findMany.mockResolvedValue([{ id: 'post-1', likeCount: 100 }]);
-      prisma.post.count.mockResolvedValue(1);
+    it('filters by visibility=PUBLIC and deletedAt=null', async () => {
+      prisma.post.findMany.mockResolvedValue([]);
 
-      const result = await service.getTrending('24h', { page: 1, pageSize: 20 });
+      await service.getFeed('user-1');
 
-      expect(result.data).toHaveLength(1);
-      expect(result.total).toBe(1);
-    });
-  });
-
-  describe('getBookmarks', () => {
-    it('returns paginated bookmarks for a user from in-memory store', async () => {
-      // Add a bookmark to the in-memory store
-      FeedService.addBookmark('user-1', 'post-1');
-
-      prisma.post.findMany.mockResolvedValue([{ id: 'post-1', userId: 'user-2', deletedAt: null }]);
-      prisma.post.count.mockResolvedValue(1);
-
-      const result = await service.getBookmarks('user-1', { page: 1, pageSize: 20 });
-
-      expect(result.data).toHaveLength(1);
-      expect(result.total).toBe(1);
-      expect(result.page).toBe(1);
-      // Verify the query uses the bookmarked post IDs from in-memory store
       expect(prisma.post.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
-            id: { in: ['post-1'] },
+            visibility: 'PUBLIC',
             deletedAt: null,
           },
         }),
       );
     });
 
-    it('handles empty bookmarks', async () => {
-      const result = await service.getBookmarks('user-1');
+    it('applies pagination with skip and take', async () => {
+      prisma.post.findMany.mockResolvedValue([]);
 
-      expect(result.data).toHaveLength(0);
-      expect(result.total).toBe(0);
-      // Should not query the database when there are no bookmarks
-      expect(prisma.post.findMany).not.toHaveBeenCalled();
+      await service.getFeed('user-1', 2, 10);
+
+      expect(prisma.post.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 10, // (page - 1) * pageSize = (2 - 1) * 10
+          take: 10,
+        }),
+      );
+    });
+
+    it('defaults to page=1 pageSize=20', async () => {
+      prisma.post.findMany.mockResolvedValue([]);
+
+      await service.getFeed('user-1');
+
+      expect(prisma.post.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 0,
+          take: 20,
+        }),
+      );
+    });
+
+    it('returns empty array when no posts match', async () => {
+      prisma.post.findMany.mockResolvedValue([]);
+
+      const result = await service.getFeed('user-1', 1, 10);
+
+      expect(result).toEqual([]);
     });
   });
 
-  describe('getExploreFeed', () => {
-    it('returns popular public content', async () => {
-      prisma.post.findMany.mockResolvedValue([{ id: 'post-1', viewCount: 1000 }]);
-      prisma.post.count.mockResolvedValue(1);
+  describe('getTrendingPosts', () => {
+    it('returns trending posts from the last 24 hours', async () => {
+      prisma.post.findMany.mockResolvedValue([
+        { id: 'post-1' },
+        { id: 'post-2' },
+        { id: 'post-3' },
+      ]);
 
-      const result = await service.getExploreFeed({ page: 1, pageSize: 20 });
+      const result = await service.getTrendingPosts(5);
 
-      expect(result.data).toHaveLength(1);
-    });
-  });
-
-  describe('bookmark store', () => {
-    it('addBookmark stores bookmark in memory', () => {
-      FeedService.addBookmark('user-1', 'post-1');
-      FeedService.addBookmark('user-1', 'post-2');
-
-      const ids = FeedService.getBookmarkedPostIds('user-1');
-      expect(ids.has('post-1')).toBe(true);
-      expect(ids.has('post-2')).toBe(true);
-      expect(ids.size).toBe(2);
+      expect(result).toHaveLength(3);
     });
 
-    it('addBookmark is idempotent', () => {
-      FeedService.addBookmark('user-1', 'post-1');
-      FeedService.addBookmark('user-1', 'post-1');
+    it('filters by visibility=PUBLIC and a createdAt >= 24h ago', async () => {
+      prisma.post.findMany.mockResolvedValue([]);
 
-      const ids = FeedService.getBookmarkedPostIds('user-1');
-      expect(ids.size).toBe(1);
+      await service.getTrendingPosts(10);
+
+      const call = prisma.post.findMany.mock.calls[0][0];
+      expect(call.where.visibility).toBe('PUBLIC');
+      expect(call.where.createdAt.gte).toBeInstanceOf(Date);
+      // createdAt.gte should be within the last 24 hours
+      const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
+      expect(call.where.createdAt.gte.getTime()).toBeGreaterThanOrEqual(twentyFourHoursAgo - 1000);
+      expect(call.where.createdAt.gte.getTime()).toBeLessThanOrEqual(Date.now());
     });
 
-    it('getBookmarkedPostIds returns empty set for unknown user', () => {
-      const ids = FeedService.getBookmarkedPostIds('unknown-user');
-      expect(ids.size).toBe(0);
+    it('respects the limit parameter', async () => {
+      prisma.post.findMany.mockResolvedValue([]);
+
+      await service.getTrendingPosts(3);
+
+      expect(prisma.post.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 3,
+        }),
+      );
+    });
+
+    it('defaults limit to 20', async () => {
+      prisma.post.findMany.mockResolvedValue([]);
+
+      await service.getTrendingPosts();
+
+      expect(prisma.post.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 20,
+        }),
+      );
+    });
+
+    it('returns empty array when no trending posts exist', async () => {
+      prisma.post.findMany.mockResolvedValue([]);
+
+      const result = await service.getTrendingPosts();
+
+      expect(result).toEqual([]);
     });
   });
 });

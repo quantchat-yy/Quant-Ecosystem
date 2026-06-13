@@ -5,7 +5,7 @@ import { MatchingService } from '../services/matching.service';
 
 const swipeSchema = z.object({
   targetUserId: z.string(),
-  liked: z.boolean(),
+  direction: z.enum(['LEFT', 'RIGHT', 'SUPER_LIKE']),
 });
 
 export default async function matchingRoutes(fastify: FastifyInstance) {
@@ -36,7 +36,7 @@ export default async function matchingRoutes(fastify: FastifyInstance) {
     const result = await matchingService.recordSwipe(
       userId,
       parseResult.data.targetUserId,
-      parseResult.data.liked,
+      parseResult.data.direction,
     );
 
     return reply.send(result);

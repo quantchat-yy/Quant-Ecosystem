@@ -1,5 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 
+export interface CreateCommunityInput {
+  name: string;
+  slug: string;
+  description?: string;
+  isPrivate?: boolean;
+}
+
 export class CommunityService {
   private prisma: PrismaClient;
 
@@ -7,23 +14,25 @@ export class CommunityService {
     this.prisma = prisma;
   }
 
-  async createCommunity(
-    userId: string,
-    name: string,
-    description: string,
-    isPrivate: boolean = false,
-  ) {
+  async createCommunity(userId: string, input: CreateCommunityInput) {
+    const existing = await this.prisma.community.findUnique({
+      where: { slug: input.slug },
+    });
+
+    if (existing) {
+      throw new Error('Community slug already exists');
+    }
+
     const community = await this.prisma.community.create({
       data: {
-        name,
-        description,
-        createdBy: userId,
-        isPrivate,
+        name: input.name,
+        slug: input.slug,
+        description: input.description,
+        isPrivate: input.isPrivate ?? false,
         memberCount: 1,
       },
     });
 
-    // Auto-join creator
     await this.prisma.communityMember.create({
       data: {
         communityId: community.id,

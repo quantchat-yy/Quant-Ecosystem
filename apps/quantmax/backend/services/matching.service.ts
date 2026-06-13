@@ -34,34 +34,39 @@ export class MatchingService {
     return matches;
   }
 
-  async recordSwipe(userId: string, targetUserId: string, liked: boolean) {
+  async recordSwipe(
+    swiperId: string,
+    targetId: string,
+    direction: 'LEFT' | 'RIGHT' | 'SUPER_LIKE',
+  ) {
     await this.prisma.swipe.create({
       data: {
-        swiperId: userId,
-        targetId: targetUserId,
-        liked,
+        swiperId,
+        targetId,
+        direction,
       },
     });
 
-    // Check for mutual like
-    if (liked) {
+    // Check for mutual interest
+    if (direction === 'RIGHT' || direction === 'SUPER_LIKE') {
       const mutual = await this.prisma.swipe.findFirst({
         where: {
-          swiperId: targetUserId,
-          targetId: userId,
-          liked: true,
+          swiperId: targetId,
+          targetId: swiperId,
+          direction: { in: ['RIGHT', 'SUPER_LIKE'] },
         },
       });
 
       if (mutual) {
-        // Create match
-        await this.prisma.match.create({
+        // Create match with deterministic ordering to satisfy unique constraint
+        const [user1Id, user2Id] = [swiperId, targetId].sort();
+        const match = await this.prisma.match.create({
           data: {
-            user1Id: userId,
-            user2Id: targetUserId,
+            user1Id,
+            user2Id,
           },
         });
-        return { matched: true };
+        return { matched: true, match };
       }
     }
 
