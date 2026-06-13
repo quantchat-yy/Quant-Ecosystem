@@ -4,6 +4,7 @@ import matchingRoutes from './routes/matching';
 import profilesRoutes from './routes/profiles';
 import swipesRoutes from './routes/swipes';
 import randomChatRoutes from './routes/random-chat';
+import aiRoutes from './routes/ai';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -35,6 +36,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(profilesRoutes, { prefix: '/profiles' });
   await app.register(swipesRoutes, { prefix: '/swipes' });
   await app.register(randomChatRoutes, { prefix: '/random-chat' });
+  await app.register(aiRoutes, { prefix: '/ai' });
 
   return app;
 }
