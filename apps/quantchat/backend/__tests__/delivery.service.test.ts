@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { DeliveryService } from '../services/delivery.service';
+import type { DeliveryEventEmitter } from '../services/delivery.service';
 
 function createMockPrisma() {
   return {
@@ -17,11 +18,11 @@ function createMockPrisma() {
 describe('DeliveryService', () => {
   let service: DeliveryService;
   let prisma: ReturnType<typeof createMockPrisma>;
-  let mockEmitter: { emit: ReturnType<typeof vi.fn> };
+  let mockEmitter: { emit: ReturnType<typeof vi.fn<DeliveryEventEmitter['emit']>> };
 
   beforeEach(() => {
     prisma = createMockPrisma();
-    mockEmitter = { emit: vi.fn() };
+    mockEmitter = { emit: vi.fn<DeliveryEventEmitter['emit']>() };
     service = new DeliveryService(prisma as never, mockEmitter);
   });
 

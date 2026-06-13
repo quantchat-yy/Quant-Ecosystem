@@ -14,21 +14,25 @@ vi.mock('livekit-server-sdk', () => {
   const mockDeleteRoom = vi.fn().mockResolvedValue(undefined);
   const mockRemoveParticipant = vi.fn().mockResolvedValue(undefined);
 
-  const RoomServiceClient = vi.fn().mockImplementation(() => ({
-    createRoom: mockCreateRoom,
-    deleteRoom: mockDeleteRoom,
-    removeParticipant: mockRemoveParticipant,
-  }));
+  const RoomServiceClient = vi.fn().mockImplementation(function () {
+    return {
+      createRoom: mockCreateRoom,
+      deleteRoom: mockDeleteRoom,
+      removeParticipant: mockRemoveParticipant,
+    };
+  });
 
   const mockToJwt = vi
     .fn()
     .mockResolvedValue('eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJkZXZrZXkiLCJzdWIiOiJ1c2VyLTEifQ.sig');
   const mockAddGrant = vi.fn();
 
-  const AccessToken = vi.fn().mockImplementation(() => ({
-    addGrant: mockAddGrant,
-    toJwt: mockToJwt,
-  }));
+  const AccessToken = vi.fn().mockImplementation(function () {
+    return {
+      addGrant: mockAddGrant,
+      toJwt: mockToJwt,
+    };
+  });
 
   return {
     RoomServiceClient,
