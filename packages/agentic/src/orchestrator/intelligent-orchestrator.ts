@@ -43,6 +43,32 @@ export class IntelligentOrchestrator extends EventEmitter {
     this.emit('agent:registered', { agentId: agent.id, capabilities });
   }
 
+  getActiveAgents(): string[] {
+    return Array.from(this.agents.keys());
+  }
+
+  getAgent(agentId: string): Agent | undefined {
+    return this.agents.get(agentId);
+  }
+
+  async runAgent(agentId: string, input: string, context?: any): Promise<any> {
+    const agent = this.agents.get(agentId);
+    if (!agent) {
+      throw new Error(`Agent ${agentId} not found`);
+    }
+    if (agent.isBusy()) {
+      throw new Error(`Agent ${agentId} is currently busy`);
+    }
+    this.emit('orchestrator:agent_started', { agentId, input });
+    const result = await agent.run(input, { ...context, orchestrator: this });
+    await this.globalMemory.store({
+      type: 'orchestrator_result',
+      content: { agentId, input, result },
+    });
+    this.emit('orchestrator:agent_completed', { agentId, result });
+    return result;
+  }
+
   async decomposeTask(task: string): Promise<TaskDecomposition> {
     return {
       subtasks: [

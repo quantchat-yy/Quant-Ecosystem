@@ -116,3 +116,5 @@ export * from './deployment/production-deployment';
 export { ProductionDeployment } from './deployment/production-deployment';
 
 export const QUANT_ECOSYSTEM_VERSION = '3.3.0';
+export type { OrchestratorConfig } from './orchestrator/orchestrator';
+export type { TrainingSession } from './training/agent-training-system';
