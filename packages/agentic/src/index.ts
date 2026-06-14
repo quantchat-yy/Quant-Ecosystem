@@ -36,6 +36,13 @@ export * from './templates/agent-templates';
 export * from './training/agent-training';
 export * from './versioning/agent-versioning';
 export * from './voice/agent-voice';
+export * from './voice/voice-intent-parser';
+export * from './voice/voice-command-router';
+export * from './voice/voice-orchestrator';
+export * from './cross-app/command-bus';
+export * from './cross-app/app-controller';
+export * from './safety/voice-safety';
+export * from './hooks/use-voice-command';
 
 export function createQuantEcosystemOrchestrator(useIntelligent: boolean = true) {
   if (useIntelligent) {
@@ -118,3 +125,4 @@ export { ProductionDeployment } from './deployment/production-deployment';
 export const QUANT_ECOSYSTEM_VERSION = '3.3.0';
 export type { OrchestratorConfig } from './orchestrator/orchestrator';
 export type { TrainingSession } from './training/agent-training-system';
+export * from './voice/use-voice-commands';

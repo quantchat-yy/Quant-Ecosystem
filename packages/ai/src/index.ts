@@ -11,7 +11,9 @@ export { ContextManager } from './core/context-manager';
 export { ModelRouter } from './core/model-router';
 export { CircuitBreaker, CircuitBreakerRegistry } from './core/circuit-breaker';
 export { retryWithBackoff } from './core/retry';
-export { PromptRegistry } from './core/prompt-registry';
+// PromptRegistry is server-only (uses node:fs/node:path) and must not be exported from the browser-safe index.
+// Import it directly from '@quant/ai/core/prompt-registry' when needed on the server.
+// export { PromptRegistry } from './core/prompt-registry';
 export { SemanticCache } from './core/semantic-cache';
 export { SafetyPipeline } from './core/safety';
 export { CostTracker } from './core/cost-tracker';

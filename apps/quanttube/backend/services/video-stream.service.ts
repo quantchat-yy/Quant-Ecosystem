@@ -43,9 +43,7 @@ export class VideoStreamService {
     return new Promise((resolve, reject) => {
       const ffmpeg = spawn('ffmpeg', ffmpegArgs);
 
-      ffmpeg.stderr.on('data', (data) => {
-        console.log(`FFmpeg: ${data}`);
-      });
+      ffmpeg.stderr.on('data', (data) => {});
 
       ffmpeg.on('close', (code) => {
         if (code === 0) {

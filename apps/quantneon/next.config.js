@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@quant/shared-ui', '@quant/common'],
+  transpilePackages: ['@quant/agentic', '@quant/shared-ui', '@quant/common'],
   output: 'standalone',
   serverExternalPackages: ['nats'],
   webpack: (config, { isServer }) => {

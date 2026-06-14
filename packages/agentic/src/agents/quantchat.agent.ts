@@ -1,4 +1,5 @@
 import { Agent } from '../core/agent';
+import { logger } from '@quant/common';
 
 export class QuantChatAgent extends Agent {
   constructor() {
@@ -29,7 +30,7 @@ export class QuantChatAgent extends Agent {
         type: 'string',
       },
       execute: async (params: any) => {
-        console.log('[QuantChatAgent] Sending message:', params);
+        logger.log('[QuantChatAgent] Sending message:', params);
         return { success: true, messageId: 'msg_' + Date.now() };
       },
     });
@@ -41,7 +42,7 @@ export class QuantChatAgent extends Agent {
         conversationId: 'string',
         lastMessage: 'string',
       },
-      execute: async (params: any) => {
+      execute: async (_params: any) => {
         return {
           suggestions: [
             'Sounds good!',

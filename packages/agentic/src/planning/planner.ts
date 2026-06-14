@@ -19,18 +19,9 @@ export interface Plan {
 }
 
 export class Planner {
-  private memory: MemoryStore;
-  private tools: ToolRegistry;
-
-  constructor(memory: MemoryStore, tools: ToolRegistry) {
-    this.memory = memory;
-    this.tools = tools;
-  }
+  constructor(_memory: MemoryStore, _tools: ToolRegistry) {}
 
   async createPlan(goal: string, context: any = {}): Promise<Plan> {
-    const availableTools = this.tools.getAvailableTools();
-    const memoryContext = context.memory || [];
-
     // Simple planning logic (will be replaced with LLM-based planning)
     const steps: PlanStep[] = [];
 
@@ -86,7 +77,7 @@ export class Planner {
     return plan;
   }
 
-  async refinePlan(plan: Plan, feedback: string): Promise<Plan> {
+  async refinePlan(plan: Plan, _feedback: string): Promise<Plan> {
     // TODO: Implement plan refinement based on feedback
     return plan;
   }

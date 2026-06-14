@@ -1,3 +1,5 @@
+import { logger } from '@quant/common';
+
 export interface MarketplaceAgent {
   id: string;
   name: string;
@@ -63,7 +65,7 @@ export class AgentMarketplace {
 
   async installAgent(userId: string, agentId: string): Promise<boolean> {
     // TODO: Implement actual installation logic
-    console.log(`Installing agent ${agentId} for user ${userId}`);
+    logger.log(`Installing agent ${agentId} for user ${userId}`);
     return true;
   }
 }

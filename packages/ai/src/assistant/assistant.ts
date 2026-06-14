@@ -6,7 +6,7 @@ import type { AIEngine } from '../core/engine';
 import { ToolRegistry } from './tool-registry';
 import { IntentRouter } from './intent-router';
 import { ActionExecutor } from './action-executor';
-import type { AssistantContext, AssistantResponse } from './types';
+import type { AIToolResult, AssistantContext, AssistantResponse } from './types';
 
 import { getQuantchatTools } from './tools/quantchat-tools';
 import { getQuantmailTools } from './tools/quantmail-tools';
@@ -59,7 +59,7 @@ export class UniversalAssistant {
     const intent = await this.intentRouter.parseIntent(message, context);
 
     // Step 2: Execute action if confidence is sufficient
-    let actionResult = undefined;
+    let actionResult: AIToolResult | undefined = undefined;
     if (intent.confidence >= 0.5) {
       actionResult = await this.actionExecutor.execute(
         intent.targetApp,

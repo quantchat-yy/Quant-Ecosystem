@@ -42,8 +42,8 @@ export class SwarmIntelligence extends EventEmitter {
 
     for (let i = 0; i < 4; i++) {
       swarm.iterations++;
-      const results = await Promise.all(
-        swarm.members.map((id) =>
+      await Promise.all(
+        swarm.members.map((_id) =>
           this.orchestrator.runIntelligentTask(`${swarm.goal} [iter ${i}]`),
         ),
       );

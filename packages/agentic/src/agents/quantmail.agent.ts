@@ -1,4 +1,5 @@
 import { Agent } from '../core/agent';
+import { logger } from '@quant/common';
 
 export class QuantMailAgent extends Agent {
   constructor() {
@@ -31,7 +32,7 @@ export class QuantMailAgent extends Agent {
       },
       execute: async (params: any) => {
         // This will be connected to actual QuantMail backend
-        console.log('[QuantMailAgent] Sending email:', params);
+        logger.log('[QuantMailAgent] Sending email:', params);
         return { success: true, messageId: 'msg_' + Date.now() };
       },
     });
@@ -45,7 +46,7 @@ export class QuantMailAgent extends Agent {
         filter: 'object',
       },
       execute: async (params: any) => {
-        console.log('[QuantMailAgent] Reading emails:', params);
+        logger.log('[QuantMailAgent] Reading emails:', params);
         return { emails: [], count: 0 };
       },
     });

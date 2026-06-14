@@ -5,6 +5,10 @@ import { QueryProvider } from '../providers/query-provider';
 import { AppProviders } from '../providers/app-providers';
 import { MotionProvider } from '@quant/shared-ui';
 import { AppLayout } from '../components/AppLayout';
+import { VoiceCommandHost } from '../components/VoiceCommandHost';
+import { registerQuantsyncVoice } from '../voice-registration';
+
+registerQuantsyncVoice();
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -23,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <QueryProvider>
           <AppProviders>
             <MotionProvider>
+              <VoiceCommandHost appId="quantsync" userId="guest" />
               <AppLayout>{children}</AppLayout>
             </MotionProvider>
           </AppProviders>

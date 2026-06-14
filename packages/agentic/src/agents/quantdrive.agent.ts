@@ -1,4 +1,5 @@
 import { Agent } from '../core/agent';
+import { logger } from '@quant/common';
 
 export class QuantDriveAgent extends Agent {
   constructor() {
@@ -29,7 +30,7 @@ export class QuantDriveAgent extends Agent {
         folder: 'string',
       },
       execute: async (params: any) => {
-        console.log('[QuantDriveAgent] Uploading file:', params);
+        logger.log('[QuantDriveAgent] Uploading file:', params);
         return { success: true, fileId: 'file_' + Date.now() };
       },
     });
@@ -41,7 +42,7 @@ export class QuantDriveAgent extends Agent {
         folderId: 'string',
         strategy: 'string',
       },
-      execute: async (params: any) => {
+      execute: async (_params: any) => {
         return {
           organized: true,
           foldersCreated: 3,

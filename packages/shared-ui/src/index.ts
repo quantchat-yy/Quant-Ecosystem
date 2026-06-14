@@ -451,3 +451,7 @@ export type {
   QuantLivePrivacyIndicatorProps,
   QuantLiveControlsProps,
 } from './components/quant-live';
+
+// VoiceCommandBar component
+export { VoiceCommandBar } from './components/voice-command-bar';
+export type { VoiceCommandBarProps } from './components/voice-command-bar';

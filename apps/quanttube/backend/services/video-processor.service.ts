@@ -6,8 +6,6 @@ export class VideoProcessorService {
     // - Audio extraction
     // - Subtitle generation (optional)
 
-    console.log(`Processing video ${videoId} from ${filePath}`);
-
     // Simulate processing
     await new Promise((resolve) => setTimeout(resolve, 2000));
 

@@ -38,9 +38,7 @@ export class CrossAppCoordinator {
     };
   }
 
-  async suggestNextActions(userId: string): Promise<string[]> {
-    const context = await unifiedMemory.getUserContext(userId);
-
+  async suggestNextActions(_userId: string): Promise<string[]> {
     // Simple suggestion logic (can be replaced with LLM)
     return [
       'Check your unread emails',

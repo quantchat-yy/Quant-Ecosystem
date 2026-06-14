@@ -1,10 +1,9 @@
 import { MemoryStore } from './memory-store';
-import { randomUUID } from 'crypto';
 
 export interface UnifiedMemoryItem {
   id: string;
   userId: string;
-  type: 'conversation' | 'task' | 'preference' | 'fact' | 'workflow';
+  type: 'conversation' | 'task' | 'preference' | 'fact' | 'workflow' | 'workflow_result';
   content: any;
   sourceAgent?: string;
   timestamp: Date;

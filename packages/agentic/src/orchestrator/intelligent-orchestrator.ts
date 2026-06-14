@@ -22,18 +22,10 @@ export interface TaskDecomposition {
 export class IntelligentOrchestrator extends EventEmitter {
   private agents: Map<string, Agent> = new Map();
   private globalMemory: MemoryStore;
-  private config: OrchestratorConfig;
   private performanceMetrics: Map<string, number> = new Map();
 
-  constructor(config: OrchestratorConfig = {}) {
+  constructor(_config: OrchestratorConfig = {}) {
     super();
-    this.config = {
-      maxConcurrentAgents: 25,
-      defaultModel: 'gpt-4o',
-      enableSelfHealing: true,
-      enableFederation: true,
-      ...config,
-    };
     this.globalMemory = new MemoryStore('intelligent-orchestrator');
   }
 
@@ -95,7 +87,7 @@ export class IntelligentOrchestrator extends EventEmitter {
     };
   }
 
-  async selectBestAgents(capabilities: string[], count: number = 3): Promise<string[]> {
+  async selectBestAgents(_capabilities: string[], count: number = 3): Promise<string[]> {
     return Array.from(this.agents.keys()).slice(0, count);
   }
 
@@ -104,9 +96,10 @@ export class IntelligentOrchestrator extends EventEmitter {
     const selected = await this.selectBestAgents(['execution'], decomp.subtasks.length);
 
     const results = await Promise.all(
-      decomp.subtasks.map(
-        (sub, i) => this.agents.get(selected[i % selected.length])?.run(sub.description) || null,
-      ),
+      decomp.subtasks.map((sub, i) => {
+        const agentId = selected[i % selected.length] ?? '';
+        return this.agents.get(agentId)?.run(sub.description) || null;
+      }),
     );
 
     const final = { task, decomposition: decomp, results, version: '2.1' };

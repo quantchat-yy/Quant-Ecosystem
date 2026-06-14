@@ -11,12 +11,9 @@ export interface MemoryItem {
 
 export class MemoryStore {
   private memories: Map<string, MemoryItem> = new Map();
-  private agentId: string;
   private maxSize: number = 10000;
 
-  constructor(agentId: string) {
-    this.agentId = agentId;
-  }
+  constructor(_agentId: string) {}
 
   async store(item: Omit<MemoryItem, 'id' | 'timestamp'>): Promise<string> {
     const id = randomUUID();
@@ -31,7 +28,9 @@ export class MemoryStore {
     // Simple eviction if too many memories
     if (this.memories.size > this.maxSize) {
       const oldestKey = Array.from(this.memories.keys())[0];
-      this.memories.delete(oldestKey);
+      if (oldestKey) {
+        this.memories.delete(oldestKey);
+      }
     }
 
     return id;

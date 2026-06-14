@@ -1,4 +1,5 @@
 import { Agent } from '../core/agent';
+import { logger } from '@quant/common';
 
 export class QuantMeetAgent extends Agent {
   constructor() {
@@ -29,7 +30,7 @@ export class QuantMeetAgent extends Agent {
         scheduledTime: 'string',
       },
       execute: async (params: any) => {
-        console.log('[QuantMeetAgent] Creating room:', params);
+        logger.log('[QuantMeetAgent] Creating room:', params);
         return {
           success: true,
           roomId: 'room_' + Date.now(),
@@ -44,7 +45,7 @@ export class QuantMeetAgent extends Agent {
       parameters: {
         meetingId: 'string',
       },
-      execute: async (params: any) => {
+      execute: async (_params: any) => {
         return {
           summary: 'Meeting summary would be generated here',
           actionItems: ['Follow up with team', 'Send notes'],

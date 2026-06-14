@@ -1,4 +1,5 @@
 import { Agent } from '../core/agent';
+import { logger } from '@quant/common';
 
 export class QuantSyncAgent extends Agent {
   constructor() {
@@ -29,7 +30,7 @@ export class QuantSyncAgent extends Agent {
         communityId: 'string',
       },
       execute: async (params: any) => {
-        console.log('[QuantSyncAgent] Creating post:', params);
+        logger.log('[QuantSyncAgent] Creating post:', params);
         return { success: true, postId: 'post_' + Date.now() };
       },
     });

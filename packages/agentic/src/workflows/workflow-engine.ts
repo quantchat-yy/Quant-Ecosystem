@@ -67,14 +67,14 @@ export class WorkflowEngine extends EventEmitter {
     return 'quantai-agent';
   }
 
-  async executeWorkflow(workflowId: string): Promise<any> {
+  async executeWorkflow(workflowId: string): Promise<unknown[]> {
     const workflow = this.workflows.get(workflowId);
     if (!workflow) throw new Error('Workflow not found');
 
     workflow.status = 'running';
     this.emit('workflow:started', workflow);
 
-    const results = [];
+    const results: unknown[] = [];
 
     for (const step of workflow.steps) {
       try {

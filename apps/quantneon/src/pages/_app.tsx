@@ -6,6 +6,10 @@ import { MotionProvider, CommandPaletteProvider, useCommandPalette } from '@quan
 import type { CommandPaletteItem } from '@quant/shared-ui';
 import { QueryProvider } from '../providers/query-provider';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { VoiceCommandHost } from '../components/VoiceCommandHost';
+import { registerQuantneonVoice } from '../voice-registration';
+
+registerQuantneonVoice();
 
 interface AppProps {
   Component: React.ComponentType<Record<string, unknown>>;
@@ -41,6 +45,7 @@ export default function App({ Component, pageProps }: AppProps) {
         <MotionProvider>
           <CommandPaletteProvider appName="QuantNeon">
             <QuantNeonCommandRegistrar />
+            <VoiceCommandHost appId="quantneon" userId="guest" />
             <AnimatePresence mode="wait">
               <Component key={router.asPath} {...pageProps} />
             </AnimatePresence>

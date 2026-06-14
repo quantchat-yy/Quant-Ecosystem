@@ -1,10 +1,13 @@
 import { Agent } from '../core/agent';
 import { UnifiedAIService } from '@quant/ai';
+import { logger } from '@quant/common';
+import { VoiceOrchestrator } from '../voice/voice-orchestrator';
 
 export class QuantAIAgent extends Agent {
   private aiService: UnifiedAIService;
+  private voiceOrchestrator: VoiceOrchestrator;
 
-  constructor(aiService?: UnifiedAIService) {
+  constructor(aiService?: UnifiedAIService, voiceOrchestrator?: VoiceOrchestrator) {
     super({
       id: 'quantai-agent',
       name: 'QuantAI Agent',
@@ -16,10 +19,12 @@ export class QuantAIAgent extends Agent {
         'web_search',
         'code_generation',
         'analysis',
+        'voice_control',
       ],
     });
 
     this.aiService = aiService ?? new UnifiedAIService();
+    this.voiceOrchestrator = voiceOrchestrator ?? new VoiceOrchestrator();
 
     this.registerAITools();
   }
@@ -34,7 +39,7 @@ export class QuantAIAgent extends Agent {
         temperature: 'number',
       },
       execute: async (params: any) => {
-        console.log('[QuantAIAgent] Processing chat:', params);
+        logger.log('[QuantAIAgent] Processing chat:', params);
         const result = await this.aiService.generateText(params.message, {
           model: params.model,
           temperature: params.temperature,
@@ -53,10 +58,28 @@ export class QuantAIAgent extends Agent {
         problem: 'string',
         context: 'object',
       },
-      execute: async (params: any) => {
+      execute: async (_params: any) => {
         return {
           reasoning: 'Step-by-step reasoning would go here',
           conclusion: 'Final conclusion based on reasoning',
+        };
+      },
+    });
+
+    this.addTool({
+      name: 'quantai_voice_command',
+      description: 'Execute a cross-app voice command',
+      parameters: {
+        command: 'string',
+      },
+      execute: async (params: { command: string }) => {
+        const results = await this.voiceOrchestrator.processText(params.command, 'quantai-user');
+        return {
+          results: results.map((r) => ({
+            success: r.success,
+            app: r.app,
+            message: r.message,
+          })),
         };
       },
     });

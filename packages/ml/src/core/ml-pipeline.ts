@@ -23,7 +23,7 @@ export class MLPipeline {
     this.models.set(config.name, config);
   }
 
-  async startTraining(modelName: string, dataset: string): Promise<TrainingJob> {
+  async startTraining(modelName: string, _dataset: string): Promise<TrainingJob> {
     const model = this.models.get(modelName);
     if (!model) {
       throw new Error(`Model ${modelName} not found`);

@@ -7,5 +7,12 @@
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../common" }, { "path": "../ai" }]
+  "references": [
+    {
+      "path": "../common"
+    },
+    {
+      "path": "../ai"
+    }
+  ]
 }

@@ -30,6 +30,9 @@ export class AgentLogger {
 
     // Also log to console in development
     if (process.env.NODE_ENV !== 'production') {
+      // This is the low-level console sink for the agent logger; it intentionally
+      // writes formatted output to stdout in non-production environments.
+      // eslint-disable-next-line no-console
       console.log(`[${agentId}] [${level.toUpperCase()}] ${message}`);
     }
   }

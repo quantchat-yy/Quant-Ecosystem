@@ -77,7 +77,7 @@ export class AgentSwarm extends EventEmitter {
     return { swarm, results, consensus };
   }
 
-  private calculateConsensus(results: any[]): number {
+  private calculateConsensus(_results: any[]): number {
     // Simple consensus calculation (can be replaced with ML)
     return Math.random() * 0.3 + 0.7; // 70-100% consensus
   }

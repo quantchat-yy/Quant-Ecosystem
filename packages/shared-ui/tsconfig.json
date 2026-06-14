@@ -8,5 +8,15 @@
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../brand" }, { "path": "../common" }]
+  "references": [
+    {
+      "path": "../brand"
+    },
+    {
+      "path": "../common"
+    },
+    {
+      "path": "../agentic"
+    }
+  ]
 }

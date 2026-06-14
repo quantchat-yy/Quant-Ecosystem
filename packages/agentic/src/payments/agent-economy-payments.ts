@@ -12,13 +12,11 @@ export interface PaymentTransaction {
 }
 
 export class AgentEconomyPayments extends EventEmitter {
-  private economy: AgentEconomy;
   private transactions: PaymentTransaction[] = [];
   private totalProcessed: number = 0;
 
-  constructor(economy: AgentEconomy) {
+  constructor(_economy: AgentEconomy) {
     super();
-    this.economy = economy;
   }
 
   async processPayment(

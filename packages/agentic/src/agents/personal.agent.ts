@@ -46,7 +46,6 @@ export class PersonalAgent extends Agent {
       description: 'Get personalized suggestions',
       parameters: {},
       execute: async () => {
-        const context = await unifiedMemory.getUserContext(this.userId);
         return {
           suggestions: [
             'You have 3 unread emails from yesterday',

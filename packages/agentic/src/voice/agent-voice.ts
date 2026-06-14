@@ -1,3 +1,5 @@
+import { logger } from '@quant/common';
+
 export interface VoiceConfig {
   language: string;
   voice: string;
@@ -5,28 +7,19 @@ export interface VoiceConfig {
 }
 
 export class AgentVoiceInterface {
-  private config: VoiceConfig;
-
-  constructor(config: Partial<VoiceConfig> = {}) {
-    this.config = {
-      language: 'en-US',
-      voice: 'default',
-      speed: 1.0,
-      ...config,
-    };
-  }
+  constructor(_config: Partial<VoiceConfig> = {}) {}
 
   async textToSpeech(text: string): Promise<Buffer> {
     // TODO: Integrate with actual TTS service (ElevenLabs, Azure, etc.)
-    console.log(`[Voice] Converting to speech: ${text.substring(0, 50)}...`);
+    logger.log(`[Voice] Converting to speech: ${text.substring(0, 50)}...`);
 
     // Placeholder - return empty buffer
     return Buffer.from([]);
   }
 
-  async speechToText(audioBuffer: Buffer): Promise<string> {
+  async speechToText(_audioBuffer: Buffer): Promise<string> {
     // TODO: Integrate with actual STT service (Whisper, Azure, etc.)
-    console.log(`[Voice] Converting speech to text...`);
+    logger.log(`[Voice] Converting speech to text...`);
 
     // Placeholder
     return 'This is a placeholder transcription';

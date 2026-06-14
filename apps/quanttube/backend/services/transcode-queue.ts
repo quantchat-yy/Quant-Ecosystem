@@ -48,6 +48,7 @@ export class TranscodeQueue extends EventEmitter {
 
     this.processing = true;
     const job = this.queue[0];
+    if (!job) return;
     job.status = 'processing';
 
     this.emit('job:started', job);

@@ -10,16 +10,9 @@ export interface OrchestratorConfig {
 export class QuantOrchestrator extends EventEmitter {
   private agents: Map<string, Agent> = new Map();
   private globalMemory: MemoryStore;
-  private config: OrchestratorConfig;
-  private isRunning: boolean = false;
 
-  constructor(config: OrchestratorConfig = {}) {
+  constructor(_config: OrchestratorConfig = {}) {
     super();
-    this.config = {
-      maxConcurrentAgents: 10,
-      defaultModel: 'gpt-4o',
-      ...config,
-    };
     this.globalMemory = new MemoryStore('orchestrator');
   }
 
@@ -93,7 +86,6 @@ export class QuantOrchestrator extends EventEmitter {
   }
 
   async shutdown(): Promise<void> {
-    this.isRunning = false;
     this.emit('orchestrator:shutdown');
   }
 }

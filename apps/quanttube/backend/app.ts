@@ -3,6 +3,9 @@ import type { AppConfig } from '@quant/server-core';
 import uploadRoutes from './routes/upload';
 import streamRoutes from './routes/stream';
 import thumbnailsRoutes from './routes/thumbnails';
+import { registerQuanttubeVoice } from './voice-registration';
+
+registerQuanttubeVoice();
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
