@@ -131,7 +131,7 @@ const SpeedDatingPage: React.FC = () => {
   const startDate = useCallback(() => {
     const match: SpeedDateMatch = {
       id: `match-${Date.now()}`,
-      userId: `user-${Math.floor(Math.random() * 1000)}`,
+      userId: `user-${crypto.randomUUID()}`,
       displayName: ['Emma', 'Sophia', 'Liam', 'Noah', 'Olivia', 'Ava', 'Lucas', 'Mia'][Math.floor(Math.random() * 8)],
       age: 22 + Math.floor(Math.random() * 10),
       avatarUrl: `https://cdn.quantmax.app/speed-dating/avatars/${Math.floor(Math.random() * 20)}.jpg`,
