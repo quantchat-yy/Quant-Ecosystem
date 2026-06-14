@@ -45,7 +45,7 @@ export class EventPipeline extends EventEmitter {
       try {
         await handler(event);
       } catch (error) {
-        console.error(`Handler failed for event ${event.id}:`, error);
+        console.error('Handler failed for event %s:', event.id, error);
         this.deadLetterQueue.push(event);
         this.emit('event:failed', { event, error });
       }
