@@ -316,7 +316,16 @@ export class XSSSanitizer {
 
   /** Remove all event handler attributes */
   private removeEventHandlers(input: string): string {
-    return input.replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+    const eventHandlerAttr = /\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi;
+    let previous: string;
+    let current = input;
+
+    do {
+      previous = current;
+      current = current.replace(eventHandlerAttr, '');
+    } while (current !== previous);
+
+    return current;
   }
 
   /** Block CSS expressions and dangerous CSS */
