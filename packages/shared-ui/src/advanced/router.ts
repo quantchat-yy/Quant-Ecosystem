@@ -60,13 +60,12 @@ export class Router {
     }
     // Convert path pattern to regex
     const regexStr = fullPath
-      .replace(/\//g, '\\/')
-      .replace(/:([^/]+)/g, (_, paramName) => {
+      .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      .replace(/\\:([^/\\]+)/g, (_, paramName) => {
         paramNames.push(paramName);
         return '([^/]+)';
       })
-      .replace(/\\\*$/g, '(.*)') // wildcard at end
-      .replace(/\*/, '(.*)'); // wildcard anywhere
+      .replace(/\\\*/g, '(.*)');
 
     const regex = new RegExp(`^${regexStr}$`);
     return { route: { ...route, path: fullPath }, regex, paramNames, parent };
