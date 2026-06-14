@@ -2,6 +2,7 @@
 // Security Package - Session Security
 // ============================================================================
 
+import { randomBytes } from 'crypto';
 import type { SessionConfig, SecureSession } from '../types';
 
 /** Default session configuration */
@@ -256,12 +257,7 @@ export class SessionSecurity {
 
   /** Generate a cryptographically secure session ID */
   private generateSessionId(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let id = '';
-    for (let i = 0; i < 48; i++) {
-      id += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return id;
+    return randomBytes(32).toString('hex');
   }
 
   /** Generate fingerprint from client attributes */
