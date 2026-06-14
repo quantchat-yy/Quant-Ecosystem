@@ -104,6 +104,11 @@ export async function createApp(config: AppConfig) {
     if (PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + '/'))) {
       return;
     }
+    await fastify.rateLimit({
+      max: config.rateLimitMax,
+      timeWindow: config.rateLimitWindow,
+    })(request, reply);
+    if (reply.sent) return;
     await fastify.requireAuth()(request, reply);
     if (reply.sent) return;
   });
