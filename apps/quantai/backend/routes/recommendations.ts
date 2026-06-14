@@ -8,6 +8,24 @@ const recommendSchema = z.object({
   type: z.enum(['personalized', 'trending', 'similar']).optional(),
 });
 
+const contentSchema = z.object({
+  id: z.string().min(1).max(200),
+  title: z.string().min(1).max(500),
+  description: z.string().max(5000).optional(),
+  category: z.string().max(200).optional(),
+  tags: z.array(z.string().max(100)).optional(),
+  score: z.number().optional(),
+});
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export default async function recommendationRoutes(fastify: FastifyInstance) {
   fastify.get('/for-me', async (request, reply) => {
     const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
@@ -43,8 +61,22 @@ export default async function recommendationRoutes(fastify: FastifyInstance) {
   });
 
   fastify.post('/content', async (request, reply) => {
-    const content = request.body as any;
-    await recommendationEngine.addContent(content);
+    const parseResult = contentSchema.safeParse(request.body);
+    if (!parseResult.success) {
+      throw parseResult.error;
+    }
+
+    const content = parseResult.data;
+    const sanitizedContent = {
+      ...content,
+      id: escapeHtml(content.id),
+      title: escapeHtml(content.title),
+      description: content.description ? escapeHtml(content.description) : undefined,
+      category: content.category ? escapeHtml(content.category) : undefined,
+      tags: content.tags?.map((tag) => escapeHtml(tag)),
+    };
+
+    await recommendationEngine.addContent(sanitizedContent as any);
     return reply.send({ success: true });
   });
 }
