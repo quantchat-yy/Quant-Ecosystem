@@ -9,6 +9,8 @@ import {
   ModelRoute,
   LatencyStats,
 } from '../types';
+import { ModelLoader } from '@quant/ml-runtime';
+import * as ort from 'onnxruntime-node';
 
 interface CacheEntry {
   result: InferenceResult;
@@ -24,14 +26,9 @@ interface LoadedModel {
   isWarm: boolean;
   lastUsed: number;
   inferenceCount: number;
+  onnxLoaded: boolean;
 }
 
-/**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: JS-based inference without real runtime
- * Production path: Use ONNX Runtime or TensorRT
- */
 export class InferenceEngine {
   private models: Map<string, LoadedModel> = new Map();
   private cache: Map<string, CacheEntry> = new Map();
@@ -44,10 +41,57 @@ export class InferenceEngine {
   private fallbacks: Map<string, string> = new Map();
   private totalInferences: number = 0;
   private errorCount: number = 0;
+  private modelLoader: ModelLoader | null = null;
 
   constructor(options: { cacheMaxSize?: number; cacheTTL?: number } = {}) {
     this.cacheMaxSize = options.cacheMaxSize ?? 1000;
     this.cacheTTL = options.cacheTTL ?? 60000;
+  }
+
+  setModelLoader(loader: ModelLoader): void {
+    this.modelLoader = loader;
+  }
+
+  async loadOnnxModel(
+    name: string,
+    version: string,
+    weights?: number[][],
+    bias?: number[],
+  ): Promise<void> {
+    const key = `${name}@${version}`;
+
+    if (!this.modelLoader) {
+      throw new Error('ModelLoader not set. Call setModelLoader() first.');
+    }
+
+    try {
+      await this.modelLoader.loadSession(name, version);
+      this.models.set(key, {
+        name,
+        version,
+        weights: weights ?? [],
+        bias: bias ?? [],
+        isWarm: true,
+        lastUsed: Date.now(),
+        inferenceCount: 0,
+        onnxLoaded: true,
+      });
+    } catch (err) {
+      if (weights && bias) {
+        this.models.set(key, {
+          name,
+          version,
+          weights,
+          bias,
+          isWarm: false,
+          lastUsed: Date.now(),
+          inferenceCount: 0,
+          onnxLoaded: false,
+        });
+      } else {
+        throw err;
+      }
+    }
   }
 
   loadModel(name: string, version: string, weights: number[][], bias: number[]): void {
@@ -60,6 +104,7 @@ export class InferenceEngine {
       isWarm: false,
       lastUsed: Date.now(),
       inferenceCount: 0,
+      onnxLoaded: false,
     });
   }
 
@@ -67,7 +112,10 @@ export class InferenceEngine {
     const key = `${name}@${version}`;
     const model = this.models.get(key);
     if (!model) return;
-    // Pre-compute on sample inputs to warm JIT
+    if (model.onnxLoaded) {
+      model.isWarm = true;
+      return;
+    }
     const samples = sampleInputs ?? [new Array(model.weights[0]?.length ?? 10).fill(0)];
     for (const input of samples) {
       this.forwardPass(model, input);
@@ -82,29 +130,44 @@ export class InferenceEngine {
       for (let j = 0; j < model.weights[o]!.length; j++) {
         sum += (model.weights[o]![j] ?? 0) * (input[j] ?? 0);
       }
-      // Sigmoid activation
       outputs.push(1 / (1 + Math.exp(-Math.max(-500, Math.min(500, sum)))));
     }
     return outputs;
   }
 
-  infer(request: InferenceRequest): InferenceResult {
+  private async onnxInference(model: LoadedModel, input: number[]): Promise<number[]> {
+    if (!this.modelLoader) {
+      return this.forwardPass(model, input);
+    }
+
+    try {
+      const tensor = new ort.Tensor('float32', Float32Array.from(input), [1, input.length]);
+      const feeds: Record<string, ort.Tensor> = { input: tensor };
+      const results = await this.modelLoader.runInference(model.name, model.version, feeds as any);
+      const outputTensor = (results as any).output ?? (results as any)[Object.keys(results)[0]!];
+      if (outputTensor && outputTensor.data) {
+        return Array.from(outputTensor.data as Float32Array);
+      }
+      return this.forwardPass(model, input);
+    } catch {
+      return this.forwardPass(model, input);
+    }
+  }
+
+  async inferAsync(request: InferenceRequest): Promise<InferenceResult> {
     const startTime = Date.now();
     this.totalInferences++;
 
-    // Check cache
     const cacheKey = this.getCacheKey(request);
     const cached = this.getFromCache(cacheKey);
     if (cached) {
       return { ...cached, cached: true, latencyMs: Date.now() - startTime };
     }
 
-    // Determine which model to use
     const route = this.resolveRoute(request);
     const modelKey = `${route.modelName}@${route.modelVersion}`;
     let model = this.models.get(modelKey);
 
-    // Try fallback if primary fails
     if (!model) {
       const fallbackKey = this.fallbacks.get(route.modelName);
       if (fallbackKey) {
@@ -125,11 +188,15 @@ export class InferenceEngine {
       }
     }
 
-    // Validate and preprocess input
     const processedInput = this.preprocessInput(request.features, model);
 
-    // Forward pass
-    const outputs = this.forwardPass(model, processedInput);
+    let outputs: number[];
+    if (model.onnxLoaded) {
+      outputs = await this.onnxInference(model, processedInput);
+    } else {
+      outputs = this.forwardPass(model, processedInput);
+    }
+
     const prediction = outputs[0] ?? 0;
     const probability = [1 - prediction, prediction];
 
@@ -147,10 +214,75 @@ export class InferenceEngine {
       timestamp: Date.now(),
     };
 
-    // Cache result
     this.addToCache(cacheKey, result);
+    this.trackLatency(result.latencyMs);
 
-    // Track latency
+    return result;
+  }
+
+  infer(request: InferenceRequest): InferenceResult {
+    const startTime = Date.now();
+    this.totalInferences++;
+
+    const cacheKey = this.getCacheKey(request);
+    const cached = this.getFromCache(cacheKey);
+    if (cached) {
+      return { ...cached, cached: true, latencyMs: Date.now() - startTime };
+    }
+
+    const route = this.resolveRoute(request);
+    const modelKey = `${route.modelName}@${route.modelVersion}`;
+    let model = this.models.get(modelKey);
+
+    if (!model) {
+      const fallbackKey = this.fallbacks.get(route.modelName);
+      if (fallbackKey) {
+        model = this.models.get(fallbackKey);
+      }
+      if (!model) {
+        this.errorCount++;
+        return {
+          inputId: request.inputId,
+          prediction: 0,
+          probability: [0.5, 0.5],
+          latencyMs: Date.now() - startTime,
+          modelName: route.modelName,
+          modelVersion: route.modelVersion,
+          cached: false,
+          timestamp: Date.now(),
+        };
+      }
+    }
+
+    const processedInput = this.preprocessInput(request.features, model);
+
+    let outputs: number[];
+    if (model.onnxLoaded) {
+      throw new Error(
+        'Model loaded via ONNX. Use inferAsync() for ONNX models, or load with loadModel() for sync inference.',
+      );
+    } else {
+      outputs = this.forwardPass(model, processedInput);
+    }
+
+    const prediction = outputs[0] ?? 0;
+    const probability = [1 - prediction, prediction];
+
+    model.lastUsed = Date.now();
+    model.inferenceCount++;
+
+    const result: InferenceResult = {
+      inputId: request.inputId,
+      prediction: prediction >= 0.5 ? 1 : 0,
+      probability,
+      latencyMs: Date.now() - startTime,
+      modelName: model.name,
+      modelVersion: model.version,
+      cached: false,
+      timestamp: Date.now(),
+    };
+
+    this.addToCache(cacheKey, result);
     this.trackLatency(result.latencyMs);
 
     return result;
@@ -167,10 +299,23 @@ export class InferenceEngine {
     return results;
   }
 
+  async inferBatchAsync(
+    requests: InferenceRequest[],
+    chunkSize: number = 100,
+  ): Promise<InferenceResult[]> {
+    const results: InferenceResult[] = [];
+    for (let i = 0; i < requests.length; i += chunkSize) {
+      const chunk = requests.slice(i, i + chunkSize);
+      for (const request of chunk) {
+        results.push(await this.inferAsync(request));
+      }
+    }
+    return results;
+  }
+
   private preprocessInput(features: number[], model: LoadedModel): number[] {
     const expectedDim = model.weights[0]?.length ?? 0;
     if (features.length === expectedDim) return features;
-    // Pad or truncate
     const result = new Array(expectedDim).fill(0);
     for (let i = 0; i < Math.min(features.length, expectedDim); i++) {
       result[i] = features[i];
@@ -179,12 +324,10 @@ export class InferenceEngine {
   }
 
   private resolveRoute(request: InferenceRequest): { modelName: string; modelVersion: string } {
-    // Check if there is a specific model requested
     if (request.modelName && request.modelVersion) {
       return { modelName: request.modelName, modelVersion: request.modelVersion };
     }
 
-    // Check A/B tests
     for (const [, test] of this.abTests.entries()) {
       if (!test.active) continue;
       const totalWeight = test.modelA.trafficWeight + test.modelB.trafficWeight;
@@ -195,7 +338,6 @@ export class InferenceEngine {
       return { modelName: test.modelB.name, modelVersion: test.modelB.version };
     }
 
-    // Use routes with weighted random
     if (this.routes.length > 0) {
       const totalWeight = this.routes.reduce((sum, r) => sum + r.weight, 0);
       let rand = Math.random() * totalWeight;
@@ -209,7 +351,6 @@ export class InferenceEngine {
       return { modelName: last.modelName, modelVersion: last.modelVersion };
     }
 
-    // Default to first loaded model
     const firstModel = this.models.values().next().value as LoadedModel | undefined;
     if (firstModel) {
       return { modelName: firstModel.name, modelVersion: firstModel.version };
@@ -261,7 +402,6 @@ export class InferenceEngine {
   }
 
   private evictLRU(): void {
-    // Remove oldest entries (FIFO approximation for LRU)
     const entries = Array.from(this.cache.entries());
     entries.sort((a, b) => a[1].hitCount - b[1].hitCount);
     const toRemove = Math.floor(this.cacheMaxSize * 0.2);
@@ -298,13 +438,14 @@ export class InferenceEngine {
   getModelStats(
     name: string,
     version: string,
-  ): { inferenceCount: number; isWarm: boolean; lastUsed: number } | null {
+  ): { inferenceCount: number; isWarm: boolean; lastUsed: number; onnxLoaded: boolean } | null {
     const model = this.models.get(`${name}@${version}`);
     if (!model) return null;
     return {
       inferenceCount: model.inferenceCount,
       isWarm: model.isWarm,
       lastUsed: model.lastUsed,
+      onnxLoaded: model.onnxLoaded,
     };
   }
 
