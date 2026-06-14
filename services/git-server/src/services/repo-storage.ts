@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { access, rm, mkdir } from 'node:fs/promises';
-import { join, resolve, sep } from 'node:path';
+import { resolve, sep } from 'node:path';
 
 const execFileAsync = promisify(execFile);
 
@@ -16,6 +16,12 @@ export class RepoStorageService {
     if (!owner || !name) {
       throw new Error('Invalid repository path: owner and name must not be empty');
     }
+    if (!/^[a-zA-Z0-9._-]+$/.test(owner)) {
+      throw new Error('Invalid repository path: owner contains invalid characters');
+    }
+    if (!/^[a-zA-Z0-9._-]+$/.test(name)) {
+      throw new Error('Invalid repository path: name contains invalid characters');
+    }
     if (owner.includes(sep) || owner.includes('/') || owner.includes('\\')) {
       throw new Error('Invalid repository path: owner contains path separators');
     }
@@ -23,15 +29,14 @@ export class RepoStorageService {
       throw new Error('Invalid repository path: name contains path separators');
     }
 
-    const repoPath = join(this.basePath, owner, `${name}.git`);
     const resolvedBase = resolve(this.basePath);
-    const resolvedRepo = resolve(repoPath);
+    const resolvedRepo = resolve(resolvedBase, owner, `${name}.git`);
 
     if (!resolvedRepo.startsWith(resolvedBase + sep) && resolvedRepo !== resolvedBase) {
       throw new Error('Invalid repository path: path traversal detected');
     }
 
-    return repoPath;
+    return resolvedRepo;
   }
 
   async initBareRepo(owner: string, name: string): Promise<string> {
