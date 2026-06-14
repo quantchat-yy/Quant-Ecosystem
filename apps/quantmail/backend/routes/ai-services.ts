@@ -435,11 +435,22 @@ export default async function aiServicesRoutes(fastify: FastifyInstance) {
     signature: z.string(),
     publicKey: z.string(),
   });
-  fastify.post('/infra/pgp/verify', async (request, reply) => {
-    const body = VerifySchema.parse(request.body);
-    const result = await pgpService.verifySignature(body.message, body.signature, body.publicKey);
-    return reply.send({ success: true, data: { valid: result } });
-  });
+  fastify.post(
+    '/infra/pgp/verify',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+    },
+    async (request, reply) => {
+      const body = VerifySchema.parse(request.body);
+      const result = await pgpService.verifySignature(body.message, body.signature, body.publicKey);
+      return reply.send({ success: true, data: { valid: result } });
+    },
+  );
 
   // POST /infra/undo-send
   const UndoSendSchema = z.object({
