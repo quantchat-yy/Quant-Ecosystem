@@ -19,7 +19,8 @@ export class CDNManager {
 
   async purgeCache(urls: string[]): Promise<PurgeResult> {
     // In production, make actual API calls to CDN provider
-    console.log(`Purging CDN cache for ${urls.length} URLs via ${this.config.provider}`);
+    const safeProvider = String(this.config.provider).replace(/[\u0000-\u001f\u007f]/g, ' ');
+    console.log(`Purging CDN cache for ${urls.length} URLs via ${safeProvider}`);
 
     return {
       success: true,

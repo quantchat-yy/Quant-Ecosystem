@@ -20,8 +20,15 @@ function sanitizeValue(value: unknown): unknown {
   }
   if (value && typeof value === 'object') {
     const out: Record<string, unknown> = {};
+    const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
     for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
-      out[key] = sanitizeValue(nestedValue);
+      if (FORBIDDEN_KEYS.has(key)) continue;
+      Object.defineProperty(out, key, {
+        value: sanitizeValue(nestedValue),
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
     }
     return out;
   }

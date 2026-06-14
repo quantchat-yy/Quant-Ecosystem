@@ -55,6 +55,8 @@ export class CrossAppCommandBus extends EventTarget {
         };
       } else {
         globalWindow.addEventListener('message', (event: MessageEvent) => {
+          // Only accept commands from the same origin to prevent cross-origin injection.
+          if (event.origin !== globalWindow.location.origin) return;
           if (event.data && event.data.__quantCommand === true) {
             this.handleIncomingMessage(event.data.payload);
           }
@@ -91,7 +93,10 @@ export class CrossAppCommandBus extends EventTarget {
     if (this.broadcastChannel) {
       this.broadcastChannel.postMessage({ type: 'command', payload: validated });
     } else if (typeof window !== 'undefined') {
-      window.postMessage({ __quantCommand: true, type: 'command', payload: validated }, '*');
+      window.postMessage(
+        { __quantCommand: true, type: 'command', payload: validated },
+        window.location.origin,
+      );
     }
 
     return this.executeLocalHandlers(validated);
