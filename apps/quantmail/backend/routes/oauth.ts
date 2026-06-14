@@ -29,6 +29,20 @@ export async function oauthRoutes(fastify: FastifyInstance) {
     (request as any).user = payload;
   };
 
+  const validateRedirectUri = async (clientId: string, redirectUri: string): Promise<boolean> => {
+    if (!clientId || !redirectUri) return false;
+    const client = await prisma.oAuthClient.findUnique({ where: { clientId } });
+    return !!client && client.redirectUris.includes(redirectUri);
+  };
+
+  const esc = (value: unknown): string =>
+    String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
   // POST /oauth/token
   fastify.post('/oauth/token', async (request, reply) => {
     const body = request.body as any;
@@ -104,6 +118,12 @@ export async function oauthRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ error: 'invalid_request' });
     }
 
+    if (!(await validateRedirectUri(client_id, redirect_uri))) {
+      return reply
+        .code(400)
+        .send({ error: 'invalid_request', error_description: 'Invalid redirect_uri' });
+    }
+
     const userId = request.user?.id || request.user?.sub;
     if (!userId) {
       return reply.code(401).send({ error: 'unauthorized' });
@@ -145,22 +165,22 @@ export async function oauthRoutes(fastify: FastifyInstance) {
         <head><title>QuantMail - Authorize Application</title></head>
         <body style="font-family: system-ui; max-width: 520px; margin: 60px auto; padding: 20px; line-height: 1.6;">
           <h2>Authorize Application</h2>
-          <p><strong>${client_id}</strong> wants to access your QuantMail account.</p>
+          <p><strong>${esc(client_id)}</strong> wants to access your QuantMail account.</p>
           
           <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin: 20px 0;">
             <strong>Permissions requested:</strong><br>
             ${(scope || 'openid profile email')
               .split(' ')
-              .map((s: string) => `• ${s}`)
+              .map((s: string) => `• ${esc(s)}`)
               .join('<br>')}
           </div>
 
           <form method="POST" action="/oauth/consent">
-            <input type="hidden" name="client_id" value="${client_id}">
-            <input type="hidden" name="redirect_uri" value="${redirect_uri}">
-            <input type="hidden" name="user_id" value="${userId}">
-            <input type="hidden" name="scope" value="${scope || 'openid profile email'}">
-            <input type="hidden" name="state" value="${state || ''}">
+            <input type="hidden" name="client_id" value="${esc(client_id)}">
+            <input type="hidden" name="redirect_uri" value="${esc(redirect_uri)}">
+            <input type="hidden" name="user_id" value="${esc(userId)}">
+            <input type="hidden" name="scope" value="${esc(scope || 'openid profile email')}">
+            <input type="hidden" name="state" value="${esc(state || '')}">
             
             <button type="submit" name="action" value="approve" 
                     style="background: #0066ff; color: white; padding: 14px 28px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">
@@ -183,6 +203,12 @@ export async function oauthRoutes(fastify: FastifyInstance) {
   fastify.post('/oauth/consent', async (request, reply) => {
     const body = request.body as any;
     const { action, client_id, redirect_uri, user_id, scope, state } = body;
+
+    if (!(await validateRedirectUri(client_id, redirect_uri))) {
+      return reply
+        .code(400)
+        .send({ error: 'invalid_request', error_description: 'Invalid redirect_uri' });
+    }
 
     if (action !== 'approve') {
       const errorUrl = `${redirect_uri}?error=access_denied${state ? `&state=${state}` : ''}`;
