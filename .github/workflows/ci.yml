@@ -10,6 +10,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   # Hard gate: packages affected by this change must pass.
   # Pre-existing failures elsewhere in the repo do not block.

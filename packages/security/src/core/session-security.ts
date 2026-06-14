@@ -2,6 +2,7 @@
 // Security Package - Session Security
 // ============================================================================
 
+import crypto from 'crypto';
 import type { SessionConfig, SecureSession } from '../types';
 
 /** Default session configuration */
@@ -259,7 +260,7 @@ export class SessionSecurity {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let id = '';
     for (let i = 0; i < 48; i++) {
-      id += chars[Math.floor(Math.random() * chars.length)];
+      id += chars[crypto.randomInt(chars.length)];
     }
     return id;
   }
