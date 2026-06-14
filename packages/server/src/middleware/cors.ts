@@ -73,7 +73,7 @@ export function corsMiddleware(options: CorsOptions): Middleware {
   // Pre-compile origin patterns for regex-based matching
   const originPatterns = options.origins
     .filter((o) => o.includes('*') && o !== '*')
-    .map((o) => new RegExp('^' + o.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$'));
+    .map((o) => new RegExp('^' + o.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*') + '$'));
 
   return (req: Request, res: Response, next: NextFunction): void => {
     const requestOrigin = req.headers['origin'] || '';

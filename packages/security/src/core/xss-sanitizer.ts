@@ -122,7 +122,11 @@ export class XSSSanitizer {
 
     // Strip HTML comments
     if (this.config.stripComments) {
-      clean = clean.replace(/<!--[\s\S]*?-->/g, '');
+      let prevC = '';
+      do {
+        prevC = clean;
+        clean = clean.replace(/<!--[\s\S]*?-->/g, '');
+      } while (clean !== prevC);
     }
 
     // Remove dangerous tags entirely
@@ -316,7 +320,14 @@ export class XSSSanitizer {
 
   /** Remove all event handler attributes */
   private removeEventHandlers(input: string): string {
-    return input.replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+    const reEvt = /\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi;
+    let prevE = '';
+    let out = input;
+    do {
+      prevE = out;
+      out = out.replace(reEvt, '');
+    } while (out !== prevE);
+    return out;
   }
 
   /** Block CSS expressions and dangerous CSS */
