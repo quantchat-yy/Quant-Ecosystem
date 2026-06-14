@@ -58,15 +58,19 @@ export class Router {
       const parentPath = parent.route.path.replace(/\/$/, '');
       fullPath = parentPath + '/' + route.path.replace(/^\//, '');
     }
-    // Convert path pattern to regex
-    const regexStr = fullPath
-      .replace(/\//g, '\\/')
-      .replace(/:([^/]+)/g, (_, paramName) => {
-        paramNames.push(paramName);
-        return '([^/]+)';
-      })
-      .replace(/\\\*$/g, '(.*)') // wildcard at end
-      .replace(/\*/g, '(.*)'); // wildcard anywhere
+    // Convert path pattern to regex in a single pass so escaping and
+    // wildcard/param substitution cannot interfere with one another.
+    const regexStr = fullPath.replace(
+      /:([^/]+)|\*|[.\/+?^${}()|[\]\\]/g,
+      (m, paramName) => {
+        if (paramName) {
+          paramNames.push(paramName);
+          return '([^/]+)';
+        }
+        if (m === '*') return '(.*)';
+        return '\\' + m; // escape any other regex metacharacter literally
+      },
+    );
 
     const regex = new RegExp(`^${regexStr}$`);
     return { route: { ...route, path: fullPath }, regex, paramNames, parent };
