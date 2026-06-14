@@ -10,6 +10,7 @@ import metricsPlugin from './plugins/metrics';
 import requestIdPlugin from './plugins/request-id';
 import requestLoggerPlugin from './plugins/request-logger';
 import gracefulShutdownPlugin from './plugins/graceful-shutdown';
+import rateLimitPlugin from '@fastify/rate-limit';
 
 export async function createApp(config: AppConfig) {
   // Production security validation
@@ -49,7 +50,6 @@ export async function createApp(config: AppConfig) {
   });
 
   // Register rate limiting with Redis or in-memory fallback
-  const rateLimit = await import('@fastify/rate-limit');
   const rateLimitOpts: Record<string, unknown> = {
     max: config.rateLimitMax,
     timeWindow: config.rateLimitWindow,
@@ -67,7 +67,7 @@ export async function createApp(config: AppConfig) {
     }
   }
 
-  await fastify.register(rateLimit.default, rateLimitOpts);
+  await fastify.register(rateLimitPlugin, rateLimitOpts);
 
   // Register cookie support
   const cookie = await import('@fastify/cookie');

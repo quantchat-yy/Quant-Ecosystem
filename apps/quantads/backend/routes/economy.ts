@@ -83,7 +83,7 @@ export default async function economyRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.post('/wallet/earn/daily', async (request, reply) => {
+  fastify.post('/wallet/earn/daily', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (request, reply) => {
     const parseResult = dailyLoginSchema.safeParse(request.body);
     if (!parseResult.success) {
       throw parseResult.error;

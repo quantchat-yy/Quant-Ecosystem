@@ -89,6 +89,14 @@ export default async function gitHttpRoutes(fastify: FastifyInstance): Promise<v
     Querystring: { service?: string };
   }>(
     '/:owner/:repo/info/refs',
+    {
+      config: {
+        rateLimit: {
+          max: GENERAL_RATE_LIMIT.max,
+          timeWindow: GENERAL_RATE_LIMIT.timeWindow,
+        },
+      },
+    },
     async (
       request: FastifyRequest<{
         Params: { owner: string; repo: string };

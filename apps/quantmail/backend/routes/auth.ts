@@ -19,7 +19,7 @@ export async function authRoutes(fastify: FastifyInstance) {
   });
 
   // POST /auth/login
-  fastify.post('/auth/login', async (request, reply) => {
+  fastify.post('/auth/login', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } }, async (request, reply) => {
     const { email, password } = request.body as any;
 
     if (!email || !password) {
