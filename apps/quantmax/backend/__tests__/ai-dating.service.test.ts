@@ -137,7 +137,10 @@ describe('AIDatingService', () => {
         content: '1. A\n2. B\n3. C\n4. D\n',
       });
 
-      const result = await service.generateIcebreakers({ matchBio: 'Test bio.' }, 'user-1');
+      const result = await service.generateIcebreakers(
+        { matchBio: 'Test bio.', count: 3 },
+        'user-1',
+      );
 
       expect(result.icebreakers).toHaveLength(3);
     });
