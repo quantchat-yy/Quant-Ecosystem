@@ -82,7 +82,7 @@ export class IntentParser {
     const entities: Record<string, string> = {};
 
     // Email addresses
-    const emailMatch = segment.match(/[\w.+%-]+@[\w.-]+\.[a-zA-Z]{2,}/);
+    const emailMatch = segment.match(/[\w.+%-]{1,64}@[\w.-]{1,255}\.[a-zA-Z]{2,24}/);
     if (emailMatch) {
       entities['email'] = emailMatch[0];
     }
