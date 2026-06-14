@@ -317,7 +317,7 @@ export function isEmpty(value: unknown): boolean {
 
 /**
  * Sanitize a URL for use in media src attributes (img, video, audio).
- * Only allows http:, https:, and data:image/ protocols.
+ * Only allows http:, https:, same-origin relative URLs, and data:image/* base64 URLs.
  * Returns an empty string for invalid or potentially dangerous URLs.
  */
 export function sanitizeMediaUrl(url: string | undefined | null): string {
@@ -326,31 +326,32 @@ export function sanitizeMediaUrl(url: string | undefined | null): string {
   const trimmed = url.trim();
   if (trimmed === '') return '';
 
-  // Block obfuscated javascript: protocol (with whitespace/control chars)
-  if (/j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t\s*:/i.test(trimmed)) {
+  // Allow only base64-encoded data images.
+  if (/^data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=\s]+$/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Parse with an explicit base to normalize and validate protocol/origin.
+  try {
+    const base =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : 'http://localhost';
+    const parsed = new URL(trimmed, base);
+
+    // Only allow http(s)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return '';
+    }
+
+    // If original input was relative, keep it same-origin after resolution.
+    const isRelative = !/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed) && !trimmed.startsWith('//');
+    if (isRelative && parsed.origin !== base) {
+      return '';
+    }
+
+    return parsed.toString();
+  } catch {
     return '';
   }
-
-  // Block vbscript: protocol
-  if (/v\s*b\s*s\s*c\s*r\s*i\s*p\s*t\s*:/i.test(trimmed)) {
-    return '';
-  }
-
-  // Allow relative URLs (no protocol)
-  if (trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../')) {
-    return trimmed;
-  }
-
-  // Allow safe absolute protocols
-  if (/^https?:\/\//i.test(trimmed)) {
-    return trimmed;
-  }
-
-  // Allow data:image/ URLs (but not data:text/html or other dangerous types)
-  if (/^data:image\//i.test(trimmed)) {
-    return trimmed;
-  }
-
-  // Block everything else (unknown protocols, data:text/html, etc.)
-  return '';
 }
