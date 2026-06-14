@@ -109,7 +109,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   useEffect(() => {
     if (editorRef.current && initialContent) {
-      editorRef.current.innerHTML = initialContent;
+      editorRef.current.innerHTML = sanitizeHtmlContent(initialContent);
       updateCounts();
     }
   }, []);

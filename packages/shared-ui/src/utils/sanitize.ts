@@ -7,7 +7,10 @@ import DOMPurify from 'dompurify';
  */
 export function sanitizeHtmlContent(html: string): string {
   if (typeof window === 'undefined') {
-    return html;
+    // Fail-closed: DOMPurify needs a DOM. On the server we cannot sanitize,
+    // so never emit raw HTML (would be an XSS sink in SSR output). The client
+    // re-runs sanitization on hydration and renders the real content.
+    return '';
   }
   return DOMPurify.sanitize(html);
 }
@@ -19,7 +22,10 @@ export function sanitizeHtmlContent(html: string): string {
  */
 export function sanitizeCodeHighlight(html: string): string {
   if (typeof window === 'undefined') {
-    return html;
+    // Fail-closed: DOMPurify needs a DOM. On the server we cannot sanitize,
+    // so never emit raw HTML (would be an XSS sink in SSR output). The client
+    // re-runs sanitization on hydration and renders the real content.
+    return '';
   }
   return DOMPurify.sanitize(html, {
     ALLOWED_TAGS: ['span', 'br'],

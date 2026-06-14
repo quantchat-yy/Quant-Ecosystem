@@ -58,11 +58,11 @@ describe('sanitizeHtmlContent', () => {
     expect(sanitizeHtmlContent('')).toBe('');
   });
 
-  it('returns input unchanged when window is undefined (SSR)', () => {
+  it('returns empty string when window is undefined (SSR, fail-closed)', () => {
     vi.stubGlobal('window', undefined);
     const input = '<script>alert("xss")</script><p>Safe</p>';
     const result = sanitizeHtmlContent(input);
-    expect(result).toBe(input);
+    expect(result).toBe('');
   });
 });
 
@@ -106,10 +106,10 @@ describe('sanitizeCodeHighlight', () => {
     expect(result).toContain('code');
   });
 
-  it('returns input unchanged when window is undefined (SSR)', () => {
+  it('returns empty string when window is undefined (SSR, fail-closed)', () => {
     vi.stubGlobal('window', undefined);
     const input = '<script>evil</script><span class="x">safe</span>';
     const result = sanitizeCodeHighlight(input);
-    expect(result).toBe(input);
+    expect(result).toBe('');
   });
 });
