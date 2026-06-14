@@ -173,10 +173,10 @@ ${this.escapeLatex(plainContent)}
     let content = html.replace(/<br\s*\/?>/gi, '\n').replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n');
     // Decode HTML entities BEFORE stripping tags so that encoded tags
     // (e.g. &lt;script&gt;) are revealed and then removed.
-    content = content.replace(/&amp;/g, '&');
     content = content.replace(/&lt;/g, '<');
     content = content.replace(/&gt;/g, '>');
     content = content.replace(/&quot;/g, '"');
+    content = content.replace(/&amp;/g, '&');
     // Strip tags in a loop to handle any nested or reconstructed tags
     while (/<[^>]+>/.test(content)) {
       content = content.replace(/<[^>]+>/g, '');
