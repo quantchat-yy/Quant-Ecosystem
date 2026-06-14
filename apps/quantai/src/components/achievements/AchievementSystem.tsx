@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 interface Achievement {
   id: string;
@@ -68,7 +67,7 @@ export const AchievementSystem: React.FC = () => {
     },
   ]);
 
-  const [showUnlock, setShowUnlock] = useState<Achievement | null>(null);
+  const [showUnlock] = useState<Achievement | null>(null);
 
   const totalXP = achievements.reduce((sum, a) => sum + (a.unlocked ? a.xpReward : 0), 0);
   const unlockedCount = achievements.filter((a) => a.unlocked).length;

@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, Badge, Button } from '@quant/shared-ui';
+import { Card, Button } from '@quant/shared-ui';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { spring } from '@quant/brand';

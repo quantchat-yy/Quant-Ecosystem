@@ -3,7 +3,7 @@
 // Monaco-like editor with AI suggestions, error highlighting, run button
 // ============================================================================
 
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { sanitizeCodeHighlight } from '@quant/shared-ui';
 
 /** Escape HTML metacharacters to prevent XSS before regex-based highlighting. */

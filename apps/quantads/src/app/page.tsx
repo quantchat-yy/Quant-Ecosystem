@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Card, Button, LoadingState, ErrorState } from '@quant/shared-ui';
+import { Card, Button, ErrorState } from '@quant/shared-ui';
 import { spring } from '@quant/brand';
 import { quantAdsAPI } from '../services/api-client';
 import type { Campaign } from '../types';

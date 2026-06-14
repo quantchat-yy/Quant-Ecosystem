@@ -133,11 +133,5 @@ export const AnalyticsDashboard: React.FC = () => {
   );
 };
 
-// Add Achievement System to Analytics
-import { AchievementSystem } from './achievements/AchievementSystem';
 
-// Add Daily Quests
-import { DailyQuests } from './quests/DailyQuests';
 
-// Add Leaderboard
-import { Leaderboard } from './leaderboard/Leaderboard';

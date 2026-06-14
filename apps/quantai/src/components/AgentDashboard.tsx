@@ -8,7 +8,7 @@ interface Agent {
 }
 
 export const AgentDashboard: React.FC = () => {
-  const [agents, setAgents] = useState<Agent[]>([
+  const [agents] = useState<Agent[]>([
     {
       id: 'quantai-agent',
       name: 'QuantAI Agent',
