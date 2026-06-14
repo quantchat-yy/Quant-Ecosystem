@@ -13,7 +13,7 @@ import { VoiceToggle } from '../components/VoiceToggle';
 import { AgenticMessage } from '../components/AgenticMessage';
 import { LoadingSkeleton } from '../components/LoadingSkeleton';
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
-import { PersonaSelector, DEFAULT_PERSONAS } from '../components/PersonaSelector';
+import { PersonaSelector } from '../components/PersonaSelector';
 import type { Persona } from '../components/PersonaSelector';
 
 export default function AIPage() {
@@ -71,8 +71,6 @@ export default function AIPage() {
     activeConversation,
     createConversation,
     selectConversation,
-    deleteConversation,
-    currentModel: hookModel,
     switchModel: hookSwitchModel,
   } = useAIChat({ defaultModel: currentModel.id });
 
@@ -101,15 +99,6 @@ export default function AIPage() {
     const newPersona: Persona = { ...data, id: `custom-${Date.now()}` };
     setCustomPersonas((prev) => [...prev, newPersona]);
     setActivePersona(newPersona);
-  }, []);
-
-  const handlePinConversation = useCallback((id: string) => {
-    setPinnedConversations((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
   }, []);
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -690,65 +679,7 @@ function ChatInput({
   );
 }
 
-// Addictive Streak Header
-const StreakHeader = () => (
-  <div className="flex items-center gap-4 px-6 py-3 bg-zinc-950 border-b border-zinc-800">
-    <div className="flex items-center gap-2">
-      <div className="text-2xl">🔥</div>
-      <div>
-        <div className="text-emerald-400 font-mono text-xl">47</div>
-        <div className="text-[10px] text-zinc-500 -mt-1">DAY STREAK</div>
-      </div>
-    </div>
-    <div className="h-3 w-px bg-zinc-800" />
-    <div className="text-sm text-zinc-400">You&apos;re on fire. Keep the momentum!</div>
-  </div>
-);
 
-// Addictive Today Progress Section
-const TodayProgress = () => (
-  <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-8 mb-8">
-    <div className="flex items-center justify-between mb-6">
-      <div>
-        <div className="text-xl font-semibold">Today&apos;s Progress</div>
-        <div className="text-sm text-white/50">Keep the momentum going</div>
-      </div>
-      <div className="text-emerald-400 text-3xl font-mono">87%</div>
-    </div>
 
-    <div className="space-y-4">
-      {[
-        { label: 'Messages sent', current: 47, target: 50, color: 'emerald' },
-        { label: 'Agents used', current: 8, target: 10, color: 'amber' },
-        { label: 'Voice minutes', current: 23, target: 30, color: 'purple' },
-      ].map((item, i) => (
-        <div key={i}>
-          <div className="flex justify-between text-sm mb-1.5">
-            <div>{item.label}</div>
-            <div className="text-white/60">
-              {item.current}/{item.target}
-            </div>
-          </div>
-          <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-emerald-400 to-white rounded-full"
-              style={{ width: `${(item.current / item.target) * 100}%` }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-);
 
-// Add Streak Calendar
-import { StreakCalendar } from '../components/streak/StreakCalendar';
 
-// Add Quick Actions
-import { QuickActions } from '../components/quick/QuickActions';
-
-// Add Trending Agents
-import { TrendingAgents } from '../components/trending/TrendingAgents';
-
-// Add Community Highlights
-import { CommunityHighlights } from '../components/community/CommunityHighlights';
