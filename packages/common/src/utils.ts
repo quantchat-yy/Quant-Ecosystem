@@ -317,7 +317,9 @@ export function isEmpty(value: unknown): boolean {
 
 /**
  * Sanitize a URL for use in media src attributes (img, video, audio).
- * Only allows http:, https:, and data:image/ protocols.
+ * Only allows:
+ * - Relative URLs beginning with "/", "./", or "../"
+ * - Absolute URLs with http: or https: protocols
  * Returns an empty string for invalid or potentially dangerous URLs.
  */
 export function sanitizeMediaUrl(url: string | undefined | null): string {
@@ -326,31 +328,28 @@ export function sanitizeMediaUrl(url: string | undefined | null): string {
   const trimmed = url.trim();
   if (trimmed === '') return '';
 
-  // Block obfuscated javascript: protocol (with whitespace/control chars)
-  if (/j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t\s*:/i.test(trimmed)) {
+  // Reject control characters that can be used for obfuscation.
+  if (/[\u0000-\u001F\u007F]/.test(trimmed)) {
     return '';
   }
 
-  // Block vbscript: protocol
-  if (/v\s*b\s*s\s*c\s*r\s*i\s*p\s*t\s*:/i.test(trimmed)) {
-    return '';
-  }
-
-  // Allow relative URLs (no protocol)
+  // Allow explicit relative URLs only.
   if (trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../')) {
+    // Disallow protocol-like forms in relative paths (for example: //evil.com)
+    if (trimmed.startsWith('//')) return '';
     return trimmed;
   }
 
-  // Allow safe absolute protocols
-  if (/^https?:\/\//i.test(trimmed)) {
-    return trimmed;
+  // Parse and validate absolute URLs with an allowlist.
+  try {
+    const parsed = new URL(trimmed);
+    const protocol = parsed.protocol.toLowerCase();
+    if (protocol === 'http:' || protocol === 'https:') {
+      return parsed.toString();
+    }
+  } catch {
+    return '';
   }
 
-  // Allow data:image/ URLs (but not data:text/html or other dangerous types)
-  if (/^data:image\//i.test(trimmed)) {
-    return trimmed;
-  }
-
-  // Block everything else (unknown protocols, data:text/html, etc.)
   return '';
 }
