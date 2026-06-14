@@ -12,6 +12,13 @@ import {
   ModelFramework,
 } from '../types';
 
+export interface RegistryStorage {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<void>;
+  delete(key: string): Promise<void>;
+  list(prefix: string): Promise<string[]>;
+}
+
 interface RegisteredModel {
   metadata: ModelMetadata;
   weights?: number[][];
@@ -20,18 +27,63 @@ interface RegisteredModel {
   tags: Set<string>;
 }
 
-/**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: In-memory model versioning
- * Production path: Use MLflow or SageMaker Model Registry
- */
 export class ModelRegistry {
   private models: Map<string, RegisteredModel> = new Map();
   private versionHistory: Map<string, string[]> = new Map();
   private abTests: Map<string, ABTestConfig> = new Map();
   private statusTransitions: Map<string, ModelStatus[]> = new Map();
   private productionModels: Map<string, string> = new Map();
+  private storage: RegistryStorage | null = null;
+
+  setStorage(storage: RegistryStorage): void {
+    this.storage = storage;
+  }
+
+  async persist(): Promise<void> {
+    if (!this.storage) return;
+
+    const data = {
+      models: Array.from(this.models.entries()).map(([key, model]) => ({
+        key,
+        metadata: model.metadata,
+        weights: model.weights,
+        bias: model.bias,
+        lineage: model.lineage,
+        tags: Array.from(model.tags),
+      })),
+      versionHistory: Array.from(this.versionHistory.entries()),
+      abTests: Array.from(this.abTests.entries()),
+      statusTransitions: Array.from(this.statusTransitions.entries()),
+      productionModels: Array.from(this.productionModels.entries()),
+    };
+
+    await this.storage.set('registry:state', JSON.stringify(data));
+  }
+
+  async restore(): Promise<void> {
+    if (!this.storage) return;
+
+    const raw = await this.storage.get('registry:state');
+    if (!raw) return;
+
+    const data = JSON.parse(raw);
+
+    this.models.clear();
+    for (const entry of data.models) {
+      this.models.set(entry.key, {
+        metadata: entry.metadata,
+        weights: entry.weights,
+        bias: entry.bias,
+        lineage: entry.lineage,
+        tags: new Set(entry.tags),
+      });
+    }
+
+    this.versionHistory = new Map(data.versionHistory);
+    this.abTests = new Map(data.abTests);
+    this.statusTransitions = new Map(data.statusTransitions);
+    this.productionModels = new Map(data.productionModels);
+  }
 
   private getModelKey(name: string, version: string): string {
     return `${name}@${version}`;
@@ -153,7 +205,6 @@ export class ModelRegistry {
     transitions.push(newStatus);
     this.statusTransitions.set(key, transitions);
     if (newStatus === 'production') {
-      // Demote current production model
       const currentProd = this.productionModels.get(name);
       if (currentProd && currentProd !== version) {
         const currentKey = this.getModelKey(name, currentProd);
