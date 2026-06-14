@@ -66,7 +66,7 @@ export class Router {
         return '([^/]+)';
       })
       .replace(/\\\*$/g, '(.*)') // wildcard at end
-      .replace(/\*/, '(.*)'); // wildcard anywhere
+      .replace(/\*/g, '(.*)'); // wildcard anywhere
 
     const regex = new RegExp(`^${regexStr}$`);
     return { route: { ...route, path: fullPath }, regex, paramNames, parent };
