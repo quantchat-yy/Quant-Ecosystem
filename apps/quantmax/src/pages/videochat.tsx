@@ -176,7 +176,7 @@ const VideoChatPage: React.FC = () => {
         setMatchedInterests(matched.length > 0 ? matched : []);
         setMatchedUser({
           id: `user-${Date.now()}`,
-          username: `User${Math.floor(Math.random() * 9999)}`,
+          username: `User${globalThis.crypto.getRandomValues(new Uint32Array(1))[0] % 9999}`,
           avatarUrl: `https://cdn.quantmax.app/avatars/random${Math.floor(Math.random() * 50)}.jpg`,
           interests: userInterests,
           country: ['US', 'UK', 'DE', 'FR', 'JP', 'BR', 'IN'][Math.floor(Math.random() * 7)],
