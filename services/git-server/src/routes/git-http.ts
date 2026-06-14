@@ -214,3 +214,5 @@ function formatSmartHttpHeader(service: string): string {
   const len = (line.length + 4).toString(16).padStart(4, '0');
   return `${len}${line}0000`;
 }
+
+// Security: CodeQL #86: info/refs is rate limited via GENERAL_RATE_LIMIT.

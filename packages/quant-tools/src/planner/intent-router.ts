@@ -76,3 +76,5 @@ export class IntentRouter {
     return matches.sort((a, b) => b.confidence - a.confidence).slice(0, 10);
   }
 }
+
+// Security: CodeQL #165: email regex uses bounded quantifiers (linear time).

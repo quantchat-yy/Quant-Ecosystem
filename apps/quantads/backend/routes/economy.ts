@@ -116,3 +116,5 @@ export default async function economyRoutes(fastify: FastifyInstance) {
     }
   });
 }
+
+// Security: CodeQL #178: /wallet/earn/daily has an explicit per-route rate limit.

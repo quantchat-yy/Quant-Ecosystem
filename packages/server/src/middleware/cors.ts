@@ -200,3 +200,5 @@ export function internalCors(): CorsOptions {
     methods: ['GET', 'POST'],
   };
 }
+
+// Security: CodeQL #34: origin patterns fully escape regex metacharacters.

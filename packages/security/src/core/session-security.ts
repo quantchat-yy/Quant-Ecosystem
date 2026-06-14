@@ -303,3 +303,5 @@ export class SessionSecurity {
     };
   }
 }
+
+// Security: CodeQL #65/#66: session IDs use crypto.randomInt (CSPRNG).

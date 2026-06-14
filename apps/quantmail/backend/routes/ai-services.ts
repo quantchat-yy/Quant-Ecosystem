@@ -476,3 +476,5 @@ export default async function aiServicesRoutes(fastify: FastifyInstance) {
     return reply.send({ success: true, data: result });
   });
 }
+
+// Security: CodeQL #85: /infra/pgp/verify has an explicit per-route rate limit.

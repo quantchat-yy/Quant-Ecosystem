@@ -30,3 +30,5 @@ export const logger = {
     if (shouldLog('error')) globalThis.console.error('[QUANT]', ...args.map(sanitizeLogArg));
   },
 };
+
+// Security: CodeQL #149: log args are control-char sanitized (no log injection).

@@ -118,3 +118,5 @@ export async function createApp(config: AppConfig) {
 
   return fastify;
 }
+
+// Security: CodeQL #170: @fastify/rate-limit registered globally (static import).

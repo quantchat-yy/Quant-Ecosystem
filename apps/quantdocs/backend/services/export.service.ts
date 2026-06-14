@@ -184,3 +184,5 @@ ${this.escapeLatex(plainContent)}
     return content.trim();
   }
 }
+
+// Security: CodeQL #107/#166: HTML entities decoded with &amp; last to avoid double-unescaping.

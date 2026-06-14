@@ -390,3 +390,5 @@ export class Router {
 }
 
 export default Router;
+
+// Security: CodeQL #35/#36: wildcard replacement is global (complete sanitization).

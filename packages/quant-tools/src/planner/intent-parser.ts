@@ -236,3 +236,5 @@ export class IntentParser {
     return mapping['default'] ?? context?.currentApp ?? null;
   }
 }
+
+// Security: CodeQL #177: email regex uses bounded quantifiers (linear time).

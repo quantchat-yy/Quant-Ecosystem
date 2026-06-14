@@ -100,3 +100,5 @@ export class InMemoryEngine implements SearchEngine {
     return true;
   }
 }
+
+// Security: CodeQL #174: filter regex avoids overlapping quantifiers (linear time).

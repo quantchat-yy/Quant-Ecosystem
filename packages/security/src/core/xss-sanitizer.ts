@@ -379,3 +379,5 @@ export class XSSSanitizer {
     return { totalThreats: this.threatLog.length, bySeverity };
   }
 }
+
+// Security: CodeQL #32/#33: comment and event-handler stripping run to a fixpoint.
