@@ -2,6 +2,7 @@
 // Security Package - Session Security
 // ============================================================================
 
+import { randomBytes } from 'crypto';
 import type { SessionConfig, SecureSession } from '../types';
 
 /** Default session configuration */
@@ -257,10 +258,20 @@ export class SessionSecurity {
   /** Generate a cryptographically secure session ID */
   private generateSessionId(): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const targetLength = 48;
+    const maxUnbiasedByte = 248; // 248 % 62 === 0, avoids modulo bias
     let id = '';
-    for (let i = 0; i < 48; i++) {
-      id += chars[Math.floor(Math.random() * chars.length)];
+
+    while (id.length < targetLength) {
+      const bytes = randomBytes(targetLength);
+      for (let i = 0; i < bytes.length && id.length < targetLength; i++) {
+        const b = bytes[i]!;
+        if (b < maxUnbiasedByte) {
+          id += chars[b % chars.length];
+        }
+      }
     }
+
     return id;
   }
 
