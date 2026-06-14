@@ -130,3 +130,21 @@ Flagship path = QuantMail + QuantChat + QuantAI + agentic execution.
 |------|-------|---------|
 | NAIVE | 26 | Working but simplified implementation (in-memory, pure JS, heuristic-based) |
 | FAKE  | 1  | Returns hardcoded/stub values, no real logic (CSAMGuardLegacy only) |
+
+---
+
+## CEO Update — 2026-06-14 (verified by reading source, not trusting labels)
+
+**P0 tier COMPLETE** (pushed to origin/main, commits `11bbca21`/`d909dbd3`/`8adaa1bc`):
+- `ml-runtime/model-loader.ts` — real `onnxruntime-node` session loading via `ModelLoader` (loadSession/runInference). No longer `@simulated`.
+- `ml-pipeline/inference-engine.ts` — real ONNX inference. No longer `@simulated`.
+- `ml-pipeline/model-registry.ts` — persistent model registry with storage backend. No longer `@simulated`.
+- Gate: ml-runtime tsc 0 / 92 tests; ml-pipeline tsc 0 / 198 tests. Green.
+
+**Several P1 "stubs" are MISLABELED — a real production path already exists alongside them. Do NOT rebuild these (would duplicate working code):**
+- **Embeddings:** `ml-pipeline/src/embedding-service.ts` is REAL and production-grade — `EmbeddingBackend` interface + `OpenAIEmbeddingBackend` (real `/v1/embeddings` HTTP) + `TritonEmbeddingBackend` + language-routing `EmbeddingService` (17 tests). `text-embeddings.ts` (skip-gram, flagged `@simulated NAIVE`) is a SEPARATE lightweight in-process featurizer, NOT the production embedding path. No action needed.
+- **CSAM:** `moderation/src/services/csam-matcher.ts` — `CSAMMatchService` is REAL: pluggable `CSAMHashProvider`, <500ms timeout, fail-closed (timeout/no-provider => block upload), report generation + paging webhook. Only `CSAMGuardLegacy` carries the FAKE label, and it is DELIBERATELY fail-closed (throws unless `UGC_MEDIA_ENABLED=true` + real provider). Correct design. No action without a real PhotoDNA/Thorn partnership (external, cannot be stubbed safely).
+
+**Remaining genuinely-naive P1 stubs (spam-classifier, sentiment-analyzer, ner-engine, inverted-index BM25) FUNCTION with real algorithms** — they are not broken, just not SOTA. Their "production paths" (Elasticsearch/Meilisearch, DistilBERT, spaCy) require external services. Replacing them degrades nothing today; do so only when that external infra is provisioned.
+
+**Net:** the headline "27 stubs" overstates the product gap. Flagship path (QuantMail + QuantChat + QuantAI + agentic + real ONNX runtime + real embedding/CSAM services) is materially real. Next real work is product depth, not stub-swapping.
