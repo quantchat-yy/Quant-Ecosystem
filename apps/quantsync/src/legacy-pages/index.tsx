@@ -33,6 +33,31 @@ interface Post {
   communityName?: string;
 }
 
+const sanitizeIncomingPostPatch = (raw: unknown): Partial<Post> => {
+  if (!raw || typeof raw !== 'object') return {};
+  const input = raw as Partial<Post>;
+
+  const patch: Partial<Post> = { ...input };
+
+  if (typeof input.authorAvatar === 'string') {
+    patch.authorAvatar = sanitizeMediaUrl(input.authorAvatar);
+  }
+
+  if (Array.isArray(input.media)) {
+    patch.media = input.media
+      .filter((m): m is { type: 'image' | 'video' | 'gif'; url: string; thumbnail?: string } => {
+        return !!m && typeof m === 'object' && (m.type === 'image' || m.type === 'video' || m.type === 'gif');
+      })
+      .map((m) => ({
+        ...m,
+        url: sanitizeMediaUrl(m.url),
+        thumbnail: m.thumbnail ? sanitizeMediaUrl(m.thumbnail) : undefined,
+      }));
+  }
+
+  return patch;
+};
+
 const FeedPage: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [mode, setMode] = useState<'algorithm' | 'chronological'>('algorithm');
@@ -90,7 +115,8 @@ const FeedPage: React.FC = () => {
         if (msg.type === 'new_post') {
           setNewPostsCount((prev) => prev + 1);
         } else if (msg.type === 'post_updated') {
-          setPosts((prev) => prev.map((p) => (p.id === msg.post.id ? { ...p, ...msg.post } : p)));
+          const safePostPatch = sanitizeIncomingPostPatch(msg.post);
+          setPosts((prev) => prev.map((p) => (p.id === msg.post.id ? { ...p, ...safePostPatch } : p)));
         }
       } catch {}
     };
