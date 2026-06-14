@@ -25,6 +25,12 @@ export class PromptRegistry {
    * Load a prompt template by feature name and optional version
    */
   loadPrompt(feature: string, version?: string): PromptTemplate {
+    // Guard against path traversal: `feature` is interpolated into a filename
+    // (`${feature}.yaml`) and read from disk. Restrict it to a safe identifier
+    // so a caller passing untrusted input cannot escape the prompts directory.
+    if (!/^[a-zA-Z0-9_-]+$/.test(feature)) {
+      throw new Error(`Invalid prompt feature name: ${feature}`);
+    }
     const cacheKey = version ? `${feature}@${version}` : feature;
 
     // Return cached if available
