@@ -122,7 +122,11 @@ export class XSSSanitizer {
 
     // Strip HTML comments
     if (this.config.stripComments) {
-      clean = clean.replace(/<!--[\s\S]*?-->/g, '');
+      let previous: string;
+      do {
+        previous = clean;
+        clean = clean.replace(/<!--[\s\S]*?-->/g, '');
+      } while (clean !== previous);
     }
 
     // Remove dangerous tags entirely
