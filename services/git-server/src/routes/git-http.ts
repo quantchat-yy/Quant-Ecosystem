@@ -60,6 +60,10 @@ export default async function gitHttpRoutes(fastify: FastifyInstance): Promise<v
     }
   };
 
+  await fastify.register(rateLimit, {
+    global: false,
+  });
+
   // Register content type parser for git protocol requests
   fastify.addContentTypeParser(
     'application/x-git-upload-pack-request',
@@ -89,6 +93,14 @@ export default async function gitHttpRoutes(fastify: FastifyInstance): Promise<v
     Querystring: { service?: string };
   }>(
     '/:owner/:repo/info/refs',
+    {
+      config: {
+        rateLimit: {
+          max: 100,
+          timeWindow: '1 minute',
+        },
+      },
+    },
     async (
       request: FastifyRequest<{
         Params: { owner: string; repo: string };
