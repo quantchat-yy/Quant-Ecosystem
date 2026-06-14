@@ -10,6 +10,7 @@ import {
   MemorySnapshot,
   PerformanceBudget,
 } from '../types';
+import { randomBytes } from 'crypto';
 
 interface FunctionProfile {
   name: string;
@@ -42,7 +43,7 @@ export class PerformanceProfiler {
 
   // Start a profiling session
   startSession(id?: string): string {
-    const sessionId = id || `session_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const sessionId = id || `session_${Date.now()}_${randomBytes(3).toString('hex')}`;
     const session: ProfilingSession = {
       id: sessionId,
       startTime: Date.now(),
