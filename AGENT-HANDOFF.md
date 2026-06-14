@@ -57,7 +57,7 @@
 
 ## Task: STUB-AUDIT — Map the 75 stubs by app + priority
 
-- Assigned: opencode-go/deepseek-v4-flash Priority: P1 Status: PENDING
+- Assigned: opencode-go/deepseek-v4-flash Priority: P1 Status: DONE
 - Scope: read-only; write findings to `STUB-INVENTORY.md`
 - Do: list every `@simulated` occurrence grouped by app/package, one line each with
   what it fakes and a P0/P1/P2 for the flagship path.
