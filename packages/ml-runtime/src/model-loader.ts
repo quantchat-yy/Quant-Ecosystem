@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { z } from 'zod';
+import * as ort from 'onnxruntime-node';
 
 export interface StorageBackend {
   read(path: string): Promise<ArrayBuffer | null>;
@@ -22,7 +23,7 @@ export const ModelLoaderConfigSchema = z.object({
     .number()
     .int()
     .positive()
-    .default(10 * 1024 * 1024 * 1024), // 10GB
+    .default(10 * 1024 * 1024 * 1024),
   enableChecksum: z.boolean().default(true),
   checksumAlgorithm: z.enum(['sha256', 'md5']).default('sha256'),
   maxVersions: z.number().int().positive().default(5),
@@ -47,17 +48,12 @@ export interface CacheStats {
   newestModel: string | null;
 }
 
-/**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: Defines ONNX loading interfaces but JS fallback has no real ONNX runtime bindings
- * Production path: Bind to onnxruntime-node native addon
- */
 export class ModelLoader {
   private readonly config: ModelLoaderConfig;
   private readonly storage: StorageBackend;
   private readonly downloader: ModelDownloader;
   private readonly manifests: Map<string, ModelManifest> = new Map();
+  private readonly sessions: Map<string, ort.InferenceSession> = new Map();
   private sequenceCounter: number = 0;
 
   constructor(
@@ -75,7 +71,6 @@ export class ModelLoader {
     const cacheKey = this.getCacheKey(modelName, version);
     const cachePath = `${this.config.cacheDir}/${cacheKey}`;
 
-    // Check if already cached
     if (await this.storage.exists(cachePath)) {
       const manifest = this.manifests.get(cacheKey);
       if (manifest) {
@@ -84,10 +79,8 @@ export class ModelLoader {
       }
     }
 
-    // Download model
     const data = await this.downloader.download(modelUrl);
 
-    // Validate checksum if provided
     if (this.config.enableChecksum && expectedChecksum) {
       const actualChecksum = await this.computeChecksum(data);
       if (actualChecksum !== expectedChecksum) {
@@ -97,13 +90,10 @@ export class ModelLoader {
       }
     }
 
-    // Evict old models if needed
     await this.evictIfNeeded(data.byteLength);
 
-    // Store model
     await this.storage.write(cachePath, data);
 
-    // Update manifest
     const checksum = await this.computeChecksum(data);
     this.sequenceCounter++;
     const manifest: ModelManifest = {
@@ -117,10 +107,56 @@ export class ModelLoader {
     };
     this.manifests.set(cacheKey, manifest);
 
-    // Evict old versions
     await this.evictOldVersions(modelName);
 
     return cachePath;
+  }
+
+  async loadSession(
+    name: string,
+    version: string,
+    options?: ort.InferenceSession.SessionOptions,
+  ): Promise<ort.InferenceSession> {
+    const cacheKey = this.getCacheKey(name, version);
+
+    const existing = this.sessions.get(cacheKey);
+    if (existing) return existing;
+
+    const buffer = await this.getModelBuffer(name, version);
+    if (!buffer) {
+      throw new Error(`Model ${name}@${version} not found in cache`);
+    }
+
+    const uint8 = new Uint8Array(buffer);
+    const session = await ort.InferenceSession.create(uint8, options);
+    this.sessions.set(cacheKey, session);
+    return session;
+  }
+
+  async runInference(
+    name: string,
+    version: string,
+    feeds: ort.InferenceSession.OnnxValueMapType,
+    options?: ort.InferenceSession.RunOptions,
+  ): Promise<ort.InferenceSession.OnnxValueMapType> {
+    const session = await this.loadSession(name, version);
+    return session.run(feeds, options);
+  }
+
+  async unloadSession(name: string, version: string): Promise<void> {
+    const cacheKey = this.getCacheKey(name, version);
+    const session = this.sessions.get(cacheKey);
+    if (session) {
+      await session.release();
+      this.sessions.delete(cacheKey);
+    }
+  }
+
+  async releaseAllSessions(): Promise<void> {
+    for (const [key, session] of this.sessions.entries()) {
+      await session.release();
+      this.sessions.delete(key);
+    }
   }
 
   async getModelPath(name: string, version: string): Promise<string | null> {
@@ -159,6 +195,8 @@ export class ModelLoader {
     const cacheKey = this.getCacheKey(name, version);
     const cachePath = `${this.config.cacheDir}/${cacheKey}`;
 
+    await this.unloadSession(name, version);
+
     if (await this.storage.exists(cachePath)) {
       await this.storage.delete(cachePath);
       this.manifests.delete(cacheKey);
@@ -196,13 +234,16 @@ export class ModelLoader {
     return Array.from(this.manifests.values());
   }
 
+  getLoadedSessions(): string[] {
+    return Array.from(this.sessions.keys());
+  }
+
   private async evictIfNeeded(newSize: number): Promise<void> {
     const stats = this.getCacheStats();
     if (stats.totalSize + newSize <= this.config.maxCacheSize) {
       return;
     }
 
-    // Evict least recently accessed models until we have space
     const sorted = Array.from(this.manifests.entries()).sort(
       ([, a], [, b]) => a.lastAccessedAt - b.lastAccessedAt,
     );
@@ -244,7 +285,6 @@ export class ModelLoader {
 
   private async computeChecksum(data: ArrayBuffer): Promise<string> {
     const algorithm = this.config.checksumAlgorithm === 'md5' ? 'SHA-256' : 'SHA-256';
-    // crypto.subtle only supports SHA-family; use SHA-256 for both config options
     const hashBuffer = await crypto.subtle.digest(algorithm, data);
     const hashArray = new Uint8Array(hashBuffer);
     return Array.from(hashArray)

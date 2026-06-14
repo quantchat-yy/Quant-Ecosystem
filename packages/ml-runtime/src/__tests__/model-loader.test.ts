@@ -179,4 +179,100 @@ describe('ModelLoader', () => {
       expect(models[1]!.name).toBe('model2');
     });
   });
+
+  describe('loadSession', () => {
+    it('creates an InferenceSession from cached model bytes', async () => {
+      const ort = await import('onnxruntime-node');
+      const mockSession = {
+        run: vi.fn(),
+        release: vi.fn(),
+        inputNames: ['input'],
+        outputNames: ['output'],
+      };
+      const createSpy = vi
+        .spyOn(ort.InferenceSession, 'create')
+        .mockResolvedValue(mockSession as any);
+
+      await loader.download('https://cdn.example.com/model.onnx', '1.0');
+      const session = await loader.loadSession('model', '1.0');
+
+      expect(createSpy).toHaveBeenCalledWith(expect.any(Uint8Array), undefined);
+      expect(session).toBe(mockSession);
+
+      createSpy.mockRestore();
+    });
+
+    it('returns cached session on subsequent calls', async () => {
+      const ort = await import('onnxruntime-node');
+      const mockSession = {
+        run: vi.fn(),
+        release: vi.fn(),
+        inputNames: ['input'],
+        outputNames: ['output'],
+      };
+      const createSpy = vi
+        .spyOn(ort.InferenceSession, 'create')
+        .mockResolvedValue(mockSession as any);
+
+      await loader.download('https://cdn.example.com/model.onnx', '1.0');
+      const session1 = await loader.loadSession('model', '1.0');
+      const session2 = await loader.loadSession('model', '1.0');
+
+      expect(createSpy).toHaveBeenCalledTimes(1);
+      expect(session1).toBe(session2);
+
+      createSpy.mockRestore();
+    });
+
+    it('throws when model not in cache', async () => {
+      await expect(loader.loadSession('nonexistent', '1.0')).rejects.toThrow(
+        'Model nonexistent@1.0 not found in cache',
+      );
+    });
+  });
+
+  describe('runInference', () => {
+    it('runs inference using loaded session', async () => {
+      const ort = await import('onnxruntime-node');
+      const mockOutput = new Map([['output', [0.9, 0.1]]]);
+      const mockSession = {
+        run: vi.fn().mockResolvedValue(mockOutput),
+        release: vi.fn(),
+        inputNames: ['input'],
+        outputNames: ['output'],
+      };
+      vi.spyOn(ort.InferenceSession, 'create').mockResolvedValue(mockSession as any);
+
+      await loader.download('https://cdn.example.com/model.onnx', '1.0');
+      const feeds = new Map([['input', [1, 2, 3]]]);
+      const result = await loader.runInference('model', '1.0', feeds as any);
+
+      expect(mockSession.run).toHaveBeenCalledWith(feeds, undefined);
+      expect(result).toBe(mockOutput);
+
+      vi.restoreAllMocks();
+    });
+  });
+
+  describe('unloadSession', () => {
+    it('releases and removes a loaded session', async () => {
+      const ort = await import('onnxruntime-node');
+      const mockSession = {
+        run: vi.fn(),
+        release: vi.fn().mockResolvedValue(undefined),
+        inputNames: ['input'],
+        outputNames: ['output'],
+      };
+      vi.spyOn(ort.InferenceSession, 'create').mockResolvedValue(mockSession as any);
+
+      await loader.download('https://cdn.example.com/model.onnx', '1.0');
+      await loader.loadSession('model', '1.0');
+      await loader.unloadSession('model', '1.0');
+
+      expect(mockSession.release).toHaveBeenCalled();
+      expect(loader.getLoadedSessions()).toHaveLength(0);
+
+      vi.restoreAllMocks();
+    });
+  });
 });

@@ -12,6 +12,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "onnxruntime-node": "^1.26.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
