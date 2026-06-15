@@ -2,6 +2,7 @@
 // Security Package - Honeypot Detector
 // ============================================================================
 
+import crypto from 'node:crypto';
 import type { HoneypotConfig, BotDetectionResult, BotSignal } from '../types';
 
 /** Default honeypot configuration */
@@ -185,10 +186,10 @@ export class HoneypotDetector {
 
   /** Generate a JavaScript challenge */
   generateJSChallenge(_sessionId: string): { challengeScript: string; challengeId: string } {
-    const a = Math.floor(Math.random() * 100) + 1;
-    const b = Math.floor(Math.random() * 100) + 1;
+    const a = crypto.randomInt(1, 101);
+    const b = crypto.randomInt(1, 101);
     const answer = (a * b + a - b).toString();
-    const challengeId = `jsc_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const challengeId = `jsc_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
 
     this.jsChallenges.set(challengeId, {
       challenge: `${a},${b}`,

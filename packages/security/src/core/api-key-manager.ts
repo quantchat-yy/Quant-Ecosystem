@@ -2,6 +2,7 @@
 // Security Package - API Key Manager
 // ============================================================================
 
+import crypto from 'node:crypto';
 import type { APIKey, APIKeyScope, APIKeyValidation } from '../types';
 
 /** Configuration for API key management */
@@ -273,9 +274,10 @@ export class APIKeyManager {
   /** Generate raw key material */
   private generateRawKey(): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const bytes = crypto.randomBytes(this.config.keyLength);
     let key = '';
     for (let i = 0; i < this.config.keyLength; i++) {
-      key += chars[Math.floor(Math.random() * chars.length)];
+      key += chars[bytes[i]! % chars.length];
     }
     return key;
   }
@@ -300,7 +302,7 @@ export class APIKeyManager {
 
   /** Generate unique ID */
   private generateId(): string {
-    return `apikey_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    return `apikey_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
   }
 
   /** Get manager statistics */

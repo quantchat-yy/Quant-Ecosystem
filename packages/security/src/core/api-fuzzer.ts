@@ -2,6 +2,7 @@
 // Security Package - API Fuzzer
 // ============================================================================
 
+import crypto from 'node:crypto';
 import type { FuzzResult, FuzzMutation } from '../types';
 
 /** SQL injection payloads for fuzzing */
@@ -199,23 +200,23 @@ export class APIFuzzer {
 
     switch (type) {
       case 'string':
-        return allPayloads[Math.floor(Math.random() * allPayloads.length)];
+        return allPayloads[crypto.randomInt(allPayloads.length)];
       case 'number':
-        return Math.random() > 0.5 ? Number.MAX_SAFE_INTEGER : -Number.MAX_SAFE_INTEGER;
+        return crypto.randomInt(2) === 0 ? Number.MAX_SAFE_INTEGER : -Number.MAX_SAFE_INTEGER;
       case 'boolean':
-        return Math.random() > 0.5 ? 'yes' : null;
+        return crypto.randomInt(2) === 0 ? 'yes' : null;
       case 'array':
         return Array(1000).fill(allPayloads[0]);
       case 'object':
         return { __proto__: { admin: true } };
       default:
-        return allPayloads[Math.floor(Math.random() * allPayloads.length)];
+        return allPayloads[crypto.randomInt(allPayloads.length)];
     }
   }
 
   private simulateRequest(endpoint: string, payload: unknown, iteration: number): FuzzResult {
     // Simulate request timing (fuzzer is for generating test cases, not making real HTTP calls)
-    const responseTime = Math.floor(Math.random() * (this.config.timeout || 5000));
+    const responseTime = crypto.randomInt(0, this.config.timeout || 5000);
     const statusCode = this.simulateStatusCode(payload);
 
     return {
@@ -240,7 +241,7 @@ export class APIFuzzer {
     if (payloadStr.length > 5000) return 413;
     if (payloadStr.includes('DROP') || payloadStr.includes('xp_cmdshell')) return 403;
     const codes = [200, 200, 200, 400, 400, 403, 422, 500];
-    return codes[Math.floor(Math.random() * codes.length)]!;
+    return codes[crypto.randomInt(codes.length)]!;
   }
 
   private applyMutation(

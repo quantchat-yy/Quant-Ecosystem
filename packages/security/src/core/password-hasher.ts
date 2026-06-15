@@ -169,12 +169,12 @@ export class PasswordHasher {
 
     // Simulate: common passwords are "breached"
     if (this.commonPasswords.has(password.toLowerCase())) {
-      return { breached: true, count: Math.floor(Math.random() * 1000000) + 1000 };
+      return { breached: true, count: crypto.randomInt(1000, 1001000) };
     }
 
     // Very short passwords are likely breached
     if (password.length < 6) {
-      return { breached: true, count: Math.floor(Math.random() * 500000) + 500 };
+      return { breached: true, count: crypto.randomInt(500, 500500) };
     }
 
     return { breached: false, count: 0 };

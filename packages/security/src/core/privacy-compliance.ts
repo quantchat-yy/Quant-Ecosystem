@@ -2,6 +2,7 @@
 // Security Package - Privacy Compliance (GDPR)
 // ============================================================================
 
+import crypto from 'node:crypto';
 import type { GDPRRequest, GDPRExportData, ConsentRecord, RetentionPolicy } from '../types';
 
 /**
@@ -314,7 +315,7 @@ export class PrivacyCompliance {
 
   /** Generate unique ID */
   private generateId(prefix: string): string {
-    return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    return `${prefix}_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
   }
 
   /** Get compliance statistics */

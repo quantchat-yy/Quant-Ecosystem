@@ -2,6 +2,7 @@
 // Security Package - Audit Logger
 // ============================================================================
 
+import crypto from 'node:crypto';
 import type { AuditLogEntry, AuditActor } from '../types';
 
 /** Audit logger configuration */
@@ -304,7 +305,7 @@ export class AuditLogger {
 
   /** Generate unique ID */
   private generateId(): string {
-    return `audit_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    return `audit_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
   }
 
   /** Get statistics */

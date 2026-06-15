@@ -560,11 +560,14 @@ export class InvertedIndex {
     const regularTerms: string[] = [];
     const fuzzyTerms: string[] = [];
 
+    const MAX_QUERY_LENGTH = 1000;
+    const safeQuery = query.length > MAX_QUERY_LENGTH ? query.slice(0, MAX_QUERY_LENGTH) : query;
+
     const phraseRegex = /"([^"]+)"/g;
     let match: RegExpExecArray | null;
-    let remaining = query;
+    let remaining = safeQuery;
 
-    while ((match = phraseRegex.exec(query)) !== null) {
+    while ((match = phraseRegex.exec(safeQuery)) !== null) {
       phraseTerms.push(match[1]!);
       remaining = remaining.replace(match[0], '');
     }

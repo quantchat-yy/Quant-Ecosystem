@@ -40,7 +40,10 @@ export class InMemoryEngine implements SearchEngine {
     if (options?.filter) {
       const filters = Array.isArray(options.filter) ? options.filter : [options.filter];
       for (const filterStr of filters) {
-        const match = filterStr.match(/^\s*(\w+)\s*=(.+)$/);
+        const MAX_FILTER_LENGTH = 500;
+        const safeFilter =
+          filterStr.length > MAX_FILTER_LENGTH ? filterStr.slice(0, MAX_FILTER_LENGTH) : filterStr;
+        const match = safeFilter.match(/^\s*([\w]+)\s*=(.+)$/);
         if (match) {
           const key = match[1]!;
           const value = match[2]!.trim();

@@ -2,6 +2,7 @@
 // Security Package - OAuth2 Security
 // ============================================================================
 
+import crypto from 'node:crypto';
 import type { OAuth2Config, PKCEChallenge, OAuth2AuthRequest } from '../types';
 
 /** Default OAuth2 configuration */
@@ -394,9 +395,10 @@ export class OAuth2Security {
   /** Generate secure random string */
   private generateSecureRandom(length: number): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+    const bytes = crypto.randomBytes(length);
     let result = '';
     for (let i = 0; i < length; i++) {
-      result += chars[Math.floor(Math.random() * chars.length)];
+      result += chars[bytes[i]! % chars.length];
     }
     return result;
   }

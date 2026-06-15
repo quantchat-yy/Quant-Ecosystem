@@ -17,7 +17,12 @@ const ACTION_VERBS = [
 const APP_MAPPING: Record<string, Record<string, string>> = {
   send: { email: 'quantmail', mail: 'quantmail', default: 'quantmail' },
   schedule: { default: 'quantcalendar' },
-  create: { meeting: 'quantcalendar', event: 'quantcalendar', post: 'quantneon', default: 'quantneon' },
+  create: {
+    meeting: 'quantcalendar',
+    event: 'quantcalendar',
+    post: 'quantneon',
+    default: 'quantneon',
+  },
   upload: { video: 'quantube', file: 'quantdrive', default: 'quantdrive' },
   start: { meeting: 'quantmeet', call: 'quantmeet', default: 'quantmeet' },
   message: { default: 'quantchat' },
@@ -38,7 +43,10 @@ export class IntentParser {
   }
 
   private splitSegments(input: string): string[] {
-    const parts = input.split(CONJUNCTIONS).map((s) => s.trim()).filter((s) => s.length > 0);
+    const parts = input
+      .split(CONJUNCTIONS)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
     return parts.length > 0 ? parts : [input];
   }
 
@@ -81,34 +89,33 @@ export class IntentParser {
   private extractEntities(segment: string): Record<string, string> {
     const entities: Record<string, string> = {};
 
-    // Email addresses
-    const emailMatch = segment.match(/[\w.+%-]{1,64}@[\w.-]{1,255}\.[a-zA-Z]{2,24}/);
+    const MAX_SEGMENT_LENGTH = 1000;
+    const safeSegment =
+      segment.length > MAX_SEGMENT_LENGTH ? segment.slice(0, MAX_SEGMENT_LENGTH) : segment;
+
+    const emailMatch = safeSegment.match(/[\w.+%-]{1,64}@[\w.-]{1,255}\.[a-zA-Z]{2,24}/);
     if (emailMatch) {
       entities['email'] = emailMatch[0];
     }
 
-    // @mentions
-    const mentionMatch = segment.match(/@(\w+)/);
+    const mentionMatch = safeSegment.match(/@(\w+)/);
     if (mentionMatch) {
       entities['mention'] = mentionMatch[1]!;
     }
 
-    // "the team" / "everyone"
-    if (/\bthe team\b/i.test(segment)) {
+    if (/\bthe team\b/i.test(safeSegment)) {
       entities['group'] = 'team';
     }
-    if (/\beveryone\b/i.test(segment)) {
+    if (/\beveryone\b/i.test(safeSegment)) {
       entities['group'] = 'everyone';
     }
 
-    // Quoted strings
-    const quotedMatch = segment.match(/"([^"]+)"|'([^']+)'/);
+    const quotedMatch = safeSegment.match(/"([^"]+)"|'([^']+)'/);
     if (quotedMatch) {
       entities['content'] = quotedMatch[1] ?? quotedMatch[2] ?? '';
     }
 
-    // Names after to/with/for
-    const prepMatch = segment.match(/\b(?:to|with|for)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/);
+    const prepMatch = safeSegment.match(/\b(?:to|with|for)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/);
     if (prepMatch && !entities['email']) {
       entities['recipient'] = prepMatch[1]!;
     }
