@@ -52,6 +52,7 @@ describe('RecordingService', () => {
 
     it('creates unique recording ids', async () => {
       const r1 = await service.startRecording('room-1', 'user-1');
+      await service.stopRecording(r1.id);
       const r2 = await service.startRecording('room-1', 'user-1');
 
       expect(r1.id).not.toBe(r2.id);
@@ -113,8 +114,10 @@ describe('RecordingService', () => {
 
   describe('listRecordings', () => {
     it('returns all recordings for a given roomId', async () => {
-      await service.startRecording('room-1', 'user-1');
-      await service.startRecording('room-1', 'user-2');
+      const r1 = await service.startRecording('room-1', 'user-1');
+      await service.stopRecording(r1.id);
+      const r2 = await service.startRecording('room-1', 'user-2');
+      await service.stopRecording(r2.id);
       await service.startRecording('room-2', 'user-1');
 
       const recordings = service.listRecordings('room-1');
