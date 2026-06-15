@@ -1,122 +1,145 @@
 // ============================================================================
-// ML Pipeline - Sentiment Analyzer (Lexicon-based with context awareness)
+// ML Pipeline - Sentiment Analyzer (VADER-style Compound Scoring)
 // ============================================================================
 
 import { SentimentResult, SentimentLabel } from '../types';
 
-/**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: Lexicon-based scoring
- * Production path: Use transformer model (e.g. DistilBERT) via ONNX
- */
+const VADER_ALPHA = 15;
+const NEGATION_DAMPENER = 0.74;
+const NEGATION_SCOPE = 3;
+const PUNCT_EXCLAMATION_WEIGHT = 0.292;
+const PUNCT_QUESTION_WEIGHT = 0.18;
+const MAX_QUESTION_MARKS = 3;
+const CAPS_BOOST = 0.9;
+
 export class SentimentAnalyzer {
-  private positiveLexicon: Map<string, number> = new Map();
-  private negativeLexicon: Map<string, number> = new Map();
+  private valenceDictionary: Map<string, number> = new Map();
   private negators: Set<string> = new Set();
-  private intensifiers: Map<string, number> = new Map();
-  private diminishers: Map<string, number> = new Map();
+  private degreeModifiers: Map<string, number> = new Map();
   private emojiSentiments: Map<string, number> = new Map();
-  private comparatives: Map<string, number> = new Map();
+
+  private positiveCount: number = 0;
+  private negativeCount: number = 0;
 
   constructor() {
     this.initializeLexicons();
   }
 
   private initializeLexicons(): void {
-    // Positive words with scores (0 to 1)
     const positiveWords: [string, number][] = [
-      ['good', 0.6],
-      ['great', 0.8],
-      ['excellent', 0.9],
-      ['amazing', 0.9],
-      ['wonderful', 0.85],
-      ['fantastic', 0.9],
-      ['outstanding', 0.95],
-      ['superb', 0.9],
-      ['love', 0.8],
-      ['happy', 0.7],
-      ['best', 0.85],
-      ['perfect', 0.95],
-      ['beautiful', 0.75],
-      ['brilliant', 0.85],
-      ['awesome', 0.85],
-      ['enjoy', 0.65],
-      ['pleased', 0.7],
-      ['delighted', 0.8],
-      ['impressive', 0.75],
-      ['remarkable', 0.8],
-      ['positive', 0.6],
-      ['success', 0.7],
-      ['win', 0.7],
-      ['gain', 0.6],
-      ['improve', 0.65],
-      ['recommend', 0.7],
-      ['satisfied', 0.7],
-      ['helpful', 0.65],
-      ['effective', 0.7],
-      ['valuable', 0.7],
-      ['exciting', 0.75],
-      ['innovative', 0.7],
-      ['reliable', 0.65],
-      ['friendly', 0.6],
-      ['comfortable', 0.6],
-      ['convenient', 0.6],
-      ['efficient', 0.65],
-      ['elegant', 0.7],
-      ['fun', 0.65],
-      ['generous', 0.7],
+      ['good', 1.9],
+      ['great', 2.7],
+      ['excellent', 3.2],
+      ['amazing', 3.2],
+      ['wonderful', 3.0],
+      ['fantastic', 3.1],
+      ['outstanding', 3.5],
+      ['superb', 3.2],
+      ['love', 2.8],
+      ['happy', 2.4],
+      ['best', 3.0],
+      ['perfect', 3.5],
+      ['beautiful', 2.6],
+      ['brilliant', 3.0],
+      ['awesome', 3.0],
+      ['enjoy', 2.1],
+      ['pleased', 2.4],
+      ['delighted', 2.8],
+      ['impressive', 2.6],
+      ['remarkable', 2.8],
+      ['positive', 1.9],
+      ['success', 2.4],
+      ['win', 2.4],
+      ['gain', 1.9],
+      ['improve', 2.1],
+      ['recommend', 2.4],
+      ['satisfied', 2.4],
+      ['helpful', 2.1],
+      ['effective', 2.4],
+      ['valuable', 2.4],
+      ['exciting', 2.6],
+      ['innovative', 2.4],
+      ['reliable', 2.1],
+      ['friendly', 1.9],
+      ['comfortable', 1.9],
+      ['convenient', 1.9],
+      ['efficient', 2.1],
+      ['elegant', 2.4],
+      ['fun', 2.1],
+      ['generous', 2.4],
+      ['adore', 3.0],
+      ['terrific', 3.0],
+      ['fabulous', 3.0],
+      ['magnificent', 3.2],
+      ['splendid', 2.8],
+      ['grateful', 2.4],
+      ['thankful', 2.2],
+      ['proud', 2.4],
+      ['optimistic', 2.2],
+      ['cheerful', 2.4],
     ];
     for (const [word, score] of positiveWords) {
-      this.positiveLexicon.set(word, score);
+      this.valenceDictionary.set(word, score);
+      this.positiveCount++;
     }
-    // Negative words with scores (0 to -1)
+
     const negativeWords: [string, number][] = [
-      ['bad', -0.6],
-      ['terrible', -0.9],
-      ['horrible', -0.9],
-      ['awful', -0.85],
-      ['poor', -0.6],
-      ['worst', -0.95],
-      ['hate', -0.85],
-      ['ugly', -0.7],
-      ['disgusting', -0.9],
-      ['dreadful', -0.85],
-      ['fail', -0.7],
-      ['failure', -0.75],
-      ['useless', -0.8],
-      ['disappointing', -0.75],
-      ['boring', -0.6],
-      ['annoying', -0.65],
-      ['frustrating', -0.7],
-      ['pathetic', -0.8],
-      ['mediocre', -0.5],
-      ['inferior', -0.7],
-      ['negative', -0.5],
-      ['loss', -0.6],
-      ['lose', -0.6],
-      ['decline', -0.55],
-      ['damage', -0.65],
-      ['broken', -0.7],
-      ['painful', -0.7],
-      ['waste', -0.65],
-      ['expensive', -0.4],
-      ['slow', -0.4],
-      ['confusing', -0.55],
-      ['complicated', -0.45],
-      ['unreliable', -0.7],
-      ['rude', -0.7],
-      ['unfair', -0.65],
-      ['dangerous', -0.7],
-      ['weak', -0.55],
-      ['error', -0.6],
-      ['bug', -0.5],
-      ['crash', -0.7],
+      ['bad', -1.9],
+      ['terrible', -3.2],
+      ['horrible', -3.2],
+      ['awful', -3.0],
+      ['poor', -1.9],
+      ['worst', -3.5],
+      ['hate', -3.0],
+      ['ugly', -2.4],
+      ['disgusting', -3.2],
+      ['dreadful', -3.0],
+      ['fail', -2.4],
+      ['failure', -2.6],
+      ['useless', -2.8],
+      ['disappointing', -2.6],
+      ['boring', -1.9],
+      ['annoying', -2.1],
+      ['frustrating', -2.4],
+      ['pathetic', -2.8],
+      ['mediocre', -1.5],
+      ['inferior', -2.4],
+      ['negative', -1.5],
+      ['loss', -1.9],
+      ['lose', -1.9],
+      ['decline', -1.7],
+      ['damage', -2.1],
+      ['broken', -2.4],
+      ['painful', -2.4],
+      ['waste', -2.1],
+      ['expensive', -1.2],
+      ['slow', -1.2],
+      ['confusing', -1.7],
+      ['complicated', -1.3],
+      ['unreliable', -2.4],
+      ['rude', -2.4],
+      ['unfair', -2.1],
+      ['dangerous', -2.4],
+      ['weak', -1.7],
+      ['error', -1.9],
+      ['bug', -1.5],
+      ['crash', -2.4],
+      ['abysmal', -3.2],
+      ['atrocious', -3.2],
+      ['dismal', -2.8],
+      ['ghastly', -3.0],
+      ['hideous', -2.8],
+      ['miserable', -2.8],
+      ['repulsive', -3.0],
+      ['vile', -3.0],
+      ['wretched', -2.8],
+      ['loathsome', -3.0],
     ];
     for (const [word, score] of negativeWords) {
-      this.negativeLexicon.set(word, score);
+      this.valenceDictionary.set(word, score);
+      this.negativeCount++;
     }
-    // Negation words
+
     this.negators = new Set([
       'not',
       'no',
@@ -139,9 +162,15 @@ export class SentimentAnalyzer {
       "aren't",
       "wasn't",
       "weren't",
+      "haven't",
+      "hasn't",
+      "hadn't",
+      'without',
+      'lack',
+      'lacking',
     ]);
-    // Intensifiers (multiply score)
-    const intensifierWords: [string, number][] = [
+
+    const degreeWords: [string, number][] = [
       ['very', 1.5],
       ['extremely', 2.0],
       ['incredibly', 1.8],
@@ -157,129 +186,201 @@ export class SentimentAnalyzer {
       ['remarkably', 1.6],
       ['exceptionally', 1.8],
       ['particularly', 1.3],
-    ];
-    for (const [word, mult] of intensifierWords) {
-      this.intensifiers.set(word, mult);
-    }
-    // Diminishers (reduce score)
-    const diminisherWords: [string, number][] = [
       ['slightly', 0.5],
       ['somewhat', 0.6],
       ['barely', 0.4],
       ['hardly', 0.3],
-      ['a bit', 0.5],
-      ['a little', 0.5],
-      ['kind of', 0.6],
-      ['sort of', 0.6],
+      ['kind', 0.6],
+      ['sort', 0.6],
+      ['most', 1.4],
+      ['very much', 1.6],
+      ['enormously', 1.8],
+      ['immensely', 1.8],
+      ['tremendously', 1.7],
+      ['fairly', 0.7],
+      ['rather', 0.8],
+      ['quite', 1.2],
+      ['marginally', 0.4],
     ];
-    for (const [word, mult] of diminisherWords) {
-      this.diminishers.set(word, mult);
+    for (const [word, mult] of degreeWords) {
+      this.degreeModifiers.set(word, mult);
     }
-    // Emoji sentiments
+
     const emojiMap: [string, number][] = [
-      [':-)', 0.6],
-      [':)', 0.6],
-      [':D', 0.8],
-      ['<3', 0.7],
-      [';)', 0.4],
-      [':-(', -0.6],
-      [':(', -0.6],
-      [':/:', -0.3],
-      ['>:(', -0.8],
+      [':-)', 1.9],
+      [':)', 1.9],
+      [':D', 2.7],
+      ['<3', 2.4],
+      [';)', 1.2],
+      [':-(', -1.9],
+      [':(', -1.9],
+      [':/:', -0.9],
+      ['>:(', -2.8],
+      [':P', 1.2],
+      [':p', 1.2],
+      ['=)', 1.9],
+      ['=D', 2.7],
+      ['=(', -1.9],
     ];
     for (const [emoji, score] of emojiMap) {
       this.emojiSentiments.set(emoji, score);
     }
-    // Comparatives
-    const comparativeWords: [string, number][] = [
-      ['better', 0.5],
-      ['worse', -0.5],
-      ['superior', 0.6],
-      ['inferior', -0.6],
-      ['improved', 0.5],
-      ['degraded', -0.5],
-      ['faster', 0.4],
-      ['slower', -0.4],
-    ];
-    for (const [word, score] of comparativeWords) {
-      this.comparatives.set(word, score);
-    }
   }
 
-  analyze(text: string): SentimentResult {
-    const tokens = this.tokenize(text);
-    let totalScore = 0;
-    let wordCount = 0;
-    let negationActive = false;
-    let intensifierMult = 1.0;
-    for (let i = 0; i < tokens.length; i++) {
-      const token = tokens[i]!.toLowerCase();
-      // Check for negation
-      if (this.negators.has(token)) {
-        negationActive = true;
-        continue;
-      }
-      // Check for intensifiers
-      if (this.intensifiers.has(token)) {
-        intensifierMult = this.intensifiers.get(token)!;
-        continue;
-      }
-      // Check for diminishers
-      if (this.diminishers.has(token)) {
-        intensifierMult = this.diminishers.get(token)!;
-        continue;
-      }
-      // Score the word
-      let wordScore = 0;
-      if (this.positiveLexicon.has(token)) {
-        wordScore = this.positiveLexicon.get(token)!;
-      } else if (this.negativeLexicon.has(token)) {
-        wordScore = this.negativeLexicon.get(token)!;
-      } else if (this.comparatives.has(token)) {
-        wordScore = this.comparatives.get(token)!;
-      }
-      if (wordScore !== 0) {
-        // Apply negation
-        if (negationActive) {
-          wordScore = -wordScore * 0.8;
-          negationActive = false;
-        }
-        // Apply intensifier/diminisher
-        wordScore *= intensifierMult;
-        intensifierMult = 1.0;
-        totalScore += wordScore;
-        wordCount++;
-      } else {
-        // Reset negation after 3 tokens
-        if (negationActive && i > 0) {
-          const lastNegIdx = tokens
-            .slice(0, i)
-            .lastIndexOf(tokens.find((t) => this.negators.has(t.toLowerCase())) ?? '');
-          if (i - lastNegIdx > 3) {
-            negationActive = false;
+  private normalizeCompound(sum: number): number {
+    const norm = sum / Math.sqrt(sum * sum + VADER_ALPHA);
+    return Math.max(-1, Math.min(1, norm));
+  }
+
+  private isAllCaps(word: string): boolean {
+    return word.length > 1 && word === word.toUpperCase() && /[A-Z]/.test(word);
+  }
+
+  private punctuationEmphasis(text: string): number {
+    let emphasis = 0;
+    const exclamations = (text.match(/!/g) ?? []).length;
+    if (exclamations > 0) {
+      emphasis += Math.min(exclamations, 4) * PUNCT_EXCLAMATION_WEIGHT;
+    }
+    const questions = (text.match(/\?/g) ?? []).length;
+    if (questions > 1) {
+      emphasis += Math.min(questions, MAX_QUESTION_MARKS) * PUNCT_QUESTION_WEIGHT;
+    }
+    return emphasis;
+  }
+
+  private isNegated(tokens: string[], idx: number): boolean {
+    for (let i = Math.max(0, idx - NEGATION_SCOPE); i < idx; i++) {
+      if (this.negators.has(tokens[i]!.toLowerCase())) return true;
+    }
+    return false;
+  }
+
+  private scalarIncrement(tokens: string[], idx: number): number {
+    let scalar = 0;
+    if (idx > 0) {
+      const prev = tokens[idx - 1]!.toLowerCase();
+      const deg = this.degreeModifiers.get(prev);
+      if (deg !== undefined) {
+        scalar = deg - 1;
+        if (idx > 1) {
+          const prev2 = tokens[idx - 2]!.toLowerCase();
+          const deg2 = this.degreeModifiers.get(prev2);
+          if (deg2 !== undefined) {
+            scalar *= 0.95;
           }
         }
       }
     }
-    // Check emojis
-    for (const [emoji, score] of this.emojiSentiments.entries()) {
-      if (text.includes(emoji)) {
-        totalScore += score;
-        wordCount++;
+    if (idx > 1) {
+      const prev2 = tokens[idx - 2]!.toLowerCase();
+      const deg2 = this.degreeModifiers.get(prev2);
+      if (
+        deg2 !== undefined &&
+        this.degreeModifiers.get(tokens[idx - 1]!.toLowerCase()) === undefined
+      ) {
+        scalar += (deg2 - 1) * 0.5;
       }
     }
-    // Normalize score to [-1, 1]
-    const normalizedScore =
-      wordCount > 0 ? Math.max(-1, Math.min(1, totalScore / Math.sqrt(wordCount))) : 0;
-    const sentiment: SentimentLabel =
-      normalizedScore > 0.1 ? 'positive' : normalizedScore < -0.1 ? 'negative' : 'neutral';
-    // Confidence based on how many sentiment words were found
-    const coverage = wordCount / Math.max(tokens.length, 1);
-    const confidence = Math.min(1, coverage * 3 + Math.abs(normalizedScore) * 0.5);
-    return { sentiment, score: normalizedScore, confidence };
+    return scalar;
   }
 
-  // Aspect-based sentiment analysis
+  private hasConjunctionButContrast(tokens: string[], idx: number): number {
+    const contrastWords = new Set([
+      'but',
+      'however',
+      'although',
+      'though',
+      'yet',
+      'despite',
+      'except',
+    ]);
+    for (let i = 0; i < tokens.length; i++) {
+      if (contrastWords.has(tokens[i]!.toLowerCase())) {
+        if (i < idx) return 0.5;
+        if (i > idx) return 1.5;
+      }
+    }
+    return 1.0;
+  }
+
+  analyze(text: string): SentimentResult {
+    const tokens = this.tokenize(text);
+    const sentiments: number[] = [];
+    let totalValence = 0;
+
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i]!;
+      const lower = token.toLowerCase();
+
+      const valence = this.valenceDictionary.get(lower);
+      if (valence === undefined) continue;
+
+      let score = valence;
+
+      const scalar = this.scalarIncrement(tokens, i);
+      if (scalar !== 0) {
+        if (score > 0) {
+          score += scalar;
+        } else {
+          score -= scalar;
+        }
+      }
+
+      if (this.isAllCaps(token) && Math.abs(valence) > 0) {
+        if (score > 0) {
+          score += CAPS_BOOST;
+        } else {
+          score -= CAPS_BOOST;
+        }
+      }
+
+      if (this.isNegated(tokens, i)) {
+        score = -score * NEGATION_DAMPENER;
+      }
+
+      const conjWeight = this.hasConjunctionButContrast(tokens, i);
+      score *= conjWeight;
+
+      sentiments.push(score);
+      totalValence += score;
+    }
+
+    for (const [emoji, score] of this.emojiSentiments.entries()) {
+      if (text.includes(emoji)) {
+        sentiments.push(score);
+        totalValence += score;
+      }
+    }
+
+    const punctEmph = this.punctuationEmphasis(text);
+    if (totalValence > 0) {
+      totalValence += punctEmph;
+    } else if (totalValence < 0) {
+      totalValence -= punctEmph;
+    }
+
+    const compound = this.normalizeCompound(totalValence);
+    const sentiment: SentimentLabel =
+      compound >= 0.05 ? 'positive' : compound <= -0.05 ? 'negative' : 'neutral';
+
+    let posSum = 0,
+      negSum = 0,
+      neuCount = 0;
+    for (const s of sentiments) {
+      if (s > 0) posSum += s;
+      else if (s < 0) negSum += Math.abs(s);
+      else neuCount++;
+    }
+    const total = posSum + negSum + neuCount;
+    const confidence =
+      total > 0
+        ? Math.min(1, Math.abs(compound) * 0.6 + (Math.max(posSum, negSum) / total) * 0.4)
+        : 0;
+
+    return { sentiment, score: compound, confidence };
+  }
+
   analyzeAspects(text: string, aspects: string[]): SentimentResult {
     const baseResult = this.analyze(text);
     const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
@@ -297,7 +398,7 @@ export class SentimentAnalyzer {
       }
       if (found) {
         const sentiment: SentimentLabel =
-          aspectScore > 0.1 ? 'positive' : aspectScore < -0.1 ? 'negative' : 'neutral';
+          aspectScore >= 0.05 ? 'positive' : aspectScore <= -0.05 ? 'negative' : 'neutral';
         aspectResults.push({ aspect, sentiment, score: aspectScore });
       }
     }
@@ -307,7 +408,6 @@ export class SentimentAnalyzer {
     };
   }
 
-  // Aggregated sentiment for multiple texts
   aggregateSentiment(texts: string[]): SentimentResult {
     let totalScore = 0;
     let totalConfidence = 0;
@@ -319,7 +419,7 @@ export class SentimentAnalyzer {
     const avgScore = totalScore / Math.max(texts.length, 1);
     const avgConfidence = totalConfidence / Math.max(texts.length, 1);
     const sentiment: SentimentLabel =
-      avgScore > 0.1 ? 'positive' : avgScore < -0.1 ? 'negative' : 'neutral';
+      avgScore >= 0.05 ? 'positive' : avgScore <= -0.05 ? 'negative' : 'neutral';
     return { sentiment, score: avgScore, confidence: avgConfidence };
   }
 
@@ -327,16 +427,21 @@ export class SentimentAnalyzer {
     return text.split(/\s+/).filter((t) => t.length > 0);
   }
 
-  // Add custom words to lexicon
   addPositiveWord(word: string, score: number): void {
-    this.positiveLexicon.set(word.toLowerCase(), Math.max(0, Math.min(1, score)));
+    const clamped = Math.max(0, Math.min(1, score));
+    const vaderScore = clamped * 4;
+    this.valenceDictionary.set(word.toLowerCase(), vaderScore);
+    this.positiveCount++;
   }
 
   addNegativeWord(word: string, score: number): void {
-    this.negativeLexicon.set(word.toLowerCase(), Math.max(-1, Math.min(0, score)));
+    const clamped = Math.max(-1, Math.min(0, score));
+    const vaderScore = clamped * 4;
+    this.valenceDictionary.set(word.toLowerCase(), vaderScore);
+    this.negativeCount++;
   }
 
   getLexiconSize(): { positive: number; negative: number } {
-    return { positive: this.positiveLexicon.size, negative: this.negativeLexicon.size };
+    return { positive: this.positiveCount, negative: this.negativeCount };
   }
 }

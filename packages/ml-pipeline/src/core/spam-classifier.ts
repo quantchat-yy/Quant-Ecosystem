@@ -1,5 +1,5 @@
 // ============================================================================
-// ML Pipeline - Spam Classifier (Naive Bayes + TF-IDF)
+// ML Pipeline - Spam Classifier (TF-IDF + Logistic Regression)
 // ============================================================================
 
 interface ClassStats {
@@ -15,18 +15,11 @@ interface ClassificationResult {
   features: { name: string; weight: number }[];
 }
 
-/**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: Naive Bayes in pure JS
- * Production path: Use trained ML model via inference service
- */
 export class SpamClassifier {
   private classes: Map<string, ClassStats> = new Map();
   private vocabulary: Set<string> = new Set();
   private totalDocuments: number = 0;
   private spamThreshold: number;
-  private laplaceSmoothingAlpha: number;
   private truePositives: number = 0;
   private falsePositives: number = 0;
   private trueNegatives: number = 0;
@@ -35,104 +28,190 @@ export class SpamClassifier {
   private charNgramSize: number = 3;
   private maxVocabSize: number = 50000;
 
+  private weights: Map<string, number> = new Map();
+  private bias: number = 0;
+  private idfCache: Map<string, number> = new Map();
+  private idfDirty: boolean = true;
+  private documentFrequency: Map<string, number> = new Map();
+  private learningRate: number = 0.05;
+  private l2RegLambda: number = 0.001;
+  private trainingExamples: { features: Map<string, number>; label: number }[] = [];
+
   constructor(options: { threshold?: number; smoothingAlpha?: number } = {}) {
     this.spamThreshold = options.threshold ?? 0.5;
-    this.laplaceSmoothingAlpha = options.smoothingAlpha ?? 1.0;
+    this.l2RegLambda = options.smoothingAlpha ?? 0.001;
     this.classes.set('spam', { wordCounts: new Map(), totalWords: 0, documentCount: 0 });
     this.classes.set('ham', { wordCounts: new Map(), totalWords: 0, documentCount: 0 });
   }
 
-  // Extract features from text
   private extractFeatures(text: string): Map<string, number> {
     const features: Map<string, number> = new Map();
     const lower = text.toLowerCase();
-    // Word tokens
-    const words = lower.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 0);
+    const words = lower
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length > 0);
     for (const word of words) {
       features.set(`w:${word}`, (features.get(`w:${word}`) ?? 0) + 1);
     }
-    // Character n-grams
     for (let i = 0; i <= lower.length - this.charNgramSize; i++) {
       const ngram = lower.substring(i, i + this.charNgramSize);
       features.set(`c:${ngram}`, (features.get(`c:${ngram}`) ?? 0) + 1);
     }
-    // Meta features
     const specialCharRatio = (text.match(/[!@#$%^&*()]/g)?.length ?? 0) / Math.max(text.length, 1);
     features.set('meta:special_ratio', specialCharRatio * 10);
-    const urlCount = (text.match(/https?:\/\/|www\./g)?.length ?? 0);
+    const urlCount = text.match(/https?:\/\/|www\./g)?.length ?? 0;
     features.set('meta:url_count', urlCount);
     const capsRatio = (text.match(/[A-Z]/g)?.length ?? 0) / Math.max(text.length, 1);
     features.set('meta:caps_ratio', capsRatio * 10);
-    const exclamCount = (text.match(/!/g)?.length ?? 0);
+    const exclamCount = text.match(/!/g)?.length ?? 0;
     features.set('meta:exclam_count', exclamCount);
     const digitRatio = (text.match(/\d/g)?.length ?? 0) / Math.max(text.length, 1);
     features.set('meta:digit_ratio', digitRatio * 10);
-    // Word length stats
     const avgWordLen = words.reduce((s, w) => s + w.length, 0) / Math.max(words.length, 1);
     features.set('meta:avg_word_len', avgWordLen);
     return features;
   }
 
-  // Train on a single document
+  private computeTF(rawFeatures: Map<string, number>): Map<string, number> {
+    const tf: Map<string, number> = new Map();
+    let total = 0;
+    for (const count of rawFeatures.values()) {
+      total += count;
+    }
+    if (total === 0) return tf;
+    for (const [feature, count] of rawFeatures.entries()) {
+      tf.set(feature, count / total);
+    }
+    return tf;
+  }
+
+  private recomputeIDF(): void {
+    if (!this.idfDirty) return;
+    this.idfCache.clear();
+    const N = this.totalDocuments;
+    if (N === 0) return;
+    for (const [feature, df] of this.documentFrequency.entries()) {
+      this.idfCache.set(feature, Math.log((N + 1) / (df + 1)) + 1);
+    }
+    this.idfDirty = false;
+  }
+
+  private computeTFIDF(rawFeatures: Map<string, number>): Map<string, number> {
+    this.recomputeIDF();
+    const tf = this.computeTF(rawFeatures);
+    const tfidf: Map<string, number> = new Map();
+    for (const [feature, tfVal] of tf.entries()) {
+      const idfVal = this.idfCache.get(feature) ?? Math.log((this.totalDocuments + 1) / 1 + 1) + 1;
+      tfidf.set(feature, tfVal * idfVal);
+    }
+    return tfidf;
+  }
+
+  private sigmoid(z: number): number {
+    if (z >= 0) {
+      return 1 / (1 + Math.exp(-z));
+    }
+    const expZ = Math.exp(z);
+    return expZ / (1 + expZ);
+  }
+
+  private dotProduct(features: Map<string, number>): number {
+    let sum = this.bias;
+    for (const [feature, value] of features.entries()) {
+      const w = this.weights.get(feature) ?? 0;
+      sum += w * value;
+    }
+    return sum;
+  }
+
+  private trainSGD(): void {
+    if (this.trainingExamples.length === 0) return;
+    const epochs = 20;
+    const lr = this.learningRate;
+    const lambda = this.l2RegLambda;
+
+    for (let epoch = 0; epoch < epochs; epoch++) {
+      let totalLoss = 0;
+      for (const example of this.trainingExamples) {
+        const tfidf = this.computeTFIDF(example.features);
+        const z = this.dotProduct(tfidf);
+        const pred = this.sigmoid(z);
+        const error = pred - example.label;
+        totalLoss +=
+          -example.label * Math.log(pred + 1e-15) -
+          (1 - example.label) * Math.log(1 - pred + 1e-15);
+
+        for (const [feature, value] of tfidf.entries()) {
+          const w = this.weights.get(feature) ?? 0;
+          const grad = error * value + lambda * w;
+          this.weights.set(feature, w - lr * grad);
+        }
+        this.bias -= lr * error;
+      }
+    }
+
+    this.featureImportance.clear();
+    for (const [feature, weight] of this.weights.entries()) {
+      this.featureImportance.set(feature, weight);
+    }
+  }
+
   trainOne(text: string, label: 'spam' | 'ham'): void {
     const features = this.extractFeatures(text);
     const classStats = this.classes.get(label)!;
     classStats.documentCount++;
     this.totalDocuments++;
+
+    const docFeatures = new Set(features.keys());
+    for (const feature of docFeatures) {
+      this.documentFrequency.set(feature, (this.documentFrequency.get(feature) ?? 0) + 1);
+    }
+    this.idfDirty = true;
+
     for (const [feature, count] of features.entries()) {
       classStats.wordCounts.set(feature, (classStats.wordCounts.get(feature) ?? 0) + count);
       classStats.totalWords += count;
       this.vocabulary.add(feature);
     }
-    // Trim vocabulary if too large
+
+    this.trainingExamples.push({
+      features,
+      label: label === 'spam' ? 1 : 0,
+    });
+
     if (this.vocabulary.size > this.maxVocabSize) {
       this.pruneVocabulary();
     }
   }
 
-  // Batch training
   train(documents: { text: string; label: 'spam' | 'ham' }[]): void {
     for (const doc of documents) {
       this.trainOne(doc.text, doc.label);
     }
-    this.computeFeatureImportance();
+    this.trainSGD();
   }
 
-  // Online learning: update model with new example
   update(text: string, label: 'spam' | 'ham'): void {
     this.trainOne(text, label);
+    this.trainSGD();
   }
 
-  // Predict spam probability using Naive Bayes
   predict(text: string): ClassificationResult {
-    const features = this.extractFeatures(text);
-    const vocabSize = this.vocabulary.size;
-    const alpha = this.laplaceSmoothingAlpha;
-    let logProbSpam = Math.log(this.getPrior('spam'));
-    let logProbHam = Math.log(this.getPrior('ham'));
-    const spamStats = this.classes.get('spam')!;
-    const hamStats = this.classes.get('ham')!;
+    const rawFeatures = this.extractFeatures(text);
+    const tfidf = this.computeTFIDF(rawFeatures);
+    const priorAdjustment = Math.log(this.getPrior('spam') / Math.max(this.getPrior('ham'), 1e-10));
+    const z = this.dotProduct(tfidf) + priorAdjustment * 0.1;
+    const probability = this.sigmoid(z);
+
     const topFeatures: { name: string; weight: number }[] = [];
-    for (const [feature, count] of features.entries()) {
-      // Laplace smoothed probability
-      const spamCount = (spamStats.wordCounts.get(feature) ?? 0) + alpha;
-      const hamCount = (hamStats.wordCounts.get(feature) ?? 0) + alpha;
-      const spamDenom = spamStats.totalWords + alpha * vocabSize;
-      const hamDenom = hamStats.totalWords + alpha * vocabSize;
-      const pFeatureSpam = Math.log(spamCount / spamDenom) * count;
-      const pFeatureHam = Math.log(hamCount / hamDenom) * count;
-      logProbSpam += pFeatureSpam;
-      logProbHam += pFeatureHam;
-      const weight = pFeatureSpam - pFeatureHam;
-      topFeatures.push({ name: feature, weight });
+    for (const [feature, value] of tfidf.entries()) {
+      const w = this.weights.get(feature) ?? 0;
+      topFeatures.push({ name: feature, weight: w * value });
     }
-    // Log-sum-exp for numerical stability
-    const maxLog = Math.max(logProbSpam, logProbHam);
-    const expSpam = Math.exp(logProbSpam - maxLog);
-    const expHam = Math.exp(logProbHam - maxLog);
-    const probability = expSpam / (expSpam + expHam);
     topFeatures.sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight));
     const confidence = Math.abs(probability - 0.5) * 2;
+
     return {
       isSpam: probability >= this.spamThreshold,
       probability,
@@ -141,9 +220,8 @@ export class SpamClassifier {
     };
   }
 
-  // Batch classification
   classifyBatch(texts: string[]): ClassificationResult[] {
-    return texts.map(text => this.predict(text));
+    return texts.map((text) => this.predict(text));
   }
 
   private getPrior(label: string): number {
@@ -152,7 +230,6 @@ export class SpamClassifier {
     return classStats.documentCount / this.totalDocuments;
   }
 
-  // Track predictions for accuracy
   trackPrediction(text: string, actualLabel: 'spam' | 'ham'): ClassificationResult {
     const result = this.predict(text);
     if (result.isSpam && actualLabel === 'spam') this.truePositives++;
@@ -160,23 +237,6 @@ export class SpamClassifier {
     else if (!result.isSpam && actualLabel === 'ham') this.trueNegatives++;
     else this.falseNegatives++;
     return result;
-  }
-
-  // Compute feature importance (log-likelihood ratio)
-  private computeFeatureImportance(): void {
-    this.featureImportance.clear();
-    const spamStats = this.classes.get('spam')!;
-    const hamStats = this.classes.get('ham')!;
-    const alpha = this.laplaceSmoothingAlpha;
-    const vocabSize = this.vocabulary.size;
-    for (const feature of this.vocabulary) {
-      const spamCount = (spamStats.wordCounts.get(feature) ?? 0) + alpha;
-      const hamCount = (hamStats.wordCounts.get(feature) ?? 0) + alpha;
-      const spamProb = spamCount / (spamStats.totalWords + alpha * vocabSize);
-      const hamProb = hamCount / (hamStats.totalWords + alpha * vocabSize);
-      const ratio = Math.log(spamProb / hamProb);
-      this.featureImportance.set(feature, ratio);
-    }
   }
 
   getTopSpamIndicators(n: number = 20): { feature: string; score: number }[] {
@@ -194,7 +254,8 @@ export class SpamClassifier {
   }
 
   getAccuracy(): number {
-    const total = this.truePositives + this.falsePositives + this.trueNegatives + this.falseNegatives;
+    const total =
+      this.truePositives + this.falsePositives + this.trueNegatives + this.falseNegatives;
     if (total === 0) return 0;
     return (this.truePositives + this.trueNegatives) / total;
   }
@@ -215,7 +276,7 @@ export class SpamClassifier {
     const p = this.getPrecision();
     const r = this.getRecall();
     if (p + r === 0) return 0;
-    return 2 * p * r / (p + r);
+    return (2 * p * r) / (p + r);
   }
 
   getFalsePositiveRate(): number {
@@ -233,7 +294,6 @@ export class SpamClassifier {
   }
 
   private pruneVocabulary(): void {
-    // Keep only the most frequent features
     const allCounts: { feature: string; count: number }[] = [];
     for (const feature of this.vocabulary) {
       const spamCount = this.classes.get('spam')!.wordCounts.get(feature) ?? 0;
@@ -242,14 +302,17 @@ export class SpamClassifier {
     }
     allCounts.sort((a, b) => b.count - a.count);
     const keepSize = Math.floor(this.maxVocabSize * 0.8);
-    const toKeep = new Set(allCounts.slice(0, keepSize).map(x => x.feature));
+    const toKeep = new Set(allCounts.slice(0, keepSize).map((x) => x.feature));
     for (const feature of this.vocabulary) {
       if (!toKeep.has(feature)) {
         this.vocabulary.delete(feature);
         this.classes.get('spam')!.wordCounts.delete(feature);
         this.classes.get('ham')!.wordCounts.delete(feature);
+        this.weights.delete(feature);
+        this.documentFrequency.delete(feature);
       }
     }
+    this.idfDirty = true;
   }
 
   resetMetrics(): void {

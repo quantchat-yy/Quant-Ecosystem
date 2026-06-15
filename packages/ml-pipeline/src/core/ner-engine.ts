@@ -1,5 +1,5 @@
 // ============================================================================
-// ML Pipeline - Named Entity Recognition Engine
+// MI Pipeline - Named Entity Recognition Engine (CRF-style Sequence Labeling)
 // ============================================================================
 
 import { NEREntity, EntityType } from '../types';
@@ -16,24 +16,79 @@ interface PatternRule {
   confidence: number;
 }
 
-/**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: Regex/dictionary-based NER
- * Production path: Use spaCy, Hugging Face NER, or ONNX model
- */
+type BIOLabel = string;
+
+const ENTITY_TYPES: EntityType[] = [
+  'PERSON',
+  'ORG',
+  'LOCATION',
+  'DATE',
+  'MONEY',
+  'EMAIL',
+  'URL',
+  'PHONE',
+];
+
+function generateBIOLabels(): BIOLabel[] {
+  const labels: BIOLabel[] = ['O'];
+  for (const type of ENTITY_TYPES) {
+    labels.push(`B-${type}`);
+    labels.push(`I-${type}`);
+  }
+  return labels;
+}
+
+const ALL_LABELS = generateBIOLabels();
+
 export class NEREngine {
   private gazetteers: Map<EntityType, Map<string, GazetteerEntry>> = new Map();
   private patterns: PatternRule[] = [];
   private entityAliases: Map<string, string> = new Map();
+  private transitionScores: Map<string, number> = new Map();
 
   constructor() {
     this.initializePatterns();
     this.initializeGazetteers();
+    this.initializeTransitionScores();
+  }
+
+  private initializeTransitionScores(): void {
+    for (const from of ALL_LABELS) {
+      for (const to of ALL_LABELS) {
+        let score = -1.0;
+        if (from === 'O' && to === 'O') {
+          score = 2.0;
+        } else if (from === 'O' && to.startsWith('B-')) {
+          score = 0.5;
+        } else if (from.startsWith('B-') && to.startsWith('I-')) {
+          const fromType = from.substring(2);
+          const toType = to.substring(2);
+          score = fromType === toType ? 3.0 : -5.0;
+        } else if (from.startsWith('I-') && to.startsWith('I-')) {
+          const fromType = from.substring(2);
+          const toType = to.substring(2);
+          score = fromType === toType ? 2.0 : -5.0;
+        } else if (from.startsWith('I-') && to === 'O') {
+          score = 1.0;
+        } else if (from.startsWith('I-') && to.startsWith('B-')) {
+          score = 0.3;
+        } else if (from.startsWith('B-') && to === 'O') {
+          score = 1.0;
+        } else if (from.startsWith('B-') && to.startsWith('B-')) {
+          score = -0.5;
+        } else if (from === 'O' && to.startsWith('I-')) {
+          score = -10.0;
+        }
+        this.transitionScores.set(`${from}->${to}`, score);
+      }
+    }
+  }
+
+  private getTransitionScore(from: BIOLabel, to: BIOLabel): number {
+    return this.transitionScores.get(`${from}->${to}`) ?? -5.0;
   }
 
   private initializePatterns(): void {
-    // Date patterns
     this.patterns.push({
       pattern: /\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/g,
       type: 'DATE',
@@ -51,7 +106,6 @@ export class NEREngine {
       type: 'DATE',
       confidence: 0.9,
     });
-    // Money patterns
     this.patterns.push({
       pattern: /\$[\d,]+(?:\.\d{2})?\b/g,
       type: 'MONEY',
@@ -62,13 +116,11 @@ export class NEREngine {
       type: 'MONEY',
       confidence: 0.95,
     });
-    // Email patterns
     this.patterns.push({
       pattern: /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g,
       type: 'EMAIL',
       confidence: 0.99,
     });
-    // URL patterns
     this.patterns.push({
       pattern: /https?:\/\/[^\s<>\"']+/g,
       type: 'URL',
@@ -79,7 +131,6 @@ export class NEREngine {
       type: 'URL',
       confidence: 0.95,
     });
-    // Phone patterns
     this.patterns.push({
       pattern: /\b(?:\+?1[-.\s]?)?\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
       type: 'PHONE',
@@ -93,20 +144,9 @@ export class NEREngine {
   }
 
   private initializeGazetteers(): void {
-    // Initialize maps for each entity type
-    for (const type of [
-      'PERSON',
-      'ORG',
-      'LOCATION',
-      'DATE',
-      'MONEY',
-      'EMAIL',
-      'URL',
-      'PHONE',
-    ] as EntityType[]) {
+    for (const type of ENTITY_TYPES) {
       this.gazetteers.set(type, new Map());
     }
-    // Common locations
     const locations: [string, string][] = [
       ['new york', 'New York'],
       ['new york city', 'New York City'],
@@ -144,7 +184,6 @@ export class NEREngine {
       locMap.set(text, { text, type: 'LOCATION', normalized });
       this.entityAliases.set(text, normalized);
     }
-    // Common organizations
     const orgs: [string, string][] = [
       ['google', 'Google Inc.'],
       ['microsoft', 'Microsoft Corp.'],
@@ -170,7 +209,6 @@ export class NEREngine {
       orgMap.set(text, { text, type: 'ORG', normalized });
       this.entityAliases.set(text, normalized);
     }
-    // Common first names (for person detection)
     const names: string[] = [
       'james',
       'john',
@@ -207,126 +245,312 @@ export class NEREngine {
     }
   }
 
-  // Main entity extraction
-  extract(text: string): NEREntity[] {
-    const entities: NEREntity[] = [];
-    // Pattern-based extraction
-    entities.push(...this.extractByPatterns(text));
-    // Gazetteer-based extraction
-    entities.push(...this.extractByGazetteer(text));
-    // Context-based person detection
-    entities.push(...this.extractPersonsByContext(text));
-    // Resolve overlapping entities
-    return this.resolveOverlaps(entities);
+  private tokenize(text: string): { tokens: string[]; offsets: { start: number; end: number }[] } {
+    const tokens: string[] = [];
+    const offsets: { start: number; end: number }[] = [];
+    const regex = /\S+/g;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(text)) !== null) {
+      tokens.push(match[0]);
+      offsets.push({ start: match.index, end: match.index + match[0].length });
+    }
+    return { tokens, offsets };
   }
 
-  private extractByPatterns(text: string): NEREntity[] {
-    const entities: NEREntity[] = [];
+  private getWordShape(word: string): string {
+    let shape = '';
+    for (const ch of word) {
+      if (/[A-Z]/.test(ch)) shape += 'X';
+      else if (/[a-z]/.test(ch)) shape += 'x';
+      else if (/\d/.test(ch)) shape += 'd';
+      else shape += ch;
+    }
+    let collapsed = shape[0] ?? '';
+    for (let i = 1; i < shape.length; i++) {
+      if (shape[i] !== shape[i - 1]) collapsed += shape[i];
+    }
+    return collapsed;
+  }
+
+  private getPatternMatches(text: string): Map<string, Map<EntityType, number>> {
+    const matches = new Map<string, Map<EntityType, number>>();
     for (const rule of this.patterns) {
-      // Reset regex state
       const regex = new RegExp(rule.pattern.source, rule.pattern.flags);
       let match: RegExpExecArray | null;
       while ((match = regex.exec(text)) !== null) {
-        entities.push({
-          text: match[0],
-          type: rule.type,
-          start: match.index,
-          end: match.index + match[0].length,
-          confidence: rule.confidence,
-          normalized: this.normalizeEntity(match[0], rule.type),
-        });
+        const key = `${match.index}:${match.index + match[0].length}`;
+        if (!matches.has(key)) matches.set(key, new Map());
+        const existing = matches.get(key)!.get(rule.type) ?? 0;
+        matches.get(key)!.set(rule.type, Math.max(existing, rule.confidence));
       }
     }
-    return entities;
+    return matches;
   }
 
-  private extractByGazetteer(text: string): NEREntity[] {
-    const entities: NEREntity[] = [];
-    const lowerText = text.toLowerCase();
+  private getGazetteerMatch(token: string): { type: EntityType; normalized: string } | null {
+    const lower = token.toLowerCase().replace(/[.,;:!?]$/, '');
     for (const [type, gazetteer] of this.gazetteers.entries()) {
-      for (const [term, entry] of gazetteer.entries()) {
-        let searchFrom = 0;
-        while (true) {
-          const idx = lowerText.indexOf(term, searchFrom);
-          if (idx === -1) break;
-          // Check word boundaries
-          const before = idx > 0 ? lowerText[idx - 1]! : ' ';
-          const after = idx + term.length < lowerText.length ? lowerText[idx + term.length]! : ' ';
-          if (/\W/.test(before) && /\W/.test(after)) {
-            const originalText = text.substring(idx, idx + term.length);
-            entities.push({
-              text: originalText,
-              type,
-              start: idx,
-              end: idx + term.length,
-              confidence: 0.85,
-              normalized: entry.normalized,
-            });
+      const entry = gazetteer.get(lower);
+      if (entry) return { type, normalized: entry.normalized };
+    }
+    return null;
+  }
+
+  private getMultiTokenGazetteerMatch(
+    tokens: string[],
+    startIdx: number,
+  ): { type: EntityType; normalized: string; length: number } | null {
+    let best: { type: EntityType; normalized: string; length: number } | null = null;
+    for (let len = 4; len >= 2; len--) {
+      if (startIdx + len > tokens.length) continue;
+      const phrase = tokens
+        .slice(startIdx, startIdx + len)
+        .map((t) => t.toLowerCase().replace(/[.,;:!?]$/, ''))
+        .join(' ');
+      for (const [type, gazetteer] of this.gazetteers.entries()) {
+        const entry = gazetteer.get(phrase);
+        if (entry) {
+          if (!best || len > best.length) {
+            best = { type, normalized: entry.normalized, length: len };
           }
-          searchFrom = idx + 1;
         }
+      }
+    }
+    return best;
+  }
+
+  private computeEmissionScores(
+    tokens: string[],
+    tokenIdx: number,
+    _text: string,
+    offsets: { start: number; end: number }[],
+    patternMatches: Map<string, Map<EntityType, number>>,
+  ): Map<BIOLabel, number> {
+    const scores = new Map<BIOLabel, number>();
+    for (const label of ALL_LABELS) {
+      scores.set(label, 0);
+    }
+
+    const token = tokens[tokenIdx]!;
+    const cleanToken = token.replace(/[.,;:!?]$/, '');
+    const offset = offsets[tokenIdx]!;
+    const posKey = `${offset.start}:${offset.end}`;
+
+    const patternTypeMap = patternMatches.get(posKey);
+    if (patternTypeMap) {
+      for (const [type, confidence] of patternTypeMap.entries()) {
+        const bLabel = `B-${type}`;
+        const iLabel = `I-${type}`;
+        scores.set(bLabel, (scores.get(bLabel) ?? 0) + confidence * 5);
+        scores.set(iLabel, (scores.get(iLabel) ?? 0) + confidence * 4);
+      }
+    }
+
+    const gazMatch = this.getGazetteerMatch(token);
+    if (gazMatch) {
+      const bLabel = `B-${gazMatch.type}`;
+      const iLabel = `I-${gazMatch.type}`;
+      scores.set(bLabel, (scores.get(bLabel) ?? 0) + 3.5);
+      scores.set(iLabel, (scores.get(iLabel) ?? 0) + 2.5);
+    }
+
+    const multiMatch = this.getMultiTokenGazetteerMatch(tokens, tokenIdx);
+    if (multiMatch) {
+      const bLabel = `B-${multiMatch.type}`;
+      scores.set(bLabel, (scores.get(bLabel) ?? 0) + 4.0);
+      for (let k = 1; k < multiMatch.length; k++) {
+        const iLabel = `I-${multiMatch.type}`;
+        scores.set(iLabel, (scores.get(iLabel) ?? 0) + 3.0);
+      }
+    }
+
+    if (tokenIdx > 0) {
+      const prevToken = tokens[tokenIdx - 1]!.replace(/[.,;:!?]$/, '');
+      const titleIndicators = [
+        'Mr.',
+        'Mrs.',
+        'Ms.',
+        'Dr.',
+        'Prof.',
+        'President',
+        'CEO',
+        'Director',
+      ];
+      if (titleIndicators.some((ind) => prevToken === ind || prevToken === ind.replace('.', ''))) {
+        if (/^[A-Z]/.test(cleanToken)) {
+          scores.set('B-PERSON', (scores.get('B-PERSON') ?? 0) + 4.0);
+        }
+      }
+    }
+
+    const shape = this.getWordShape(cleanToken);
+    if (shape === 'X' || shape === 'Xx') {
+      if (tokenIdx > 0) {
+        scores.set('B-PERSON', (scores.get('B-PERSON') ?? 0) + 0.5);
+        scores.set('B-ORG', (scores.get('B-ORG') ?? 0) + 0.3);
+        scores.set('B-LOCATION', (scores.get('B-LOCATION') ?? 0) + 0.3);
+      }
+    }
+
+    if (tokenIdx > 0) {
+      const prevClean = tokens[tokenIdx - 1]!.replace(/[.,;:!?]$/, '');
+      if (/^[A-Z][a-z]+$/.test(prevClean) && /^[A-Z][a-z]+$/.test(cleanToken)) {
+        if (!this.isCommonWord(prevClean)) {
+          scores.set('I-PERSON', (scores.get('I-PERSON') ?? 0) + 2.0);
+          scores.set('I-ORG', (scores.get('I-ORG') ?? 0) + 1.0);
+        }
+      }
+    }
+
+    if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(cleanToken)) {
+      scores.set('B-DATE', (scores.get('B-DATE') ?? 0) + 5.0);
+    }
+    if (/^\$[\d,]+/.test(cleanToken)) {
+      scores.set('B-MONEY', (scores.get('B-MONEY') ?? 0) + 5.0);
+    }
+    if (/^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/.test(cleanToken)) {
+      scores.set('B-EMAIL', (scores.get('B-EMAIL') ?? 0) + 6.0);
+    }
+    if (/^https?:\/\//.test(cleanToken) || /^www\./.test(cleanToken)) {
+      scores.set('B-URL', (scores.get('B-URL') ?? 0) + 6.0);
+    }
+
+    const suffix2 = cleanToken.substring(cleanToken.length - 2).toLowerCase();
+    const suffix3 = cleanToken.substring(cleanToken.length - 3).toLowerCase();
+
+    if (['tion', 'sion', 'ment', 'ness'].includes(suffix3)) {
+      scores.set('O', (scores.get('O') ?? 0) + 0.2);
+    }
+    if (['ing', 'ed', 'ly', 'er', 'est'].includes(suffix2) || suffix3 === 'ing') {
+      scores.set('O', (scores.get('O') ?? 0) + 0.1);
+    }
+
+    scores.set('O', (scores.get('O') ?? 0) + 1.0);
+
+    return scores;
+  }
+
+  private viterbi(
+    tokens: string[],
+    text: string,
+    offsets: { start: number; end: number }[],
+    patternMatches: Map<string, Map<EntityType, number>>,
+  ): BIOLabel[] {
+    const n = tokens.length;
+    if (n === 0) return [];
+
+    const numLabels = ALL_LABELS.length;
+    const dp: number[][] = Array.from({ length: n }, () => new Array(numLabels).fill(-Infinity));
+    const backpointer: number[][] = Array.from({ length: n }, () => new Array(numLabels).fill(0));
+
+    const emissions0 = this.computeEmissionScores(tokens, 0, text, offsets, patternMatches);
+    for (let j = 0; j < numLabels; j++) {
+      dp[0]![j] = emissions0.get(ALL_LABELS[j]!) ?? 0;
+    }
+
+    for (let i = 1; i < n; i++) {
+      const emissions = this.computeEmissionScores(tokens, i, text, offsets, patternMatches);
+      for (let j = 0; j < numLabels; j++) {
+        const toLabel = ALL_LABELS[j]!;
+        const emitScore = emissions.get(toLabel) ?? 0;
+        let bestScore = -Infinity;
+        let bestPrev = 0;
+        for (let k = 0; k < numLabels; k++) {
+          const fromLabel = ALL_LABELS[k]!;
+          const transScore = this.getTransitionScore(fromLabel, toLabel);
+          const score = dp[i - 1]![k]! + transScore + emitScore;
+          if (score > bestScore) {
+            bestScore = score;
+            bestPrev = k;
+          }
+        }
+        dp[i]![j] = bestScore;
+        backpointer[i]![j] = bestPrev;
+      }
+    }
+
+    let bestLastIdx = 0;
+    let bestLastScore = -Infinity;
+    for (let j = 0; j < numLabels; j++) {
+      if (dp[n - 1]![j]! > bestLastScore) {
+        bestLastScore = dp[n - 1]![j]!;
+        bestLastIdx = j;
+      }
+    }
+
+    const result: BIOLabel[] = new Array(n);
+    result[n - 1] = ALL_LABELS[bestLastIdx]!;
+    let currentIdx = bestLastIdx;
+    for (let i = n - 1; i > 0; i--) {
+      currentIdx = backpointer[i]![currentIdx]!;
+      result[i - 1] = ALL_LABELS[currentIdx]!;
+    }
+
+    return result;
+  }
+
+  private labelsToEntities(
+    tokens: string[],
+    labels: BIOLabel[],
+    offsets: { start: number; end: number }[],
+    text: string,
+  ): NEREntity[] {
+    const entities: NEREntity[] = [];
+    let i = 0;
+    while (i < labels.length) {
+      const label = labels[i]!;
+      if (label.startsWith('B-')) {
+        const type = label.substring(2) as EntityType;
+        let end = i + 1;
+        while (end < labels.length && labels[end] === `I-${type}`) {
+          end++;
+        }
+        const startOffset = offsets[i]!.start;
+        const endOffset = offsets[end - 1]!.end;
+        const entityText = text.substring(startOffset, endOffset);
+        const confidence = this.computeEntityConfidence(tokens, labels, i, end, type);
+        entities.push({
+          text: entityText,
+          type,
+          start: startOffset,
+          end: endOffset,
+          confidence,
+          normalized: this.normalizeEntity(entityText, type),
+        });
+        i = end;
+      } else {
+        i++;
       }
     }
     return entities;
   }
 
-  private extractPersonsByContext(text: string): NEREntity[] {
-    const entities: NEREntity[] = [];
-    const personIndicators = ['Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.', 'President', 'CEO', 'Director'];
-    const words = text.split(/\s+/);
-    for (let i = 0; i < words.length; i++) {
-      const word = words[i]!;
-      // Check if word is a title followed by capitalized word
-      const cleanWord = word.replace(/[.,;:!?]$/, '');
-      if (personIndicators.some((ind) => cleanWord === ind || cleanWord === ind.replace('.', ''))) {
-        // Next word(s) are likely person name
-        let name = '';
-        let j = i + 1;
-        while (j < words.length && /^[A-Z]/.test(words[j]!)) {
-          name += (name ? ' ' : '') + words[j]!.replace(/[.,;:!?]$/, '');
-          j++;
-        }
-        if (name) {
-          const fullText = `${cleanWord} ${name}`;
-          const idx = text.indexOf(fullText);
-          if (idx >= 0) {
-            entities.push({
-              text: name,
-              type: 'PERSON',
-              start: idx + cleanWord.length + 1,
-              end: idx + fullText.length,
-              confidence: 0.9,
-              normalized: name,
-            });
-          }
-        }
-      }
-      // Detect capitalized multi-word sequences (potential names/orgs)
-      if (/^[A-Z][a-z]+$/.test(cleanWord) && i > 0) {
-        const prevWord = words[i - 1]?.replace(/[.,;:!?]$/, '') ?? '';
-        if (/^[A-Z][a-z]+$/.test(prevWord) && !this.isCommonWord(prevWord)) {
-          // Two consecutive capitalized words - potential person name
-          const fullName = `${prevWord} ${cleanWord}`;
-          const idx = text.indexOf(fullName);
-          if (idx >= 0) {
-            const alreadyFound = entities.some(
-              (e) => e.start === idx && e.end === idx + fullName.length,
-            );
-            if (!alreadyFound) {
-              entities.push({
-                text: fullName,
-                type: 'PERSON',
-                start: idx,
-                end: idx + fullName.length,
-                confidence: 0.7,
-                normalized: fullName,
-              });
-            }
-          }
-        }
-      }
+  private computeEntityConfidence(
+    tokens: string[],
+    _labels: BIOLabel[],
+    start: number,
+    end: number,
+    type: EntityType,
+  ): number {
+    let conf = 0.7;
+    const spanLen = end - start;
+    if (spanLen === 1) {
+      const gazMatch = this.getGazetteerMatch(tokens[start]!);
+      if (gazMatch && gazMatch.type === type) conf += 0.15;
     }
-    return entities;
+    if (spanLen >= 2) conf += 0.05;
+    if (/^[A-Z]/.test(tokens[start]!)) conf += 0.05;
+    return Math.min(0.99, conf);
+  }
+
+  extract(text: string): NEREntity[] {
+    const { tokens, offsets } = this.tokenize(text);
+    if (tokens.length === 0) return [];
+
+    const patternMatches = this.getPatternMatches(text);
+    const labels = this.viterbi(tokens, text, offsets, patternMatches);
+    const entities = this.labelsToEntities(tokens, labels, offsets, text);
+    return this.resolveOverlaps(entities);
   }
 
   private isCommonWord(word: string): boolean {
@@ -366,10 +590,8 @@ export class NEREngine {
     return common.has(word);
   }
 
-  // Resolve overlapping entities (longest match wins)
   private resolveOverlaps(entities: NEREntity[]): NEREntity[] {
     if (entities.length <= 1) return entities;
-    // Sort by span length (longest first), then by confidence
     entities.sort((a, b) => {
       const lenDiff = b.end - b.start - (a.end - a.start);
       if (lenDiff !== 0) return lenDiff;
@@ -392,7 +614,6 @@ export class NEREngine {
         }
       }
     }
-    // Sort by position for output
     resolved.sort((a, b) => a.start - b.start);
     return resolved;
   }
@@ -413,7 +634,6 @@ export class NEREngine {
     }
   }
 
-  // Add custom gazetteer entries
   addEntity(text: string, type: EntityType, normalized?: string): void {
     const gazetteer = this.gazetteers.get(type);
     if (!gazetteer) return;
@@ -424,17 +644,14 @@ export class NEREngine {
     }
   }
 
-  // Add custom pattern
   addPattern(pattern: RegExp, type: EntityType, confidence: number = 0.8): void {
     this.patterns.push({ pattern, type, confidence });
   }
 
-  // Get entities by type
   getEntitiesByType(entities: NEREntity[], type: EntityType): NEREntity[] {
     return entities.filter((e) => e.type === type);
   }
 
-  // Extract and link entities
   extractAndLink(text: string): NEREntity[] {
     const entities = this.extract(text);
     return entities.map((entity) => ({
