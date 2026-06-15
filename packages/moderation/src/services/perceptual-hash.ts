@@ -4,67 +4,43 @@
 // ============================================================================
 
 /**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: Pure JS DCT-based pHash from raw buffer bytes, not a production perceptual hash library
- * Production path: Use sharp + blockhash or dedicated pHash library (e.g. phash-image)
- *
  * PerceptualHasher - Perceptual hashing for content deduplication
  *
  * Provides:
- * - DCT-based perceptual hash (pHash) for images
+ * - DCT-based perceptual hash (pHash) for images with configurable hash sizes
  * - Async sharp-based perceptual hash for production use
  * - SimHash for text content
- * - Hamming distance comparison for both
- * - Near-duplicate detection with configurable thresholds
+ * - 64-bit Hamming distance comparison
+ * - Near-duplicate detection with configurable similarity thresholds
  */
 export class PerceptualHasher {
   private static readonly HASH_SIZE = 64;
   private static readonly DEFAULT_THRESHOLD = 10;
+  private hashSize: number;
 
-  /**
-   * Compute a 64-bit perceptual hash from an image buffer.
-   * Simulates a DCT-based pHash algorithm by processing raw pixel data.
-   * This is the synchronous fallback; prefer computeImageHashAsync for production.
-   */
+  constructor(options?: { hashSize?: number }) {
+    this.hashSize = options?.hashSize ?? PerceptualHasher.HASH_SIZE;
+  }
+
   computeImageHash(buffer: Buffer): string {
-    // Simulate reducing image to 8x8 grayscale then computing DCT
-    const size = 8;
+    const gridSize = this.getGridSize();
+    const totalPixels = gridSize * gridSize;
     const values: number[] = [];
 
-    // Sample bytes from the buffer at regular intervals to simulate 8x8 downsampling
-    const step = Math.max(1, Math.floor(buffer.length / (size * size)));
-    for (let i = 0; i < size * size; i++) {
+    const step = Math.max(1, Math.floor(buffer.length / totalPixels));
+    for (let i = 0; i < totalPixels; i++) {
       const byteIndex = Math.min(i * step, buffer.length - 1);
       values.push(buffer[byteIndex] ?? 0);
     }
 
-    // Compute simplified DCT coefficients
-    const dctValues = this.computeDCT(values, size);
+    const dctValues = this.computeDCT2D(values, gridSize);
+    const lowFreqCount = gridSize <= 8 ? gridSize : 8;
+    const dctSubset = this.extractLowFrequency(dctValues, gridSize, lowFreqCount);
 
-    // Compute median of DCT values (excluding DC component)
-    const dctSubset = dctValues.slice(1);
-    const sorted = [...dctSubset].sort((a, b) => a - b);
-    const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
-
-    // Generate hash: 1 if above median, 0 if below
-    let hash = '';
-    for (const val of dctSubset) {
-      hash += val > median ? '1' : '0';
-    }
-
-    // Pad or trim to 64 bits
-    hash = hash.substring(0, PerceptualHasher.HASH_SIZE).padEnd(PerceptualHasher.HASH_SIZE, '0');
-
-    // Convert binary string to hex
-    return this.binaryToHex(hash);
+    const hashBits = this.dctToHash(dctSubset);
+    return this.binaryToHex(this.padOrTrim(hashBits, this.hashSize));
   }
 
-  /**
-   * Compute a 64-bit perceptual hash from an image buffer using sharp.
-   * Resizes image to 32x32 grayscale, computes DCT, derives hash from frequency domain.
-   * Falls back to the synchronous DCT method if sharp is unavailable.
-   */
   async computeImageHashAsync(buffer: Buffer): Promise<string> {
     try {
       const sharpModule = await import('sharp');
@@ -81,106 +57,91 @@ export class PerceptualHasher {
         };
       };
 
+      const gridSize = 32;
       const { data } = await sharpFn(buffer)
-        .resize(32, 32)
+        .resize(gridSize, gridSize)
         .grayscale()
         .raw()
         .toBuffer({ resolveWithObject: true });
 
-      // Compute DCT on the first 64 pixels (8x8 top-left block)
       const pixels: number[] = [];
-      for (let i = 0; i < Math.min(data.length, 64); i++) {
+      for (let i = 0; i < Math.min(data.length, gridSize * gridSize); i++) {
         pixels.push(data[i] ?? 0);
       }
 
-      // Pad to 64 if needed
-      while (pixels.length < 64) {
+      while (pixels.length < gridSize * gridSize) {
         pixels.push(0);
       }
 
-      const dctValues = this.computeDCT(pixels, 8);
+      const dctValues = this.computeDCT2D(pixels, gridSize);
+      const lowFreqCount = 8;
+      const dctSubset = this.extractLowFrequency(dctValues, gridSize, lowFreqCount);
 
-      // Compute median of DCT values (excluding DC component)
-      const dctSubset = dctValues.slice(1);
-      const sorted = [...dctSubset].sort((a, b) => a - b);
-      const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
-
-      // Generate hash: 1 if above median, 0 if below
-      let hash = '';
-      for (const val of dctSubset) {
-        hash += val > median ? '1' : '0';
-      }
-
-      // Pad or trim to 64 bits
-      hash = hash.substring(0, PerceptualHasher.HASH_SIZE).padEnd(PerceptualHasher.HASH_SIZE, '0');
-
-      return this.binaryToHex(hash);
+      const hashBits = this.dctToHash(dctSubset);
+      return this.binaryToHex(this.padOrTrim(hashBits, this.hashSize));
     } catch {
-      // Fall back to synchronous DCT-based method
       return this.computeImageHash(buffer);
     }
   }
 
-  /**
-   * Compare two image hashes using Hamming distance.
-   * Returns number of differing bits (lower = more similar).
-   */
   compareImageHashes(hash1: string, hash2: string): number {
     const bin1 = this.hexToBinary(hash1);
     const bin2 = this.hexToBinary(hash2);
-    return this.hammingDistance(bin1, bin2);
+    return this.hammingDistance64(bin1, bin2);
   }
 
-  /**
-   * Check if two image hashes represent near-duplicate content.
-   */
   isNearDuplicate(hash1: string, hash2: string, threshold?: number): boolean {
     const distance = this.compareImageHashes(hash1, hash2);
     return distance <= (threshold ?? PerceptualHasher.DEFAULT_THRESHOLD);
   }
 
-  /**
-   * Compute SimHash for text content deduplication.
-   * Uses a fingerprint-based approach with token weighting.
-   */
   computeSimHash(text: string): string {
     const tokens = this.tokenize(text);
-    const vector = new Array<number>(PerceptualHasher.HASH_SIZE).fill(0);
+    if (tokens.length === 0) {
+      return this.binaryToHex('0'.repeat(this.hashSize));
+    }
+
+    const vector = new Array<number>(this.hashSize).fill(0);
 
     for (const token of tokens) {
       const tokenHash = this.hashToken(token);
-      for (let i = 0; i < PerceptualHasher.HASH_SIZE; i++) {
+      const weight = this.tokenWeight(token);
+      for (let i = 0; i < this.hashSize; i++) {
         if (tokenHash[i] === '1') {
-          vector[i] = (vector[i] ?? 0) + 1;
+          vector[i] = (vector[i] ?? 0) + weight;
         } else {
-          vector[i] = (vector[i] ?? 0) - 1;
+          vector[i] = (vector[i] ?? 0) - weight;
         }
       }
     }
 
-    // Convert to binary: positive values become 1, others become 0
     let hash = '';
-    for (let i = 0; i < PerceptualHasher.HASH_SIZE; i++) {
+    for (let i = 0; i < this.hashSize; i++) {
       hash += (vector[i] ?? 0) > 0 ? '1' : '0';
     }
 
     return this.binaryToHex(hash);
   }
 
-  /**
-   * Compare two text hashes using Hamming distance.
-   * Returns number of differing bits.
-   */
   compareTextHashes(hash1: string, hash2: string): number {
     const bin1 = this.hexToBinary(hash1);
     const bin2 = this.hexToBinary(hash2);
-    return this.hammingDistance(bin1, bin2);
+    return this.hammingDistance64(bin1, bin2);
   }
 
   // --- Private Methods ---
 
-  private computeDCT(values: number[], size: number): number[] {
+  private getGridSize(): number {
+    if (this.hashSize <= 16) return 4;
+    if (this.hashSize <= 64) return 8;
+    if (this.hashSize <= 256) return 16;
+    return 32;
+  }
+
+  private computeDCT2D(values: number[], size: number): number[] {
     const result: number[] = [];
+    const cosTable = this.precomputeCosTable(size);
+
     for (let u = 0; u < size; u++) {
       for (let v = 0; v < size; v++) {
         let sum = 0;
@@ -188,21 +149,58 @@ export class PerceptualHasher {
           for (let y = 0; y < size; y++) {
             const idx = x * size + y;
             const pixel = values[idx] ?? 0;
-            sum +=
-              pixel *
-              Math.cos(((2 * x + 1) * u * Math.PI) / (2 * size)) *
-              Math.cos(((2 * y + 1) * v * Math.PI) / (2 * size));
+            sum += pixel * cosTable[u]![x]! * cosTable[v]![y]!;
           }
         }
         const cu = u === 0 ? 1 / Math.sqrt(2) : 1;
         const cv = v === 0 ? 1 / Math.sqrt(2) : 1;
-        result.push((cu * cv * sum) / (size / 2));
+        result.push((2 / size) * cu * cv * sum);
       }
     }
     return result;
   }
 
-  private hammingDistance(bin1: string, bin2: string): number {
+  private precomputeCosTable(size: number): number[][] {
+    const table: number[][] = [];
+    for (let k = 0; k < size; k++) {
+      table[k] = [];
+      for (let n = 0; n < size; n++) {
+        table[k]![n] = Math.cos(((2 * n + 1) * k * Math.PI) / (2 * size));
+      }
+    }
+    return table;
+  }
+
+  private extractLowFrequency(
+    dctValues: number[],
+    gridSize: number,
+    lowFreqSize: number,
+  ): number[] {
+    const result: number[] = [];
+    for (let u = 0; u < lowFreqSize; u++) {
+      for (let v = 0; v < lowFreqSize; v++) {
+        result.push(dctValues[u * gridSize + v] ?? 0);
+      }
+    }
+    return result;
+  }
+
+  private dctToHash(dctSubset: number[]): string {
+    if (dctSubset.length <= 1) return '0';
+
+    const acValues = dctSubset.slice(1);
+    const sorted = [...acValues].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
+
+    let hash = '';
+    for (const val of acValues) {
+      hash += val > median ? '1' : '0';
+    }
+
+    return hash;
+  }
+
+  private hammingDistance64(bin1: string, bin2: string): number {
     let distance = 0;
     const len = Math.max(bin1.length, bin2.length);
     for (let i = 0; i < len; i++) {
@@ -213,6 +211,11 @@ export class PerceptualHasher {
     return distance;
   }
 
+  private padOrTrim(binary: string, targetLength: number): string {
+    if (binary.length >= targetLength) return binary.substring(0, targetLength);
+    return binary.padEnd(targetLength, '0');
+  }
+
   private tokenize(text: string): string[] {
     return text
       .toLowerCase()
@@ -221,8 +224,13 @@ export class PerceptualHasher {
       .filter((t) => t.length > 0);
   }
 
+  private tokenWeight(token: string): number {
+    if (token.length <= 2) return 0.5;
+    if (token.length <= 4) return 1.0;
+    return 1.0 + Math.log2(token.length) * 0.1;
+  }
+
   private hashToken(token: string): string {
-    // Simple hash function producing a 64-bit binary string
     let h1 = 0x811c9dc5;
     let h2 = 0x01000193;
 
@@ -236,7 +244,9 @@ export class PerceptualHasher {
 
     const part1 = (h1 >>> 0).toString(2).padStart(32, '0');
     const part2 = (h2 >>> 0).toString(2).padStart(32, '0');
-    return part1 + part2;
+
+    const combined = part1 + part2;
+    return this.padOrTrim(combined, this.hashSize);
   }
 
   private binaryToHex(binary: string): string {
@@ -254,6 +264,6 @@ export class PerceptualHasher {
       const nibble = parseInt(hex[i] ?? '0', 16);
       binary += nibble.toString(2).padStart(4, '0');
     }
-    return binary.padEnd(PerceptualHasher.HASH_SIZE, '0');
+    return binary.padEnd(this.hashSize, '0');
   }
 }

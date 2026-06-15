@@ -1,6 +1,6 @@
 // ============================================================================
 // Search - Inverted Index
-// Full inverted index with tokenization, stemming, and stop word removal
+// Full inverted index with BM25+ scoring, phrase search, and fuzzy matching
 // ============================================================================
 
 import type { IndexDocument, TokenInfo, IndexStats } from '../types';
@@ -112,31 +112,30 @@ const STOP_WORDS = new Set([
 ]);
 
 /**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: In-memory BM25 with JS tokenizer and stop-word list, not production search
- * Production path: Use Meilisearch, Elasticsearch, or Typesense
- */
-/**
  * InvertedIndex - Full-text search inverted index implementation
  *
  * Provides document indexing with tokenization, stop word removal,
- * Porter stemming, and term frequency tracking. Supports multi-field
- * documents and position-based search.
+ * Porter stemming, BM25+ scoring, phrase search, and fuzzy matching.
  */
 export class InvertedIndex {
-  private index: Map<string, Posting[]>; // term -> postings
+  private index: Map<string, Posting[]>;
   private documents: Map<string, DocumentRecord>;
   private totalTokens: number = 0;
   private fieldBoosts: Map<string, number>;
   private useStopWords: boolean;
   private useStemming: boolean;
+  private k1: number;
+  private b: number;
+  private delta: number;
 
   constructor(
     options: {
       useStopWords?: boolean;
       useStemming?: boolean;
       fieldBoosts?: Record<string, number>;
+      k1?: number;
+      b?: number;
+      delta?: number;
     } = {},
   ) {
     this.index = new Map();
@@ -144,6 +143,9 @@ export class InvertedIndex {
     this.fieldBoosts = new Map();
     this.useStopWords = options.useStopWords !== false;
     this.useStemming = options.useStemming !== false;
+    this.k1 = options.k1 ?? 1.2;
+    this.b = options.b ?? 0.75;
+    this.delta = options.delta ?? 1.0;
 
     if (options.fieldBoosts) {
       for (const [field, boost] of Object.entries(options.fieldBoosts)) {
@@ -152,9 +154,6 @@ export class InvertedIndex {
     }
   }
 
-  /**
-   * Add a document to the index
-   */
   public addDocument(document: IndexDocument): void {
     if (this.documents.has(document.id)) {
       this.removeDocument(document.id);
@@ -171,7 +170,6 @@ export class InvertedIndex {
       fieldLengths.set(fieldName, processed.length);
       totalLength += processed.length;
 
-      // Build postings for each term
       const termPositions: Map<string, number[]> = new Map();
       for (let i = 0; i < processed.length; i++) {
         const term = processed[i]!;
@@ -181,7 +179,6 @@ export class InvertedIndex {
         termPositions.get(term)!.push(i);
       }
 
-      // Add to inverted index
       for (const [term, positions] of termPositions) {
         if (!this.index.has(term)) {
           this.index.set(term, []);
@@ -207,14 +204,10 @@ export class InvertedIndex {
     });
   }
 
-  /**
-   * Remove a document from the index
-   */
   public removeDocument(documentId: string): boolean {
     const doc = this.documents.get(documentId);
     if (!doc) return false;
 
-    // Remove from all posting lists
     for (const [term, postings] of this.index) {
       const filtered = postings.filter((p) => p.documentId !== documentId);
       if (filtered.length === 0) {
@@ -229,42 +222,112 @@ export class InvertedIndex {
     return true;
   }
 
-  /**
-   * Search the index for documents matching the query
-   */
   public search(
     query: string,
     options: { fields?: string[]; limit?: number } = {},
   ): Array<{ documentId: string; score: number; matchedTerms: string[] }> {
-    const tokens = this.tokenize(query);
-    const terms = this.processTokens(tokens);
+    const { phraseTerms, regularTerms, fuzzyTerms } = this.parseQuery(query);
 
-    if (terms.length === 0) return [];
+    if (phraseTerms.length === 0 && regularTerms.length === 0 && fuzzyTerms.length === 0) {
+      return [];
+    }
 
     const scores: Map<string, { score: number; matchedTerms: Set<string> }> = new Map();
+    const avgDocLength = this.getAverageDocLength();
 
-    for (const term of terms) {
+    const allTerms = [...regularTerms];
+
+    for (const term of regularTerms) {
       const postings = this.index.get(term);
       if (!postings) continue;
 
-      const idf = this.calculateIDF(term);
+      const idf = this.calculateBM25IDF(term);
 
       for (const posting of postings) {
-        // Filter by fields if specified
         if (options.fields && !options.fields.includes(posting.fieldName)) continue;
 
         const doc = this.documents.get(posting.documentId);
         if (!doc) continue;
 
         const fieldLength = doc.fieldLengths.get(posting.fieldName) || 1;
-        const tf = posting.frequency / fieldLength;
         const fieldBoost = this.fieldBoosts.get(posting.fieldName) || 1.0;
-        const termScore = tf * idf * fieldBoost;
+        const termScore =
+          this.bm25PlusScore(posting.frequency, fieldLength, avgDocLength, idf) * fieldBoost;
 
         const existing = scores.get(posting.documentId) || { score: 0, matchedTerms: new Set() };
         existing.score += termScore;
         existing.matchedTerms.add(term);
         scores.set(posting.documentId, existing);
+      }
+    }
+
+    for (const fuzzyTerm of fuzzyTerms) {
+      const candidates = this.fuzzyMatch(fuzzyTerm, 2);
+      for (const candidate of candidates) {
+        const postings = this.index.get(candidate);
+        if (!postings) continue;
+
+        const idf = this.calculateBM25IDF(candidate);
+        const editDist = this.editDistance(fuzzyTerm, candidate);
+        const fuzzyPenalty = 1 - editDist * 0.15;
+
+        for (const posting of postings) {
+          if (options.fields && !options.fields.includes(posting.fieldName)) continue;
+
+          const doc = this.documents.get(posting.documentId);
+          if (!doc) continue;
+
+          const fieldLength = doc.fieldLengths.get(posting.fieldName) || 1;
+          const fieldBoost = this.fieldBoosts.get(posting.fieldName) || 1.0;
+          const termScore =
+            this.bm25PlusScore(posting.frequency, fieldLength, avgDocLength, idf) *
+            fieldBoost *
+            fuzzyPenalty;
+
+          const existing = scores.get(posting.documentId) || { score: 0, matchedTerms: new Set() };
+          existing.score += termScore;
+          existing.matchedTerms.add(candidate);
+          scores.set(posting.documentId, existing);
+        }
+      }
+    }
+
+    if (phraseTerms.length > 0) {
+      for (const phrase of phraseTerms) {
+        const phraseProcessed = this.processTokens(this.tokenize(phrase));
+        if (phraseProcessed.length < 2) {
+          allTerms.push(...phraseProcessed);
+          continue;
+        }
+
+        const firstTermPostings = this.index.get(phraseProcessed[0]!);
+        if (!firstTermPostings) continue;
+
+        for (const posting of firstTermPostings) {
+          if (options.fields && !options.fields.includes(posting.fieldName)) continue;
+
+          const doc = this.documents.get(posting.documentId);
+          if (!doc) continue;
+
+          if (this.hasPhraseMatch(phraseProcessed, posting)) {
+            const existing = scores.get(posting.documentId) || {
+              score: 0,
+              matchedTerms: new Set(),
+            };
+            const phraseBoost = 2.0;
+            const idf = this.calculateBM25IDF(phraseProcessed[0]!);
+            const fieldLength = doc.fieldLengths.get(posting.fieldName) || 1;
+            const fieldBoost = this.fieldBoosts.get(posting.fieldName) || 1.0;
+            existing.score +=
+              this.bm25PlusScore(posting.frequency, fieldLength, avgDocLength, idf) *
+              fieldBoost *
+              phraseBoost;
+            for (const t of phraseProcessed) {
+              existing.matchedTerms.add(t);
+            }
+            scores.set(posting.documentId, existing);
+          }
+        }
       }
     }
 
@@ -279,11 +342,7 @@ export class InvertedIndex {
     return options.limit ? results.slice(0, options.limit) : results;
   }
 
-  /**
-   * Tokenize text into individual tokens
-   */
   public tokenize(text: string): string[] {
-    // Split on whitespace and punctuation
     return text
       .toLowerCase()
       .replace(/[^\w\s]/g, ' ')
@@ -291,22 +350,15 @@ export class InvertedIndex {
       .filter((token) => token.length > 0);
   }
 
-  /**
-   * Normalize a token (lowercase, trim, remove special chars)
-   */
   public normalize(token: string): string {
     return token.toLowerCase().trim().replace(/[^\w]/g, '');
   }
 
-  /**
-   * Apply Porter stemming algorithm
-   */
   public stem(word: string): string {
     if (word.length < 3) return word;
 
     let stem = word.toLowerCase();
 
-    // Step 1a: plurals
     if (stem.endsWith('sses')) {
       stem = stem.slice(0, -2);
     } else if (stem.endsWith('ies')) {
@@ -315,7 +367,6 @@ export class InvertedIndex {
       stem = stem.slice(0, -1);
     }
 
-    // Step 1b: -ed, -ing
     if (stem.endsWith('eed')) {
       if (this.measure(stem.slice(0, -3)) > 0) {
         stem = stem.slice(0, -1);
@@ -328,12 +379,10 @@ export class InvertedIndex {
       stem = this.step1bHelper(stem);
     }
 
-    // Step 1c: y -> i
     if (stem.endsWith('y') && this.hasVowel(stem.slice(0, -1))) {
       stem = stem.slice(0, -1) + 'i';
     }
 
-    // Step 2: double suffixes
     const step2Suffixes: Record<string, string> = {
       ational: 'ate',
       tional: 'tion',
@@ -367,7 +416,6 @@ export class InvertedIndex {
       }
     }
 
-    // Step 3
     const step3Suffixes: Record<string, string> = {
       icate: 'ic',
       ative: '',
@@ -391,9 +439,6 @@ export class InvertedIndex {
     return stem;
   }
 
-  /**
-   * Get term frequency for a term in a specific document
-   */
   public getTermFrequency(term: string, documentId: string): number {
     const processed = this.processTokens([term]);
     if (processed.length === 0) return 0;
@@ -406,9 +451,6 @@ export class InvertedIndex {
     return posting ? posting.frequency : 0;
   }
 
-  /**
-   * Get document frequency for a term (how many documents contain it)
-   */
   public getDocumentFrequency(term: string): number {
     const processed = this.processTokens([term]);
     if (processed.length === 0) return 0;
@@ -421,25 +463,16 @@ export class InvertedIndex {
     return uniqueDocs.size;
   }
 
-  /**
-   * Get total document count
-   */
   public getDocCount(): number {
     return this.documents.size;
   }
 
-  /**
-   * Get a document by ID
-   */
   public getDocument(documentId: string): IndexDocument | undefined {
     const record = this.documents.get(documentId);
     if (!record) return undefined;
     return { id: record.id, fields: record.fields };
   }
 
-  /**
-   * Get index statistics
-   */
   public getStats(): IndexStats {
     const docCount = this.documents.size;
     const avgDocLength = docCount > 0 ? this.totalTokens / docCount : 0;
@@ -454,9 +487,6 @@ export class InvertedIndex {
     };
   }
 
-  /**
-   * Get detailed token analysis for text
-   */
   public analyze(text: string): TokenInfo[] {
     const tokens = this.tokenize(text);
     const result: TokenInfo[] = [];
@@ -483,9 +513,6 @@ export class InvertedIndex {
     return result;
   }
 
-  /**
-   * Get average document length
-   */
   public getAverageDocLength(): number {
     const docCount = this.documents.size;
     return docCount > 0 ? this.totalTokens / docCount : 0;
@@ -507,7 +534,13 @@ export class InvertedIndex {
     return processed.filter((t) => t.length > 0);
   }
 
-  private calculateIDF(term: string): number {
+  private bm25PlusScore(tf: number, docLength: number, avgDocLength: number, idf: number): number {
+    const tfNorm =
+      (tf * (this.k1 + 1)) / (tf + this.k1 * (1 - this.b + this.b * (docLength / avgDocLength)));
+    return idf * (tfNorm + this.delta);
+  }
+
+  private calculateBM25IDF(term: string): number {
     const N = this.documents.size;
     if (N === 0) return 0;
 
@@ -518,8 +551,107 @@ export class InvertedIndex {
     return Math.log((N - df + 0.5) / (df + 0.5) + 1);
   }
 
+  private parseQuery(query: string): {
+    phraseTerms: string[];
+    regularTerms: string[];
+    fuzzyTerms: string[];
+  } {
+    const phraseTerms: string[] = [];
+    const regularTerms: string[] = [];
+    const fuzzyTerms: string[] = [];
+
+    const phraseRegex = /"([^"]+)"/g;
+    let match: RegExpExecArray | null;
+    let remaining = query;
+
+    while ((match = phraseRegex.exec(query)) !== null) {
+      phraseTerms.push(match[1]!);
+      remaining = remaining.replace(match[0], '');
+    }
+
+    const fuzzyRegex = /(\w+)~/g;
+    let fuzzyMatch: RegExpExecArray | null;
+    while ((fuzzyMatch = fuzzyRegex.exec(remaining)) !== null) {
+      const term = fuzzyMatch[1]!;
+      const processed = this.processTokens(this.tokenize(term));
+      fuzzyTerms.push(...processed);
+      remaining = remaining.replace(fuzzyMatch[0], '');
+    }
+
+    const tokens = this.tokenize(remaining);
+    const processed = this.processTokens(tokens);
+    regularTerms.push(...processed);
+
+    return { phraseTerms, regularTerms, fuzzyTerms };
+  }
+
+  private hasPhraseMatch(phraseProcessed: string[], posting: Posting): boolean {
+    if (phraseProcessed.length < 2) return true;
+
+    const doc = this.documents.get(posting.documentId);
+    if (!doc) return false;
+
+    const firstTermPostings = this.index.get(phraseProcessed[0]!);
+    if (!firstTermPostings) return false;
+
+    const docPosting = firstTermPostings.find(
+      (p) => p.documentId === posting.documentId && p.fieldName === posting.fieldName,
+    );
+    if (!docPosting) return false;
+
+    for (const startPos of docPosting.positions) {
+      let found = true;
+      for (let i = 1; i < phraseProcessed.length; i++) {
+        const expectedPos = startPos + i;
+        const termPostings = this.index.get(phraseProcessed[i]!);
+        if (!termPostings) {
+          found = false;
+          break;
+        }
+        const termDocPosting = termPostings.find(
+          (p) => p.documentId === posting.documentId && p.fieldName === posting.fieldName,
+        );
+        if (!termDocPosting || !termDocPosting.positions.includes(expectedPos)) {
+          found = false;
+          break;
+        }
+      }
+      if (found) return true;
+    }
+
+    return false;
+  }
+
+  private editDistance(a: string, b: string): number {
+    const m = a.length;
+    const n = b.length;
+    const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+
+    for (let i = 0; i <= m; i++) dp[i]![0] = i;
+    for (let j = 0; j <= n; j++) dp[0]![j] = j;
+
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        dp[i]![j] = Math.min(dp[i - 1]![j]! + 1, dp[i]![j - 1]! + 1, dp[i - 1]![j - 1]! + cost);
+      }
+    }
+
+    return dp[m]![n]!;
+  }
+
+  private fuzzyMatch(term: string, maxDistance: number): string[] {
+    const candidates: string[] = [];
+    for (const indexTerm of this.index.keys()) {
+      if (Math.abs(indexTerm.length - term.length) > maxDistance) continue;
+      if (this.editDistance(term, indexTerm) <= maxDistance) {
+        candidates.push(indexTerm);
+      }
+    }
+    return candidates;
+  }
+
   private measure(stem: string): number {
-    // Count VC patterns (vowel-consonant sequences)
     let count = 0;
     let isVowel = false;
     const vowels = new Set(['a', 'e', 'i', 'o', 'u']);
@@ -578,10 +710,10 @@ export class InvertedIndex {
   private estimateSize(): number {
     let size = 0;
     for (const [term, postings] of this.index) {
-      size += term.length * 2; // term string
-      size += postings.length * 32; // posting entries
+      size += term.length * 2;
+      size += postings.length * 32;
     }
-    size += this.documents.size * 256; // document records
+    size += this.documents.size * 256;
     return size;
   }
 }
