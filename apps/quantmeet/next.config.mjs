@@ -3,18 +3,29 @@ const nextConfig = {
   transpilePackages: ['@quant/shared-ui', '@quant/common'],
   output: 'standalone',
   productionBrowserSourceMaps: false,
+  experimental: {
+    webpackBuildWorker: true,
+  },
   webpack(config, { isServer }) {
-    const TerserPlugin = config.optimization?.minimizer?.find(
-      (p) => p.constructor.name === 'TerserPlugin',
-    );
-    if (TerserPlugin) {
-      TerserPlugin.options.parallel = 1;
-    }
     if (!isServer) {
       config.optimization.splitChunks = {
-        ...config.optimization.splitChunks,
-        minSize: 30000,
-        maxSize: 500000,
+        chunks: 'all',
+        minSize: 20000,
+        maxSize: 250000,
+        cacheGroups: {
+          framework: {
+            test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+            name: 'framework',
+            priority: 40,
+            enforce: true,
+          },
+          lib: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'lib',
+            priority: 20,
+            reuseExistingChunk: true,
+          },
+        },
       };
     }
     config.parallelism = 2;

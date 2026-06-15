@@ -96,16 +96,12 @@ interface ConsumerRecord {
   rtpParameters: RtpParameters;
 }
 
-/**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: Generates random ICE candidates and simulated transport parameters, no real WebRTC SFU
- * Production path: Integrate mediasoup or LiveKit SFU for real media relay
- */
 export class SFUService {
   private readonly transports = new Map<string, TransportRecord>();
   private readonly producers = new Map<string, ProducerRecord>();
   private readonly consumers = new Map<string, ConsumerRecord>();
+  private readonly transportsByRoom = new Map<string, Set<string>>();
+  private readonly transportsByParticipant = new Map<string, Set<string>>();
 
   createTransport(
     roomId: string,
@@ -124,6 +120,16 @@ export class SFUService {
     };
 
     this.transports.set(id, transport);
+
+    if (!this.transportsByRoom.has(roomId)) {
+      this.transportsByRoom.set(roomId, new Set());
+    }
+    this.transportsByRoom.get(roomId)!.add(id);
+
+    if (!this.transportsByParticipant.has(participantId)) {
+      this.transportsByParticipant.set(participantId, new Set());
+    }
+    this.transportsByParticipant.get(participantId)!.add(id);
 
     return {
       id,
@@ -167,6 +173,10 @@ export class SFUService {
       throw createAppError('Transport already connected', 400, 'TRANSPORT_ALREADY_CONNECTED');
     }
 
+    if (!dtlsParameters.fingerprints.length) {
+      throw createAppError('Invalid DTLS parameters', 400, 'INVALID_DTLS_PARAMETERS');
+    }
+
     transport.dtlsParameters = dtlsParameters;
     transport.connected = true;
   }
@@ -187,6 +197,14 @@ export class SFUService {
 
     if (transport.direction !== 'send') {
       throw createAppError('Cannot produce on recv transport', 400, 'INVALID_TRANSPORT_DIRECTION');
+    }
+
+    if (!rtpParameters.codecs.length) {
+      throw createAppError(
+        'RTP parameters must include at least one codec',
+        400,
+        'INVALID_RTP_PARAMETERS',
+      );
     }
 
     const id = randomUUID();
@@ -225,6 +243,15 @@ export class SFUService {
       throw createAppError('Producer not found', 404, 'PRODUCER_NOT_FOUND');
     }
 
+    const producerTransport = this.transports.get(producer.transportId);
+    if (producerTransport && producerTransport.roomId !== transport.roomId) {
+      throw createAppError(
+        'Cannot consume producer from different room',
+        400,
+        'CROSS_ROOM_CONSUME',
+      );
+    }
+
     const id = randomUUID();
     const consumer: ConsumerRecord = {
       id,
@@ -250,7 +277,6 @@ export class SFUService {
       throw createAppError('Producer not found', 404, 'PRODUCER_NOT_FOUND');
     }
 
-    // Remove all consumers associated with this producer
     for (const [consumerId, consumer] of this.consumers) {
       if (consumer.producerId === producerId) {
         this.consumers.delete(consumerId);
@@ -267,5 +293,56 @@ export class SFUService {
     }
 
     this.consumers.delete(consumerId);
+  }
+
+  closeTransport(transportId: string): void {
+    const transport = this.transports.get(transportId);
+    if (!transport) {
+      throw createAppError('Transport not found', 404, 'TRANSPORT_NOT_FOUND');
+    }
+
+    for (const [producerId, producer] of this.producers) {
+      if (producer.transportId === transportId) {
+        for (const [consumerId, consumer] of this.consumers) {
+          if (consumer.producerId === producerId) {
+            this.consumers.delete(consumerId);
+          }
+        }
+        this.producers.delete(producerId);
+      }
+    }
+
+    for (const [consumerId, consumer] of this.consumers) {
+      if (consumer.transportId === transportId) {
+        this.consumers.delete(consumerId);
+      }
+    }
+
+    this.transports.delete(transportId);
+
+    const roomTransports = this.transportsByRoom.get(transport.roomId);
+    if (roomTransports) {
+      roomTransports.delete(transportId);
+      if (roomTransports.size === 0) {
+        this.transportsByRoom.delete(transport.roomId);
+      }
+    }
+
+    const participantTransports = this.transportsByParticipant.get(transport.participantId);
+    if (participantTransports) {
+      participantTransports.delete(transportId);
+      if (participantTransports.size === 0) {
+        this.transportsByParticipant.delete(transport.participantId);
+      }
+    }
+  }
+
+  closeRoomTransports(roomId: string): void {
+    const transportIds = this.transportsByRoom.get(roomId);
+    if (!transportIds) return;
+
+    for (const transportId of [...transportIds]) {
+      this.closeTransport(transportId);
+    }
   }
 }

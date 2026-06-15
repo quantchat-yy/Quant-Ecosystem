@@ -16,14 +16,9 @@ export interface Recording {
   egressId: string | null;
 }
 
-/**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: In-memory state tracking only, no real media capture or transcoding
- * Production path: Use LiveKit Egress or mediasoup recording with FFmpeg pipeline
- */
 export class RecordingService {
   private readonly recordings = new Map<string, Recording>();
+  private readonly activeByRoom = new Map<string, Set<string>>();
 
   constructor(
     private readonly storage: StorageClient,
@@ -32,13 +27,26 @@ export class RecordingService {
   ) {}
 
   async startRecording(roomId: string, userId: string): Promise<Recording> {
+    const active = this.activeByRoom.get(roomId);
+    if (active && active.size > 0) {
+      throw createAppError('Room already has an active recording', 409, 'RECORDING_ALREADY_ACTIVE');
+    }
+
     const id = randomUUID();
     const storageKey = `recordings/${roomId}/${id}.webm`;
     let egressId: string | null = null;
 
     if (this.livekitGateway && this.s3Config) {
-      const egress = await this.livekitGateway.startRecordingEgress(roomId, this.s3Config);
-      egressId = egress.egressId;
+      try {
+        const egress = await this.livekitGateway.startRecordingEgress(roomId, this.s3Config);
+        egressId = egress.egressId;
+      } catch {
+        throw createAppError(
+          'Failed to start egress for recording',
+          502,
+          'RECORDING_EGRESS_FAILED',
+        );
+      }
     }
 
     const recording: Recording = {
@@ -55,6 +63,10 @@ export class RecordingService {
     };
 
     this.recordings.set(id, recording);
+    if (!this.activeByRoom.has(roomId)) {
+      this.activeByRoom.set(roomId, new Set());
+    }
+    this.activeByRoom.get(roomId)!.add(id);
     return recording;
   }
 
@@ -68,8 +80,16 @@ export class RecordingService {
       throw createAppError('Recording is not active', 400, 'RECORDING_NOT_ACTIVE');
     }
 
+    recording.status = 'processing';
+
     if (this.livekitGateway && recording.egressId) {
-      await this.livekitGateway.stopEgress(recording.egressId);
+      try {
+        await this.livekitGateway.stopEgress(recording.egressId);
+      } catch {
+        recording.status = 'failed';
+        this.removeFromActive(recording.roomId, recordingId);
+        throw createAppError('Failed to stop egress', 502, 'RECORDING_EGRESS_STOP_FAILED');
+      }
     }
 
     recording.status = 'completed';
@@ -78,6 +98,7 @@ export class RecordingService {
       (recording.stoppedAt.getTime() - recording.startedAt.getTime()) / 1000,
     );
 
+    this.removeFromActive(recording.roomId, recordingId);
     return recording;
   }
 
@@ -91,6 +112,9 @@ export class RecordingService {
 
   getRecordingUrl(recordingId: string): string {
     const recording = this.getRecording(recordingId);
+    if (recording.status !== 'completed') {
+      throw createAppError('Recording not yet available', 400, 'RECORDING_NOT_READY');
+    }
     return recording.storageKey;
   }
 
@@ -101,10 +125,20 @@ export class RecordingService {
         results.push(recording);
       }
     }
-    return results;
+    return results.sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
   }
 
   getStorage(): StorageClient {
     return this.storage;
+  }
+
+  private removeFromActive(roomId: string, recordingId: string): void {
+    const active = this.activeByRoom.get(roomId);
+    if (active) {
+      active.delete(recordingId);
+      if (active.size === 0) {
+        this.activeByRoom.delete(roomId);
+      }
+    }
   }
 }
