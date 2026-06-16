@@ -45,9 +45,6 @@ export class ImageGenerationService {
 
   async generate(request: ImageGenerationRequest, userId: string): Promise<ImageGenerationResult> {
     const startTime = Date.now();
-    const size = request.size || '1024x1024';
-    const style = request.style || 'natural';
-    const quality = request.quality || 'standard';
 
     if (!this.apiKey) {
       return this.generateStubResult(request, userId, startTime);
@@ -72,7 +69,7 @@ export class ImageGenerationService {
   }
 
   async createVariation(
-    imageUrl: string,
+    _imageUrl: string,
     userId: string,
     n: number = 1,
   ): Promise<ImageGenerationResult[]> {
