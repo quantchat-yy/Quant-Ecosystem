@@ -1,3 +1,4 @@
+import pino from 'pino';
 import { RoomMapper } from './room-mapper.js';
 
 export interface QuantMessage {
@@ -25,22 +26,109 @@ export interface BridgeResult {
   reason?: string;
 }
 
+export interface MatrixBridgeConfig {
+  homeserverUrl: string;
+  botToken: string;
+}
+
 /**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: In-memory message forwarding array, no real Matrix SDK integration
- * Production path: Use matrix-js-sdk or matrix-bot-sdk for real Matrix protocol
+ * MatrixBridgeBot connects Quant conversations to Matrix rooms.
+ *
+ * When MATRIX_HOMESERVER_URL and MATRIX_BOT_TOKEN environment variables are set,
+ * the bot uses the matrix-bot-sdk to connect to a real Matrix homeserver and forward
+ * messages bidirectionally. When these variables are not set, it operates in
+ * simulation mode using an in-memory message store for development and testing.
  */
 export class MatrixBridgeBot {
   private roomMapper: RoomMapper;
   private forwardedMessages: ForwardedMessage[] = [];
   private autoCreateRooms: boolean;
+  private matrixClient: unknown | null = null;
+  private config: MatrixBridgeConfig | null = null;
+  private logger = pino({ name: 'matrix-bridge-bot' });
+  private started = false;
+  private botUserId: string | null = null;
 
   constructor(roomMapper?: RoomMapper, options?: { autoCreateRooms?: boolean }) {
     this.roomMapper = roomMapper ?? new RoomMapper();
     this.autoCreateRooms = options?.autoCreateRooms ?? true;
+
+    const homeserverUrl = process.env['MATRIX_HOMESERVER_URL'];
+    const botToken = process.env['MATRIX_BOT_TOKEN'];
+
+    if (homeserverUrl && botToken) {
+      this.config = { homeserverUrl, botToken };
+    }
   }
 
+  /**
+   * Start the Matrix client connection. Only connects when environment
+   * variables are properly configured. Safe to call when not configured
+   * (no-op in simulation mode).
+   */
+  async start(): Promise<void> {
+    if (!this.config) {
+      this.logger.info('Matrix bridge running in simulation mode (no MATRIX_HOMESERVER_URL set)');
+      return;
+    }
+
+    try {
+      // Dynamic import to avoid requiring matrix-bot-sdk when running in simulation
+      const { MatrixClient, AutojoinRoomsMixin } = await import('matrix-bot-sdk');
+
+      const client = new MatrixClient(this.config.homeserverUrl, this.config.botToken);
+      AutojoinRoomsMixin.setupOnClient(client);
+
+      client.on('room.message', (roomId: string, event: Record<string, unknown>) => {
+        if (!event || !event['content']) return;
+        const sender = event['sender'] as string;
+        const content = (event['content'] as Record<string, unknown>)['body'] as string;
+
+        if (!content || !sender) return;
+
+        // Ignore messages sent by the bot itself
+        if (sender === this.botUserId) return;
+
+        this.handleIncomingMatrixMessage(roomId, sender, content);
+      });
+
+      await client.start();
+      this.matrixClient = client;
+      this.botUserId = await client.getUserId();
+      this.started = true;
+      this.logger.info({ homeserver: this.config.homeserverUrl }, 'Matrix bridge connected');
+    } catch (err) {
+      this.logger.error({ err }, 'Failed to start Matrix client, falling back to simulation mode');
+      this.matrixClient = null;
+    }
+  }
+
+  /**
+   * Stop the Matrix client connection gracefully.
+   */
+  async stop(): Promise<void> {
+    if (this.matrixClient && this.started) {
+      try {
+        await (this.matrixClient as { stop: () => Promise<void> }).stop();
+      } catch {
+        // Ignore stop errors
+      }
+      this.matrixClient = null;
+      this.started = false;
+      this.logger.info('Matrix bridge disconnected');
+    }
+  }
+
+  /**
+   * Returns true when connected to a real Matrix homeserver.
+   */
+  isConnected(): boolean {
+    return this.matrixClient !== null && this.started;
+  }
+
+  /**
+   * Handle a message originating from the Quant platform destined for Matrix.
+   */
   onQuantMessage(message: QuantMessage): void {
     let matrixRoom = this.roomMapper.getMatrixRoom(message.conversationId);
 
@@ -57,9 +145,19 @@ export class MatrixBridgeBot {
         content: message.content,
         timestamp: Date.now(),
       });
+
+      // Send to real Matrix room when connected
+      if (this.matrixClient && this.started) {
+        this.sendToMatrix(matrixRoom, message.content).catch((err) => {
+          this.logger.error({ err, roomId: matrixRoom }, 'Failed to send message to Matrix');
+        });
+      }
     }
   }
 
+  /**
+   * Handle a message originating from Matrix destined for Quant.
+   */
   onMatrixMessage(event: MatrixEvent): BridgeResult {
     const quantConv = this.roomMapper.getQuantConversation(event.roomId);
 
@@ -77,11 +175,36 @@ export class MatrixBridgeBot {
     return { forwarded: false, reason: `No mapping for room ${event.roomId}` };
   }
 
+  /**
+   * Get the history of forwarded messages (both directions).
+   */
   getForwardedMessages(): ForwardedMessage[] {
     return [...this.forwardedMessages];
   }
 
+  /**
+   * Access the underlying RoomMapper instance.
+   */
   getRoomMapper(): RoomMapper {
     return this.roomMapper;
+  }
+
+  // --- Private methods ---
+
+  private handleIncomingMatrixMessage(roomId: string, sender: string, content: string): void {
+    this.onMatrixMessage({ roomId, sender, content });
+  }
+
+  private async sendToMatrix(roomId: string, content: string): Promise<void> {
+    if (!this.matrixClient) return;
+
+    const client = this.matrixClient as {
+      sendMessage: (roomId: string, content: Record<string, unknown>) => Promise<string>;
+    };
+
+    await client.sendMessage(roomId, {
+      msgtype: 'm.text',
+      body: content,
+    });
   }
 }

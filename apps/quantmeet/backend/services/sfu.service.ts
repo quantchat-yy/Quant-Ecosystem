@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { createAppError } from '@quant/server-core';
+import { LiveKitGateway } from './livekit-gateway.service.js';
 
 export interface DtlsParameters {
   fingerprints: Array<{ algorithm: string; value: string }>;
@@ -79,6 +80,8 @@ interface TransportRecord {
   direction: 'send' | 'recv';
   connected: boolean;
   dtlsParameters: DtlsParameters | null;
+  livekitRoomName?: string;
+  livekitToken?: string;
 }
 
 interface ProducerRecord {
@@ -96,12 +99,46 @@ interface ConsumerRecord {
   rtpParameters: RtpParameters;
 }
 
+/**
+ * SFUService provides WebRTC SFU (Selective Forwarding Unit) capabilities.
+ *
+ * When LiveKit is configured (LIVEKIT_API_KEY, LIVEKIT_API_SECRET, LIVEKIT_WS_URL),
+ * the service delegates room and participant management to LiveKit via the
+ * LiveKitGateway. When LiveKit is not configured, it falls back to a local
+ * in-memory simulation suitable for development and testing.
+ */
 export class SFUService {
   private readonly transports = new Map<string, TransportRecord>();
   private readonly producers = new Map<string, ProducerRecord>();
   private readonly consumers = new Map<string, ConsumerRecord>();
   private readonly transportsByRoom = new Map<string, Set<string>>();
   private readonly transportsByParticipant = new Map<string, Set<string>>();
+  private readonly livekit: LiveKitGateway | null;
+  private readonly livekitRooms = new Map<string, string>(); // roomId -> livekit room SID
+
+  constructor(livekit?: LiveKitGateway | null) {
+    if (livekit) {
+      this.livekit = livekit;
+    } else {
+      // Auto-detect from environment
+      const apiKey = process.env['LIVEKIT_API_KEY'];
+      const apiSecret = process.env['LIVEKIT_API_SECRET'];
+      const wsUrl = process.env['LIVEKIT_WS_URL'];
+
+      if (apiKey && apiSecret && wsUrl) {
+        this.livekit = new LiveKitGateway({ apiKey, apiSecret, wsUrl });
+      } else {
+        this.livekit = null;
+      }
+    }
+  }
+
+  /**
+   * Returns true when the service is backed by a real LiveKit instance.
+   */
+  isLiveKitEnabled(): boolean {
+    return this.livekit !== null;
+  }
 
   createTransport(
     roomId: string,
@@ -130,6 +167,21 @@ export class SFUService {
       this.transportsByParticipant.set(participantId, new Set());
     }
     this.transportsByParticipant.get(participantId)!.add(id);
+
+    // When LiveKit is enabled, create a room for this meeting if not already present
+    if (this.livekit && !this.livekitRooms.has(roomId)) {
+      // Mark the room as pending immediately to prevent duplicate creation
+      this.livekitRooms.set(roomId, 'pending');
+      this.livekit
+        .createRoom(roomId)
+        .then((room) => {
+          this.livekitRooms.set(roomId, room.sid);
+        })
+        .catch(() => {
+          // Room creation is best-effort; the room may already exist
+          this.livekitRooms.delete(roomId);
+        });
+    }
 
     return {
       id,
@@ -179,6 +231,21 @@ export class SFUService {
 
     transport.dtlsParameters = dtlsParameters;
     transport.connected = true;
+
+    // When LiveKit is enabled, generate a participant token for this connection
+    if (this.livekit) {
+      this.livekit
+        .generateToken(transport.roomId, transport.participantId, transport.participantId, {
+          canPublish: transport.direction === 'send',
+          canSubscribe: transport.direction === 'recv',
+        })
+        .then((token) => {
+          transport.livekitToken = token;
+        })
+        .catch(() => {
+          // Token generation failure does not block connection
+        });
+    }
   }
 
   produce(
@@ -344,5 +411,28 @@ export class SFUService {
     for (const transportId of [...transportIds]) {
       this.closeTransport(transportId);
     }
+
+    // When LiveKit is enabled, clean up the room
+    if (this.livekit && this.livekitRooms.has(roomId)) {
+      this.livekit.deleteRoom(roomId).catch(() => {
+        // Best-effort cleanup
+      });
+      this.livekitRooms.delete(roomId);
+    }
+  }
+
+  /**
+   * Get a LiveKit participant token for a specific transport (only available when LiveKit is enabled).
+   */
+  getParticipantToken(transportId: string): string | undefined {
+    const transport = this.transports.get(transportId);
+    return transport?.livekitToken;
+  }
+
+  /**
+   * Get the underlying LiveKitGateway instance (null when in simulation mode).
+   */
+  getLiveKitGateway(): LiveKitGateway | null {
+    return this.livekit;
   }
 }

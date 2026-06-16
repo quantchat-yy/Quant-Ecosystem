@@ -16,8 +16,9 @@ export type { RequestMetadata, RouteResponse } from './activitypub/server.js';
 
 // Matrix
 export { MatrixBridgeBot } from './matrix/bridge-bot.js';
-export type { BridgeResult } from './matrix/bridge-bot.js';
-export { RoomMapper, MappingSchema } from './matrix/room-mapper.js';
+export type { BridgeResult, MatrixBridgeConfig } from './matrix/bridge-bot.js';
+export { RoomMapper, InMemoryRoomMappingStore, MappingSchema } from './matrix/room-mapper.js';
+export type { RoomMappingStore } from './matrix/room-mapper.js';
 
 // Moderation
 export { FederationModeration, BlocklistSchema, AllowlistSchema } from './moderation.js';
