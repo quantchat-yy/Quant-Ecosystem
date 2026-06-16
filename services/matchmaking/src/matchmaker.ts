@@ -188,4 +188,13 @@ export class MatchmakingService {
       );
     }
   }
+
+  destroy(): void {
+    for (const [, entry] of this.queue) {
+      if (entry.timeoutHandle) {
+        clearTimeout(entry.timeoutHandle);
+      }
+    }
+    this.queue.clear();
+  }
 }

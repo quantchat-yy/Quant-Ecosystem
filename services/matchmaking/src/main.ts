@@ -88,6 +88,16 @@ async function main(): Promise<void> {
 
   await app.listen({ port, host });
   app.log.info({ port, host }, 'Matchmaking service listening');
+
+  const shutdown = async (signal: string) => {
+    app.log.info({ signal }, 'Received shutdown signal, closing gracefully');
+    matchmaker.destroy();
+    await app.close();
+    process.exit(0);
+  };
+
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
 }
 
 void main();
