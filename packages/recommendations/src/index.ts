@@ -19,7 +19,7 @@ export { RecommendationABTest } from './core/recommendation-ab';
 
 // Retrieval modules
 export { TwoTowerRetrieval } from './retrieval/two-tower';
-export type { TwoTowerConfig } from './retrieval/two-tower';
+export type { TwoTowerConfig, TwoTowerServingBackend } from './retrieval/two-tower';
 export { ItemItemCollaborative } from './retrieval/collaborative';
 export type { Interaction } from './retrieval/collaborative';
 export { TrendingRetrieval } from './retrieval/trending';
@@ -27,7 +27,7 @@ export type { TrendingConfig, TrendingInteractionType } from './retrieval/trendi
 
 // Ranking modules
 export { MMoERanker } from './ranking/mmoe';
-export type { ObjectiveName, ExpertFn, GatingFn } from './ranking/mmoe';
+export type { ObjectiveName, ExpertFn, GatingFn, MMoEServingBackend } from './ranking/mmoe';
 export { ScoreFusion } from './ranking/score-fusion';
 export type { ScoreFn, FusedCandidate } from './ranking/score-fusion';
 export { AntiRageScorer } from './ranking/anti-rage';

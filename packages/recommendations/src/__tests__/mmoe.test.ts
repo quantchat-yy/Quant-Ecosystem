@@ -78,4 +78,42 @@ describe('MMoERanker', () => {
     expect(ranker.getExpertCount()).toBe(2);
     expect(ranker.getObjectiveCount()).toBe(2);
   });
+
+  describe('served backend mode', () => {
+    it('reports not served without a backend and uses in-process forward()', async () => {
+      const ranker = new MMoERanker();
+      ranker.addExpert('e1', (f) => f.map((v) => v * 2));
+      ranker.setObjectives([{ name: 'engagement', weight: 1 }]);
+      expect(ranker.isServed()).toBe(false);
+      const scores = await ranker.predict([0.5, 0.5]);
+      expect(scores).toHaveProperty('engagement');
+    });
+
+    it('uses the served backend when configured', async () => {
+      let called = 0;
+      const ranker = new MMoERanker({
+        async predict() {
+          called++;
+          return { engagement: 0.9, retention: 0.8, wellbeing: 0.7 };
+        },
+      });
+      expect(ranker.isServed()).toBe(true);
+      const scores = await ranker.predict([1, 2, 3]);
+      expect(called).toBe(1);
+      expect(scores.engagement).toBe(0.9);
+    });
+
+    it('falls back to in-process forward() when the backend throws', async () => {
+      const ranker = new MMoERanker({
+        async predict() {
+          throw new Error('serving down');
+        },
+      });
+      ranker.addExpert('e1', (f) => f.map((v) => v * 2));
+      ranker.setObjectives([{ name: 'engagement', weight: 1 }]);
+      const scores = await ranker.predict([0.5, 0.5]);
+      expect(scores.engagement).toBeGreaterThan(0);
+      expect(scores.engagement).toBeLessThan(1);
+    });
+  });
 });
