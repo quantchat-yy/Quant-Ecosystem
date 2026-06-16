@@ -1,5 +1,34 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { ImageGenerationService } from '../services/image-generation';
+import {
+  ImageGenerationService,
+  type ImageGenerationBackend,
+  type BackendImage,
+} from '../services/image-generation';
+
+/** Fake backend exercising the "real-when-configured" path deterministically. */
+class FakeImageBackend implements ImageGenerationBackend {
+  readonly model = 'fake-image-model';
+  generateCalls = 0;
+  constructor(private readonly mode: 'ok' | 'empty' | 'throw' = 'ok') {}
+
+  private maybeFail(): BackendImage[] {
+    if (this.mode === 'throw') throw new Error('provider unavailable');
+    if (this.mode === 'empty') return [];
+    return [{ url: 'https://cdn.example.com/real.png', revisedPrompt: 'revised by provider' }];
+  }
+  async generate(): Promise<BackendImage[]> {
+    this.generateCalls++;
+    return this.maybeFail();
+  }
+  async edit(): Promise<BackendImage[]> {
+    return this.maybeFail();
+  }
+  async createVariation(_url: string, n: number): Promise<BackendImage[]> {
+    if (this.mode === 'throw') throw new Error('provider unavailable');
+    if (this.mode === 'empty') return [];
+    return Array.from({ length: n }, (_, i) => ({ url: `https://cdn.example.com/var${i}.png` }));
+  }
+}
 
 describe('ImageGenerationService', () => {
   let service: ImageGenerationService;
@@ -103,6 +132,46 @@ describe('ImageGenerationService', () => {
       expect(styles).toContain('vivid');
       expect(styles).toContain('anime');
       expect(styles.length).toBe(5);
+    });
+  });
+
+  describe('real backend mode (configured)', () => {
+    it('isAvailable returns true when a backend is injected', () => {
+      const real = new ImageGenerationService(new FakeImageBackend('ok'));
+      expect(real.isAvailable()).toBe(true);
+    });
+
+    it('uses the real backend result instead of the placeholder', async () => {
+      const backend = new FakeImageBackend('ok');
+      const real = new ImageGenerationService(backend);
+      const result = await real.generate({ prompt: 'a cat' }, 'user-1');
+
+      expect(backend.generateCalls).toBe(1);
+      expect(result.url).toBe('https://cdn.example.com/real.png');
+      expect(result.revisedPrompt).toBe('revised by provider');
+      expect(result.model).toBe('fake-image-model');
+      expect(result.url).not.toContain('placeholder.quant.ai');
+    });
+
+    it('returns real variations from the backend', async () => {
+      const real = new ImageGenerationService(new FakeImageBackend('ok'));
+      const results = await real.createVariation('https://example.com/i.png', 'user-1', 2);
+      expect(results).toHaveLength(2);
+      expect(results[0]!.model).toBe('fake-image-model');
+      expect(results[0]!.url).toContain('cdn.example.com');
+    });
+
+    it('falls back to the placeholder (and does not throw) when the backend errors', async () => {
+      const real = new ImageGenerationService(new FakeImageBackend('throw'));
+      const result = await real.generate({ prompt: 'a dog' }, 'user-1');
+      expect(result.url).toContain('placeholder.quant.ai');
+      expect(result.model).toBe('dall-e-3-stub');
+    });
+
+    it('falls back to the placeholder when the backend returns no images', async () => {
+      const real = new ImageGenerationService(new FakeImageBackend('empty'));
+      const result = await real.generate({ prompt: 'nothing' }, 'user-1');
+      expect(result.url).toContain('placeholder.quant.ai');
     });
   });
 });
