@@ -1,8 +1,22 @@
 // ============================================================================
-// ML Pipeline - Sentiment Analyzer (VADER-style Compound Scoring)
+// ML Pipeline - Sentiment Analyzer (VADER-style with AI backend option)
 // ============================================================================
 
 import { SentimentResult, SentimentLabel } from '../types';
+
+/** Backend interface for AI-powered sentiment analysis */
+export interface SentimentBackend {
+  /** Analyze sentiment of text, returning score from -1 to 1 and a label */
+  analyze(text: string): Promise<{ score: number; label: SentimentLabel }>;
+  /** Whether the backend is available for inference */
+  isAvailable(): boolean;
+}
+
+/** Options for creating a SentimentAnalyzer */
+export interface SentimentAnalyzerOptions {
+  /** Optional AI backend for real sentiment analysis (e.g., UnifiedAIService adapter) */
+  backend?: SentimentBackend;
+}
 
 const VADER_ALPHA = 15;
 const NEGATION_DAMPENER = 0.74;
@@ -21,8 +35,40 @@ export class SentimentAnalyzer {
   private positiveCount: number = 0;
   private negativeCount: number = 0;
 
-  constructor() {
+  private readonly backend: SentimentBackend | null;
+
+  constructor(options?: SentimentAnalyzerOptions) {
+    this.backend = options?.backend ?? null;
     this.initializeLexicons();
+  }
+
+  /** Returns true if an AI backend is configured and available */
+  hasBackend(): boolean {
+    return this.backend !== null && this.backend.isAvailable();
+  }
+
+  /**
+   * Analyze sentiment using AI backend when available, falling back to lexicon-based.
+   * Returns result with a `backend` field indicating the source.
+   */
+  async analyzeWithBackend(text: string): Promise<SentimentResult & { backend: 'ai' | 'lexicon' }> {
+    if (this.backend && this.backend.isAvailable()) {
+      try {
+        const result = await this.backend.analyze(text);
+        const confidence = Math.min(1, Math.abs(result.score) * 0.8 + 0.2);
+        return {
+          sentiment: result.label,
+          score: result.score,
+          confidence,
+          backend: 'ai',
+        };
+      } catch {
+        // Fall through to lexicon-based on backend error
+      }
+    }
+
+    const result = this.analyze(text);
+    return { ...result, backend: 'lexicon' };
   }
 
   private initializeLexicons(): void {

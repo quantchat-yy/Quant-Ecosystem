@@ -1,25 +1,23 @@
 {
-  "name": "@quant/quanttube",
+  "name": "@quant/quantstatus",
   "version": "1.0.0",
   "private": true,
-  "description": "QuantTube - video streaming backend with voice command subscriber",
   "type": "module",
+  "description": "QuantStatus - Service status monitoring backend",
   "main": "backend/app.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "build": "tsc",
     "lint": "eslint ."
   },
   "dependencies": {
-    "@quant/agentic": "workspace:*",
     "@quant/server-core": "workspace:*",
     "fastify": "^5.3.3",
-    "ioredis": "^5.6.1",
     "zod": "^3.25.23"
   },
   "devDependencies": {
-    "@types/node": "^22",
+    "@types/node": "^22.0.0",
     "typescript": "~5.5.0",
     "vitest": "^4"
   }

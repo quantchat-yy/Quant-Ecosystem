@@ -1,8 +1,11 @@
 import { Agent } from '../core/agent';
 import { logger } from '@quant/common';
+import { HttpClient, createQuantDriveClient } from '../clients/http-client';
 
 export class QuantDriveAgent extends Agent {
-  constructor() {
+  private httpClient: HttpClient;
+
+  constructor(httpClient?: HttpClient) {
     super({
       id: 'quantdrive-agent',
       name: 'QuantDrive Agent',
@@ -17,6 +20,7 @@ export class QuantDriveAgent extends Agent {
       ],
     });
 
+    this.httpClient = httpClient ?? createQuantDriveClient();
     this.registerDriveTools();
   }
 
@@ -31,7 +35,24 @@ export class QuantDriveAgent extends Agent {
       },
       execute: async (params: any) => {
         logger.log('[QuantDriveAgent] Uploading file:', params);
-        return { success: true, fileId: 'file_' + Date.now() };
+
+        const response = await this.httpClient.post('/api/files/upload', {
+          filename: params.filename,
+          content: params.content,
+          folder: params.folder || '/',
+        });
+
+        if (!response.ok) {
+          logger.warn('[QuantDriveAgent] Failed to upload file:', response.error);
+          return { success: false, error: response.error };
+        }
+
+        return {
+          success: true,
+          fileId: response.data?.id || response.data?.fileId,
+          url: response.data?.url,
+          size: response.data?.size,
+        };
       },
     });
 
@@ -42,11 +63,23 @@ export class QuantDriveAgent extends Agent {
         folderId: 'string',
         strategy: 'string',
       },
-      execute: async (_params: any) => {
+      execute: async (params: any) => {
+        logger.log('[QuantDriveAgent] Organizing files:', params);
+
+        const response = await this.httpClient.post('/api/files/organize', {
+          folderId: params.folderId,
+          strategy: params.strategy || 'auto',
+        });
+
+        if (!response.ok) {
+          logger.warn('[QuantDriveAgent] Failed to organize files:', response.error);
+          return { organized: false, error: response.error };
+        }
+
         return {
           organized: true,
-          foldersCreated: 3,
-          filesMoved: 47,
+          foldersCreated: response.data?.foldersCreated ?? 0,
+          filesMoved: response.data?.filesMoved ?? 0,
         };
       },
     });

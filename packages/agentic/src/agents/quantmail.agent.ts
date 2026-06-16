@@ -1,8 +1,11 @@
 import { Agent } from '../core/agent';
 import { logger } from '@quant/common';
+import { HttpClient, createQuantMailClient } from '../clients/http-client';
 
 export class QuantMailAgent extends Agent {
-  constructor() {
+  private httpClient: HttpClient;
+
+  constructor(httpClient?: HttpClient) {
     super({
       id: 'quantmail-agent',
       name: 'QuantMail Agent',
@@ -17,6 +20,7 @@ export class QuantMailAgent extends Agent {
       ],
     });
 
+    this.httpClient = httpClient ?? createQuantMailClient();
     this.registerEmailTools();
   }
 
@@ -30,10 +34,29 @@ export class QuantMailAgent extends Agent {
         body: 'string',
         attachments: 'array',
       },
+      // NOTE: Input validation is intentionally omitted here. All parameter validation
+      // is enforced server-side by the backend's Zod schemas (see @quant/server-core createApp).
+      // Client-side validation would be redundant and create a maintenance burden.
       execute: async (params: any) => {
-        // This will be connected to actual QuantMail backend
         logger.log('[QuantMailAgent] Sending email:', params);
-        return { success: true, messageId: 'msg_' + Date.now() };
+
+        const response = await this.httpClient.post('/api/emails', {
+          to: params.to,
+          subject: params.subject,
+          body: params.body,
+          attachments: params.attachments || [],
+        });
+
+        if (!response.ok) {
+          logger.warn('[QuantMailAgent] Failed to send email:', response.error);
+          return { success: false, error: response.error };
+        }
+
+        return {
+          success: true,
+          messageId: response.data?.id || response.data?.messageId,
+          status: response.data?.status || 'sent',
+        };
       },
     });
 
@@ -47,7 +70,23 @@ export class QuantMailAgent extends Agent {
       },
       execute: async (params: any) => {
         logger.log('[QuantMailAgent] Reading emails:', params);
-        return { emails: [], count: 0 };
+
+        const queryParams: Record<string, any> = {};
+        if (params.folder) queryParams['folder'] = params.folder;
+        if (params.limit) queryParams['limit'] = params.limit;
+        if (params.filter?.search) queryParams['search'] = params.filter.search;
+        if (params.filter?.from) queryParams['from'] = params.filter.from;
+        if (params.filter?.unread !== undefined) queryParams['unread'] = params.filter.unread;
+
+        const response = await this.httpClient.get('/api/emails', queryParams);
+
+        if (!response.ok) {
+          logger.warn('[QuantMailAgent] Failed to read emails:', response.error);
+          return { emails: [], count: 0, error: response.error };
+        }
+
+        const emails = Array.isArray(response.data) ? response.data : response.data?.emails || [];
+        return { emails, count: emails.length };
       },
     });
   }

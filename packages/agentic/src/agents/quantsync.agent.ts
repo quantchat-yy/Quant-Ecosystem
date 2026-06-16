@@ -1,8 +1,11 @@
 import { Agent } from '../core/agent';
 import { logger } from '@quant/common';
+import { HttpClient, createQuantSyncClient } from '../clients/http-client';
 
 export class QuantSyncAgent extends Agent {
-  constructor() {
+  private httpClient: HttpClient;
+
+  constructor(httpClient?: HttpClient) {
     super({
       id: 'quantsync-agent',
       name: 'QuantSync Agent',
@@ -17,6 +20,7 @@ export class QuantSyncAgent extends Agent {
       ],
     });
 
+    this.httpClient = httpClient ?? createQuantSyncClient();
     this.registerSyncTools();
   }
 
@@ -31,7 +35,23 @@ export class QuantSyncAgent extends Agent {
       },
       execute: async (params: any) => {
         logger.log('[QuantSyncAgent] Creating post:', params);
-        return { success: true, postId: 'post_' + Date.now() };
+
+        const response = await this.httpClient.post('/api/posts', {
+          content: params.content,
+          visibility: params.visibility || 'public',
+          communityId: params.communityId,
+        });
+
+        if (!response.ok) {
+          logger.warn('[QuantSyncAgent] Failed to create post:', response.error);
+          return { success: false, error: response.error };
+        }
+
+        return {
+          success: true,
+          postId: response.data?.id || response.data?.postId,
+          url: response.data?.url,
+        };
       },
     });
 
@@ -40,9 +60,24 @@ export class QuantSyncAgent extends Agent {
       description: 'Get trending topics and communities',
       parameters: {},
       execute: async () => {
+        logger.log('[QuantSyncAgent] Fetching trending topics');
+
+        const response = await this.httpClient.get('/api/trending');
+
+        if (!response.ok) {
+          logger.warn('[QuantSyncAgent] Failed to get trending:', response.error);
+          // Graceful fallback
+          return {
+            trendingTopics: [],
+            trendingCommunities: [],
+            error: response.error,
+          };
+        }
+
         return {
-          trendingTopics: ['AI', 'Web3', 'Remote Work'],
-          trendingCommunities: ['Tech Founders', 'AI Researchers'],
+          trendingTopics: response.data?.topics || response.data?.trendingTopics || [],
+          trendingCommunities:
+            response.data?.communities || response.data?.trendingCommunities || [],
         };
       },
     });

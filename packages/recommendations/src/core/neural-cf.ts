@@ -20,12 +20,13 @@ export interface TritonNCFConfig {
 }
 
 /**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: Falls back to pure JS in-memory NCF with random weights when Triton unavailable
- * Production path: Deploy trained NCF model on Triton Inference Server
+ * Neural Collaborative Filtering backed by Triton Inference Server.
+ *
+ * When a TritonInferenceClient is provided, inference is performed via the
+ * Triton v2 HTTP protocol against a deployed NCF model. When unavailable
+ * (client is null or fallbackMode is set), an in-memory neural CF with
+ * random weights is used as a development fallback.
  */
-/** Neural Collaborative Filtering backed by Triton Inference Server */
 export class NeuralCF {
   private readonly client: TritonInferenceClient | null;
   private readonly modelName: string;
