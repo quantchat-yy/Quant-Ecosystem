@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
 import { CrossAppDispatcher } from '@quant/notifications';
 import { EmailService } from '../services/email.service';
+import { validateComposeEmail, sanitizeHtml } from '../middleware/validate-email';
 
 const notifier = new CrossAppDispatcher('quantmail');
 
@@ -48,12 +49,26 @@ export default async function emailsRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
+    validateComposeEmail({
+      toAddresses: parseResult.data.toAddresses,
+      ccAddresses: parseResult.data.ccAddresses,
+      bccAddresses: parseResult.data.bccAddresses,
+      subject: parseResult.data.subject,
+      bodyHtml: parseResult.data.bodyHtml,
+      bodyPlain: parseResult.data.bodyPlain,
+    });
+
+    const sanitizedHtml = parseResult.data.bodyHtml
+      ? sanitizeHtml(parseResult.data.bodyHtml)
+      : undefined;
+
     const prisma = (fastify as unknown as { prisma: unknown }).prisma;
     const service = new EmailService(prisma as never);
 
     const email = await service.compose({
       userId,
       ...parseResult.data,
+      bodyHtml: sanitizedHtml,
     });
 
     if (parseResult.data.send && parseResult.data.sentFolderId) {
@@ -79,29 +94,41 @@ export default async function emailsRoutes(fastify: FastifyInstance) {
 
   // GET /emails - List emails (requires folderId or search)
   fastify.get('/', async (request, reply) => {
-    const queryResult = paginationSchema.safeParse(request.query);
-    if (!queryResult.success) {
-      throw queryResult.error;
-    }
-
     const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
     if (!userId) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
-    const service = new EmailService(prisma as never);
+    const q = (request.query ?? {}) as Record<string, string>;
+    const page = Math.max(1, Number(q.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(q.pageSize || q.limit) || 50));
+    const skip = (page - 1) * pageSize;
 
-    if (!queryResult.data.folderId) {
-      throw createAppError('folderId query parameter is required', 400, 'MISSING_FOLDER_ID');
-    }
+    const prisma = (fastify as unknown as { prisma: any }).prisma;
+    const where: any = { userId, deletedAt: null };
+    if (q.folderId) where.folderId = q.folderId;
 
-    const result = await service.listByFolder(userId, queryResult.data.folderId, {
-      page: queryResult.data.page,
-      pageSize: queryResult.data.pageSize,
+    const [data, total, unreadCount] = await Promise.all([
+      prisma.email.findMany({ where, skip, take: pageSize, orderBy: { receivedAt: 'desc' } }),
+      prisma.email.count({ where }),
+      prisma.email.count({ where: { ...where, isRead: false } }),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    // Augment each email with a category (used by inbox tabs) and return a
+    // shape that satisfies both consumers: useInbox reads response.data (the
+    // array), useEmail reads response.emails.
+    const items = data.map((e: any) => ({ ...e, category: e.aiCategory || 'primary' }));
+    return reply.send({
+      success: true,
+      data: items,
+      emails: items,
+      page,
+      pageSize,
+      totalPages,
+      totalCount: total,
+      unreadCount,
     });
-
-    return reply.send({ success: true, data: result });
   });
 
   // GET /emails/search

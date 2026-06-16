@@ -1,6 +1,7 @@
 import { createApp } from '@quant/server-core';
 import type { AppConfig } from '@quant/server-core';
 import emailsRoutes from './routes/emails';
+import labelsRoutes from './routes/labels';
 import threadsRoutes from './routes/threads';
 import foldersRoutes from './routes/folders';
 import contactsRoutes from './routes/contacts';
@@ -12,6 +13,7 @@ import reviewRoutes from './routes/reviews';
 import issueRoutes from './routes/issues';
 import ciRoutes from './routes/ci';
 import aiDevtoolsRoutes from './routes/ai-devtools';
+import attachmentRoutes from './routes/attachments';
 import { oauthRoutes } from './routes/oauth';
 import { authRoutes } from './routes/auth';
 
@@ -42,10 +44,11 @@ export async function buildApp(config?: AppConfig) {
   const app = await createApp(appConfig);
 
   // Auth routes (Login, Register, OAuth2)
-  await app.register(authRoutes, { prefix: '/auth' });
-  await app.register(oauthRoutes, { prefix: '/oauth' });
+  await app.register(authRoutes);
+  await app.register(oauthRoutes);
 
   await app.register(emailsRoutes, { prefix: '/emails' });
+  await app.register(labelsRoutes, { prefix: '/labels' });
   await app.register(threadsRoutes, { prefix: '/threads' });
   await app.register(foldersRoutes, { prefix: '/folders' });
   await app.register(contactsRoutes, { prefix: '/contacts' });
@@ -57,6 +60,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(issueRoutes, { prefix: '/api/v1/git' });
   await app.register(ciRoutes, { prefix: '/api/v1' });
   await app.register(aiDevtoolsRoutes, { prefix: '/api/v1' });
+  await app.register(attachmentRoutes, { prefix: '/attachments' });
 
   return app;
 }

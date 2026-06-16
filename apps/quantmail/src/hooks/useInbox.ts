@@ -4,11 +4,12 @@ import { apiClient } from '../services/api-client';
 export function useInbox(options?: {
   label?: string;
   category?: string;
+  folderType?: string;
   page?: number;
   pageSize?: number;
 }) {
   return useQuery({
-    queryKey: ['inbox', options?.label, options?.category, options?.page],
+    queryKey: ['inbox', options?.label, options?.category, options?.folderType, options?.page],
     queryFn: async () => {
       const response = await apiClient.getEmails(options);
       if (!response.success) {
