@@ -34,6 +34,9 @@ export class QuantMailAgent extends Agent {
         body: 'string',
         attachments: 'array',
       },
+      // NOTE: Input validation is intentionally omitted here. All parameter validation
+      // is enforced server-side by the backend's Zod schemas (see @quant/server-core createApp).
+      // Client-side validation would be redundant and create a maintenance burden.
       execute: async (params: any) => {
         logger.log('[QuantMailAgent] Sending email:', params);
 

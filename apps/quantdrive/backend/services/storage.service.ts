@@ -3,6 +3,52 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { StorageClient, type StorageConfig } from '@quant/storage';
 
+/**
+ * Allowed file extensions for upload. Extensions not in this list are stripped
+ * and the file is stored with no extension (UUID-only key). This prevents
+ * stored XSS via .html, .svg, or other browser-interpreted extensions.
+ */
+const ALLOWED_EXTENSIONS = new Set([
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.webp',
+  '.avif',
+  '.bmp',
+  '.ico',
+  '.pdf',
+  '.doc',
+  '.docx',
+  '.xls',
+  '.xlsx',
+  '.ppt',
+  '.pptx',
+  '.odt',
+  '.ods',
+  '.odp',
+  '.txt',
+  '.csv',
+  '.json',
+  '.xml',
+  '.zip',
+  '.tar',
+  '.gz',
+  '.7z',
+  '.rar',
+  '.mp3',
+  '.wav',
+  '.ogg',
+  '.flac',
+  '.mp4',
+  '.webm',
+  '.mkv',
+  '.avi',
+  '.mov',
+  '.md',
+  '.rtf',
+]);
+
 function getS3Config(): StorageConfig | null {
   const endpoint = process.env.S3_ENDPOINT;
   const bucket = process.env.S3_BUCKET;
@@ -43,12 +89,16 @@ export class StorageService {
 
   async uploadFile(file: Buffer, filename: string, contentType: string) {
     const fileId = uuidv4();
-    const ext = path.extname(filename);
+    const rawExt = path.extname(filename).toLowerCase();
+    // Only allow whitelisted extensions; otherwise store without extension
+    const ext = ALLOWED_EXTENSIONS.has(rawExt) ? rawExt : '';
     const key = `uploads/${fileId}${ext}`;
 
     if (this.useS3 && this.s3Client) {
       const { etag } = await this.s3Client.upload(key, file, contentType, {
         originalName: filename,
+        // Force download disposition to prevent browser interpretation of stored content
+        contentDisposition: `attachment; filename="${filename.replace(/"/g, '\\"')}"`,
       });
 
       return {

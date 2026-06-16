@@ -140,11 +140,11 @@ export class SFUService {
     return this.livekit !== null;
   }
 
-  createTransport(
+  async createTransport(
     roomId: string,
     participantId: string,
     direction: 'send' | 'recv',
-  ): TransportInfo {
+  ): Promise<TransportInfo> {
     const id = randomUUID();
 
     const transport: TransportRecord = {
@@ -170,17 +170,18 @@ export class SFUService {
 
     // When LiveKit is enabled, create a room for this meeting if not already present
     if (this.livekit && !this.livekitRooms.has(roomId)) {
-      // Mark the room as pending immediately to prevent duplicate creation
       this.livekitRooms.set(roomId, 'pending');
-      this.livekit
-        .createRoom(roomId)
-        .then((room) => {
-          this.livekitRooms.set(roomId, room.sid);
-        })
-        .catch(() => {
-          // Room creation is best-effort; the room may already exist
-          this.livekitRooms.delete(roomId);
-        });
+      try {
+        const room = await this.livekit.createRoom(roomId);
+        this.livekitRooms.set(roomId, room.sid);
+      } catch (err) {
+        this.livekitRooms.delete(roomId);
+        throw createAppError(
+          `Failed to create LiveKit room: ${(err as Error).message}`,
+          502,
+          'LIVEKIT_ROOM_CREATION_FAILED',
+        );
+      }
     }
 
     return {
@@ -215,7 +216,7 @@ export class SFUService {
     };
   }
 
-  connectTransport(transportId: string, dtlsParameters: DtlsParameters): void {
+  async connectTransport(transportId: string, dtlsParameters: DtlsParameters): Promise<void> {
     const transport = this.transports.get(transportId);
     if (!transport) {
       throw createAppError('Transport not found', 404, 'TRANSPORT_NOT_FOUND');
@@ -234,17 +235,24 @@ export class SFUService {
 
     // When LiveKit is enabled, generate a participant token for this connection
     if (this.livekit) {
-      this.livekit
-        .generateToken(transport.roomId, transport.participantId, transport.participantId, {
-          canPublish: transport.direction === 'send',
-          canSubscribe: transport.direction === 'recv',
-        })
-        .then((token) => {
-          transport.livekitToken = token;
-        })
-        .catch(() => {
-          // Token generation failure does not block connection
-        });
+      try {
+        const token = await this.livekit.generateToken(
+          transport.roomId,
+          transport.participantId,
+          transport.participantId,
+          {
+            canPublish: transport.direction === 'send',
+            canSubscribe: transport.direction === 'recv',
+          },
+        );
+        transport.livekitToken = token;
+      } catch (err) {
+        throw createAppError(
+          `Failed to generate LiveKit token: ${(err as Error).message}`,
+          502,
+          'LIVEKIT_TOKEN_GENERATION_FAILED',
+        );
+      }
     }
   }
 

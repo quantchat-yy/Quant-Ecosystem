@@ -84,14 +84,11 @@ describe('SFUService with LiveKit', () => {
 
   it('creates transport and triggers LiveKit room creation', async () => {
     const service = new SFUService();
-    const transport = service.createTransport('meeting-room-1', 'participant-1', 'send');
+    const transport = await service.createTransport('meeting-room-1', 'participant-1', 'send');
 
     expect(transport.id).toBeDefined();
     expect(transport.iceParameters).toBeDefined();
     expect(transport.iceCandidates).toHaveLength(1);
-
-    // Allow async LiveKit room creation to complete
-    await new Promise((resolve) => setTimeout(resolve, 10));
 
     expect(service.getLiveKitGateway()).not.toBeNull();
     expect(mockCreateRoom).toHaveBeenCalledWith('meeting-room-1');
@@ -99,12 +96,9 @@ describe('SFUService with LiveKit', () => {
 
   it('generates LiveKit token on connectTransport', async () => {
     const service = new SFUService();
-    const transport = service.createTransport('meeting-room-2', 'participant-2', 'send');
+    const transport = await service.createTransport('meeting-room-2', 'participant-2', 'send');
 
-    service.connectTransport(transport.id, mockDtlsParameters);
-
-    // Allow async token generation to complete
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await service.connectTransport(transport.id, mockDtlsParameters);
 
     expect(mockGenerateToken).toHaveBeenCalledWith(
       'meeting-room-2',
@@ -116,11 +110,9 @@ describe('SFUService with LiveKit', () => {
 
   it('generates token with subscribe permissions for recv transport', async () => {
     const service = new SFUService();
-    const transport = service.createTransport('meeting-room-3', 'participant-3', 'recv');
+    const transport = await service.createTransport('meeting-room-3', 'participant-3', 'recv');
 
-    service.connectTransport(transport.id, mockDtlsParameters);
-
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await service.connectTransport(transport.id, mockDtlsParameters);
 
     expect(mockGenerateToken).toHaveBeenCalledWith(
       'meeting-room-3',
@@ -132,10 +124,7 @@ describe('SFUService with LiveKit', () => {
 
   it('deletes LiveKit room when closing all room transports', async () => {
     const service = new SFUService();
-    service.createTransport('meeting-room-4', 'participant-4', 'send');
-
-    // Allow room creation
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await service.createTransport('meeting-room-4', 'participant-4', 'send');
 
     service.closeRoomTransports('meeting-room-4');
 
@@ -144,10 +133,8 @@ describe('SFUService with LiveKit', () => {
 
   it('does not create duplicate LiveKit rooms for same meeting', async () => {
     const service = new SFUService();
-    service.createTransport('meeting-room-5', 'participant-a', 'send');
-    service.createTransport('meeting-room-5', 'participant-b', 'recv');
-
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await service.createTransport('meeting-room-5', 'participant-a', 'send');
+    await service.createTransport('meeting-room-5', 'participant-b', 'recv');
 
     // Should only be called once for the same room
     expect(mockCreateRoom).toHaveBeenCalledTimes(1);
@@ -156,12 +143,12 @@ describe('SFUService with LiveKit', () => {
   it('full produce/consume flow works with LiveKit enabled', async () => {
     const service = new SFUService();
 
-    const sendTransport = service.createTransport('room-flow', 'sender', 'send');
-    service.connectTransport(sendTransport.id, mockDtlsParameters);
+    const sendTransport = await service.createTransport('room-flow', 'sender', 'send');
+    await service.connectTransport(sendTransport.id, mockDtlsParameters);
     const producer = service.produce(sendTransport.id, 'audio', mockRtpParameters);
 
-    const recvTransport = service.createTransport('room-flow', 'receiver', 'recv');
-    service.connectTransport(recvTransport.id, mockDtlsParameters);
+    const recvTransport = await service.createTransport('room-flow', 'receiver', 'recv');
+    await service.connectTransport(recvTransport.id, mockDtlsParameters);
     const consumer = service.consume(recvTransport.id, producer.id, mockRtpCapabilities);
 
     expect(consumer.producerId).toBe(producer.id);
@@ -172,6 +159,36 @@ describe('SFUService with LiveKit', () => {
     const service = new SFUService();
     const gateway = service.getLiveKitGateway();
     expect(gateway).not.toBeNull();
+  });
+
+  it('makes LiveKit token available via getParticipantToken after connectTransport', async () => {
+    const service = new SFUService();
+    const transport = await service.createTransport('meeting-room-token', 'participant-t', 'send');
+
+    await service.connectTransport(transport.id, mockDtlsParameters);
+
+    const token = service.getParticipantToken(transport.id);
+    expect(token).toBe('livekit-token-xyz');
+  });
+
+  it('propagates room creation errors', async () => {
+    mockCreateRoom.mockRejectedValueOnce(new Error('LiveKit unavailable'));
+
+    const service = new SFUService();
+    await expect(
+      service.createTransport('failing-room', 'participant-fail', 'send'),
+    ).rejects.toThrow('Failed to create LiveKit room');
+  });
+
+  it('propagates token generation errors', async () => {
+    mockGenerateToken.mockRejectedValueOnce(new Error('Auth failed'));
+
+    const service = new SFUService();
+    const transport = await service.createTransport('token-fail-room', 'participant-tf', 'send');
+
+    await expect(service.connectTransport(transport.id, mockDtlsParameters)).rejects.toThrow(
+      'Failed to generate LiveKit token',
+    );
   });
 });
 
@@ -200,9 +217,9 @@ describe('SFUService without LiveKit (simulation mode)', () => {
     expect(service.isLiveKitEnabled()).toBe(false);
   });
 
-  it('works normally in simulation mode', () => {
+  it('works normally in simulation mode', async () => {
     const service = new SFUService(null);
-    const transport = service.createTransport('sim-room', 'sim-participant', 'send');
+    const transport = await service.createTransport('sim-room', 'sim-participant', 'send');
 
     expect(transport.id).toBeDefined();
     expect(transport.iceParameters).toBeDefined();

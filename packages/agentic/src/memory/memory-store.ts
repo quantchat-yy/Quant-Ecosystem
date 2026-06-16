@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { logger } from '@quant/common';
 
 export interface MemoryItem {
   id: string;
@@ -64,8 +65,11 @@ export class MemoryStore {
       try {
         const text = typeof item.content === 'string' ? item.content : JSON.stringify(item.content);
         memoryItem.embedding = await this.embeddingProvider.generateEmbedding(text);
-      } catch {
-        // Silently fall back to no embedding
+      } catch (err) {
+        // Log warning but still store the memory (available for keyword search)
+        logger.warn(
+          `[memory-store] Failed to generate embedding for memory ${id}: ${(err as Error).message}; storing without embedding (keyword search only)`,
+        );
       }
     }
 
@@ -92,7 +96,10 @@ export class MemoryStore {
       try {
         const queryEmbedding = await this.embeddingProvider.generateEmbedding(query);
         return this.vectorSearch(queryEmbedding, limit);
-      } catch {
+      } catch (err) {
+        logger.warn(
+          `[memory-store] Failed to generate query embedding for vector search, falling back to keyword search: ${(err as Error).message}`,
+        );
         // Fall through to keyword matching
       }
     }

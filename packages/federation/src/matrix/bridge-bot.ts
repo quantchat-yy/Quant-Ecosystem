@@ -47,7 +47,11 @@ export class MatrixBridgeBot {
   private config: MatrixBridgeConfig | null = null;
   private logger = pino({ name: 'matrix-bridge-bot' });
   private started = false;
+  private connected = false;
   private botUserId: string | null = null;
+  private reconnectAttempts = 0;
+  private readonly maxReconnectAttempts = 5;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(roomMapper?: RoomMapper, options?: { autoCreateRooms?: boolean }) {
     this.roomMapper = roomMapper ?? new RoomMapper();
@@ -92,14 +96,28 @@ export class MatrixBridgeBot {
         this.handleIncomingMatrixMessage(roomId, sender, content);
       });
 
+      // Listen for sync errors and connection drops to trigger reconnection
+      client.on('sync.error', (err: unknown) => {
+        this.logger.error({ err }, 'Matrix sync error detected');
+        this.handleDisconnect();
+      });
+
+      client.on('error', (err: unknown) => {
+        this.logger.error({ err }, 'Matrix client error detected');
+        this.handleDisconnect();
+      });
+
       await client.start();
       this.matrixClient = client;
       this.botUserId = await client.getUserId();
       this.started = true;
+      this.connected = true;
+      this.reconnectAttempts = 0;
       this.logger.info({ homeserver: this.config.homeserverUrl }, 'Matrix bridge connected');
     } catch (err) {
       this.logger.error({ err }, 'Failed to start Matrix client, falling back to simulation mode');
       this.matrixClient = null;
+      this.connected = false;
     }
   }
 
@@ -107,6 +125,11 @@ export class MatrixBridgeBot {
    * Stop the Matrix client connection gracefully.
    */
   async stop(): Promise<void> {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
     if (this.matrixClient && this.started) {
       try {
         await (this.matrixClient as { stop: () => Promise<void> }).stop();
@@ -115,6 +138,7 @@ export class MatrixBridgeBot {
       }
       this.matrixClient = null;
       this.started = false;
+      this.connected = false;
       this.logger.info('Matrix bridge disconnected');
     }
   }
@@ -123,7 +147,7 @@ export class MatrixBridgeBot {
    * Returns true when connected to a real Matrix homeserver.
    */
   isConnected(): boolean {
-    return this.matrixClient !== null && this.started;
+    return this.matrixClient !== null && this.started && this.connected;
   }
 
   /**
@@ -206,5 +230,72 @@ export class MatrixBridgeBot {
       msgtype: 'm.text',
       body: content,
     });
+  }
+
+  /**
+   * Handle a detected disconnect from the Matrix homeserver.
+   * Marks the connection as down and schedules a reconnection attempt
+   * with exponential backoff.
+   */
+  private handleDisconnect(): void {
+    if (!this.connected) return; // Already handling a disconnect
+
+    this.connected = false;
+    this.logger.warn('Matrix bridge connection lost, scheduling reconnection');
+    this.scheduleReconnect();
+  }
+
+  /**
+   * Schedule a reconnection attempt with exponential backoff.
+   */
+  private scheduleReconnect(): void {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      this.logger.error(
+        { attempts: this.reconnectAttempts },
+        'Max reconnect attempts reached, giving up. Manual restart required.',
+      );
+      return;
+    }
+
+    // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+    this.reconnectAttempts++;
+
+    this.logger.info(
+      { attempt: this.reconnectAttempts, delayMs: delay },
+      'Scheduling Matrix reconnection attempt',
+    );
+
+    this.reconnectTimer = setTimeout(() => {
+      this.attemptReconnect().catch((err) => {
+        this.logger.error({ err }, 'Reconnection attempt failed');
+        this.scheduleReconnect();
+      });
+    }, delay);
+  }
+
+  /**
+   * Attempt to reconnect to the Matrix homeserver by stopping
+   * the old client and starting fresh.
+   */
+  private async attemptReconnect(): Promise<void> {
+    // Stop existing client if any
+    if (this.matrixClient) {
+      try {
+        await (this.matrixClient as { stop: () => Promise<void> }).stop();
+      } catch {
+        // Ignore stop errors during reconnect
+      }
+      this.matrixClient = null;
+    }
+
+    this.started = false;
+
+    // Re-use the start() logic
+    await this.start();
+
+    if (this.connected) {
+      this.logger.info('Matrix bridge reconnected successfully');
+    }
   }
 }

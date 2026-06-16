@@ -1,5 +1,6 @@
 import { MemoryStore } from '../memory/memory-store';
 import { ToolRegistry } from '../tools/tool-registry';
+import { logger } from '@quant/common';
 
 export interface PlanStep {
   id: string;
@@ -99,15 +100,43 @@ Do not include any text outside the JSON object.`;
       maxTokens: 1000,
     });
 
-    const parsed = JSON.parse(response.content);
-    const steps: PlanStep[] = (parsed.steps || []).map((s: any, i: number) => ({
-      id: s.id || `step-${i + 1}`,
-      action: s.action || 'unknown',
-      tool: s.tool,
-      parameters: s.parameters || {},
-      description: s.description || '',
-      dependencies: s.dependencies,
-    }));
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(response.content);
+    } catch (parseErr) {
+      logger.warn(
+        `[planner] LLM returned invalid JSON for plan, falling back to keyword planning: ${(parseErr as Error).message}`,
+      );
+      throw parseErr; // Re-throw to trigger keyword fallback in createPlan
+    }
+
+    // Validate the parsed shape: must be an object with a steps array
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      !Array.isArray((parsed as Record<string, unknown>).steps)
+    ) {
+      logger.warn(
+        '[planner] LLM returned JSON with unexpected shape (missing steps array), falling back to keyword planning',
+      );
+      throw new Error('Invalid plan schema: missing steps array');
+    }
+
+    const planData = parsed as { steps: unknown[]; confidence?: unknown };
+
+    const steps: PlanStep[] = planData.steps
+      .filter((s): s is Record<string, unknown> => typeof s === 'object' && s !== null)
+      .map((s, i) => ({
+        id: typeof s.id === 'string' ? s.id : `step-${i + 1}`,
+        action: typeof s.action === 'string' ? s.action : 'unknown',
+        tool: typeof s.tool === 'string' ? s.tool : undefined,
+        parameters:
+          typeof s.parameters === 'object' && s.parameters !== null
+            ? (s.parameters as Record<string, any>)
+            : {},
+        description: typeof s.description === 'string' ? s.description : '',
+        dependencies: Array.isArray(s.dependencies) ? (s.dependencies as string[]) : undefined,
+      }));
 
     return {
       id: `plan-${Date.now()}`,
@@ -124,7 +153,7 @@ Do not include any text outside the JSON object.`;
               },
             ],
       estimatedDuration: steps.length * 30,
-      confidence: parsed.confidence ?? 0.8,
+      confidence: typeof planData.confidence === 'number' ? planData.confidence : 0.8,
     };
   }
 
@@ -232,11 +261,27 @@ Do not include any text outside the JSON object.`;
           maxTokens: 1000,
         });
 
-        const parsed = JSON.parse(response.content);
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(response.content);
+        } catch (parseErr) {
+          logger.warn(
+            `[planner] LLM returned invalid JSON for plan refinement, keeping original plan: ${(parseErr as Error).message}`,
+          );
+          return plan;
+        }
+
+        if (typeof parsed !== 'object' || parsed === null) {
+          logger.warn('[planner] LLM returned non-object for plan refinement');
+          return plan;
+        }
+
+        const planData = parsed as Record<string, unknown>;
         return {
           ...plan,
-          steps: parsed.steps || plan.steps,
-          confidence: parsed.confidence ?? plan.confidence,
+          steps: Array.isArray(planData.steps) ? planData.steps : plan.steps,
+          confidence:
+            typeof planData.confidence === 'number' ? planData.confidence : plan.confidence,
         };
       } catch {
         // Fall through
