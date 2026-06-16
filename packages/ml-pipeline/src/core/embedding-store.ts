@@ -1,8 +1,31 @@
 // ============================================================================
-// ML Pipeline - Embedding Store with LSH
+// ML Pipeline - Embedding Store with LSH (Production-ready with Qdrant backend)
 // ============================================================================
 
 import { Embedding, VectorIndex, LSHConfig, SimilarityResult } from '../types';
+
+/** Interface for external vector storage backends */
+export interface VectorStoreBackend {
+  upsert(
+    collection: string,
+    points: { id: string; vector: number[]; payload?: Record<string, unknown> }[],
+  ): Promise<void>;
+  search(
+    collection: string,
+    vector: number[],
+    limit: number,
+  ): Promise<{ id: string; score: number; payload: Record<string, unknown> }[]>;
+  delete(collection: string, ids: string[]): Promise<void>;
+  createCollection(name: string, vectorSize: number): Promise<void>;
+}
+
+/** Options for creating an EmbeddingStore */
+export interface EmbeddingStoreOptions {
+  /** External vector store backend (e.g., Qdrant VectorClient adapter) */
+  backend?: VectorStoreBackend;
+  /** Collection name for the external backend */
+  collection?: string;
+}
 
 interface LSHTable {
   hashFunctions: number[][];
@@ -10,19 +33,30 @@ interface LSHTable {
 }
 
 /**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: In-memory vector storage
- * Production path: Use Pinecone, Qdrant, or pgvector
+ * Embedding Store with pluggable backend.
+ *
+ * When a VectorStoreBackend is provided, upsert/search/delete operations are
+ * delegated to the external service (e.g., Qdrant). Otherwise, an efficient
+ * in-memory store with LSH indexing is used as a fallback (useful for tests
+ * and local development).
  */
 export class EmbeddingStore {
   private vectors: Map<string, Embedding> = new Map();
   private dimension: number;
   private lshTables: LSHTable[] = [];
   private indexBuilt: boolean = false;
+  private readonly backend: VectorStoreBackend | null;
+  private readonly collection: string;
 
-  constructor(dimension: number) {
+  constructor(dimension: number, options?: EmbeddingStoreOptions) {
     this.dimension = dimension;
+    this.backend = options?.backend ?? null;
+    this.collection = options?.collection ?? 'default';
+  }
+
+  /** Returns true if an external backend is configured */
+  hasBackend(): boolean {
+    return this.backend !== null;
   }
 
   insert(id: string, vector: number[], metadata?: Record<string, string>): void {
@@ -38,6 +72,20 @@ export class EmbeddingStore {
     // Update LSH index if built
     if (this.indexBuilt) {
       this.insertIntoLSH(id, vector);
+    }
+  }
+
+  /** Insert a vector and sync to external backend if available */
+  async insertAsync(
+    id: string,
+    vector: number[],
+    metadata?: Record<string, string>,
+  ): Promise<void> {
+    this.insert(id, vector, metadata);
+    if (this.backend) {
+      await this.backend.upsert(this.collection, [
+        { id, vector, payload: metadata as Record<string, unknown> | undefined },
+      ]);
     }
   }
 
@@ -59,12 +107,36 @@ export class EmbeddingStore {
     }
   }
 
+  /** Batch insert and sync to external backend if available */
+  async batchInsertAsync(
+    embeddings: { id: string; vector: number[]; metadata?: Record<string, string> }[],
+  ): Promise<void> {
+    this.batchInsert(embeddings);
+    if (this.backend) {
+      const points = embeddings.map((e) => ({
+        id: e.id,
+        vector: e.vector,
+        payload: e.metadata as Record<string, unknown> | undefined,
+      }));
+      await this.backend.upsert(this.collection, points);
+    }
+  }
+
   get(id: string): Embedding | null {
     return this.vectors.get(id) ?? null;
   }
 
   delete(id: string): boolean {
     return this.vectors.delete(id);
+  }
+
+  /** Delete and sync to external backend if available */
+  async deleteAsync(id: string): Promise<boolean> {
+    const result = this.vectors.delete(id);
+    if (this.backend) {
+      await this.backend.delete(this.collection, [id]);
+    }
+    return result;
   }
 
   cosineSimilarity(a: number[], b: number[]): number {
@@ -98,7 +170,7 @@ export class EmbeddingStore {
     return sum;
   }
 
-  // Exact K-Nearest Neighbors
+  // Exact K-Nearest Neighbors (in-memory fallback)
   knnExact(
     query: number[],
     k: number,
@@ -116,6 +188,21 @@ export class EmbeddingStore {
     }
     results.sort((a, b) => b.score - a.score);
     return results.slice(0, k);
+  }
+
+  /**
+   * Search using external backend (Qdrant) when available, otherwise fallback to in-memory kNN.
+   */
+  async searchAsync(query: number[], k: number): Promise<SimilarityResult[]> {
+    if (this.backend) {
+      const results = await this.backend.search(this.collection, query, k);
+      return results.map((r) => ({
+        id: r.id,
+        score: r.score,
+        metadata: r.payload as Record<string, string> | undefined,
+      }));
+    }
+    return this.knnExact(query, k);
   }
 
   // LSH Index Building

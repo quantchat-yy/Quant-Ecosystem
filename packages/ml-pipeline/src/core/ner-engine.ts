@@ -1,8 +1,24 @@
 // ============================================================================
-// MI Pipeline - Named Entity Recognition Engine (CRF-style Sequence Labeling)
+// ML Pipeline - Named Entity Recognition Engine (CRF-style with LLM backend)
 // ============================================================================
 
 import { NEREntity, EntityType } from '../types';
+
+/** Backend interface for LLM-based NER */
+export interface NERBackend {
+  /** Extract entities from text using an LLM with structured output */
+  extractEntities(
+    text: string,
+  ): Promise<{ text: string; type: EntityType; start: number; end: number; confidence: number }[]>;
+  /** Whether the backend is available */
+  isAvailable(): boolean;
+}
+
+/** Options for creating a NEREngine */
+export interface NEREngineOptions {
+  /** Optional AI backend for LLM-based NER (e.g., UnifiedAIService adapter) */
+  backend?: NERBackend;
+}
 
 interface GazetteerEntry {
   text: string;
@@ -45,11 +61,46 @@ export class NEREngine {
   private patterns: PatternRule[] = [];
   private entityAliases: Map<string, string> = new Map();
   private transitionScores: Map<string, number> = new Map();
+  private readonly backend: NERBackend | null;
 
-  constructor() {
+  constructor(options?: NEREngineOptions) {
+    this.backend = options?.backend ?? null;
     this.initializePatterns();
     this.initializeGazetteers();
     this.initializeTransitionScores();
+  }
+
+  /** Returns true if an AI backend is configured and available */
+  hasBackend(): boolean {
+    return this.backend !== null && this.backend.isAvailable();
+  }
+
+  /**
+   * Extract entities using LLM backend when available, falling back to regex/CRF.
+   * Returns entities with a `backend` field indicating the source.
+   */
+  async extractWithBackend(
+    text: string,
+  ): Promise<{ entities: NEREntity[]; backend: 'llm' | 'regex' }> {
+    if (this.backend && this.backend.isAvailable()) {
+      try {
+        const rawEntities = await this.backend.extractEntities(text);
+        const entities: NEREntity[] = rawEntities.map((e) => ({
+          text: e.text,
+          type: e.type,
+          start: e.start,
+          end: e.end,
+          confidence: e.confidence,
+          normalized: this.normalizeEntity(e.text, e.type),
+        }));
+        return { entities: this.resolveOverlaps(entities), backend: 'llm' };
+      } catch {
+        // Fall through to regex-based extraction on backend error
+      }
+    }
+
+    const entities = this.extract(text);
+    return { entities, backend: 'regex' };
   }
 
   private initializeTransitionScores(): void {

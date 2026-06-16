@@ -1,6 +1,31 @@
 // ============================================================================
-// ML Pipeline - Spam Classifier (TF-IDF + Logistic Regression)
+// ML Pipeline - Spam Classifier (TF-IDF + Logistic Regression with ONNX backend)
 // ============================================================================
+
+/** Backend interface for ML model inference (e.g., ONNX via ModelLoader) */
+export interface SpamModelBackend {
+  /** Run inference on text features, returning spam probability */
+  predict(features: number[]): Promise<number>;
+  /** Whether the backend is ready for inference */
+  isReady(): boolean;
+}
+
+/** Options for configuring the SpamClassifier */
+export interface SpamClassifierOptions {
+  threshold?: number;
+  smoothingAlpha?: number;
+  /** Optional ONNX or external model backend for real inference */
+  modelBackend?: SpamModelBackend;
+}
+
+/** Result of spam classification with confidence scoring */
+export interface SpamClassificationResult {
+  isSpam: boolean;
+  probability: number;
+  confidence: number;
+  features: { name: string; weight: number }[];
+  backend: 'model' | 'naive';
+}
 
 interface ClassStats {
   wordCounts: Map<string, number>;
@@ -37,11 +62,19 @@ export class SpamClassifier {
   private l2RegLambda: number = 0.001;
   private trainingExamples: { features: Map<string, number>; label: number }[] = [];
 
-  constructor(options: { threshold?: number; smoothingAlpha?: number } = {}) {
+  private readonly modelBackend: SpamModelBackend | null;
+
+  constructor(options: SpamClassifierOptions = {}) {
     this.spamThreshold = options.threshold ?? 0.5;
     this.l2RegLambda = options.smoothingAlpha ?? 0.001;
+    this.modelBackend = options.modelBackend ?? null;
     this.classes.set('spam', { wordCounts: new Map(), totalWords: 0, documentCount: 0 });
     this.classes.set('ham', { wordCounts: new Map(), totalWords: 0, documentCount: 0 });
+  }
+
+  /** Returns true if a model backend is configured and ready */
+  hasModelBackend(): boolean {
+    return this.modelBackend !== null && this.modelBackend.isReady();
   }
 
   private extractFeatures(text: string): Map<string, number> {
@@ -71,6 +104,30 @@ export class SpamClassifier {
     const avgWordLen = words.reduce((s, w) => s + w.length, 0) / Math.max(words.length, 1);
     features.set('meta:avg_word_len', avgWordLen);
     return features;
+  }
+
+  /** Extract a fixed-size numeric feature vector for model inference */
+  private extractNumericFeatures(text: string): number[] {
+    const lower = text.toLowerCase();
+    const words = lower
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length > 0);
+
+    return [
+      words.length,
+      text.length,
+      (text.match(/[!@#$%^&*()]/g)?.length ?? 0) / Math.max(text.length, 1),
+      text.match(/https?:\/\/|www\./g)?.length ?? 0,
+      (text.match(/[A-Z]/g)?.length ?? 0) / Math.max(text.length, 1),
+      text.match(/!/g)?.length ?? 0,
+      (text.match(/\d/g)?.length ?? 0) / Math.max(text.length, 1),
+      words.reduce((s, w) => s + w.length, 0) / Math.max(words.length, 1),
+      text.match(/\$/g)?.length ?? 0,
+      text.includes('free') ? 1 : 0,
+      text.includes('click') ? 1 : 0,
+      text.includes('buy') ? 1 : 0,
+    ];
   }
 
   private computeTF(rawFeatures: Map<string, number>): Map<string, number> {
@@ -116,7 +173,7 @@ export class SpamClassifier {
     return expZ / (1 + expZ);
   }
 
-  private dotProduct(features: Map<string, number>): number {
+  private dotProductCalc(features: Map<string, number>): number {
     let sum = this.bias;
     for (const [feature, value] of features.entries()) {
       const w = this.weights.get(feature) ?? 0;
@@ -132,15 +189,11 @@ export class SpamClassifier {
     const lambda = this.l2RegLambda;
 
     for (let epoch = 0; epoch < epochs; epoch++) {
-      let totalLoss = 0;
       for (const example of this.trainingExamples) {
         const tfidf = this.computeTFIDF(example.features);
-        const z = this.dotProduct(tfidf);
+        const z = this.dotProductCalc(tfidf);
         const pred = this.sigmoid(z);
         const error = pred - example.label;
-        totalLoss +=
-          -example.label * Math.log(pred + 1e-15) -
-          (1 - example.label) * Math.log(1 - pred + 1e-15);
 
         for (const [feature, value] of tfidf.entries()) {
           const w = this.weights.get(feature) ?? 0;
@@ -197,11 +250,37 @@ export class SpamClassifier {
     this.trainSGD();
   }
 
+  /**
+   * Predict using model backend if available, falling back to naive classifier.
+   * Returns an enhanced SpamClassificationResult with backend indication.
+   */
+  async predictWithBackend(text: string): Promise<SpamClassificationResult> {
+    if (this.modelBackend && this.modelBackend.isReady()) {
+      try {
+        const features = this.extractNumericFeatures(text);
+        const probability = await this.modelBackend.predict(features);
+        const confidence = Math.abs(probability - 0.5) * 2;
+        return {
+          isSpam: probability >= this.spamThreshold,
+          probability,
+          confidence,
+          features: [],
+          backend: 'model',
+        };
+      } catch {
+        // Fall through to naive classifier on backend error
+      }
+    }
+
+    const result = this.predict(text);
+    return { ...result, backend: 'naive' };
+  }
+
   predict(text: string): ClassificationResult {
     const rawFeatures = this.extractFeatures(text);
     const tfidf = this.computeTFIDF(rawFeatures);
     const priorAdjustment = Math.log(this.getPrior('spam') / Math.max(this.getPrior('ham'), 1e-10));
-    const z = this.dotProduct(tfidf) + priorAdjustment * 0.1;
+    const z = this.dotProductCalc(tfidf) + priorAdjustment * 0.1;
     const probability = this.sigmoid(z);
 
     const topFeatures: { name: string; weight: number }[] = [];

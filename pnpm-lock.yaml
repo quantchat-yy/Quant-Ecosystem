@@ -2175,9 +2175,15 @@ importers:
 
   packages/ml-pipeline:
     dependencies:
+      '@quant/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@quant/ml-runtime':
         specifier: workspace:*
         version: link:../ml-runtime
+      '@quant/search':
+        specifier: workspace:*
+        version: link:../search
       onnxruntime-node:
         specifier: ^1.26.0
         version: 1.26.0
