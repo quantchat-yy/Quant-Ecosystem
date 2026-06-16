@@ -21,6 +21,21 @@ export { RoutingTable } from './core/routing-table';
 export { ProviderHealthMonitor } from './core/provider-health';
 export { RequestCostLogger } from './core/request-cost-logger';
 export type { CostLogEntry } from './core/request-cost-logger';
+export {
+  OpenAIAdapter,
+  AnthropicAdapter,
+  GoogleAdapter,
+  ProviderAdapterRegistry,
+  estimateTokens,
+} from './core/provider-adapter';
+export type {
+  ProviderAdapter,
+  ProviderGenerateOptions,
+  ProviderGenerateResult,
+  ProviderStreamResult,
+} from './core/provider-adapter';
+export { TokenCounter } from './core/token-counter';
+export type { TokenCountResult } from './core/token-counter';
 
 // Services
 export { ChatAIService } from './services/chat-ai';
@@ -30,6 +45,26 @@ export { RecommendationAIService } from './services/recommendation-ai';
 export { DeviceControlAIService } from './services/device-control-ai';
 export { UnifiedAIService } from './services/unified-ai-service';
 export type { GenerateTextOptions, GenerateStreamOptions } from './services/unified-ai-service';
+export { SmartComposeService } from './services/smart-compose';
+export type { ComposeOptions, ComposeResult } from './services/smart-compose';
+export { CodeGenerationService } from './services/code-generation';
+export type {
+  CodeLanguage,
+  CodeGenerationOptions,
+  CodeGenerationResult,
+  CodeExplanation,
+  CodeReviewResult,
+  CodeIssue,
+} from './services/code-generation';
+export { ImageGenerationService } from './services/image-generation';
+export type {
+  ImageSize,
+  ImageStyle,
+  ImageQuality,
+  ImageGenerationRequest,
+  ImageGenerationResult,
+  ImageEditRequest,
+} from './services/image-generation';
 
 // Config
 export {
