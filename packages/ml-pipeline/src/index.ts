@@ -61,15 +61,19 @@ export type {
   EmbeddingItem,
 } from './embedding-service';
 
-export { FeatureStore } from './core/feature-store';
+export { FeatureStore, HttpFeatureStoreBackend } from './core/feature-store';
+export type { FeatureStoreBackend } from './core/feature-store';
 export { ModelRegistry } from './core/model-registry';
-export { TrainingPipeline } from './core/training-pipeline';
+export { TrainingPipeline, HttpTrainingBackend } from './core/training-pipeline';
+export type { TrainingBackend, TrainingRequest } from './core/training-pipeline';
 export { InferenceEngine } from './core/inference-engine';
 export { EmbeddingStore } from './core/embedding-store';
 export type { VectorStoreBackend, EmbeddingStoreOptions } from './core/embedding-store';
 export { TextEmbeddingEngine } from './core/text-embeddings';
-export { ImageFeatureExtractor } from './core/image-features';
-export { AnomalyDetector } from './core/anomaly-detector';
+export { ImageFeatureExtractor, HttpImageFeatureBackend } from './core/image-features';
+export type { ImageFeatureBackend } from './core/image-features';
+export { AnomalyDetector, HttpAnomalyBackend } from './core/anomaly-detector';
+export type { AnomalyInferenceBackend, AnomalyBackendScore } from './core/anomaly-detector';
 export { SpamClassifier } from './core/spam-classifier';
 export type {
   SpamModelBackend,
@@ -80,9 +84,12 @@ export { SentimentAnalyzer } from './core/sentiment-analyzer';
 export type { SentimentBackend, SentimentAnalyzerOptions } from './core/sentiment-analyzer';
 export { NEREngine } from './core/ner-engine';
 export type { NERBackend, NEREngineOptions } from './core/ner-engine';
-export { TimeSeriesForecaster } from './core/time-series-forecaster';
-export { AutoMLPipeline } from './core/automl-pipeline';
-export { ModelMonitor } from './core/model-monitor';
+export { TimeSeriesForecaster, HttpForecastBackend } from './core/time-series-forecaster';
+export type { ForecastBackend } from './core/time-series-forecaster';
+export { AutoMLPipeline, HttpAutoMLBackend } from './core/automl-pipeline';
+export type { AutoMLBackend } from './core/automl-pipeline';
+export { ModelMonitor, HttpModelMonitorBackend } from './core/model-monitor';
+export type { ModelMonitorBackend, DriftDetectionRequest } from './core/model-monitor';
 
 export type {
   Feature,

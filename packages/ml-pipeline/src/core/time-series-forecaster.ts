@@ -9,20 +9,108 @@ import {
   ExponentialSmoothingConfig,
   SeasonalityResult,
 } from '../types';
+import { postJson, readEnvUrl, warnServingFallback } from './serving';
 
 /**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: Moving average/exponential smoothing only
- * Production path: Use Prophet, ARIMA, or neural forecasting
+ * Real forecasting backend (e.g. Prophet, ARIMA, or a neural forecaster served
+ * via an HTTP endpoint). When configured, forecastServed delegates forecasting
+ * to the backend; otherwise the in-process naive smoothing path is used.
+ */
+export interface ForecastBackend {
+  forecast(history: TimeSeriesPoint[], horizon: number): Promise<Forecast[]>;
+  isAvailable(): boolean;
+}
+
+function asRecord(raw: unknown): Record<string, unknown> {
+  return raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+}
+
+function parseForecasts(raw: unknown): Forecast[] {
+  const obj = asRecord(raw);
+  const list = Array.isArray(raw)
+    ? raw
+    : Array.isArray(obj['forecasts'])
+      ? (obj['forecasts'] as unknown[])
+      : [];
+  const result: Forecast[] = [];
+  for (const item of list) {
+    const c = asRecord(item);
+    const point = typeof c['point'] === 'number' ? c['point'] : 0;
+    result.push({
+      point,
+      lower: typeof c['lower'] === 'number' ? c['lower'] : point,
+      upper: typeof c['upper'] === 'number' ? c['upper'] : point,
+      timestamp: typeof c['timestamp'] === 'number' ? c['timestamp'] : 0,
+    });
+  }
+  return result;
+}
+
+/**
+ * HTTP-backed forecasting backend. Posts the observed history and the requested
+ * horizon to a deployed forecasting service (configured via FORECAST_URL) and
+ * parses the returned point forecasts and intervals.
+ */
+export class HttpForecastBackend implements ForecastBackend {
+  private readonly url: string;
+
+  constructor(url: string) {
+    this.url = url;
+  }
+
+  isAvailable(): boolean {
+    return this.url.length > 0;
+  }
+
+  async forecast(history: TimeSeriesPoint[], horizon: number): Promise<Forecast[]> {
+    const raw = await postJson<unknown>(this.url, { history, horizon });
+    return parseForecasts(raw);
+  }
+}
+
+function createForecastBackendFromEnv(): ForecastBackend | null {
+  const url = readEnvUrl('FORECAST_URL');
+  return url ? new HttpForecastBackend(url) : null;
+}
+
+/**
+ * @simulated The in-process moving-average / exponential-smoothing / ARIMA-like
+ * forecasters are a NAIVE pure-JS implementation used as a fallback. When a real
+ * ForecastBackend is configured (injected, or auto-created from FORECAST_URL),
+ * forecastServed delegates forecasting to it and falls back to the naive path on
+ * error.
+ * Production path: Prophet, ARIMA, or a neural forecaster.
  */
 export class TimeSeriesForecaster {
   private data: TimeSeriesPoint[] = [];
   private residuals: number[] = [];
   private seasonal: number[] = [];
   private fitted: boolean = false;
+  private readonly backend: ForecastBackend | null;
 
-  constructor() {}
+  constructor(backend?: ForecastBackend | null) {
+    this.backend = backend ?? createForecastBackendFromEnv();
+  }
+
+  /** Whether a real forecasting backend is configured and available. */
+  isServed(): boolean {
+    return this.backend !== null && this.backend.isAvailable();
+  }
+
+  /**
+   * Forecast via the served backend when configured, falling back to the naive
+   * simple exponential smoothing on absence or error.
+   */
+  async forecastServed(horizon: number = 1): Promise<Forecast[]> {
+    if (this.backend && this.backend.isAvailable()) {
+      try {
+        return await this.backend.forecast([...this.data], horizon);
+      } catch (error) {
+        warnServingFallback('time-series-forecaster', 'forecast', error);
+      }
+    }
+    return this.simpleExponentialSmoothing(0.3, horizon);
+  }
 
   // Add data points
   addData(points: TimeSeriesPoint[]): void {

@@ -10,7 +10,9 @@ import {
   FeatureSchema,
   FeatureLineage,
   TransformConfig,
+  FeatureDType,
 } from '../types';
+import { postJson, readEnvUrl, warnServingFallback } from './serving';
 
 interface StoredFeature {
   feature: Feature;
@@ -35,10 +37,96 @@ interface WelfordState {
 }
 
 /**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: In-memory feature cache
- * Production path: Use Feast or Tecton feature store
+ * Real online feature-store backend (e.g. Feast or Tecton). When configured, the
+ * async getFeatureServed/getFeatureSetServed methods read materialized features
+ * from the external store; otherwise the in-process naive cache is used.
+ */
+export interface FeatureStoreBackend {
+  fetchFeatures(entityId: string, featureNames: string[]): Promise<Feature[]>;
+  isAvailable(): boolean;
+}
+
+function asRecord(raw: unknown): Record<string, unknown> {
+  return raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+}
+
+function parseFeatureValue(v: unknown): number | string | boolean | number[] {
+  if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') return v;
+  if (Array.isArray(v)) return v.filter((x): x is number => typeof x === 'number');
+  return 0;
+}
+
+function parseFeature(raw: unknown, entityId: string): Feature | null {
+  const obj = asRecord(raw);
+  if (typeof obj['name'] !== 'string') return null;
+  const dtypeRaw = obj['dtype'];
+  const validDtype: FeatureDType =
+    dtypeRaw === 'numeric' ||
+    dtypeRaw === 'categorical' ||
+    dtypeRaw === 'boolean' ||
+    dtypeRaw === 'text' ||
+    dtypeRaw === 'timestamp' ||
+    dtypeRaw === 'vector'
+      ? dtypeRaw
+      : 'numeric';
+  const feature: Feature = {
+    name: obj['name'],
+    dtype: validDtype,
+    value: parseFeatureValue(obj['value']),
+    timestamp: typeof obj['timestamp'] === 'number' ? obj['timestamp'] : Date.now(),
+    entityId: typeof obj['entityId'] === 'string' ? obj['entityId'] : entityId,
+  };
+  if (typeof obj['version'] === 'number') {
+    feature.version = obj['version'];
+  }
+  return feature;
+}
+
+/**
+ * HTTP-backed online feature-store backend. Posts an entity id and the requested
+ * feature names to a deployed feature service (configured via FEATURE_STORE_URL)
+ * and parses the materialized feature records.
+ */
+export class HttpFeatureStoreBackend implements FeatureStoreBackend {
+  private readonly url: string;
+
+  constructor(url: string) {
+    this.url = url;
+  }
+
+  isAvailable(): boolean {
+    return this.url.length > 0;
+  }
+
+  async fetchFeatures(entityId: string, featureNames: string[]): Promise<Feature[]> {
+    const raw = await postJson<unknown>(this.url, { entityId, features: featureNames });
+    const obj = asRecord(raw);
+    const list = Array.isArray(raw)
+      ? raw
+      : Array.isArray(obj['features'])
+        ? (obj['features'] as unknown[])
+        : [];
+    const features: Feature[] = [];
+    for (const item of list) {
+      const parsed = parseFeature(item, entityId);
+      if (parsed) features.push(parsed);
+    }
+    return features;
+  }
+}
+
+function createFeatureStoreBackendFromEnv(): FeatureStoreBackend | null {
+  const url = readEnvUrl('FEATURE_STORE_URL');
+  return url ? new HttpFeatureStoreBackend(url) : null;
+}
+
+/**
+ * @simulated The in-process feature cache, statistics and lineage are a NAIVE
+ * in-memory implementation used as a fallback. When a real FeatureStoreBackend
+ * is configured (injected, or auto-created from FEATURE_STORE_URL), the async
+ * getFeatureServed/getFeatureSetServed methods read from the external store and
+ * fall back to the in-memory cache on error.
+ * Production path: Feast or Tecton online feature store.
  */
 export class FeatureStore {
   private config: FeatureStoreConfig;
@@ -49,8 +137,9 @@ export class FeatureStore {
   private lineage: Map<string, FeatureLineage> = new Map();
   private importance: Map<string, FeatureImportance> = new Map();
   private versionHistory: Map<string, FeatureSchema[]> = new Map();
+  private readonly backend: FeatureStoreBackend | null;
 
-  constructor(config: Partial<FeatureStoreConfig> = {}) {
+  constructor(config: Partial<FeatureStoreConfig> = {}, backend?: FeatureStoreBackend | null) {
     this.config = {
       maxFeatures: config.maxFeatures ?? 100000,
       defaultTTL: config.defaultTTL ?? 3600000,
@@ -59,6 +148,52 @@ export class FeatureStore {
       batchSize: config.batchSize ?? 1000,
       storageBackend: config.storageBackend ?? 'memory',
     };
+    this.backend = backend ?? createFeatureStoreBackendFromEnv();
+  }
+
+  /** Whether a real online feature-store backend is configured and available. */
+  isServed(): boolean {
+    return this.backend !== null && this.backend.isAvailable();
+  }
+
+  /**
+   * Read a single feature from the served store when configured, falling back to
+   * the in-memory cache on absence or error.
+   */
+  async getFeatureServed(entityId: string, featureName: string): Promise<Feature | null> {
+    if (this.backend && this.backend.isAvailable()) {
+      try {
+        const features = await this.backend.fetchFeatures(entityId, [featureName]);
+        const match = features.find((f) => f.name === featureName);
+        if (match) return match;
+        return this.getFeature(entityId, featureName);
+      } catch (error) {
+        warnServingFallback('feature-store', 'fetchFeatures', error);
+      }
+    }
+    return this.getFeature(entityId, featureName);
+  }
+
+  /**
+   * Read a feature set from the served store when configured, falling back to the
+   * in-memory cache on absence or error.
+   */
+  async getFeatureSetServed(entityId: string, featureNames: string[]): Promise<FeatureSet> {
+    if (this.backend && this.backend.isAvailable()) {
+      try {
+        const features = await this.backend.fetchFeatures(entityId, featureNames);
+        return {
+          name: `entity_${entityId}_features`,
+          features,
+          entityType: 'default',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+      } catch (error) {
+        warnServingFallback('feature-store', 'fetchFeatures', error);
+      }
+    }
+    return this.getFeatureSet(entityId, featureNames);
   }
 
   registerFeature(schema: FeatureSchema): void {

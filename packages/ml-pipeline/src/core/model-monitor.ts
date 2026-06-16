@@ -10,6 +10,7 @@ import {
   DistributionBin,
   DriftReport,
 } from '../types';
+import { postJson, readEnvUrl, warnServingFallback } from './serving';
 
 interface MonitoredMetric {
   name: string;
@@ -24,11 +25,119 @@ interface AlertState {
   triggerCount: number;
 }
 
+/** Per-feature baseline/current windows submitted to a drift-detection backend. */
+export interface DriftDetectionRequest {
+  modelName: string;
+  features: { name: string; baseline: number[]; current: number[] }[];
+  predictions: { baseline: number[]; current: number[] };
+}
+
 /**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: Basic drift stats in JS
- * Production path: Use Evidently AI or SageMaker Model Monitor
+ * Real model-monitoring backend (e.g. Evidently AI or SageMaker Model Monitor).
+ * When configured, checkDriftServed delegates drift detection to the backend;
+ * otherwise the in-process naive drift statistics are used.
+ */
+export interface ModelMonitorBackend {
+  detectDrift(request: DriftDetectionRequest): Promise<DriftReport>;
+  isAvailable(): boolean;
+}
+
+function asRecord(raw: unknown): Record<string, unknown> {
+  return raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+}
+
+function num(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) ? v : 0;
+}
+
+function parseSeverity(v: unknown): AlertSeverity {
+  return v === 'low' || v === 'medium' || v === 'high' || v === 'critical' ? v : 'low';
+}
+
+function parseAlert(raw: unknown, modelName: string): ModelDriftAlert {
+  const obj = asRecord(raw);
+  return {
+    metric: typeof obj['metric'] === 'string' ? obj['metric'] : 'unknown',
+    expected: num(obj['expected']),
+    actual: num(obj['actual']),
+    severity: parseSeverity(obj['severity']),
+    timestamp: typeof obj['timestamp'] === 'number' ? obj['timestamp'] : Date.now(),
+    modelName: typeof obj['modelName'] === 'string' ? obj['modelName'] : modelName,
+    description: typeof obj['description'] === 'string' ? obj['description'] : '',
+  };
+}
+
+function parseDriftReport(raw: unknown, modelName: string): DriftReport {
+  const obj = asRecord(raw);
+  const featureDrifts: { feature: string; psi: number; drifted: boolean }[] = [];
+  const fdRaw = obj['featureDrifts'];
+  if (Array.isArray(fdRaw)) {
+    for (const item of fdRaw) {
+      const c = asRecord(item);
+      if (typeof c['feature'] === 'string') {
+        featureDrifts.push({
+          feature: c['feature'],
+          psi: num(c['psi']),
+          drifted: Boolean(c['drifted']),
+        });
+      }
+    }
+  }
+  const pd = asRecord(obj['predictionDrift']);
+  const performanceMetrics: Record<string, number> = {};
+  const pmRaw = asRecord(obj['performanceMetrics']);
+  for (const [k, v] of Object.entries(pmRaw)) {
+    if (typeof v === 'number') performanceMetrics[k] = v;
+  }
+  const alerts: ModelDriftAlert[] = [];
+  const alertsRaw = obj['alerts'];
+  if (Array.isArray(alertsRaw)) {
+    for (const a of alertsRaw) alerts.push(parseAlert(a, modelName));
+  }
+  return {
+    modelName: typeof obj['modelName'] === 'string' ? obj['modelName'] : modelName,
+    reportTime: typeof obj['reportTime'] === 'number' ? obj['reportTime'] : Date.now(),
+    featureDrifts,
+    predictionDrift: { psi: num(pd['psi']), drifted: Boolean(pd['drifted']) },
+    performanceMetrics,
+    alerts,
+  };
+}
+
+/**
+ * HTTP-backed model-monitoring backend. Posts baseline/current windows to a
+ * deployed drift-detection service (configured via MODEL_MONITOR_URL) and parses
+ * the returned drift report.
+ */
+export class HttpModelMonitorBackend implements ModelMonitorBackend {
+  private readonly url: string;
+
+  constructor(url: string) {
+    this.url = url;
+  }
+
+  isAvailable(): boolean {
+    return this.url.length > 0;
+  }
+
+  async detectDrift(request: DriftDetectionRequest): Promise<DriftReport> {
+    const raw = await postJson<unknown>(this.url, request);
+    return parseDriftReport(raw, request.modelName);
+  }
+}
+
+function createModelMonitorBackendFromEnv(): ModelMonitorBackend | null {
+  const url = readEnvUrl('MODEL_MONITOR_URL');
+  return url ? new HttpModelMonitorBackend(url) : null;
+}
+
+/**
+ * @simulated The in-process PSI / KL-divergence / KS-test drift statistics are a
+ * NAIVE pure-JS implementation used as a fallback. When a real
+ * ModelMonitorBackend is configured (injected, or auto-created from
+ * MODEL_MONITOR_URL), checkDriftServed delegates drift detection to it and falls
+ * back to the naive path on error.
+ * Production path: Evidently AI or SageMaker Model Monitor.
  */
 export class ModelMonitor {
   private config: DriftDetectionConfig;
@@ -39,8 +148,13 @@ export class ModelMonitor {
   private baselinePredictions: number[] = [];
   private modelName: string;
   private retrainingTriggered: boolean = false;
+  private readonly backend: ModelMonitorBackend | null;
 
-  constructor(modelName: string, config: Partial<DriftDetectionConfig> = {}) {
+  constructor(
+    modelName: string,
+    config: Partial<DriftDetectionConfig> = {},
+    backend?: ModelMonitorBackend | null,
+  ) {
     this.modelName = modelName;
     this.config = {
       windowSize: config.windowSize ?? 1000,
@@ -52,6 +166,57 @@ export class ModelMonitor {
     for (const rule of this.config.alertRules) {
       this.alertStates.set(rule.metric, { rule, lastTriggered: 0, triggerCount: 0 });
     }
+    this.backend = backend ?? createModelMonitorBackendFromEnv();
+  }
+
+  /** Whether a real model-monitoring backend is configured and available. */
+  isServed(): boolean {
+    return this.backend !== null && this.backend.isAvailable();
+  }
+
+  /**
+   * Detect drift via the served backend when configured, falling back to the
+   * naive in-process checkDrift() on absence or error. Alerts returned by the
+   * backend are recorded and the retraining trigger is updated.
+   */
+  async checkDriftServed(): Promise<DriftReport> {
+    if (this.backend && this.backend.isAvailable()) {
+      try {
+        const report = await this.backend.detectDrift(this.buildDriftRequest());
+        for (const alert of report.alerts) {
+          this.alerts.push(alert);
+        }
+        if (this.alerts.length > 1000) {
+          this.alerts = this.alerts.slice(-500);
+        }
+        const driftedCount = report.featureDrifts.filter((f) => f.drifted).length;
+        if (driftedCount > report.featureDrifts.length * 0.5 || report.predictionDrift.drifted) {
+          this.retrainingTriggered = true;
+        }
+        return report;
+      } catch (error) {
+        warnServingFallback('model-monitor', 'detectDrift', error);
+      }
+    }
+    return this.checkDrift();
+  }
+
+  private buildDriftRequest(): DriftDetectionRequest {
+    const features: { name: string; baseline: number[]; current: number[] }[] = [];
+    for (const [name, metric] of this.metrics.entries()) {
+      if (name === '__predictions__') continue;
+      const baseline = this.baselineFeatures.get(name) ?? [];
+      features.push({ name, baseline: [...baseline], current: [...metric.values] });
+    }
+    const predMetric = this.metrics.get('__predictions__');
+    return {
+      modelName: this.modelName,
+      features,
+      predictions: {
+        baseline: [...this.baselinePredictions],
+        current: predMetric ? [...predMetric.values] : [],
+      },
+    };
   }
 
   // Set baseline distributions from training data
