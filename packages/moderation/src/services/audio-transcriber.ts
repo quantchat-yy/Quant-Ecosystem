@@ -197,16 +197,19 @@ export class AudioTranscriber {
 
 /**
  * Build a WhisperProvider from environment configuration.
- * Returns a real OpenAIWhisperProvider when OPENAI_API_KEY is set, otherwise
- * null so callers can decide on a safe fallback (the moderation worker treats a
- * missing transcriber conservatively rather than approving un-analyzed audio).
+ * Returns a real OpenAIWhisperProvider when a transcription key is set
+ * (TRANSCRIPTION_API_KEY takes precedence over OPENAI_API_KEY), otherwise null so
+ * callers can decide on a safe fallback (the moderation worker treats a missing
+ * transcriber conservatively rather than approving un-analyzed audio).
  */
 export function createWhisperProviderFromEnv(options?: {
   endpoint?: string;
   model?: string;
   language?: string;
+  apiKey?: string;
 }): WhisperProvider | null {
-  const apiKey = process.env['OPENAI_API_KEY'];
+  const apiKey =
+    options?.apiKey ?? process.env['TRANSCRIPTION_API_KEY'] ?? process.env['OPENAI_API_KEY'];
   if (!apiKey) {
     return null;
   }

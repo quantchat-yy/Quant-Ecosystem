@@ -74,7 +74,8 @@ export type { FrameSample as VideoFrameSample, AudioAnalysis as VideoAudioAnalys
  * Real video-analysis backend. Implementations perform genuine frame extraction
  * + per-frame vision classification and real audio analysis (e.g. via ffmpeg +
  * an inference endpoint). When configured, the VideoModerator uses it instead of
- * the built-in heuristic simulation. Throwing falls back to the heuristic.
+ * the built-in heuristic simulation. A configured backend that throws FAILS CLOSED
+ * (the error propagates); the heuristic is used only when no backend is configured.
  */
 export interface VideoAnalysisBackend {
   sampleFrames(videoId: string, metadata: VideoMetadata): Promise<FrameSample[]>;
@@ -347,7 +348,14 @@ export class VideoModerator {
 
   // --- Private Methods ---
 
-  /** Acquire frame samples from the real backend when configured; heuristic fallback otherwise. */
+  /**
+   * Acquire frame samples from the real backend when configured.
+   *
+   * Safety posture: once a real backend is wired up, a backend failure FAILS CLOSED
+   * (the error propagates so the job retries / goes to manual review) instead of
+   * silently scoring the video against a fabricated random heuristic. The heuristic
+   * is only used when NO backend is configured at all (explicit demo/dev mode).
+   */
   private async acquireFrames(videoId: string, metadata: VideoMetadata): Promise<FrameSample[]> {
     if (this.backend) {
       try {
@@ -355,15 +363,21 @@ export class VideoModerator {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         // eslint-disable-next-line no-console
-        console.warn(
-          `[video-moderator] backend frame sampling failed for ${videoId}, using heuristic: ${message}`,
+        console.error(
+          `[video-moderator] backend frame sampling failed for ${videoId}, failing closed: ${message}`,
         );
+        throw error instanceof Error ? error : new Error(message);
       }
     }
     return this.sampleFrames(metadata);
   }
 
-  /** Acquire audio analysis from the real backend when available; heuristic fallback otherwise. */
+  /**
+   * Acquire audio analysis from the real backend when available.
+   *
+   * Same fail-closed posture as {@link acquireFrames}: a configured backend that
+   * errors propagates rather than degrading to the random heuristic.
+   */
   private async acquireAudioAnalysis(
     videoId: string,
     metadata: VideoMetadata,
@@ -374,9 +388,10 @@ export class VideoModerator {
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         // eslint-disable-next-line no-console
-        console.warn(
-          `[video-moderator] backend audio analysis failed for ${videoId}, using heuristic: ${message}`,
+        console.error(
+          `[video-moderator] backend audio analysis failed for ${videoId}, failing closed: ${message}`,
         );
+        throw error instanceof Error ? error : new Error(message);
       }
     }
     return this.analyzeAudio(videoId, metadata);

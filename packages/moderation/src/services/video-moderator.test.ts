@@ -62,14 +62,16 @@ describe('VideoModerator', () => {
     expect(profanity!.score).toBeGreaterThanOrEqual(0.9);
   });
 
-  it('falls back to the heuristic when the backend throws (does not crash)', async () => {
+  it('fails closed when a configured backend throws (does not score against fabricated frames)', async () => {
     const backend: VideoAnalysisBackend = {
       async sampleFrames() {
         throw new Error('extractor offline');
       },
     };
     const mod = new VideoModerator({}, backend);
-    const result = await mod.moderate('vid-1', metadata);
-    expect(result.contentType).toBe('video');
+    // A configured backend that errors must propagate (fail closed) so the job
+    // retries / goes to manual review, rather than approving un-analyzed video
+    // against a random heuristic.
+    await expect(mod.moderate('vid-1', metadata)).rejects.toThrow('extractor offline');
   });
 });
