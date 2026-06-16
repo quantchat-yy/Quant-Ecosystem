@@ -1,8 +1,11 @@
 import { Agent } from '../core/agent';
 import { logger } from '@quant/common';
+import { HttpClient, createQuantChatClient } from '../clients/http-client';
 
 export class QuantChatAgent extends Agent {
-  constructor() {
+  private httpClient: HttpClient;
+
+  constructor(httpClient?: HttpClient) {
     super({
       id: 'quantchat-agent',
       name: 'QuantChat Agent',
@@ -17,6 +20,7 @@ export class QuantChatAgent extends Agent {
       ],
     });
 
+    this.httpClient = httpClient ?? createQuantChatClient();
     this.registerChatTools();
   }
 
@@ -31,7 +35,23 @@ export class QuantChatAgent extends Agent {
       },
       execute: async (params: any) => {
         logger.log('[QuantChatAgent] Sending message:', params);
-        return { success: true, messageId: 'msg_' + Date.now() };
+
+        const response = await this.httpClient.post('/api/messages', {
+          conversationId: params.conversationId,
+          content: params.content,
+          type: params.type || 'text',
+        });
+
+        if (!response.ok) {
+          logger.warn('[QuantChatAgent] Failed to send message:', response.error);
+          return { success: false, error: response.error };
+        }
+
+        return {
+          success: true,
+          messageId: response.data?.id || response.data?.messageId,
+          timestamp: response.data?.createdAt || new Date().toISOString(),
+        };
       },
     });
 
@@ -42,13 +62,28 @@ export class QuantChatAgent extends Agent {
         conversationId: 'string',
         lastMessage: 'string',
       },
-      execute: async (_params: any) => {
+      execute: async (params: any) => {
+        logger.log('[QuantChatAgent] Generating smart replies:', params);
+
+        const response = await this.httpClient.post('/api/ai/smart-replies', {
+          conversationId: params.conversationId,
+          lastMessage: params.lastMessage,
+        });
+
+        if (!response.ok) {
+          logger.warn('[QuantChatAgent] Failed to get smart replies:', response.error);
+          // Graceful fallback with generic suggestions
+          return {
+            suggestions: [
+              'Sounds good!',
+              'Let me check and get back to you.',
+              'Thanks for letting me know.',
+            ],
+          };
+        }
+
         return {
-          suggestions: [
-            'Sounds good!',
-            'Let me check and get back to you.',
-            'Thanks for letting me know.',
-          ],
+          suggestions: response.data?.suggestions || response.data || [],
         };
       },
     });

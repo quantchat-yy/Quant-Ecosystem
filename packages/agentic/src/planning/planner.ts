@@ -18,15 +18,124 @@ export interface Plan {
   confidence: number;
 }
 
+export interface LLMProvider {
+  infer(request: {
+    prompt: string;
+    systemPrompt?: string;
+    userId: string;
+    app: string;
+    feature: string;
+    temperature?: number;
+    maxTokens?: number;
+  }): Promise<{ content: string }>;
+}
+
 export class Planner {
-  constructor(_memory: MemoryStore, _tools: ToolRegistry) {}
+  private llmProvider: LLMProvider | null = null;
+
+  constructor(
+    _memory: MemoryStore,
+    private tools: ToolRegistry,
+  ) {}
+
+  /**
+   * Set or replace the LLM provider at runtime.
+   */
+  setLLMProvider(provider: LLMProvider): void {
+    this.llmProvider = provider;
+  }
 
   async createPlan(goal: string, context: any = {}): Promise<Plan> {
-    // Simple planning logic (will be replaced with LLM-based planning)
-    const steps: PlanStep[] = [];
+    // Try LLM-powered planning first
+    if (this.llmProvider) {
+      try {
+        return await this.llmPlan(goal, context);
+      } catch {
+        // Fall through to keyword-based planning
+      }
+    }
 
-    // Analyze goal and create steps
-    if (goal.toLowerCase().includes('email') || goal.toLowerCase().includes('send')) {
+    // Fallback: keyword-based planning
+    return this.keywordPlan(goal, context);
+  }
+
+  /**
+   * LLM-powered planning: sends goal + available tools to the AI engine
+   * and expects structured JSON output describing the plan steps.
+   */
+  private async llmPlan(goal: string, _context: any): Promise<Plan> {
+    const availableTools = this.tools.getAvailableTools();
+    const toolList = availableTools.map((t) => `- ${t.name}: ${t.description}`).join('\n');
+
+    const systemPrompt = `You are a task planner for the Quant Ecosystem. Given a user goal, decompose it into a sequence of tool-calling steps.
+
+Available tools:
+${toolList}
+
+Respond ONLY with valid JSON in this format:
+{
+  "steps": [
+    {
+      "id": "step-1",
+      "action": "short_action_name",
+      "tool": "tool_name_from_list_above",
+      "parameters": { "key": "value" },
+      "description": "Human-readable description of this step"
+    }
+  ],
+  "confidence": 0.9
+}
+
+If no specific tools match the goal, return a single step with action "general_response" and no tool.
+Do not include any text outside the JSON object.`;
+
+    const response = await this.llmProvider!.infer({
+      prompt: `Goal: ${goal}`,
+      systemPrompt,
+      userId: 'planner',
+      app: 'agentic',
+      feature: 'planning',
+      temperature: 0.3,
+      maxTokens: 1000,
+    });
+
+    const parsed = JSON.parse(response.content);
+    const steps: PlanStep[] = (parsed.steps || []).map((s: any, i: number) => ({
+      id: s.id || `step-${i + 1}`,
+      action: s.action || 'unknown',
+      tool: s.tool,
+      parameters: s.parameters || {},
+      description: s.description || '',
+      dependencies: s.dependencies,
+    }));
+
+    return {
+      id: `plan-${Date.now()}`,
+      goal,
+      steps:
+        steps.length > 0
+          ? steps
+          : [
+              {
+                id: 'step-1',
+                action: 'general_response',
+                description: 'Process general request',
+                parameters: { goal },
+              },
+            ],
+      estimatedDuration: steps.length * 30,
+      confidence: parsed.confidence ?? 0.8,
+    };
+  }
+
+  /**
+   * Fallback keyword-based planning for when no LLM is available.
+   */
+  private keywordPlan(goal: string, context: any): Plan {
+    const steps: PlanStep[] = [];
+    const goalLower = goal.toLowerCase();
+
+    if (goalLower.includes('email') || goalLower.includes('send')) {
       steps.push({
         id: 'step-1',
         action: 'compose_email',
@@ -36,7 +145,7 @@ export class Planner {
       });
     }
 
-    if (goal.toLowerCase().includes('chat') || goal.toLowerCase().includes('message')) {
+    if (goalLower.includes('chat') || goalLower.includes('message')) {
       steps.push({
         id: 'step-1',
         action: 'send_message',
@@ -46,7 +155,41 @@ export class Planner {
       });
     }
 
-    if (goal.toLowerCase().includes('research') || goal.toLowerCase().includes('find')) {
+    if (goalLower.includes('meet') || goalLower.includes('room') || goalLower.includes('video')) {
+      steps.push({
+        id: 'step-1',
+        action: 'create_meeting',
+        tool: 'quantmeet_create_room',
+        description: 'Create a meeting room',
+        parameters: { goal },
+      });
+    }
+
+    if (goalLower.includes('file') || goalLower.includes('upload') || goalLower.includes('drive')) {
+      steps.push({
+        id: 'step-1',
+        action: 'upload_file',
+        tool: 'quantdrive_upload',
+        description: 'Upload file to QuantDrive',
+        parameters: { goal },
+      });
+    }
+
+    if (
+      goalLower.includes('post') ||
+      goalLower.includes('social') ||
+      goalLower.includes('trending')
+    ) {
+      steps.push({
+        id: 'step-1',
+        action: 'create_post',
+        tool: 'quantsync_create_post',
+        description: 'Create a social post',
+        parameters: { goal },
+      });
+    }
+
+    if (goalLower.includes('research') || goalLower.includes('find')) {
       steps.push({
         id: 'step-1',
         action: 'web_search',
@@ -66,19 +209,39 @@ export class Planner {
       });
     }
 
-    const plan: Plan = {
+    return {
       id: `plan-${Date.now()}`,
       goal,
       steps,
       estimatedDuration: steps.length * 30,
       confidence: 0.85,
     };
-
-    return plan;
   }
 
-  async refinePlan(plan: Plan, _feedback: string): Promise<Plan> {
-    // TODO: Implement plan refinement based on feedback
+  async refinePlan(plan: Plan, feedback: string): Promise<Plan> {
+    if (this.llmProvider) {
+      try {
+        const response = await this.llmProvider.infer({
+          prompt: `Original plan: ${JSON.stringify(plan)}\nFeedback: ${feedback}\nGenerate a refined plan as JSON.`,
+          systemPrompt:
+            'You are a task planner. Refine the plan based on the feedback. Respond ONLY with valid JSON in the same plan format.',
+          userId: 'planner',
+          app: 'agentic',
+          feature: 'plan_refinement',
+          temperature: 0.3,
+          maxTokens: 1000,
+        });
+
+        const parsed = JSON.parse(response.content);
+        return {
+          ...plan,
+          steps: parsed.steps || plan.steps,
+          confidence: parsed.confidence ?? plan.confidence,
+        };
+      } catch {
+        // Fall through
+      }
+    }
     return plan;
   }
 }

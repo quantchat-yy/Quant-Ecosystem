@@ -1,8 +1,11 @@
 import { Agent } from '../core/agent';
 import { logger } from '@quant/common';
+import { HttpClient, createQuantMeetClient } from '../clients/http-client';
 
 export class QuantMeetAgent extends Agent {
-  constructor() {
+  private httpClient: HttpClient;
+
+  constructor(httpClient?: HttpClient) {
     super({
       id: 'quantmeet-agent',
       name: 'QuantMeet Agent',
@@ -17,6 +20,7 @@ export class QuantMeetAgent extends Agent {
       ],
     });
 
+    this.httpClient = httpClient ?? createQuantMeetClient();
     this.registerMeetTools();
   }
 
@@ -31,10 +35,23 @@ export class QuantMeetAgent extends Agent {
       },
       execute: async (params: any) => {
         logger.log('[QuantMeetAgent] Creating room:', params);
+
+        const response = await this.httpClient.post('/api/rooms', {
+          title: params.title,
+          participants: params.participants || [],
+          scheduledTime: params.scheduledTime,
+        });
+
+        if (!response.ok) {
+          logger.warn('[QuantMeetAgent] Failed to create room:', response.error);
+          return { success: false, error: response.error };
+        }
+
         return {
           success: true,
-          roomId: 'room_' + Date.now(),
-          joinUrl: 'https://meet.quant.ecosystem/room_' + Date.now(),
+          roomId: response.data?.id || response.data?.roomId,
+          joinUrl: response.data?.joinUrl || response.data?.url,
+          token: response.data?.token,
         };
       },
     });
@@ -45,10 +62,27 @@ export class QuantMeetAgent extends Agent {
       parameters: {
         meetingId: 'string',
       },
-      execute: async (_params: any) => {
+      execute: async (params: any) => {
+        logger.log('[QuantMeetAgent] Summarizing meeting:', params);
+
+        const response = await this.httpClient.post('/api/meetings/summarize', {
+          meetingId: params.meetingId,
+        });
+
+        if (!response.ok) {
+          logger.warn('[QuantMeetAgent] Failed to summarize meeting:', response.error);
+          return {
+            summary: 'Unable to generate summary - service unavailable',
+            actionItems: [],
+            error: response.error,
+          };
+        }
+
         return {
-          summary: 'Meeting summary would be generated here',
-          actionItems: ['Follow up with team', 'Send notes'],
+          summary: response.data?.summary || '',
+          actionItems: response.data?.actionItems || [],
+          participants: response.data?.participants || [],
+          duration: response.data?.duration,
         };
       },
     });
