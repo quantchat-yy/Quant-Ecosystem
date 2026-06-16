@@ -7,24 +7,27 @@
 import type { CSAMMatcherInterface, CSAMHashProvider, CSAMReport } from '../types';
 
 /**
- * @simulated This implementation is a simulation/prototype.
- * Classification: FAKE - applies to CSAMGuardLegacy only; CSAMMatchService below has real provider-based detection
- * Reason: Returns hardcoded {matched: false} with no real CSAM detection
- * Production path: Integrate PhotoDNA or Thorn Safer API
+ * @deprecated CSAMGuardLegacy has NO real detection of its own. It previously
+ * returned a hardcoded {matched:false} when "enabled", which is a fail-OPEN
+ * behavior that declares content safe without ever checking it. That has been
+ * removed. It now:
+ *   - throws when media is not enabled (UGC_MEDIA_ENABLED !== 'true'), and
+ *   - throws when enabled but no real delegate matcher is configured
+ *     (fail-CLOSED — never declares content safe), and
+ *   - delegates to a provided real CSAMMatcherInterface when one is supplied.
  *
- * CSAMGuardLegacy - Original guard implementation preserved for backward compat.
- *
- * If UGC_MEDIA_ENABLED is not set to 'true', all hash checks will throw,
- * preventing media uploads from being accepted without CSAM matching.
+ * Prefer CSAMMatchService with a real CSAMHashProvider (PhotoDNA, Thorn Safer).
  */
 export class CSAMGuardLegacy implements CSAMMatcherInterface {
   private readonly enabled: boolean;
+  private readonly delegate: CSAMMatcherInterface | undefined;
 
-  constructor(enabled?: boolean) {
+  constructor(enabled?: boolean, delegate?: CSAMMatcherInterface) {
     this.enabled = enabled ?? process.env['UGC_MEDIA_ENABLED'] === 'true';
+    this.delegate = delegate;
   }
 
-  async checkHash(_hash: string): Promise<{ matched: boolean; reportId?: string }> {
+  async checkHash(hash: string): Promise<{ matched: boolean; reportId?: string }> {
     if (!this.enabled) {
       throw new Error(
         'CSAM matching not configured. Media uploads are blocked until a real ' +
@@ -32,13 +35,24 @@ export class CSAMGuardLegacy implements CSAMMatcherInterface {
           'Set UGC_MEDIA_ENABLED=true only after configuring a real provider.',
       );
     }
-    return { matched: false };
+    if (!this.delegate) {
+      // FAIL CLOSED: enabled flag alone must never be treated as "safe".
+      throw new Error(
+        'CSAM matching enabled but no real matcher is configured. Upload blocked ' +
+          '(fail-closed). Provide a real CSAMMatchService/CSAMHashProvider delegate.',
+      );
+    }
+    return this.delegate.checkHash(hash);
   }
 
-  async reportMatch(_params: { hash: string; source: string }): Promise<void> {
+  async reportMatch(params: { hash: string; source: string }): Promise<void> {
     if (!this.enabled) {
       throw new Error('CSAM matching not configured. Cannot report matches.');
     }
+    if (!this.delegate) {
+      throw new Error('CSAM matching enabled but no real matcher is configured.');
+    }
+    await this.delegate.reportMatch(params);
   }
 
   isEnabled(): boolean {

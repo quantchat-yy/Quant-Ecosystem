@@ -43,6 +43,11 @@ export { ContentClassifier } from './services/content-classifier';
 export { TextModerator } from './services/text-moderator';
 export { ImageModerator } from './services/image-moderator';
 export { VideoModerator } from './services/video-moderator';
+export type {
+  VideoAnalysisBackend,
+  VideoFrameSample,
+  VideoAudioAnalysis,
+} from './services/video-moderator';
 export { ReportHandler } from './services/report-handler';
 export { AppealService } from './services/appeal-service';
 export { AutoActionEngine } from './services/auto-action-engine';
@@ -58,11 +63,13 @@ export {
   KeyframeExtractor,
   MockFrameExtractorBackend,
   FfmpegFrameExtractorBackend,
+  FailClosedFrameExtractorBackend,
 } from './services/keyframe-extractor';
 export {
   AudioTranscriber,
   OpenAIWhisperProvider,
   MockWhisperProvider,
+  createWhisperProviderFromEnv,
 } from './services/audio-transcriber';
 export { LiveModerator } from './services/live-moderator';
 export {

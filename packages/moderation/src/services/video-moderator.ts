@@ -29,7 +29,7 @@ const DEFAULT_CONFIG: VideoModeratorConfig = {
   flagThreshold: 0.6,
 };
 
-interface VideoMetadata {
+export interface VideoMetadata {
   id: string;
   duration: number;
   width: number;
@@ -68,6 +68,19 @@ interface AudioAnalysis {
   explicitScore: number;
 }
 
+export type { FrameSample as VideoFrameSample, AudioAnalysis as VideoAudioAnalysis };
+
+/**
+ * Real video-analysis backend. Implementations perform genuine frame extraction
+ * + per-frame vision classification and real audio analysis (e.g. via ffmpeg +
+ * an inference endpoint). When configured, the VideoModerator uses it instead of
+ * the built-in heuristic simulation. Throwing falls back to the heuristic.
+ */
+export interface VideoAnalysisBackend {
+  sampleFrames(videoId: string, metadata: VideoMetadata): Promise<FrameSample[]>;
+  analyzeAudio?(videoId: string, metadata: VideoMetadata): Promise<AudioAnalysis>;
+}
+
 /**
  * VideoModerator - Video content moderation engine
  *
@@ -81,21 +94,28 @@ export class VideoModerator {
   private timelineFlags: Map<string, TimelineFlag[]>;
   private videoMetadata: Map<string, VideoMetadata>;
   private sceneCache: Map<string, SceneInfo[]>;
+  private readonly backend: VideoAnalysisBackend | undefined;
 
-  constructor(config: Partial<VideoModeratorConfig> = {}) {
+  constructor(config: Partial<VideoModeratorConfig> = {}, backend?: VideoAnalysisBackend) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.moderationResults = new Map();
     this.timelineFlags = new Map();
     this.videoMetadata = new Map();
     this.sceneCache = new Map();
+    this.backend = backend;
+  }
+
+  /** Whether a real video-analysis backend is wired up. */
+  isBackendConfigured(): boolean {
+    return this.backend !== undefined;
   }
 
   /** Moderate a complete video */
   async moderate(videoId: string, metadata: VideoMetadata): Promise<ModerationResult> {
     this.videoMetadata.set(videoId, metadata);
 
-    // Sample frames throughout the video
-    const frames = this.sampleFrames(metadata);
+    // Sample frames throughout the video (real backend when configured).
+    const frames = await this.acquireFrames(videoId, metadata);
 
     // Detect scene changes
     const scenes = this.detectScenes(frames, metadata);
@@ -104,7 +124,7 @@ export class VideoModerator {
     // Analyze audio if present
     let audioAnalysis: AudioAnalysis | null = null;
     if (metadata.hasAudio && this.config.audioAnalysisEnabled) {
-      audioAnalysis = await this.analyzeAudio(videoId, metadata);
+      audioAnalysis = await this.acquireAudioAnalysis(videoId, metadata);
     }
 
     // Build timeline flags
@@ -326,6 +346,41 @@ export class VideoModerator {
   }
 
   // --- Private Methods ---
+
+  /** Acquire frame samples from the real backend when configured; heuristic fallback otherwise. */
+  private async acquireFrames(videoId: string, metadata: VideoMetadata): Promise<FrameSample[]> {
+    if (this.backend) {
+      try {
+        return await this.backend.sampleFrames(videoId, metadata);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[video-moderator] backend frame sampling failed for ${videoId}, using heuristic: ${message}`,
+        );
+      }
+    }
+    return this.sampleFrames(metadata);
+  }
+
+  /** Acquire audio analysis from the real backend when available; heuristic fallback otherwise. */
+  private async acquireAudioAnalysis(
+    videoId: string,
+    metadata: VideoMetadata,
+  ): Promise<AudioAnalysis> {
+    if (this.backend?.analyzeAudio) {
+      try {
+        return await this.backend.analyzeAudio(videoId, metadata);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[video-moderator] backend audio analysis failed for ${videoId}, using heuristic: ${message}`,
+        );
+      }
+    }
+    return this.analyzeAudio(videoId, metadata);
+  }
 
   private buildTimelineFlags(
     frames: FrameSample[],
