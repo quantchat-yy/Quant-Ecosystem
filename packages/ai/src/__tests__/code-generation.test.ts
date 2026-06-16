@@ -136,7 +136,7 @@ describe('CodeGenerationService', () => {
         'typescript',
       );
 
-      expect(result.code).toContain('arrow');
+      expect(result.code).toContain('=>');
       expect(result.language).toBe('typescript');
     });
   });
