@@ -96,7 +96,7 @@ export class OpenAIWhisperProvider implements WhisperProvider {
         throw new Error(`Failed to fetch audio (${res.status}) from ${audio}`);
       }
       const buf = await res.arrayBuffer();
-      return new Blob([buf]);
+      return new Blob([new Uint8Array(buf)]);
     }
     return new Blob([audio]);
   }

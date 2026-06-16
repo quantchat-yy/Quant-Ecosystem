@@ -138,7 +138,9 @@ async function fetchAsFile(url: string, filename: string): Promise<File> {
     throw new Error(`Failed to fetch image (${res.status}) from ${url}`);
   }
   const buffer = await res.arrayBuffer();
-  return new File([buffer], filename, { type: res.headers.get('content-type') ?? 'image/png' });
+  return new File([new Uint8Array(buffer)], filename, {
+    type: res.headers.get('content-type') ?? 'image/png',
+  });
 }
 
 export class ImageGenerationService {

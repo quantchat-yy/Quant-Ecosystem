@@ -90,7 +90,7 @@ export class OpenAIVoiceBackend implements VoiceBackend {
 
   async transcribe(audio: Buffer): Promise<string> {
     const form = new FormData();
-    form.append('file', new Blob([audio]), 'audio');
+    form.append('file', new Blob([new Uint8Array(audio)]), 'audio');
     form.append('model', this.sttModel);
 
     const res = await fetch(this.sttUrl, {
