@@ -4,7 +4,26 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { QuantProService } from '../quant-pro.service';
-import type { IAPReceipt } from '../../types';
+import type { IAPReceipt, IAPValidationResult } from '../../types';
+import type { IAPValidator } from '../iap-validation';
+
+/** Stub validator simulating a configured, trusted server-side validator. */
+function stubValidator(result: Partial<IAPValidationResult>): IAPValidator {
+  return {
+    async validate(receipt: IAPReceipt): Promise<IAPValidationResult> {
+      return {
+        valid: true,
+        platform: receipt.platform,
+        productId: receipt.productId,
+        transactionId: receipt.transactionId,
+        expiresAt:
+          Date.now() + (receipt.productId.includes('yearly') ? 365 * 86400000 : 30 * 86400000),
+        autoRenewing: true,
+        ...result,
+      };
+    },
+  };
+}
 
 describe('QuantProService', () => {
   let service: QuantProService;
@@ -114,8 +133,8 @@ describe('QuantProService', () => {
     });
   });
 
-  describe('validateIAPReceipt - Apple', () => {
-    it('should validate a valid Apple receipt', async () => {
+  describe('validateIAPReceipt - FAIL CLOSED when unconfigured', () => {
+    it('rejects an Apple receipt when no validator is configured', async () => {
       const receipt: IAPReceipt = {
         platform: 'apple',
         receiptData: 'valid_apple_receipt_data_base64',
@@ -125,15 +144,25 @@ describe('QuantProService', () => {
 
       const result = await service.validateIAPReceipt(receipt);
 
-      expect(result.valid).toBe(true);
-      expect(result.platform).toBe('apple');
-      expect(result.productId).toBe('com.quant.pro_monthly');
-      expect(result.transactionId).toBe('txn_apple_123');
-      expect(result.expiresAt).toBeGreaterThan(Date.now());
-      expect(result.autoRenewing).toBe(true);
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('not configured');
     });
 
-    it('should reject invalid Apple receipt data', async () => {
+    it('rejects a Google receipt when no validator is configured', async () => {
+      const receipt: IAPReceipt = {
+        platform: 'google',
+        receiptData: 'valid_google_purchase_token_data',
+        transactionId: 'GPA.1234-5678-9012',
+        productId: 'com.quant.pro_monthly',
+      };
+
+      const result = await service.validateIAPReceipt(receipt);
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('not configured');
+    });
+
+    it('still rejects malformed receipt data', async () => {
       const receipt: IAPReceipt = {
         platform: 'apple',
         receiptData: 'short',
@@ -146,25 +175,33 @@ describe('QuantProService', () => {
       expect(result.valid).toBe(false);
       expect(result.error).toBe('Invalid receipt data');
     });
-
-    it('should set yearly expiration for yearly product', async () => {
-      const receipt: IAPReceipt = {
-        platform: 'apple',
-        receiptData: 'valid_yearly_receipt_data_here',
-        transactionId: 'txn_apple_yearly',
-        productId: 'com.quant.pro_yearly',
-      };
-
-      const result = await service.validateIAPReceipt(receipt);
-      const oneYearFromNow = Date.now() + 364 * 86400000;
-
-      expect(result.valid).toBe(true);
-      expect(result.expiresAt).toBeGreaterThan(oneYearFromNow);
-    });
   });
 
-  describe('validateIAPReceipt - Google', () => {
-    it('should validate a valid Google receipt', async () => {
+  describe('validateIAPReceipt - with configured validators', () => {
+    it('validates a valid Apple receipt via the configured validator', async () => {
+      const configured = new QuantProService(undefined, {
+        appleValidator: stubValidator({}),
+      });
+      const receipt: IAPReceipt = {
+        platform: 'apple',
+        receiptData: 'valid_apple_receipt_data_base64',
+        transactionId: 'txn_apple_123',
+        productId: 'com.quant.pro_monthly',
+      };
+
+      const result = await configured.validateIAPReceipt(receipt);
+
+      expect(result.valid).toBe(true);
+      expect(result.platform).toBe('apple');
+      expect(result.productId).toBe('com.quant.pro_monthly');
+      expect(result.expiresAt).toBeGreaterThan(Date.now());
+      expect(result.autoRenewing).toBe(true);
+    });
+
+    it('validates a valid Google receipt via the configured validator', async () => {
+      const configured = new QuantProService(undefined, {
+        googleValidator: stubValidator({}),
+      });
       const receipt: IAPReceipt = {
         platform: 'google',
         receiptData: 'valid_google_purchase_token_data',
@@ -172,32 +209,35 @@ describe('QuantProService', () => {
         productId: 'com.quant.pro_monthly',
       };
 
-      const result = await service.validateIAPReceipt(receipt);
+      const result = await configured.validateIAPReceipt(receipt);
 
       expect(result.valid).toBe(true);
       expect(result.platform).toBe('google');
-      expect(result.productId).toBe('com.quant.pro_monthly');
-      expect(result.expiresAt).toBeGreaterThan(Date.now());
-      expect(result.autoRenewing).toBe(true);
     });
 
-    it('should reject invalid Google receipt data', async () => {
+    it('propagates an invalid result from the configured validator', async () => {
+      const configured = new QuantProService(undefined, {
+        appleValidator: stubValidator({ valid: false, error: 'Subscription expired' }),
+      });
       const receipt: IAPReceipt = {
-        platform: 'google',
-        receiptData: 'bad',
-        transactionId: 'GPA.123',
+        platform: 'apple',
+        receiptData: 'valid_but_expired_receipt_data',
+        transactionId: 'txn_expired',
         productId: 'com.quant.pro_monthly',
       };
 
-      const result = await service.validateIAPReceipt(receipt);
+      const result = await configured.validateIAPReceipt(receipt);
 
       expect(result.valid).toBe(false);
-      expect(result.error).toBe('Invalid receipt data');
+      expect(result.error).toBe('Subscription expired');
     });
   });
 
   describe('syncIAPSubscription', () => {
-    it('should sync Apple IAP subscription to local state', async () => {
+    it('should sync Apple IAP subscription to local state (configured validator)', async () => {
+      const configured = new QuantProService(undefined, {
+        appleValidator: stubValidator({}),
+      });
       const receipt: IAPReceipt = {
         platform: 'apple',
         receiptData: 'valid_apple_receipt_sync_test',
@@ -205,7 +245,7 @@ describe('QuantProService', () => {
         productId: 'com.quant.pro_monthly',
       };
 
-      const state = await service.syncIAPSubscription('user_1', receipt);
+      const state = await configured.syncIAPSubscription('user_1', receipt);
 
       expect(state.userId).toBe('user_1');
       expect(state.plan).toBe('pro_monthly');
@@ -213,7 +253,7 @@ describe('QuantProService', () => {
       expect(state.autoRenewing).toBe(true);
     });
 
-    it('should sync Google IAP subscription to local state', async () => {
+    it('should reject sync when validation is not configured (fail closed)', async () => {
       const receipt: IAPReceipt = {
         platform: 'google',
         receiptData: 'valid_google_receipt_sync_test',
@@ -221,10 +261,9 @@ describe('QuantProService', () => {
         productId: 'com.quant.pro_yearly',
       };
 
-      const state = await service.syncIAPSubscription('user_1', receipt);
-
-      expect(state.plan).toBe('pro_yearly');
-      expect(state.iapReceipt!.platform).toBe('google');
+      await expect(service.syncIAPSubscription('user_1', receipt)).rejects.toThrow(
+        'IAP receipt validation failed',
+      );
     });
 
     it('should reject sync with invalid receipt', async () => {

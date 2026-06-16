@@ -6,6 +6,7 @@
 import { z } from 'zod';
 import type { QuantProPlan, IAPReceipt, IAPValidationResult, SubscriptionPlan } from '../types';
 import { SubscriptionService } from './subscription-service';
+import { type IAPValidator, createIAPValidatorsFromEnv } from './iap-validation';
 
 export const SubscribeSchema = z.object({
   userId: z.string().min(1),
@@ -94,15 +95,30 @@ interface UserSubscriptionState {
  * - Apple/Google IAP server-side receipt validation
  * - IAP subscription sync
  */
+/** Optional injection of platform IAP validators (primarily for tests). */
+export interface QuantProServiceOptions {
+  appleValidator?: IAPValidator | null;
+  googleValidator?: IAPValidator | null;
+}
+
 export class QuantProService {
   private subscriptionService: SubscriptionService;
   private userSubscriptions: Map<string, UserSubscriptionState>;
   private validatedReceipts: Map<string, IAPValidationResult>;
+  private readonly appleValidator: IAPValidator | null;
+  private readonly googleValidator: IAPValidator | null;
 
-  constructor(subscriptionService?: SubscriptionService) {
+  constructor(subscriptionService?: SubscriptionService, options?: QuantProServiceOptions) {
     this.subscriptionService = subscriptionService || new SubscriptionService();
     this.userSubscriptions = new Map();
     this.validatedReceipts = new Map();
+
+    const envValidators = createIAPValidatorsFromEnv();
+    this.appleValidator =
+      options?.appleValidator !== undefined ? options.appleValidator : envValidators.apple;
+    this.googleValidator =
+      options?.googleValidator !== undefined ? options.googleValidator : envValidators.google;
+
     this.registerPlans();
   }
 
@@ -328,9 +344,8 @@ export class QuantProService {
     }
   }
 
-  private validateAppleReceipt(receipt: IAPReceipt): IAPValidationResult {
-    // Simulate Apple App Store server-side validation
-    // In production: POST to https://buy.itunes.apple.com/verifyReceipt
+  private async validateAppleReceipt(receipt: IAPReceipt): Promise<IAPValidationResult> {
+    // Basic well-formedness check (cheap, before any network call).
     if (!receipt.receiptData || receipt.receiptData.length < 10) {
       return {
         valid: false,
@@ -341,22 +356,25 @@ export class QuantProService {
       };
     }
 
-    // Simulate valid receipt response
-    const expiresAt =
-      Date.now() + (receipt.productId.includes('yearly') ? 365 * 86400000 : 30 * 86400000);
-    return {
-      valid: true,
-      platform: 'apple',
-      productId: receipt.productId,
-      transactionId: receipt.transactionId,
-      expiresAt,
-      autoRenewing: true,
-    };
+    // FAIL CLOSED: with no real validator configured we MUST NOT approve.
+    if (!this.appleValidator) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[quant-pro] Apple IAP validation not configured (APPLE_IAP_SHARED_SECRET) — failing closed',
+      );
+      return {
+        valid: false,
+        platform: 'apple',
+        productId: receipt.productId,
+        transactionId: receipt.transactionId,
+        error: 'Apple IAP validation not configured',
+      };
+    }
+
+    return this.appleValidator.validate(receipt);
   }
 
-  private validateGoogleReceipt(receipt: IAPReceipt): IAPValidationResult {
-    // Simulate Google Play server-side validation
-    // In production: Uses Google Play Developer API
+  private async validateGoogleReceipt(receipt: IAPReceipt): Promise<IAPValidationResult> {
     if (!receipt.receiptData || receipt.receiptData.length < 10) {
       return {
         valid: false,
@@ -367,17 +385,22 @@ export class QuantProService {
       };
     }
 
-    // Simulate valid receipt response
-    const expiresAt =
-      Date.now() + (receipt.productId.includes('yearly') ? 365 * 86400000 : 30 * 86400000);
-    return {
-      valid: true,
-      platform: 'google',
-      productId: receipt.productId,
-      transactionId: receipt.transactionId,
-      expiresAt,
-      autoRenewing: true,
-    };
+    // FAIL CLOSED: with no real validator configured we MUST NOT approve.
+    if (!this.googleValidator) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[quant-pro] Google Play IAP validation not configured (GOOGLE_PLAY_PACKAGE_NAME/GOOGLE_PLAY_ACCESS_TOKEN) — failing closed',
+      );
+      return {
+        valid: false,
+        platform: 'google',
+        productId: receipt.productId,
+        transactionId: receipt.transactionId,
+        error: 'Google IAP validation not configured',
+      };
+    }
+
+    return this.googleValidator.validate(receipt);
   }
 
   private productIdToPlan(productId: string): QuantProPlan {

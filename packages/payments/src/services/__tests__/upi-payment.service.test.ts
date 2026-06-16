@@ -51,14 +51,15 @@ describe('UPIPaymentService', () => {
     });
   });
 
-  describe('verifyPayment', () => {
-    it('should verify a pending payment successfully', async () => {
+  describe('verifyPayment (fail-closed when unconfigured)', () => {
+    it('does not auto-complete a pending payment without live credentials', async () => {
       const payment = await service.generatePaymentLink(200, 'store@ybl');
       const result = await service.verifyPayment(payment.transactionRef);
 
-      expect(result.verified).toBe(true);
+      // No real credentials => cannot confirm money was received.
+      expect(result.verified).toBe(false);
       expect(result.payment).toBeDefined();
-      expect(result.payment!.status).toBe('completed');
+      expect(result.payment!.status).toBe('pending');
     });
 
     it('should return false for unknown transaction ref', async () => {
@@ -68,14 +69,33 @@ describe('UPIPaymentService', () => {
       expect(result.payment).toBeUndefined();
     });
 
-    it('should report already completed payment as verified', async () => {
-      const payment = await service.generatePaymentLink(100, 'test@upi');
-      await service.verifyPayment(payment.transactionRef);
-
-      // Verify again - already completed
-      const result = await service.verifyPayment(payment.transactionRef);
-      expect(result.verified).toBe(true);
-      expect(result.payment!.status).toBe('completed');
+    it('reports an already completed payment as verified', async () => {
+      // Drive a payment to completed via live mode, then re-verify in fallback.
+      const liveService = new UPIPaymentService({
+        keyId: 'rzp_test_key',
+        keySecret: 'secret',
+        client: {
+          orders: {
+            create: async () => ({
+              id: 'order_done',
+              amount: 100,
+              currency: 'INR',
+              status: 'created' as const,
+              created_at: Date.now(),
+              entity: 'order',
+              amount_paid: 0,
+              amount_due: 100,
+              attempts: 0,
+              description: '',
+              token: {} as never,
+            }),
+          },
+        } as never,
+      });
+      const payment = await liveService.generatePaymentLink(100, 'test@upi');
+      const first = await liveService.verifyPayment(payment.transactionRef);
+      expect(first.verified).toBe(true);
+      expect(first.payment!.status).toBe('completed');
     });
   });
 
@@ -105,9 +125,30 @@ describe('UPIPaymentService', () => {
     });
 
     it('should not expire a completed payment', async () => {
-      const payment = await service.generatePaymentLink(100, 'test@upi');
-      await service.verifyPayment(payment.transactionRef);
-      const result = await service.expirePayment(payment.transactionRef);
+      const liveService = new UPIPaymentService({
+        keyId: 'rzp_test_key',
+        keySecret: 'secret',
+        client: {
+          orders: {
+            create: async () => ({
+              id: 'order_exp',
+              amount: 100,
+              currency: 'INR',
+              status: 'created' as const,
+              created_at: Date.now(),
+              entity: 'order',
+              amount_paid: 0,
+              amount_due: 100,
+              attempts: 0,
+              description: '',
+              token: {} as never,
+            }),
+          },
+        } as never,
+      });
+      const payment = await liveService.generatePaymentLink(100, 'test@upi');
+      await liveService.verifyPayment(payment.transactionRef);
+      const result = await liveService.expirePayment(payment.transactionRef);
 
       expect(result!.status).toBe('completed');
     });

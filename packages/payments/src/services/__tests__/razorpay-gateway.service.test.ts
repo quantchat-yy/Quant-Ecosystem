@@ -39,20 +39,17 @@ describe('RazorpayGateway', () => {
     });
   });
 
-  describe('verifyPayment', () => {
-    it('should verify a valid payment with correct signature', async () => {
+  describe('verifyPayment (fail-closed when unconfigured)', () => {
+    it('rejects verification without live credentials even with a generated signature', async () => {
       const order = await gateway.createOrder(1000, 'INR');
       const paymentId = 'pay_test_123';
       const signature = gateway.generateTestSignature(order.id, paymentId);
 
       const result = await gateway.verifyPayment(order.id, paymentId, signature);
 
-      expect(result.verified).toBe(true);
-      expect(result.payment).toBeDefined();
-      expect(result.payment!.id).toBe(paymentId);
-      expect(result.payment!.orderId).toBe(order.id);
-      expect(result.payment!.amount).toBe(1000);
-      expect(result.payment!.status).toBe('captured');
+      // No real Razorpay credentials => never confirm a payment.
+      expect(result.verified).toBe(false);
+      expect(result.payment).toBeUndefined();
     });
 
     it('should reject payment with invalid signature', async () => {
@@ -69,7 +66,7 @@ describe('RazorpayGateway', () => {
       expect(result.verified).toBe(false);
     });
 
-    it('should mark order as paid after verification', async () => {
+    it('does not mark order as paid when verification fails closed', async () => {
       const order = await gateway.createOrder(1000, 'INR');
       const paymentId = 'pay_test_456';
       const signature = gateway.generateTestSignature(order.id, paymentId);
@@ -77,7 +74,7 @@ describe('RazorpayGateway', () => {
       await gateway.verifyPayment(order.id, paymentId, signature);
       const updatedOrder = await gateway.getOrder(order.id);
 
-      expect(updatedOrder!.status).toBe('paid');
+      expect(updatedOrder!.status).toBe('created');
     });
   });
 
@@ -101,13 +98,35 @@ describe('RazorpayGateway', () => {
   });
 
   describe('getPaymentStatus', () => {
-    it('should return payment after verification', async () => {
-      const order = await gateway.createOrder(500, 'INR');
+    it('should return payment after verification (live mode)', async () => {
+      const mockClient = {
+        orders: {
+          create: async () => ({
+            id: 'order_status_live',
+            amount: 500,
+            currency: 'INR',
+            status: 'created' as const,
+            created_at: Date.now(),
+            entity: 'order',
+            amount_paid: 0,
+            amount_due: 500,
+            attempts: 0,
+            description: '',
+            token: {} as never,
+          }),
+        },
+      } as never;
+      const liveGateway = new RazorpayGateway({
+        keyId: 'rzp_test_key',
+        keySecret: 'test_secret',
+        client: mockClient,
+      });
+      const order = await liveGateway.createOrder(500, 'INR');
       const paymentId = 'pay_status_test';
-      const signature = gateway.generateTestSignature(order.id, paymentId);
+      const signature = liveGateway.generateTestSignature(order.id, paymentId);
 
-      await gateway.verifyPayment(order.id, paymentId, signature);
-      const payment = await gateway.getPaymentStatus(paymentId);
+      await liveGateway.verifyPayment(order.id, paymentId, signature);
+      const payment = await liveGateway.getPaymentStatus(paymentId);
 
       expect(payment).not.toBeNull();
       expect(payment!.id).toBe(paymentId);
