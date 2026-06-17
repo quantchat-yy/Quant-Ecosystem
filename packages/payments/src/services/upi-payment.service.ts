@@ -140,12 +140,12 @@ export class UPIPaymentService {
       return { verified: payment.status === 'completed', payment };
     }
 
-    // Fallback: simulate successful verification
-    if (payment.status === 'pending') {
-      payment.status = 'completed';
-      return { verified: true, payment };
-    }
-
+    // FAIL CLOSED: without real Razorpay credentials we cannot confirm that the
+    // UPI payment actually completed, so we never auto-complete a pending payment.
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[upi] verifyPayment called without RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET — failing closed',
+    );
     return { verified: payment.status === 'completed', payment };
   }
 

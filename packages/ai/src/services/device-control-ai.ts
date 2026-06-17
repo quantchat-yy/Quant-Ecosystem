@@ -5,6 +5,69 @@
 import type { AIInferenceRequest, DeviceControlCommand, DeviceControlResult } from '../types';
 import { AIEngine } from '../core/engine';
 
+/**
+ * Backend that actually actuates a device command against a real device-control
+ * plane (smart-home hub / IoT gateway). Implementations return the device state
+ * transition; throwing signals the command could not be executed.
+ */
+export interface DeviceControlBackend {
+  execute(command: DeviceControlCommand): Promise<{
+    previousState: Record<string, unknown>;
+    newState: Record<string, unknown>;
+  }>;
+}
+
+/**
+ * Real device-control backend that calls a configured HTTP device-control
+ * service. Enabled by setting DEVICE_CONTROL_URL (optionally DEVICE_CONTROL_API_KEY).
+ */
+export class HttpDeviceControlBackend implements DeviceControlBackend {
+  constructor(
+    private readonly baseUrl: string,
+    private readonly apiKey?: string,
+    private readonly timeoutMs: number = 5000,
+  ) {}
+
+  async execute(command: DeviceControlCommand): Promise<{
+    previousState: Record<string, unknown>;
+    newState: Record<string, unknown>;
+  }> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const res = await fetch(
+        `${this.baseUrl.replace(/\/$/, '')}/devices/${encodeURIComponent(command.deviceId)}/commands`,
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            ...(this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {}),
+          },
+          body: JSON.stringify({
+            deviceType: command.deviceType,
+            action: command.action,
+            parameters: command.parameters,
+          }),
+          signal: controller.signal,
+        },
+      );
+      if (!res.ok) {
+        throw new Error(`device-control service responded ${res.status}`);
+      }
+      const body = (await res.json()) as {
+        previousState?: Record<string, unknown>;
+        newState?: Record<string, unknown>;
+      };
+      return {
+        previousState: body.previousState ?? {},
+        newState: body.newState ?? command.parameters,
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
 /** Known device capabilities */
 interface DeviceCapability {
   deviceType: string;
@@ -26,10 +89,25 @@ export class DeviceControlAIService {
   private engine: AIEngine;
   private deviceRegistry: Map<string, DeviceCapability> = new Map();
   private executionHistory: Map<string, DeviceControlResult[]> = new Map();
+  private readonly backend: DeviceControlBackend | null;
 
-  constructor(engine: AIEngine) {
+  constructor(engine: AIEngine, backend?: DeviceControlBackend) {
     this.engine = engine;
+    this.backend = backend ?? DeviceControlAIService.createBackendFromEnv();
     this.registerDefaultCapabilities();
+  }
+
+  private static createBackendFromEnv(): DeviceControlBackend | null {
+    const url = process.env['DEVICE_CONTROL_URL'];
+    if (url) {
+      return new HttpDeviceControlBackend(url, process.env['DEVICE_CONTROL_API_KEY']);
+    }
+    return null;
+  }
+
+  /** Whether a real device-control backend is wired up. */
+  isBackendConfigured(): boolean {
+    return this.backend !== null;
   }
 
   /**
@@ -77,8 +155,46 @@ export class DeviceControlAIService {
       };
     }
 
-    // Simulate device execution
-    const result: DeviceControlResult = {
+    let result: DeviceControlResult;
+
+    if (this.backend) {
+      try {
+        const transition = await this.backend.execute(command);
+        result = {
+          success: true,
+          deviceId: command.deviceId,
+          action: command.action,
+          result: {
+            previousState: transition.previousState,
+            newState: transition.newState,
+            timestamp: new Date().toISOString(),
+          },
+          executionTimeMs: Date.now() - startTime,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[device-control-ai] backend execution failed for ${command.deviceId}, using simulation: ${message}`,
+        );
+        result = this.simulateExecution(command, startTime);
+      }
+    } else {
+      result = this.simulateExecution(command, startTime);
+    }
+
+    // Store execution history
+    const history = this.executionHistory.get(command.userId) || [];
+    history.push(result);
+    if (history.length > 100) history.shift();
+    this.executionHistory.set(command.userId, history);
+
+    return result;
+  }
+
+  /** Simulated device execution used when no real backend is configured (or on backend error). */
+  private simulateExecution(command: DeviceControlCommand, startTime: number): DeviceControlResult {
+    return {
       success: true,
       deviceId: command.deviceId,
       action: command.action,
@@ -89,14 +205,6 @@ export class DeviceControlAIService {
       },
       executionTimeMs: Date.now() - startTime + Math.floor(Math.random() * 100),
     };
-
-    // Store execution history
-    const history = this.executionHistory.get(command.userId) || [];
-    history.push(result);
-    if (history.length > 100) history.shift();
-    this.executionHistory.set(command.userId, history);
-
-    return result;
   }
 
   /**

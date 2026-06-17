@@ -14,21 +14,76 @@ interface IndexedItem {
 }
 
 /**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: Pure JS forward pass with randomly initialized weights, no trained model
- * Production path: Train two-tower model in PyTorch, serve via ONNX/Triton
+ * Real serving backend for the two-tower model. When configured (trained towers
+ * served via ONNX/Triton), user/item encodings come from the served model. When
+ * absent or on error, the in-process naive forward pass is used.
+ */
+export interface TwoTowerServingBackend {
+  encodeUser(features: number[]): Promise<number[]>;
+  encodeItem(features: number[]): Promise<number[]>;
+}
+
+/**
+ * @simulated The in-process encode/retrieve methods are a NAIVE pure-JS forward
+ * pass with randomly initialized weights (fallback). When a real
+ * TwoTowerServingBackend is configured, the async *Served methods delegate to it.
+ * Production path: train two-tower model in PyTorch, serve via ONNX/Triton.
  */
 export class TwoTowerRetrieval {
   private readonly config: TwoTowerConfig;
   private userWeights: number[][];
   private itemWeights: number[][];
   private index: IndexedItem[] = [];
+  private readonly backend: TwoTowerServingBackend | null;
 
-  constructor(config: TwoTowerConfig) {
+  constructor(config: TwoTowerConfig, backend?: TwoTowerServingBackend | null) {
     this.config = config;
+    this.backend = backend ?? null;
     this.userWeights = this.initWeights(config.userEmbeddingDim, config.outputDim);
     this.itemWeights = this.initWeights(config.itemEmbeddingDim, config.outputDim);
+  }
+
+  /** Whether a real model-serving backend is wired up. */
+  isServed(): boolean {
+    return this.backend !== null;
+  }
+
+  /** Encode a user via the served model when configured; naive fallback otherwise. */
+  async encodeUserServed(features: number[]): Promise<number[]> {
+    if (this.backend) {
+      try {
+        return await this.backend.encodeUser(features);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        // eslint-disable-next-line no-console
+        console.warn(`[two-tower] serving backend failed (user), using fallback: ${message}`);
+      }
+    }
+    return this.encodeUser(features);
+  }
+
+  /** Encode an item via the served model when configured; naive fallback otherwise. */
+  async encodeItemServed(features: number[]): Promise<number[]> {
+    if (this.backend) {
+      try {
+        return await this.backend.encodeItem(features);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        // eslint-disable-next-line no-console
+        console.warn(`[two-tower] serving backend failed (item), using fallback: ${message}`);
+      }
+    }
+    return this.encodeItem(features);
+  }
+
+  /** Retrieve top-k using served user encoding when configured; naive fallback otherwise. */
+  async retrieveServed(
+    _userId: string,
+    userFeatures: number[],
+    k: number,
+  ): Promise<Array<{ id: string; score: number }>> {
+    const userEmbedding = await this.encodeUserServed(userFeatures);
+    return this.retrieveByEmbedding(userEmbedding, k);
   }
 
   private initWeights(inputDim: number, outputDim: number): number[][] {
@@ -78,6 +133,15 @@ export class TwoTowerRetrieval {
       id: item.id,
       embedding: this.encodeItem(item.features),
     }));
+  }
+
+  /** Build the index using served item encodings when a backend is configured. */
+  async buildIndexServed(items: Array<{ id: string; features: number[] }>): Promise<void> {
+    const indexed: IndexedItem[] = [];
+    for (const item of items) {
+      indexed.push({ id: item.id, embedding: await this.encodeItemServed(item.features) });
+    }
+    this.index = indexed;
   }
 
   retrieve(

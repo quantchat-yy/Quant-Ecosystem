@@ -78,4 +78,50 @@ describe('TwoTowerRetrieval', () => {
     const results = tower.retrieve('user1', [1, 0, 0, 0, 0, 0, 0, 0], 5);
     expect(results).toHaveLength(0);
   });
+
+  describe('served backend mode', () => {
+    const servingConfig = { userEmbeddingDim: 8, itemEmbeddingDim: 8, outputDim: 4 };
+
+    it('reports not served without a backend', () => {
+      const tower = new TwoTowerRetrieval(servingConfig);
+      expect(tower.isServed()).toBe(false);
+    });
+
+    it('uses served encodings to build the index and retrieve', async () => {
+      // Deterministic backend: echoes first 4 features as the embedding.
+      const tower = new TwoTowerRetrieval(servingConfig, {
+        async encodeUser(f) {
+          return f.slice(0, 4);
+        },
+        async encodeItem(f) {
+          return f.slice(0, 4);
+        },
+      });
+      expect(tower.isServed()).toBe(true);
+
+      await tower.buildIndexServed([
+        { id: 'a', features: [1, 0, 0, 0, 0, 0, 0, 0] },
+        { id: 'b', features: [0, 1, 0, 0, 0, 0, 0, 0] },
+      ]);
+      expect(tower.getIndexSize()).toBe(2);
+
+      const results = await tower.retrieveServed('u1', [1, 0, 0, 0, 0, 0, 0, 0], 2);
+      expect(results).toHaveLength(2);
+      // Item 'a' aligns with the user vector -> highest score.
+      expect(results[0]!.id).toBe('a');
+    });
+
+    it('falls back to the naive encoder when the backend throws', async () => {
+      const tower = new TwoTowerRetrieval(servingConfig, {
+        async encodeUser() {
+          throw new Error('serving down');
+        },
+        async encodeItem() {
+          throw new Error('serving down');
+        },
+      });
+      const embedding = await tower.encodeUserServed([1, 0.5, 0.3, 0.8, 0.2, 0.9, 0.4, 0.6]);
+      expect(embedding).toHaveLength(4);
+    });
+  });
 });

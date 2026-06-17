@@ -21,6 +21,24 @@ const DEFAULT_CONFIG: KeyframeExtractorConfig = {
 };
 
 /**
+ * FailClosedFrameExtractorBackend - Safe default for production when neither a
+ * real ffmpeg backend nor an explicit dev opt-in is configured.
+ *
+ * It throws on extraction so video moderation FAILS CLOSED (the job errors and
+ * is retried / sent to manual review) instead of silently "approving" a video
+ * using fabricated/empty frames.
+ */
+export class FailClosedFrameExtractorBackend implements FrameExtractorBackend {
+  async extractFrames(_input: string | Buffer, _timestamps: number[]): Promise<KeyframeResult[]> {
+    throw new Error(
+      'No video frame extractor configured. Video moderation fails closed. ' +
+        'Set FFMPEG_ENABLED=true with a real ffmpeg backend, or explicitly opt in to ' +
+        'the mock backend in non-production via MODERATION_ALLOW_MOCK_FRAMES=true.',
+    );
+  }
+}
+
+/**
  * MockFrameExtractorBackend - Test backend that returns empty buffers
  * for each requested timestamp without requiring ffmpeg.
  */

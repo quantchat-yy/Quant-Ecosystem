@@ -2,7 +2,7 @@ export interface PaymentMethod {
   id: string;
   userId: string;
   type: 'card' | 'paypal' | 'crypto';
-  details: Record<string, any>;
+  details: Record<string, unknown>;
   isDefault: boolean;
 }
 
@@ -13,13 +13,86 @@ export interface Transaction {
   currency: string;
   type: 'subscription' | 'one_time' | 'refund';
   status: 'pending' | 'completed' | 'failed';
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   createdAt: Date;
+}
+
+/** Request handed to a real payment processor. */
+export interface ProcessorChargeRequest {
+  userId: string;
+  amount: number;
+  currency: string;
+  type: Transaction['type'];
+  metadata?: Record<string, unknown>;
+}
+
+/** Outcome returned by a real payment processor. */
+export interface ProcessorChargeResult {
+  status: 'completed' | 'failed';
+  providerRef?: string;
+}
+
+/**
+ * A real payment processor backend. Implementations talk to an external
+ * processor (Stripe, Adyen, internal gateway, ...) and return a definitive
+ * outcome. Throwing is treated as a failure (fail-closed).
+ */
+export interface PaymentProcessorBackend {
+  charge(request: ProcessorChargeRequest): Promise<ProcessorChargeResult>;
+}
+
+/**
+ * HTTP payment processor backend. Enabled by PAYMENT_PROCESSOR_URL.
+ * Posts the charge to the configured processor and trusts only an explicit
+ * `{ status: 'completed' }` response.
+ */
+export class HttpPaymentProcessorBackend implements PaymentProcessorBackend {
+  constructor(
+    private readonly baseUrl: string,
+    private readonly apiKey?: string,
+  ) {}
+
+  async charge(request: ProcessorChargeRequest): Promise<ProcessorChargeResult> {
+    const res = await fetch(`${this.baseUrl.replace(/\/$/, '')}/charges`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(this.apiKey ? { authorization: `Bearer ${this.apiKey}` } : {}),
+      },
+      body: JSON.stringify(request),
+    });
+    if (!res.ok) {
+      return { status: 'failed' };
+    }
+    const body = (await res.json()) as { status?: string; providerRef?: string };
+    return {
+      status: body.status === 'completed' ? 'completed' : 'failed',
+      providerRef: body.providerRef,
+    };
+  }
 }
 
 export class PaymentEngine {
   private methods: Map<string, PaymentMethod[]> = new Map();
   private transactions: Transaction[] = [];
+  private readonly processor: PaymentProcessorBackend | null;
+
+  constructor(processor?: PaymentProcessorBackend) {
+    this.processor = processor ?? PaymentEngine.createProcessorFromEnv();
+  }
+
+  private static createProcessorFromEnv(): PaymentProcessorBackend | null {
+    const url = process.env['PAYMENT_PROCESSOR_URL'];
+    if (url) {
+      return new HttpPaymentProcessorBackend(url, process.env['PAYMENT_PROCESSOR_API_KEY']);
+    }
+    return null;
+  }
+
+  /** Whether a real payment processor is wired up. */
+  isProcessorConfigured(): boolean {
+    return this.processor !== null;
+  }
 
   async addPaymentMethod(
     userId: string,
@@ -43,7 +116,7 @@ export class PaymentEngine {
     amount: number,
     currency: string,
     type: Transaction['type'],
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ): Promise<Transaction> {
     const transaction: Transaction = {
       id: `tx_${Date.now()}`,
@@ -56,11 +129,28 @@ export class PaymentEngine {
       createdAt: new Date(),
     };
 
-    // Simulate payment processing
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // 95% success rate simulation
-    transaction.status = Math.random() > 0.05 ? 'completed' : 'failed';
+    if (this.processor) {
+      try {
+        const result = await this.processor.charge({ userId, amount, currency, type, metadata });
+        transaction.status = result.status;
+        if (result.providerRef) {
+          transaction.metadata = { ...(metadata ?? {}), providerRef: result.providerRef };
+        }
+      } catch (error) {
+        // FAIL CLOSED: a processor error must never be treated as a success.
+        const message = error instanceof Error ? error.message : String(error);
+        // eslint-disable-next-line no-console
+        console.warn(`[payment-engine] processor charge failed, marking failed: ${message}`);
+        transaction.status = 'failed';
+      }
+    } else {
+      // FAIL CLOSED: with no real processor configured we never confirm a charge.
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[payment-engine] no payment processor configured (PAYMENT_PROCESSOR_URL) — marking payment failed',
+      );
+      transaction.status = 'failed';
+    }
 
     this.transactions.push(transaction);
     return transaction;

@@ -20,7 +20,11 @@ import {
   KeyframeExtractor,
   MockFrameExtractorBackend,
   FfmpegFrameExtractorBackend,
+  FailClosedFrameExtractorBackend,
+  AudioTranscriber,
+  createWhisperProviderFromEnv,
 } from '@quant/moderation';
+import type { FrameExtractorBackend } from '@quant/moderation';
 import { ModerationJobSchema, type ModerationJob } from '@quant/queue';
 
 import { TextModerationHandler } from './handlers/text-handler';
@@ -201,36 +205,74 @@ export function createHandlerDeps(): ModerationHandlerDeps {
 
   const videoHandler = new VideoModerationHandler({
     imageClassifier,
-    keyframeExtractor: new KeyframeExtractor(
-      process.env['FFMPEG_ENABLED'] === 'true'
-        ? new FfmpegFrameExtractorBackend(() => {
-            throw new Error('ffmpeg command factory not configured');
-          })
-        : (() => {
-            logger.warn(
-              'FFMPEG_ENABLED not set - video frame extraction using mock backend (no real frames extracted)',
-            );
-            return new MockFrameExtractorBackend();
-          })(),
-    ),
+    keyframeExtractor: new KeyframeExtractor(resolveFrameExtractorBackend()),
     policyEngine,
     actionExecutor,
   });
 
   const audioHandler = new AudioModerationHandler({
-    transcriptionService: {
-      transcribe: () => {
-        throw new Error(
-          'Transcription service not configured. Set TRANSCRIPTION_API_KEY environment variable.',
-        );
-      },
-    },
+    transcriptionService: resolveTranscriptionService(),
     textClassifier,
     policyEngine,
     actionExecutor,
   });
 
   return { textHandler, imageHandler, videoHandler, audioHandler };
+}
+
+/**
+ * Resolve the video frame-extractor backend.
+ *   - FFMPEG_ENABLED=true                  -> real ffmpeg backend
+ *   - MODERATION_ALLOW_MOCK_FRAMES=true    -> mock backend (explicit dev opt-in)
+ *   - otherwise                            -> FAIL CLOSED (video jobs error, never
+ *                                             silently approved with fake frames)
+ */
+function resolveFrameExtractorBackend(): FrameExtractorBackend {
+  if (process.env['FFMPEG_ENABLED'] === 'true') {
+    return new FfmpegFrameExtractorBackend(() => {
+      throw new Error('ffmpeg command factory not configured');
+    });
+  }
+  if (process.env['MODERATION_ALLOW_MOCK_FRAMES'] === 'true') {
+    logger.warn(
+      'MODERATION_ALLOW_MOCK_FRAMES=true - using mock frame extractor (NO real frames; dev only)',
+    );
+    return new MockFrameExtractorBackend();
+  }
+  logger.warn(
+    'No video frame extractor configured (FFMPEG_ENABLED not set) - video moderation will FAIL CLOSED',
+  );
+  return new FailClosedFrameExtractorBackend();
+}
+
+/**
+ * Resolve the audio transcription service. Uses the real Whisper provider when
+ * OPENAI_API_KEY / TRANSCRIPTION_API_KEY is configured; otherwise fails closed
+ * (audio jobs error instead of being analyzed against an empty transcript).
+ */
+function resolveTranscriptionService(): { transcribe(audioUrl: string): Promise<string> } {
+  const apiKey = process.env['TRANSCRIPTION_API_KEY'] ?? process.env['OPENAI_API_KEY'];
+  const provider = apiKey
+    ? createWhisperProviderFromEnv({ language: process.env['TRANSCRIPTION_LANGUAGE'] })
+    : null;
+
+  if (provider) {
+    const transcriber = new AudioTranscriber(provider);
+    return {
+      transcribe: async (audioUrl: string): Promise<string> => {
+        const result = await transcriber.transcribe(audioUrl);
+        return result.text;
+      },
+    };
+  }
+
+  return {
+    transcribe: (): Promise<string> => {
+      throw new Error(
+        'Transcription service not configured. Set TRANSCRIPTION_API_KEY (or OPENAI_API_KEY) environment variable.',
+      );
+    },
+  };
 }
 
 async function main(): Promise<void> {

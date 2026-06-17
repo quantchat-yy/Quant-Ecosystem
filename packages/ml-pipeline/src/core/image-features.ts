@@ -2,6 +2,8 @@
 // ML Pipeline - Image Feature Extractor
 // ============================================================================
 
+import { postJson, readEnvUrl, warnServingFallback } from './serving';
+
 interface ConvKernel {
   name: string;
   weights: number[][];
@@ -16,18 +18,95 @@ interface FeatureMap {
 }
 
 /**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: Basic pixel stats, no CNN feature extraction
- * Production path: Use CLIP or ResNet via ONNX
+ * Real image feature backend (e.g. CLIP or ResNet served via ONNX or an HTTP
+ * embedding endpoint). When configured, extractFeaturesServed delegates feature
+ * extraction to the backend; otherwise the in-process naive convolution path is
+ * used.
+ */
+export interface ImageFeatureBackend {
+  extract(image: number[][]): Promise<number[]>;
+  isAvailable(): boolean;
+}
+
+function asRecord(raw: unknown): Record<string, unknown> {
+  return raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+}
+
+function parseFeatureVector(raw: unknown): number[] {
+  if (Array.isArray(raw)) {
+    return raw.filter((x): x is number => typeof x === 'number');
+  }
+  const obj = asRecord(raw);
+  const candidate = obj['features'] ?? obj['embedding'] ?? obj['data'];
+  if (Array.isArray(candidate)) {
+    return candidate.filter((x): x is number => typeof x === 'number');
+  }
+  return [];
+}
+
+/**
+ * HTTP-backed image feature backend. Posts the image grid to a deployed feature
+ * extractor (configured via IMAGE_FEATURE_URL) and parses the feature vector.
+ */
+export class HttpImageFeatureBackend implements ImageFeatureBackend {
+  private readonly url: string;
+
+  constructor(url: string) {
+    this.url = url;
+  }
+
+  isAvailable(): boolean {
+    return this.url.length > 0;
+  }
+
+  async extract(image: number[][]): Promise<number[]> {
+    const raw = await postJson<unknown>(this.url, { image });
+    return parseFeatureVector(raw);
+  }
+}
+
+function createImageFeatureBackendFromEnv(): ImageFeatureBackend | null {
+  const url = readEnvUrl('IMAGE_FEATURE_URL');
+  return url ? new HttpImageFeatureBackend(url) : null;
+}
+
+/**
+ * @simulated The in-process convolution/pooling feature extraction is a NAIVE
+ * pure-JS implementation (basic pixel statistics, no learned CNN) used as a
+ * fallback. When a real ImageFeatureBackend is configured (injected, or
+ * auto-created from IMAGE_FEATURE_URL), extractFeaturesServed delegates to it
+ * and falls back to the naive path on error.
+ * Production path: CLIP or ResNet served via ONNX.
  */
 export class ImageFeatureExtractor {
   private kernels: Map<string, ConvKernel> = new Map();
   private featureCache: Map<string, number[]> = new Map();
   private cacheMaxSize: number = 500;
+  private readonly backend: ImageFeatureBackend | null;
 
-  constructor() {
+  constructor(backend?: ImageFeatureBackend | null) {
+    this.backend = backend ?? createImageFeatureBackendFromEnv();
     this.initializeKernels();
+  }
+
+  /** Whether a real image feature backend is configured and available. */
+  isServed(): boolean {
+    return this.backend !== null && this.backend.isAvailable();
+  }
+
+  /**
+   * Extract features via the served backend when configured, falling back to the
+   * naive in-process pipeline on absence or error.
+   */
+  async extractFeaturesServed(image: number[][], poolSize: number = 2): Promise<number[]> {
+    if (this.backend && this.backend.isAvailable()) {
+      try {
+        return await this.backend.extract(image);
+      } catch (error) {
+        warnServingFallback('image-features', 'extract', error);
+      }
+    }
+    return this.extractFeatures(image, poolSize);
   }
 
   private initializeKernels(): void {

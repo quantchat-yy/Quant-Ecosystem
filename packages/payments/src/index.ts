@@ -83,7 +83,13 @@ export {
   SubscribeSchema as QuantProSubscribeSchema,
   ValidateIAPReceiptSchema,
 } from './services/quant-pro.service';
-export type { ProFeature } from './services/quant-pro.service';
+export type { ProFeature, QuantProServiceOptions } from './services/quant-pro.service';
+export {
+  AppleReceiptValidator,
+  GooglePlayReceiptValidator,
+  createIAPValidatorsFromEnv,
+} from './services/iap-validation';
+export type { IAPValidator, FetchLike } from './services/iap-validation';
 
 // Phase 29 - Creator Economy Extensions
 export {

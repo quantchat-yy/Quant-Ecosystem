@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { AnomalyResult, IsolationTree, AnomalyDetectorConfig } from '../types';
+import { postJson, readEnvUrl, warnServingFallback } from './serving';
 
 interface StreamingState {
   mean: number;
@@ -12,11 +13,99 @@ interface StreamingState {
   threshold: number;
 }
 
+/** Score returned by a real anomaly-inference backend for a single point. */
+export interface AnomalyBackendScore {
+  score: number;
+  isAnomaly: boolean;
+  contributingFeatures?: { feature: string; contribution: number }[];
+}
+
 /**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: Pure JS isolation forest/z-score, no scikit-learn or ML framework
- * Production path: Use Python ML pipeline or ONNX model
+ * Real anomaly-inference backend (e.g. a scikit-learn IsolationForest served via
+ * an HTTP endpoint, or an ONNX model). When configured, the async detectServed
+ * methods delegate scoring to this backend; otherwise the in-process naive path
+ * is used.
+ */
+export interface AnomalyInferenceBackend {
+  detect(point: number[]): Promise<AnomalyBackendScore>;
+  detectBatch(points: number[][]): Promise<AnomalyBackendScore[]>;
+  isAvailable(): boolean;
+}
+
+function asRecord(raw: unknown): Record<string, unknown> {
+  return raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+}
+
+function parseAnomalyScore(raw: unknown): AnomalyBackendScore {
+  const obj = asRecord(raw);
+  const score = typeof obj['score'] === 'number' ? obj['score'] : 0;
+  const isAnomaly =
+    typeof obj['isAnomaly'] === 'boolean'
+      ? obj['isAnomaly']
+      : typeof obj['is_anomaly'] === 'boolean'
+        ? obj['is_anomaly']
+        : false;
+  const result: AnomalyBackendScore = { score, isAnomaly };
+  const contribRaw = obj['contributingFeatures'] ?? obj['contributing_features'];
+  if (Array.isArray(contribRaw)) {
+    const contributingFeatures: { feature: string; contribution: number }[] = [];
+    for (const item of contribRaw) {
+      const c = asRecord(item);
+      if (typeof c['feature'] === 'string' && typeof c['contribution'] === 'number') {
+        contributingFeatures.push({ feature: c['feature'], contribution: c['contribution'] });
+      }
+    }
+    result.contributingFeatures = contributingFeatures;
+  }
+  return result;
+}
+
+/**
+ * HTTP-backed anomaly-inference backend. Posts feature vectors to a deployed
+ * scoring service (configured via ANOMALY_INFERENCE_URL) and parses the score.
+ */
+export class HttpAnomalyBackend implements AnomalyInferenceBackend {
+  private readonly url: string;
+
+  constructor(url: string) {
+    this.url = url;
+  }
+
+  isAvailable(): boolean {
+    return this.url.length > 0;
+  }
+
+  async detect(point: number[]): Promise<AnomalyBackendScore> {
+    const raw = await postJson<unknown>(this.url, { features: point });
+    return parseAnomalyScore(raw);
+  }
+
+  async detectBatch(points: number[][]): Promise<AnomalyBackendScore[]> {
+    const raw = await postJson<unknown>(this.url, { instances: points });
+    const obj = asRecord(raw);
+    const results = Array.isArray(raw)
+      ? raw
+      : Array.isArray(obj['results'])
+        ? (obj['results'] as unknown[])
+        : Array.isArray(obj['predictions'])
+          ? (obj['predictions'] as unknown[])
+          : [];
+    return results.map((r) => parseAnomalyScore(r));
+  }
+}
+
+function createAnomalyBackendFromEnv(): AnomalyInferenceBackend | null {
+  const url = readEnvUrl('ANOMALY_INFERENCE_URL');
+  return url ? new HttpAnomalyBackend(url) : null;
+}
+
+/**
+ * @simulated The in-process isolation-forest / z-score / moving-average detectors
+ * are a NAIVE pure-JS implementation used as a fallback. When a real
+ * AnomalyInferenceBackend is configured (injected, or auto-created from
+ * ANOMALY_INFERENCE_URL), the async detectServed/detectBatchServed methods
+ * delegate scoring to it and fall back to the naive path on error.
+ * Production path: serve a scikit-learn IsolationForest or ONNX model.
  */
 export class AnomalyDetector {
   private config: AnomalyDetectorConfig;
@@ -26,8 +115,12 @@ export class AnomalyDetector {
   private streamingState: Map<string, StreamingState> = new Map();
   private detectionHistory: AnomalyResult[] = [];
   private maxHistorySize: number = 10000;
+  private readonly backend: AnomalyInferenceBackend | null;
 
-  constructor(config: Partial<AnomalyDetectorConfig> = {}) {
+  constructor(
+    config: Partial<AnomalyDetectorConfig> = {},
+    backend?: AnomalyInferenceBackend | null,
+  ) {
     this.config = {
       method: config.method ?? 'isolation_forest',
       contamination: config.contamination ?? 0.1,
@@ -39,6 +132,61 @@ export class AnomalyDetector {
     if (this.config.maxDepth === 0) {
       this.config.maxDepth = Math.ceil(Math.log2(256));
     }
+    this.backend = backend ?? createAnomalyBackendFromEnv();
+  }
+
+  /** Whether a real anomaly-inference backend is configured and available. */
+  isServed(): boolean {
+    return this.backend !== null && this.backend.isAvailable();
+  }
+
+  /**
+   * Detect using the served backend when configured, falling back to the naive
+   * in-process detect() on absence or error.
+   */
+  async detectServed(point: number[]): Promise<AnomalyResult> {
+    if (this.backend && this.backend.isAvailable()) {
+      try {
+        const out = await this.backend.detect(point);
+        const result: AnomalyResult = {
+          isAnomaly: out.isAnomaly,
+          score: out.score,
+          threshold: this.config.threshold ?? 3.0,
+          method: this.config.method,
+          timestamp: Date.now(),
+          contributingFeatures: out.contributingFeatures,
+        };
+        this.trackResult(result);
+        return result;
+      } catch (error) {
+        warnServingFallback('anomaly-detector', 'detect', error);
+      }
+    }
+    return this.detect(point);
+  }
+
+  /** Batch variant of detectServed; naive fallback on absence or error. */
+  async detectBatchServed(data: number[][]): Promise<AnomalyResult[]> {
+    if (this.backend && this.backend.isAvailable()) {
+      try {
+        const scores = await this.backend.detectBatch(data);
+        return scores.map((out) => {
+          const result: AnomalyResult = {
+            isAnomaly: out.isAnomaly,
+            score: out.score,
+            threshold: this.config.threshold ?? 3.0,
+            method: this.config.method,
+            timestamp: Date.now(),
+            contributingFeatures: out.contributingFeatures,
+          };
+          this.trackResult(result);
+          return result;
+        });
+      } catch (error) {
+        warnServingFallback('anomaly-detector', 'detectBatch', error);
+      }
+    }
+    return this.detectBatch(data);
   }
 
   // Train the anomaly detector

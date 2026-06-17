@@ -194,8 +194,18 @@ describe('CSAMGuard (backward compatibility)', () => {
     await expect(guard.checkHash('abc')).rejects.toThrow('CSAM matching not configured');
   });
 
-  it('CSAMGuardLegacy returns not-matched when enabled', async () => {
+  it('CSAMGuardLegacy fails closed when enabled without a real matcher', async () => {
     const guard = new CSAMGuardLegacy(true);
+    await expect(guard.checkHash('abc')).rejects.toThrow('no real matcher is configured');
+  });
+
+  it('CSAMGuardLegacy delegates to a real matcher when provided', async () => {
+    const guard = new CSAMGuardLegacy(true, {
+      async checkHash() {
+        return { matched: false };
+      },
+      async reportMatch() {},
+    });
     const result = await guard.checkHash('abc');
     expect(result).toEqual({ matched: false });
   });

@@ -17,29 +17,88 @@ const DEFAULT_CONFIG: AudioTranscriberConfig = {
 };
 
 /**
- * OpenAIWhisperProvider - Calls OpenAI Whisper API for transcription.
- * In production, requires OPENAI_API_KEY environment variable.
+ * OpenAIWhisperProvider - Calls the OpenAI Whisper transcription API.
+ *
+ * Real implementation: POSTs audio (Buffer or fetched from a URL) as multipart
+ * form-data and parses the verbose_json response into segments. Requires an API
+ * key (OPENAI_API_KEY in production). On API/network error it throws so callers
+ * can decide how to handle it (the moderation pipeline treats failures
+ * conservatively rather than silently emitting empty transcripts).
  */
 export class OpenAIWhisperProvider implements WhisperProvider {
   private readonly apiKey: string;
   private readonly endpoint: string;
+  private readonly model: string;
+  private readonly language: string | undefined;
 
-  constructor(apiKey: string, endpoint?: string) {
+  constructor(apiKey: string, options?: { endpoint?: string; model?: string; language?: string }) {
     this.apiKey = apiKey;
-    this.endpoint = endpoint ?? 'https://api.openai.com/v1/audio/transcriptions';
+    this.endpoint = options?.endpoint ?? 'https://api.openai.com/v1/audio/transcriptions';
+    this.model = options?.model ?? 'whisper-1';
+    this.language = options?.language;
   }
 
-  async transcribe(_audio: Buffer | string): Promise<TranscriptionResult> {
-    // In production this would POST to the Whisper API endpoint using
-    // this.apiKey and this.endpoint. Returns empty result as placeholder.
-    void this.apiKey;
-    void this.endpoint;
-    return {
-      text: '',
-      segments: [],
-      duration: 0,
-      language: 'en',
+  async transcribe(audio: Buffer | string): Promise<TranscriptionResult> {
+    const blob = await this.toBlob(audio);
+
+    const form = new FormData();
+    form.append('file', blob, 'audio');
+    form.append('model', this.model);
+    form.append('response_format', 'verbose_json');
+    if (this.language) {
+      form.append('language', this.language);
+    }
+
+    const res = await fetch(this.endpoint, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${this.apiKey}` },
+      body: form,
+    });
+
+    if (!res.ok) {
+      throw new Error(`Whisper API error: ${res.status} ${res.statusText}`);
+    }
+
+    const data = (await res.json()) as {
+      text?: string;
+      language?: string;
+      duration?: number;
+      segments?: Array<{
+        start?: number;
+        end?: number;
+        text?: string;
+        avg_logprob?: number;
+        no_speech_prob?: number;
+      }>;
     };
+
+    const segments: TranscriptionSegment[] = (data.segments ?? []).map((seg) => ({
+      start: seg.start ?? 0,
+      end: seg.end ?? 0,
+      text: (seg.text ?? '').trim(),
+      // Whisper does not return a direct confidence; derive one from avg_logprob.
+      confidence:
+        seg.avg_logprob !== undefined ? Math.max(0, Math.min(1, Math.exp(seg.avg_logprob))) : 1,
+    }));
+
+    return {
+      text: data.text ?? '',
+      segments,
+      duration: data.duration ?? 0,
+      language: data.language ?? this.language ?? 'en',
+    };
+  }
+
+  private async toBlob(audio: Buffer | string): Promise<Blob> {
+    if (typeof audio === 'string') {
+      const res = await fetch(audio);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch audio (${res.status}) from ${audio}`);
+      }
+      const buf = await res.arrayBuffer();
+      return new Blob([new Uint8Array(buf)]);
+    }
+    return new Blob([audio]);
   }
 }
 
@@ -134,4 +193,25 @@ export class AudioTranscriber {
       language: results[0]?.language,
     };
   }
+}
+
+/**
+ * Build a WhisperProvider from environment configuration.
+ * Returns a real OpenAIWhisperProvider when a transcription key is set
+ * (TRANSCRIPTION_API_KEY takes precedence over OPENAI_API_KEY), otherwise null so
+ * callers can decide on a safe fallback (the moderation worker treats a missing
+ * transcriber conservatively rather than approving un-analyzed audio).
+ */
+export function createWhisperProviderFromEnv(options?: {
+  endpoint?: string;
+  model?: string;
+  language?: string;
+  apiKey?: string;
+}): WhisperProvider | null {
+  const apiKey =
+    options?.apiKey ?? process.env['TRANSCRIPTION_API_KEY'] ?? process.env['OPENAI_API_KEY'];
+  if (!apiKey) {
+    return null;
+  }
+  return new OpenAIWhisperProvider(apiKey, options);
 }

@@ -19,15 +19,51 @@ interface ObjectiveConfig {
 }
 
 /**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: Multi-gate Mixture-of-Experts in pure JS with untrained expert functions
- * Production path: Train MMoE model on engagement/retention data, serve via ML framework
+ * Real model-serving backend for MMoE. When configured (e.g. a trained MMoE
+ * served via a Triton/inference endpoint), objective scores come from the served
+ * model. When absent or on error, the in-process naive forward() is used.
+ */
+export interface MMoEServingBackend {
+  predict(features: number[]): Promise<Record<ObjectiveName, number>>;
+}
+
+/**
+ * @simulated The in-process forward() path is a NAIVE pure-JS Mixture-of-Experts
+ * with untrained expert functions. It is used as a fallback. When a real
+ * MMoEServingBackend is configured, predict() delegates to the served model.
+ * Production path: train MMoE on engagement/retention data, serve via Triton.
  */
 export class MMoERanker {
   private experts: Expert[] = [];
   private objectives: ObjectiveConfig[] = [];
   private gatingFns: Map<ObjectiveName, GatingFn> = new Map();
+  private readonly backend: MMoEServingBackend | null;
+
+  constructor(backend?: MMoEServingBackend | null) {
+    this.backend = backend ?? null;
+  }
+
+  /** Whether a real model-serving backend is wired up. */
+  isServed(): boolean {
+    return this.backend !== null;
+  }
+
+  /**
+   * Predict objective scores, preferring the served model when configured and
+   * falling back to the in-process forward() on absence or error.
+   */
+  async predict(features: number[]): Promise<Record<ObjectiveName, number>> {
+    if (this.backend) {
+      try {
+        return await this.backend.predict(features);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        // eslint-disable-next-line no-console
+        console.warn(`[mmoe] serving backend failed, using in-process fallback: ${message}`);
+      }
+    }
+    return this.forward(features);
+  }
 
   addExpert(name: string, expertFn: ExpertFn): void {
     this.experts.push({ name, fn: expertFn });

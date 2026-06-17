@@ -3,12 +3,81 @@
 // ============================================================================
 
 import { HyperParameter, CrossValidationResult, AutoMLConfig, TrialResult } from '../types';
+import { postJson, readEnvUrl, warnServingFallback } from './serving';
 
 /**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: Simulated AutoML pipeline in JS
- * Production path: Use SageMaker AutoPilot or similar
+ * Real AutoML search backend (e.g. SageMaker AutoPilot or a hosted tuning
+ * service). When configured, searchServed delegates the hyper-parameter search
+ * to the backend; otherwise the in-process naive random search is used.
+ */
+export interface AutoMLBackend {
+  search(config: AutoMLConfig): Promise<TrialResult[]>;
+  isAvailable(): boolean;
+}
+
+function asRecord(raw: unknown): Record<string, unknown> {
+  return raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+}
+
+function parseTrial(raw: unknown, fallbackId: number): TrialResult {
+  const obj = asRecord(raw);
+  const status = obj['status'];
+  const validStatus: TrialResult['status'] =
+    status === 'completed' || status === 'failed' || status === 'terminated' ? status : 'completed';
+  const configRaw = asRecord(obj['config']);
+  const config: Record<string, number | string> = {};
+  for (const [key, value] of Object.entries(configRaw)) {
+    if (typeof value === 'number' || typeof value === 'string') {
+      config[key] = value;
+    }
+  }
+  return {
+    trialId: typeof obj['trialId'] === 'number' ? obj['trialId'] : fallbackId,
+    config,
+    metric: typeof obj['metric'] === 'number' ? obj['metric'] : 0,
+    duration: typeof obj['duration'] === 'number' ? obj['duration'] : 0,
+    status: validStatus,
+  };
+}
+
+/**
+ * HTTP-backed AutoML search backend. Posts the search configuration to a hosted
+ * tuning service (configured via AUTOML_URL) and parses the returned trials.
+ */
+export class HttpAutoMLBackend implements AutoMLBackend {
+  private readonly url: string;
+
+  constructor(url: string) {
+    this.url = url;
+  }
+
+  isAvailable(): boolean {
+    return this.url.length > 0;
+  }
+
+  async search(config: AutoMLConfig): Promise<TrialResult[]> {
+    const raw = await postJson<unknown>(this.url, { config });
+    const obj = asRecord(raw);
+    const list = Array.isArray(raw)
+      ? raw
+      : Array.isArray(obj['trials'])
+        ? (obj['trials'] as unknown[])
+        : [];
+    return list.map((item, i) => parseTrial(item, i));
+  }
+}
+
+function createAutoMLBackendFromEnv(): AutoMLBackend | null {
+  const url = readEnvUrl('AUTOML_URL');
+  return url ? new HttpAutoMLBackend(url) : null;
+}
+
+/**
+ * @simulated The in-process grid/random search and cross-validation are a NAIVE
+ * pure-JS AutoML implementation used as a fallback. When a real AutoMLBackend is
+ * configured (injected, or auto-created from AUTOML_URL), searchServed delegates
+ * the search to it and falls back to the naive random search on error.
+ * Production path: SageMaker AutoPilot or an equivalent hosted tuning service.
  */
 export class AutoMLPipeline {
   private config: AutoMLConfig;
@@ -16,9 +85,48 @@ export class AutoMLPipeline {
   private bestTrial: TrialResult | null = null;
   private trialCounter: number = 0;
   private earlyTerminatedCount: number = 0;
+  private readonly backend: AutoMLBackend | null;
 
-  constructor(config: AutoMLConfig) {
+  constructor(config: AutoMLConfig, backend?: AutoMLBackend | null) {
     this.config = config;
+    this.backend = backend ?? createAutoMLBackendFromEnv();
+  }
+
+  /** Whether a real AutoML search backend is configured and available. */
+  isServed(): boolean {
+    return this.backend !== null && this.backend.isAvailable();
+  }
+
+  /**
+   * Run the hyper-parameter search via the served backend when configured,
+   * falling back to the in-process random search on absence or error. Returned
+   * trials are merged into the pipeline state (trials, best trial, counters).
+   */
+  async searchServed(
+    evaluateFn: (params: Record<string, number | string>) => number,
+  ): Promise<TrialResult[]> {
+    if (this.backend && this.backend.isAvailable()) {
+      try {
+        const trials = await this.backend.search(this.config);
+        for (const trial of trials) {
+          this.trials.push(trial);
+          this.trialCounter = Math.max(this.trialCounter, trial.trialId + 1);
+          if (trial.status === 'terminated') {
+            this.earlyTerminatedCount++;
+          }
+          if (
+            trial.status === 'completed' &&
+            (!this.bestTrial || this.isBetter(trial.metric, this.bestTrial.metric))
+          ) {
+            this.bestTrial = trial;
+          }
+        }
+        return trials;
+      } catch (error) {
+        warnServingFallback('automl-pipeline', 'search', error);
+      }
+    }
+    return this.randomSearch(evaluateFn);
   }
 
   // Grid search: enumerate all parameter combinations

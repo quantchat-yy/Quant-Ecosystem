@@ -11,12 +11,117 @@ import {
   DataSplit,
   Checkpoint,
 } from '../types';
+import { postJson, readEnvUrl, warnServingFallback } from './serving';
+
+/** Payload submitted to a real training backend. */
+export interface TrainingRequest {
+  features: number[][];
+  labels: number[];
+  config: TrainingConfig;
+}
 
 /**
- * @simulated This implementation is a simulation/prototype.
- * Classification: NAIVE
- * Reason: Simulated training loop in JS
- * Production path: Use PyTorch/TensorFlow with proper training infrastructure
+ * Real training backend (e.g. a PyTorch/TensorFlow training job submitted to
+ * SageMaker or an internal training service). When configured, trainServed
+ * delegates training to the backend; otherwise the in-process naive training
+ * loop is used.
+ */
+export interface TrainingBackend {
+  train(request: TrainingRequest): Promise<TrainingResult>;
+  isAvailable(): boolean;
+}
+
+function asRecord(raw: unknown): Record<string, unknown> {
+  return raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+}
+
+function num(v: unknown): number {
+  return typeof v === 'number' && Number.isFinite(v) ? v : 0;
+}
+
+function parseNumberRecord(raw: unknown): Record<string, number> {
+  const obj = asRecord(raw);
+  const result: Record<string, number> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (typeof v === 'number') result[k] = v;
+  }
+  return result;
+}
+
+function parseMetrics(raw: unknown): EvaluationMetrics {
+  const obj = asRecord(raw);
+  return {
+    accuracy: num(obj['accuracy']),
+    precision: num(obj['precision']),
+    recall: num(obj['recall']),
+    f1: num(obj['f1']),
+    auc: num(obj['auc']),
+    mse: num(obj['mse']),
+    mae: num(obj['mae']),
+  };
+}
+
+function parseTrainingResult(raw: unknown): TrainingResult {
+  const obj = asRecord(raw);
+  const history: EpochHistory[] = [];
+  const histRaw = obj['history'];
+  if (Array.isArray(histRaw)) {
+    for (const item of histRaw) {
+      const h = asRecord(item);
+      history.push({
+        epoch: num(h['epoch']),
+        trainLoss: num(h['trainLoss']),
+        valLoss: num(h['valLoss']),
+        trainMetrics: parseNumberRecord(h['trainMetrics']),
+        valMetrics: parseNumberRecord(h['valMetrics']),
+        learningRate: num(h['learningRate']),
+        duration: num(h['duration']),
+      });
+    }
+  }
+  return {
+    finalLoss: num(obj['finalLoss']),
+    finalMetrics: parseMetrics(obj['finalMetrics']),
+    epochsCompleted: num(obj['epochsCompleted']),
+    trainingTime: num(obj['trainingTime']),
+    history,
+    bestEpoch: num(obj['bestEpoch']),
+    converged: Boolean(obj['converged']),
+  };
+}
+
+/**
+ * HTTP-backed training backend. Posts the training data and config to a deployed
+ * training service (configured via TRAINING_URL) and parses the returned result.
+ */
+export class HttpTrainingBackend implements TrainingBackend {
+  private readonly url: string;
+
+  constructor(url: string) {
+    this.url = url;
+  }
+
+  isAvailable(): boolean {
+    return this.url.length > 0;
+  }
+
+  async train(request: TrainingRequest): Promise<TrainingResult> {
+    const raw = await postJson<unknown>(this.url, request);
+    return parseTrainingResult(raw);
+  }
+}
+
+function createTrainingBackendFromEnv(): TrainingBackend | null {
+  const url = readEnvUrl('TRAINING_URL');
+  return url ? new HttpTrainingBackend(url) : null;
+}
+
+/**
+ * @simulated The in-process training loop (manual SGD with momentum) is a NAIVE
+ * pure-JS implementation used as a fallback. When a real TrainingBackend is
+ * configured (injected, or auto-created from TRAINING_URL), trainServed delegates
+ * training to it and falls back to the naive loop on error.
+ * Production path: PyTorch/TensorFlow training on dedicated infrastructure.
  */
 export class TrainingPipeline {
   private config: TrainingConfig;
@@ -26,8 +131,9 @@ export class TrainingPipeline {
   private bestCheckpoint: Checkpoint | null = null;
   private patienceCounter: number = 0;
   private bestValLoss: number = Infinity;
+  private readonly backend: TrainingBackend | null;
 
-  constructor(config: Partial<TrainingConfig> = {}) {
+  constructor(config: Partial<TrainingConfig> = {}, backend?: TrainingBackend | null) {
     this.config = {
       epochs: config.epochs ?? 100,
       batchSize: config.batchSize ?? 32,
@@ -43,6 +149,27 @@ export class TrainingPipeline {
       validationSplit: config.validationSplit ?? 0.2,
       shuffle: config.shuffle ?? true,
     };
+    this.backend = backend ?? createTrainingBackendFromEnv();
+  }
+
+  /** Whether a real training backend is configured and available. */
+  isServed(): boolean {
+    return this.backend !== null && this.backend.isAvailable();
+  }
+
+  /**
+   * Train via the served backend when configured, falling back to the naive
+   * in-process training loop on absence or error.
+   */
+  async trainServed(features: number[][], labels: number[]): Promise<TrainingResult> {
+    if (this.backend && this.backend.isAvailable()) {
+      try {
+        return await this.backend.train({ features, labels, config: this.config });
+      } catch (error) {
+        warnServingFallback('training-pipeline', 'train', error);
+      }
+    }
+    return this.train(features, labels);
   }
 
   private initializeWeights(inputDim: number, outputDim: number): void {

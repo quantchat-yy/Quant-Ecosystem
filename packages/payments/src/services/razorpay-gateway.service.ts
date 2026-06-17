@@ -161,30 +161,19 @@ export class RazorpayGateway {
       return { verified: true, payment };
     }
 
-    // Fallback: in-memory simulation
+    // FAIL CLOSED: without real Razorpay credentials we cannot trust a signature,
+    // so we MUST NOT confirm that money was received. Order creation and dev
+    // simulation are fine, but payment verification requires live credentials.
     const order = this.orders.get(orderId);
     if (!order) {
       return { verified: false };
     }
 
-    const expectedSignature = this.generateSimulatedSignature(orderId, paymentId);
-    if (signature !== expectedSignature) {
-      return { verified: false };
-    }
-
-    const payment: RazorpayPayment = {
-      id: paymentId,
-      orderId,
-      amount: order.amount,
-      currency: order.currency,
-      status: 'captured',
-      method: 'upi',
-      createdAt: Date.now(),
-    };
-
-    order.status = 'paid';
-    this.payments.set(paymentId, payment);
-    return { verified: true, payment };
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[razorpay] verifyPayment called without RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET — failing closed',
+    );
+    return { verified: false };
   }
 
   /** Create a payout to a bank account via Razorpay */
