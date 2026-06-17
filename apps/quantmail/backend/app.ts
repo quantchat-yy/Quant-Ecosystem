@@ -14,8 +14,11 @@ import issueRoutes from './routes/issues';
 import ciRoutes from './routes/ci';
 import aiDevtoolsRoutes from './routes/ai-devtools';
 import attachmentRoutes from './routes/attachments';
+import e2eeRoutes from './routes/e2ee';
+import federationRoutes, { createFederationService } from './routes/federation';
 import { oauthRoutes } from './routes/oauth';
 import { authRoutes } from './routes/auth';
+import { InMemoryE2EERelay } from './lib/e2ee-relay';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -61,6 +64,33 @@ export async function buildApp(config?: AppConfig) {
   await app.register(ciRoutes, { prefix: '/api/v1' });
   await app.register(aiDevtoolsRoutes, { prefix: '/api/v1' });
   await app.register(attachmentRoutes, { prefix: '/attachments' });
+
+  // encryption (E2EE) engine — per-app lane, Task 14.1. SECURITY CONTRACT (Req
+  // 7.5): the `@quant/encryption` engine runs CLIENT-SIDE — all key generation,
+  // encryption, and decryption happen in the browser (see
+  // `src/features/encryption/`). The backend is a zero-knowledge relay: it only
+  // registers PUBLIC pre-key bundles (for key distribution) and relays opaque
+  // CIPHERTEXT envelopes between users. Private keys, session/ratchet secrets,
+  // and plaintext NEVER reach this server (the `/e2ee` route schemas are
+  // `.strict()` and model public/ciphertext fields only). The relay is in-memory
+  // (no new persistent schema — Req 9.5) and decorated once at boot, never
+  // per-request. The global auth hook from createApp() stays intact; the `/e2ee`
+  // routes additionally declare encryption:read/write scopes (sensitive engine,
+  // Req 7.4).
+  const e2eeRelay = new InMemoryE2EERelay();
+  app.decorate('e2ee', e2eeRelay);
+  app.addHook('onClose', async () => {
+    e2eeRelay.shutdown();
+  });
+  await app.register(e2eeRoutes, { prefix: '/e2ee' });
+
+  // federation engine — per-app lane, Task 14.1 (Req 3.1, 3.2, 7.4). Composes
+  // the as-shipped `@quant/federation` exports (FederationModeration +
+  // APIKeyManager) into a decorated singleton constructed once at boot. Routes
+  // under `/federation` are SCOPED (federation:read/write) on top of the global
+  // auth hook. In-memory persistence (no new schema — Req 9.5).
+  app.decorate('federation', createFederationService());
+  await app.register(federationRoutes, { prefix: '/federation' });
 
   return app;
 }

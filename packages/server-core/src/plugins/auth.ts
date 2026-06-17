@@ -57,11 +57,25 @@ async function authPlugin(
 
         request.auth = authContext;
 
-        // Check scopes if required
+        // Check scopes if required. Scope evaluation is backed by
+        // `@quant/identity-permissions` (RBAC) via the `evaluateScopes`
+        // decoration installed by the identity-permissions plugin. When that
+        // plugin is not registered (e.g. the bare auth plugin in isolation),
+        // fall back to the original exact-match semantics so 401/403 behaviour
+        // (design Property P7) is unchanged.
         if (options?.scopes && options.scopes.length > 0) {
-          const hasScopes = options.scopes.every((scope) =>
-            authContext.scopes.includes(scope as PermissionScope),
-          );
+          const evaluateScopes = (
+            fastify as unknown as {
+              evaluateScopes?: (granted: readonly string[], required: readonly string[]) => boolean;
+            }
+          ).evaluateScopes;
+          const grantedScopes = authContext.scopes as unknown as string[];
+          const hasScopes =
+            typeof evaluateScopes === 'function'
+              ? evaluateScopes(grantedScopes, options.scopes)
+              : options.scopes.every((scope) =>
+                  authContext.scopes.includes(scope as PermissionScope),
+                );
           if (!hasScopes) {
             return reply.status(403).send({
               success: false,

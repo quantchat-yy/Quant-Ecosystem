@@ -10,6 +10,15 @@ import metricsPlugin from './plugins/metrics';
 import requestIdPlugin from './plugins/request-id';
 import requestLoggerPlugin from './plugins/request-logger';
 import gracefulShutdownPlugin from './plugins/graceful-shutdown';
+import observabilityPlugin from './plugins/observability';
+import performancePlugin from './plugins/performance';
+import errorMonitoringPlugin from './plugins/error-monitoring';
+import featureFlagsPlugin from './plugins/feature-flags';
+import auditPlugin from './plugins/audit';
+import organizationsPlugin from './plugins/organizations';
+import notificationsPlugin from './plugins/notifications';
+import identityPermissionsPlugin from './plugins/identity-permissions';
+import teamsPlugin from './plugins/teams';
 import rateLimitPlugin from '@fastify/rate-limit';
 
 export async function createApp(config: AppConfig) {
@@ -94,6 +103,37 @@ export async function createApp(config: AppConfig) {
     jwtIssuer: config.jwtIssuer,
     jwtAudience: config.jwtAudience,
   });
+
+  // Register cross-cutting engine plugins (Category A — wired once, inherited by
+  // every app via createApp()). Registered AFTER prisma + auth so each plugin's
+  // construction/runtime can rely on `fastify.prisma` and `request.auth`.
+  // - observability: import-gated behind OTEL_EXPORTER_OTLP_ENDPOINT (no-op when unset)
+  // - performance: request timing + opt-in per-route SLO budget hook (no-op when
+  //   no budget is defined); decorates `fastify.performance`
+  // - feature-flags: decorates `fastify.flags`
+  // - audit: decorates `fastify.audit`, reads `request.auth` in onResponse
+  // - organizations: decorates `fastify.org` + org-context middleware
+  // - notifications: decorates `fastify.notifications` (PreferenceService +
+  //   NotificationFanout + CrossAppDispatcher); depends on `prisma`
+  // - error-monitoring: captures/forwards errors via an `onError` hook,
+  //   correlated by `x-request-id`; decorates `fastify.errorMonitoring`. Depends
+  //   on `error-handler` (which owns the envelope) + `request-id` (correlation),
+  //   both registered above — the envelope/status are left untouched.
+  await fastify.register(observabilityPlugin);
+  await fastify.register(performancePlugin);
+  await fastify.register(errorMonitoringPlugin);
+  await fastify.register(featureFlagsPlugin);
+  await fastify.register(auditPlugin);
+  await fastify.register(organizationsPlugin);
+  await fastify.register(notificationsPlugin);
+
+  // Register the RBAC auth substrate (Category A — cross-cutting). Registered
+  // AFTER `auth` (declares `dependencies: ['auth']`) so `requireAuth({ scopes })`
+  // scope evaluation is backed by `@quant/identity-permissions`, and BEFORE any
+  // per-app route that declares fine-grained scopes (Requirement 4.3). `teams`
+  // depends on `identity-permissions` and provides multi-actor team context.
+  await fastify.register(identityPermissionsPlugin);
+  await fastify.register(teamsPlugin);
 
   // Public paths that bypass auth
   const PUBLIC_PATHS = ['/health', '/healthz', '/ready', '/readyz', '/live', '/livez', '/metrics'];

@@ -17,6 +17,27 @@
     },
     {
       "path": "../agentic"
+    },
+    {
+      "path": "../api-client"
+    },
+    {
+      "path": "../bharat-ai"
+    },
+    {
+      "path": "../command-palette"
+    },
+    {
+      "path": "../contextual-sidekick"
+    },
+    {
+      "path": "../onboarding"
+    },
+    {
+      "path": "../universal-timeline"
+    },
+    {
+      "path": "../wellbeing"
     }
   ]
 }

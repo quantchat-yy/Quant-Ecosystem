@@ -31,6 +31,11 @@ export async function proxyToBackend(
   const auth = request.headers.get('Authorization');
   if (auth) headers['Authorization'] = auth;
 
+  // Propagate a correlation id across the seam (frontend -> proxy -> route ->
+  // engine) so observability / error-monitoring can stitch a request together.
+  // Reuse the inbound id when present; otherwise mint one at the proxy hop.
+  headers['x-request-id'] = request.headers.get('x-request-id') ?? crypto.randomUUID();
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 

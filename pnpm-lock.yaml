@@ -72,6 +72,9 @@ importers:
       '@prisma/client':
         specifier: ^6.19.3
         version: 6.19.3(prisma@6.19.3(magicast@0.3.5)(typescript@5.9.3))(typescript@5.9.3)
+      '@quant/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@quant/audit':
         specifier: workspace:*
         version: link:../../packages/audit
@@ -176,6 +179,12 @@ importers:
       '@quant/common':
         specifier: workspace:*
         version: link:../../packages/common
+      '@quant/local-first':
+        specifier: workspace:*
+        version: link:../../packages/local-first
+      '@quant/maps':
+        specifier: workspace:*
+        version: link:../../packages/maps
       '@quant/sync-engine':
         specifier: workspace:*
         version: link:../../packages/sync-engine
@@ -298,6 +307,12 @@ importers:
 
   apps/quantai:
     dependencies:
+      '@quant/agent-runtime':
+        specifier: workspace:*
+        version: link:../../packages/agent-runtime
+      '@quant/agent-swarm':
+        specifier: workspace:*
+        version: link:../../packages/agent-swarm
       '@quant/ai':
         specifier: workspace:*
         version: link:../../packages/ai
@@ -310,6 +325,12 @@ importers:
       '@quant/brand':
         specifier: workspace:*
         version: link:../../packages/brand
+      '@quant/browser-agent':
+        specifier: workspace:*
+        version: link:../../packages/browser-agent
+      '@quant/code-agent':
+        specifier: workspace:*
+        version: link:../../packages/code-agent
       '@quant/common':
         specifier: workspace:*
         version: link:../../packages/common
@@ -328,6 +349,9 @@ importers:
       '@quant/shared-ui':
         specifier: workspace:*
         version: link:../../packages/shared-ui
+      '@quant/user-owned-ai':
+        specifier: workspace:*
+        version: link:../../packages/user-owned-ai
       '@tanstack/react-query':
         specifier: ^5.60.0
         version: 5.100.14(react@19.2.6)
@@ -383,6 +407,9 @@ importers:
       '@quant/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@quant/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -471,6 +498,12 @@ importers:
       '@quant/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@quant/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
+      '@quant/ar-lenses':
+        specifier: workspace:*
+        version: link:../../packages/ar-lenses
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -483,6 +516,12 @@ importers:
       '@quant/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@quant/encryption':
+        specifier: workspace:*
+        version: link:../../packages/encryption
+      '@quant/federation':
+        specifier: workspace:*
+        version: link:../../packages/federation
       '@quant/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
@@ -547,6 +586,9 @@ importers:
       '@quant/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@quant/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -626,6 +668,9 @@ importers:
       '@quant/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@quant/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -702,6 +747,9 @@ importers:
       '@quant/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@quant/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -775,6 +823,9 @@ importers:
       '@quant/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@quant/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -787,6 +838,12 @@ importers:
       '@quant/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@quant/encryption':
+        specifier: workspace:*
+        version: link:../../packages/encryption
+      '@quant/federation':
+        specifier: workspace:*
+        version: link:../../packages/federation
       '@quant/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
@@ -857,6 +914,9 @@ importers:
       '@quant/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@quant/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -869,15 +929,30 @@ importers:
       '@quant/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@quant/ml-pipeline':
+        specifier: workspace:*
+        version: link:../../packages/ml-pipeline
+      '@quant/ml-runtime':
+        specifier: workspace:*
+        version: link:../../packages/ml-runtime
+      '@quant/ranking':
+        specifier: workspace:*
+        version: link:../../packages/ranking
       '@quant/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime
+      '@quant/recommendations':
+        specifier: workspace:*
+        version: link:../../packages/recommendations
       '@quant/server-core':
         specifier: workspace:*
         version: link:../../packages/server-core
       '@quant/shared-ui':
         specifier: workspace:*
         version: link:../../packages/shared-ui
+      '@quant/triton-client':
+        specifier: workspace:*
+        version: link:../../packages/triton-client
       '@tanstack/react-query':
         specifier: ^5.60.0
         version: 5.100.14(react@19.2.6)
@@ -939,6 +1014,9 @@ importers:
       '@quant/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@quant/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -948,6 +1026,12 @@ importers:
       '@quant/common':
         specifier: workspace:*
         version: link:../../packages/common
+      '@quant/encryption':
+        specifier: workspace:*
+        version: link:../../packages/encryption
+      '@quant/quant-live':
+        specifier: workspace:*
+        version: link:../../packages/quant-live
       '@quant/queue':
         specifier: workspace:*
         version: link:../../packages/queue
@@ -1036,6 +1120,12 @@ importers:
       '@quant/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@quant/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
+      '@quant/ar-lenses':
+        specifier: workspace:*
+        version: link:../../packages/ar-lenses
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -1048,15 +1138,33 @@ importers:
       '@quant/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@quant/federation':
+        specifier: workspace:*
+        version: link:../../packages/federation
+      '@quant/ml-pipeline':
+        specifier: workspace:*
+        version: link:../../packages/ml-pipeline
+      '@quant/ml-runtime':
+        specifier: workspace:*
+        version: link:../../packages/ml-runtime
+      '@quant/ranking':
+        specifier: workspace:*
+        version: link:../../packages/ranking
       '@quant/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime
+      '@quant/recommendations':
+        specifier: workspace:*
+        version: link:../../packages/recommendations
       '@quant/server-core':
         specifier: workspace:*
         version: link:../../packages/server-core
       '@quant/shared-ui':
         specifier: workspace:*
         version: link:../../packages/shared-ui
+      '@quant/triton-client':
+        specifier: workspace:*
+        version: link:../../packages/triton-client
       '@tanstack/react-query':
         specifier: ^5.60.0
         version: 5.100.14(react@19.2.6)
@@ -1238,6 +1346,9 @@ importers:
       '@quant/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@quant/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -1247,18 +1358,45 @@ importers:
       '@quant/common':
         specifier: workspace:*
         version: link:../../packages/common
+      '@quant/creator-economy':
+        specifier: workspace:*
+        version: link:../../packages/creator-economy
+      '@quant/cross-publish':
+        specifier: workspace:*
+        version: link:../../packages/cross-publish
       '@quant/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@quant/media':
+        specifier: workspace:*
+        version: link:../../packages/media
+      '@quant/ml-pipeline':
+        specifier: workspace:*
+        version: link:../../packages/ml-pipeline
+      '@quant/ml-runtime':
+        specifier: workspace:*
+        version: link:../../packages/ml-runtime
+      '@quant/payments':
+        specifier: workspace:*
+        version: link:../../packages/payments
+      '@quant/ranking':
+        specifier: workspace:*
+        version: link:../../packages/ranking
       '@quant/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime
+      '@quant/recommendations':
+        specifier: workspace:*
+        version: link:../../packages/recommendations
       '@quant/server-core':
         specifier: workspace:*
         version: link:../../packages/server-core
       '@quant/shared-ui':
         specifier: workspace:*
         version: link:../../packages/shared-ui
+      '@quant/triton-client':
+        specifier: workspace:*
+        version: link:../../packages/triton-client
       '@tanstack/react-query':
         specifier: ^5.60.0
         version: 5.100.14(react@18.3.1)
@@ -2844,15 +2982,30 @@ importers:
       '@quant/database':
         specifier: workspace:*
         version: link:../database
+      '@quant/error-monitoring':
+        specifier: workspace:*
+        version: link:../error-monitoring
       '@quant/feature-flags':
         specifier: workspace:*
         version: link:../feature-flags
+      '@quant/identity-permissions':
+        specifier: workspace:*
+        version: link:../identity-permissions
+      '@quant/notifications':
+        specifier: workspace:*
+        version: link:../notifications
       '@quant/observability':
         specifier: workspace:*
         version: link:../observability
       '@quant/organizations':
         specifier: workspace:*
         version: link:../organizations
+      '@quant/performance':
+        specifier: workspace:*
+        version: link:../performance
+      '@quant/teams':
+        specifier: workspace:*
+        version: link:../teams
       fastify:
         specifier: ^5.2.1
         version: 5.8.5
@@ -2878,6 +3031,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.19
+      fast-check:
+        specifier: ^3.23.2
+        version: 3.23.2
       pino-pretty:
         specifier: ^13.0.0
         version: 13.1.3
@@ -2902,12 +3058,36 @@ importers:
       '@quant/agentic':
         specifier: workspace:*
         version: link:../agentic
+      '@quant/api-client':
+        specifier: workspace:*
+        version: link:../api-client
+      '@quant/bharat-ai':
+        specifier: workspace:*
+        version: link:../bharat-ai
       '@quant/brand':
         specifier: workspace:*
         version: link:../brand
+      '@quant/command-palette':
+        specifier: workspace:*
+        version: link:../command-palette
       '@quant/common':
         specifier: workspace:*
         version: link:../common
+      '@quant/contextual-sidekick':
+        specifier: workspace:*
+        version: link:../contextual-sidekick
+      '@quant/onboarding':
+        specifier: workspace:*
+        version: link:../onboarding
+      '@quant/universal-timeline':
+        specifier: workspace:*
+        version: link:../universal-timeline
+      '@quant/wellbeing':
+        specifier: workspace:*
+        version: link:../wellbeing
+      '@tanstack/react-query':
+        specifier: ^5.60.0
+        version: 5.100.14(react@19.2.6)
       dompurify:
         specifier: ^3.4.9
         version: 3.4.10

@@ -15,8 +15,13 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@quant/agent-runtime": "workspace:*",
+    "@quant/agent-swarm": "workspace:*",
     "@quant/ai-memory": "workspace:*",
+    "@quant/browser-agent": "workspace:*",
+    "@quant/code-agent": "workspace:*",
     "@quant/quant-tools": "workspace:*",
+    "@quant/user-owned-ai": "workspace:*",
     "@quant/auth": "workspace:*",
     "@quant/ai": "workspace:*",
     "@quant/brand": "workspace:*",
