@@ -16,12 +16,15 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@quant/api-client": "workspace:*",
     "@prisma/client": "^6.19.3",
     "@quant/ai": "workspace:*",
     "@quant/auth": "workspace:*",
     "@quant/brand": "workspace:*",
     "@quant/common": "workspace:*",
     "@quant/database": "workspace:*",
+    "@quant/encryption": "workspace:*",
+    "@quant/federation": "workspace:*",
     "@quant/notifications": "workspace:*",
     "@quant/queue": "workspace:*",
     "@quant/realtime": "workspace:*",

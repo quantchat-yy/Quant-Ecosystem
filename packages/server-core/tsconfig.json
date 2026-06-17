@@ -7,5 +7,10 @@
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../common" }, { "path": "../auth" }, { "path": "../database" }]
+  "references": [
+    { "path": "../common" },
+    { "path": "../auth" },
+    { "path": "../database" },
+    { "path": "../identity-permissions" }
+  ]
 }

@@ -32,7 +32,20 @@ import scalingRoutes from './routes/scaling';
 import mlRoutes from './routes/ml';
 import abTestingRoutes from './routes/ab-testing';
 import eventsRoutes from './routes/events';
+import agentRuntimeRoutes from './routes/agent-runtime';
+import agentSwarmRoutes from './routes/agent-swarm';
+import quantToolsRoutes from './routes/quant-tools';
+import browserAgentRoutes from './routes/browser-agent';
+import codeAgentRoutes from './routes/code-agent';
+import userOwnedAiRoutes from './routes/user-owned-ai';
 import { AIEngine } from './services/ai-engine';
+import { Orchestrator } from '@quant/agent-runtime';
+import { SwarmOrchestrator } from '@quant/agent-swarm';
+import { CrossAppOrchestrator, allTools } from '@quant/quant-tools';
+import { SessionManager } from '@quant/browser-agent';
+import { CodeAnalyzer } from '@quant/code-agent';
+import { ModelRegistry } from '@quant/user-owned-ai';
+import { AIEngine as CoreAIEngine } from '@quant/ai';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -64,8 +77,49 @@ export async function buildApp(config?: AppConfig) {
   const aiEngine = new AIEngine();
   (app as any).aiEngine = aiEngine;
 
+  // Agent runtime engine (per-app lane, Stage 2). The orchestrator's only
+  // construction dependency is an AI inference adapter, so we wire it to the
+  // shared @quant/ai engine (`infer(prompt) -> content`). `app.prisma` is the
+  // injected singleton available for engine collaborators that need it; the
+  // Orchestrator itself does not require database access (Req 1.3 is
+  // conditional). Constructed once at boot and decorated as a singleton.
+  const coreAi = new CoreAIEngine();
+  const agentRuntime = new Orchestrator({
+    infer: async (prompt: string): Promise<string> => {
+      const response = await coreAi.infer({
+        prompt,
+        userId: 'system',
+        app: 'quantai',
+        feature: 'agent-runtime',
+      });
+      return response.content;
+    },
+  });
+  app.decorate('agentRuntime', agentRuntime);
+
+  // Stage-2 agent engines that depend on agent-runtime (dependsOn honored: the
+  // Orchestrator above is constructed/decorated first). Each is a per-app
+  // decorated singleton constructed at boot — never per-request.
+  //  - agent-swarm:   multi-agent goal decomposition over the runtime.
+  //  - quant-tools:   cross-app NL→tool-plan orchestration (full tool catalog).
+  //  - browser-agent: authenticated, time-bounded browsing-session lifecycle.
+  //  - code-agent:    repo-model analysis (CodeAnalyzer — its sandbox-bound
+  //                   TaskExecutor needs an external sandbox, so is not wired).
+  //  - user-owned-ai: bring-your-own-model catalog (ModelRegistry singleton).
+  app.decorate('agentSwarm', new SwarmOrchestrator());
+  app.decorate('quantTools', new CrossAppOrchestrator(allTools));
+  app.decorate('browserAgent', new SessionManager());
+  app.decorate('codeAgent', new CodeAnalyzer());
+  app.decorate('userOwnedAi', new ModelRegistry());
+
   await app.register(chatRoutes, { prefix: '/chat' });
   await app.register(agentsRoutes, { prefix: '/agents' });
+  await app.register(agentRuntimeRoutes, { prefix: '/agents' });
+  await app.register(agentSwarmRoutes, { prefix: '/agents/swarm' });
+  await app.register(quantToolsRoutes, { prefix: '/tools' });
+  await app.register(browserAgentRoutes, { prefix: '/agents/browser' });
+  await app.register(codeAgentRoutes, { prefix: '/agents/code' });
+  await app.register(userOwnedAiRoutes, { prefix: '/agents/owned' });
   await app.register(sessionsRoutes, { prefix: '/sessions' });
   await app.register(orchestrationRoutes, { prefix: '/orchestration' });
   await app.register(toolsRoutes, { prefix: '/tools' });

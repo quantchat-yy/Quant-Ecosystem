@@ -455,3 +455,26 @@ export type {
 // VoiceCommandBar component
 export { VoiceCommandBar } from './components/voice-command-bar';
 export type { VoiceCommandBarProps } from './components/voice-command-bar';
+
+// EcosystemShell — shared layout wrapper that mounts the six cross-cutting
+// frontend surfaces (onboarding, command-palette, contextual-sidekick,
+// universal-timeline, wellbeing, bharat-ai) once; apps inherit them by wrapping
+// their root in <EcosystemShell> (design Open Question 1: shared layout wrapper).
+export { EcosystemShell, EcosystemProvider, useEcosystem } from './components/EcosystemShell';
+export type {
+  EcosystemShellProps,
+  EcosystemContextValue,
+  EcosystemProviderProps,
+} from './components/EcosystemShell';
+// Backend-backed surface hooks (bharat-ai localization, wellbeing controls) —
+// consumed via @quant/api-client against the Next /api/* proxy (no inline fetch).
+export {
+  useBharatLocale,
+  useWellbeingSummary,
+  useRecordWellbeingUsage,
+} from './components/EcosystemShell';
+export type {
+  BharatLocaleBundle,
+  WellbeingSummary,
+  RecordUsageInput,
+} from './components/EcosystemShell';

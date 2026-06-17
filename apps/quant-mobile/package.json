@@ -17,6 +17,8 @@
   "dependencies": {
     "@quant/common": "workspace:*",
     "@quant/sync-engine": "workspace:*",
+    "@quant/local-first": "workspace:*",
+    "@quant/maps": "workspace:*",
     "@quant/auth": "workspace:*",
     "react": "^18.3.0",
     "zod": "^3.24.2",

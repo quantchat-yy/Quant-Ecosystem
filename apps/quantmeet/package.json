@@ -14,13 +14,16 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@quant/api-client": "workspace:*",
     "@fastify/websocket": "^11.0.2",
     "@prisma/client": "^6.19.3",
     "@quant/ai": "workspace:*",
     "@quant/auth": "workspace:*",
     "@quant/brand": "workspace:*",
     "@quant/common": "workspace:*",
+    "@quant/encryption": "workspace:*",
     "@quant/queue": "workspace:*",
+    "@quant/quant-live": "workspace:*",
     "@quant/realtime": "workspace:*",
     "@quant/server-core": "workspace:*",
     "@quant/shared-ui": "workspace:*",

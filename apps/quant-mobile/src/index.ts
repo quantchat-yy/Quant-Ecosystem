@@ -152,3 +152,11 @@ export type {
 // App Launcher
 export { AppLauncher, QUANT_APPS } from './app-launcher.js';
 export type { QuantApp, AppStatus } from './app-launcher.js';
+
+// Local-first storage (wires @quant/local-first)
+export { MobileLocalStore } from './local-first/local-store.js';
+export type { MobileLocalStoreOptions } from './local-first/local-store.js';
+
+// Maps & navigation (wires @quant/maps)
+export { MobileMapsService } from './maps/maps-service.js';
+export type { MobileMapsServiceOptions } from './maps/maps-service.js';
