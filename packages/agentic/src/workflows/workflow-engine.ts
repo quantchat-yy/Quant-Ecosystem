@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
-import { QuantOrchestrator } from '../orchestrator/orchestrator';
-import { IntelligentOrchestrator } from '../orchestrator/intelligent-orchestrator';
-import { unifiedMemory } from '../memory/unified-memory';
+import { QuantOrchestrator } from '../orchestrator/orchestrator.js';
+import { IntelligentOrchestrator } from '../orchestrator/intelligent-orchestrator.js';
+import { unifiedMemory } from '../memory/unified-memory.js';
 
 export interface WorkflowStep {
   id: string;

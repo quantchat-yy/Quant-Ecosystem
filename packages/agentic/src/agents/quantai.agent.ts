@@ -1,7 +1,7 @@
-import { Agent } from '../core/agent';
+import { Agent } from '../core/agent.js';
 import { UnifiedAIService } from '@quant/ai';
 import { logger } from '@quant/common';
-import { VoiceOrchestrator } from '../voice/voice-orchestrator';
+import { VoiceOrchestrator } from '../voice/voice-orchestrator.js';
 
 export class QuantAIAgent extends Agent {
   private aiService: UnifiedAIService;

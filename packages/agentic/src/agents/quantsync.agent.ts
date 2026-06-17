@@ -1,6 +1,6 @@
-import { Agent } from '../core/agent';
+import { Agent } from '../core/agent.js';
 import { logger } from '@quant/common';
-import { HttpClient, createQuantSyncClient } from '../clients/http-client';
+import { HttpClient, createQuantSyncClient } from '../clients/http-client.js';
 
 export class QuantSyncAgent extends Agent {
   private httpClient: HttpClient;

@@ -3,9 +3,9 @@ import {
   getGlobalCommandBus,
   type VoiceCommand,
   type CommandResult,
-} from './command-bus';
-import { VoiceSafetyGuardrail } from '../safety/voice-safety';
-import type { ParsedIntent } from '../voice/voice-intent-parser';
+} from './command-bus.js';
+import { VoiceSafetyGuardrail } from '../safety/voice-safety.js';
+import type { ParsedIntent } from '../voice/voice-intent-parser.js';
 
 /**
  * App Controller

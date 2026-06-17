@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Planner, LLMProvider } from '../planning/planner';
-import { MemoryStore } from '../memory/memory-store';
-import { ToolRegistry } from '../tools/tool-registry';
+import { Planner, LLMProvider } from '../planning/planner.js';
+import { MemoryStore } from '../memory/memory-store.js';
+import { ToolRegistry } from '../tools/tool-registry.js';
 
 describe('Planner - LLM-powered planning', () => {
   let planner: Planner;

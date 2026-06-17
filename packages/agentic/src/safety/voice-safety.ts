@@ -1,5 +1,5 @@
-import type { ParsedIntent } from '../voice/voice-intent-parser';
-import type { VoiceCommand } from '../cross-app/command-bus';
+import type { ParsedIntent } from '../voice/voice-intent-parser.js';
+import type { VoiceCommand } from '../cross-app/command-bus.js';
 
 /**
  * Voice Command Safety Guardrail

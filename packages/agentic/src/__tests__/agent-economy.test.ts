@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { AgentEconomy, type AgentEconomyBackend } from '../economy/agent-economy';
-import type { AgentMarketplaceV2 } from '../marketplace/agent-marketplace-v2';
-import type { IntelligentOrchestrator } from '../orchestrator/intelligent-orchestrator';
+import { AgentEconomy, type AgentEconomyBackend } from '../economy/agent-economy.js';
+import type { AgentMarketplaceV2 } from '../marketplace/agent-marketplace-v2.js';
+import type { IntelligentOrchestrator } from '../orchestrator/intelligent-orchestrator.js';
 
 function makeDeps(price = 29) {
   const purchaseAndIntegrate = vi

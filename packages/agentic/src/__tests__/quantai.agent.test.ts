@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { QuantAIAgent } from '../agents/quantai.agent';
+import { QuantAIAgent } from '../agents/quantai.agent.js';
 import type { UnifiedAIService } from '@quant/ai';
 
 describe('QuantAIAgent - quantai_chat tool', () => {

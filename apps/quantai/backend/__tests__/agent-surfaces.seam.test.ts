@@ -26,70 +26,22 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { createHmac } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import { createApp } from '@quant/server-core';
 import type { AppConfig } from '@quant/server-core';
+import { buildApp } from '../app';
 
-// The six agent engines + their seam route modules wired by quantai's
-// buildApp() (Tasks 10.1/10.2). We build the test app on the SAME substrate
-// (`createApp()`) and replicate the SAME decorations + route registrations so
-// the seam traversed here (auth hook -> agent route -> decorated engine) is
-// identical to production.
+// This harness exercises the REAL production app: it imports quantai's
+// `buildApp()` from `../app` and boots it with a test AppConfig. `buildApp()`
+// constructs and decorates the six agent engines (agent-runtime, agent-swarm,
+// quant-tools, browser-agent, code-agent, user-owned-ai) and registers every
+// route at its production prefix, so the seam traversed below
+// (global auth hook -> agent route -> decorated engine) is byte-for-byte the
+// production wiring — no replicated `createApp()` substrate.
 //
-// NOTE: this harness intentionally does NOT import `../app` (buildApp) directly.
-// buildApp() registers ~30 additional non-agent routes (chat, ml, payments,
-// recommendations, cache, cdn, events, scaling, ab-testing, ...) several of
-// which statically import `@quant/*` packages that do not exist as workspace
-// packages (no package.json) or are undeclared/unlinked in this app — so
-// importing buildApp fails at module resolution before any agent route loads.
-// That is a pre-existing breakage in unrelated routes (reported separately); it
-// is out of scope for Task 10.4 and orthogonal to the agent seam under test.
-import { AIEngine as CoreAIEngine } from '@quant/ai';
-import { Orchestrator } from '@quant/agent-runtime';
-import { SwarmOrchestrator } from '@quant/agent-swarm';
-import { CrossAppOrchestrator, allTools } from '@quant/quant-tools';
-import { SessionManager } from '@quant/browser-agent';
-import { CodeAnalyzer } from '@quant/code-agent';
-import { ModelRegistry } from '@quant/user-owned-ai';
-import agentRuntimeRoutes from '../routes/agent-runtime';
-import agentSwarmRoutes from '../routes/agent-swarm';
-import quantToolsRoutes from '../routes/quant-tools';
-import browserAgentRoutes from '../routes/browser-agent';
-import codeAgentRoutes from '../routes/code-agent';
-import userOwnedAiRoutes from '../routes/user-owned-ai';
-
-// Mirror of buildApp()'s agent wiring (Layer 2/3) on the real createApp()
-// substrate — identical engine construction, decoration, and route prefixes.
-async function buildAgentTestApp(config: AppConfig): Promise<FastifyInstance> {
-  const app = await createApp(config);
-
-  const coreAi = new CoreAIEngine();
-  const agentRuntime = new Orchestrator({
-    infer: async (prompt: string): Promise<string> => {
-      const response = await coreAi.infer({
-        prompt,
-        userId: 'system',
-        app: 'quantai',
-        feature: 'agent-runtime',
-      });
-      return response.content;
-    },
-  });
-  app.decorate('agentRuntime', agentRuntime);
-  app.decorate('agentSwarm', new SwarmOrchestrator());
-  app.decorate('quantTools', new CrossAppOrchestrator(allTools));
-  app.decorate('browserAgent', new SessionManager());
-  app.decorate('codeAgent', new CodeAnalyzer());
-  app.decorate('userOwnedAi', new ModelRegistry());
-
-  await app.register(agentRuntimeRoutes, { prefix: '/agents' });
-  await app.register(agentSwarmRoutes, { prefix: '/agents/swarm' });
-  await app.register(quantToolsRoutes, { prefix: '/tools' });
-  await app.register(browserAgentRoutes, { prefix: '/agents/browser' });
-  await app.register(codeAgentRoutes, { prefix: '/agents/code' });
-  await app.register(userOwnedAiRoutes, { prefix: '/agents/owned' });
-
-  return app;
-}
+// (Previously this file avoided importing `buildApp()` and replicated the agent
+// wiring on `createApp()`, because buildApp's import graph could not resolve
+// several source-only/undeclared `@quant/*` engine packages. Those packages are
+// now promoted/declared and the workspace is re-linked, so the real `buildApp()`
+// boots and the work-around is no longer needed.)
 
 const testConfig: AppConfig = {
   port: 3004,
@@ -143,7 +95,7 @@ function signToken(scopes: string[]): string {
 let app: FastifyInstance;
 
 beforeAll(async () => {
-  app = await buildAgentTestApp(testConfig);
+  app = await buildApp(testConfig);
   await app.ready();
 });
 

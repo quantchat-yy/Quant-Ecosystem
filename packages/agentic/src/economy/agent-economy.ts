@@ -16,8 +16,8 @@
 // This mirrors the fail-closed posture of packages/payments (quant-pro.service).
 
 import { EventEmitter } from 'events';
-import { AgentMarketplaceV2 } from '../marketplace/agent-marketplace-v2';
-import { IntelligentOrchestrator } from '../orchestrator/intelligent-orchestrator';
+import { AgentMarketplaceV2 } from '../marketplace/agent-marketplace-v2.js';
+import { IntelligentOrchestrator } from '../orchestrator/intelligent-orchestrator.js';
 
 export interface AgentTransaction {
   id: string;

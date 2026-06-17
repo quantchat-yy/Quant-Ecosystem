@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { QuantOrchestrator } from '../orchestrator/orchestrator';
+import { QuantOrchestrator } from '../orchestrator/orchestrator.js';
 
 export interface Message {
   from: string;
