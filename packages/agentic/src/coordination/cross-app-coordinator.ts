@@ -1,5 +1,5 @@
-import { QuantOrchestrator } from '../orchestrator/orchestrator';
-import { unifiedMemory } from '../memory/unified-memory';
+import { QuantOrchestrator } from '../orchestrator/orchestrator.js';
+import { unifiedMemory } from '../memory/unified-memory.js';
 
 export class CrossAppCoordinator {
   private orchestrator: QuantOrchestrator;

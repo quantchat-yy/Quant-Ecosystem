@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { VoiceIntentParser } from '../voice/voice-intent-parser';
+import { VoiceIntentParser } from '../voice/voice-intent-parser.js';
 
 describe('VoiceIntentParser', () => {
   let parser: VoiceIntentParser;

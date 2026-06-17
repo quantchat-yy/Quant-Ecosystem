@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { QuantDriveAgent } from '../agents/quantdrive.agent';
-import { HttpClient } from '../clients/http-client';
+import { QuantDriveAgent } from '../agents/quantdrive.agent.js';
+import { HttpClient } from '../clients/http-client.js';
 
 describe('QuantDriveAgent - real HTTP calls', () => {
   let mockClient: HttpClient;

@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
-import { IntelligentOrchestrator } from '../orchestrator/intelligent-orchestrator';
-import { MLPipeline } from './ml-pipeline';
+import { IntelligentOrchestrator } from '../orchestrator/intelligent-orchestrator.js';
+import { MLPipeline } from './ml-pipeline.js';
 
 export interface MLModelPrediction {
   taskType: string;

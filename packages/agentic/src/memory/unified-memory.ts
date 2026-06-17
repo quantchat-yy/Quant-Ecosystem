@@ -1,4 +1,4 @@
-import { MemoryStore } from './memory-store';
+import { MemoryStore } from './memory-store.js';
 
 export interface UnifiedMemoryItem {
   id: string;

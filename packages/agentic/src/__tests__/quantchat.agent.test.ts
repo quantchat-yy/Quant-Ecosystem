@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { QuantChatAgent } from '../agents/quantchat.agent';
-import { HttpClient } from '../clients/http-client';
+import { QuantChatAgent } from '../agents/quantchat.agent.js';
+import { HttpClient } from '../clients/http-client.js';
 
 describe('QuantChatAgent - real HTTP calls', () => {
   let mockClient: HttpClient;

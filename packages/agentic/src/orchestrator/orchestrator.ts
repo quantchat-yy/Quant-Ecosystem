@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
-import { Agent } from '../core/agent';
-import { MemoryStore } from '../memory/memory-store';
+import { Agent } from '../core/agent.js';
+import { MemoryStore } from '../memory/memory-store.js';
 
 export interface OrchestratorConfig {
   maxConcurrentAgents?: number;

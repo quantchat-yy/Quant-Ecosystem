@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { AppController } from '../cross-app/app-controller';
-import { CrossAppCommandBus } from '../cross-app/command-bus';
-import type { ParsedIntent } from '../voice/voice-intent-parser';
+import { AppController } from '../cross-app/app-controller.js';
+import { CrossAppCommandBus } from '../cross-app/command-bus.js';
+import type { ParsedIntent } from '../voice/voice-intent-parser.js';
 
 describe('AppController', () => {
   let bus: CrossAppCommandBus;

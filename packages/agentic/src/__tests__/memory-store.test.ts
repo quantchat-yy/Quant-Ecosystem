@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MemoryStore, EmbeddingProvider } from '../memory/memory-store';
+import { MemoryStore, EmbeddingProvider } from '../memory/memory-store.js';
 
 describe('MemoryStore - vector similarity search', () => {
   let store: MemoryStore;

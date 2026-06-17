@@ -1,8 +1,8 @@
 import { EventEmitter } from 'events';
-import { MemoryStore } from '../memory/memory-store';
-import { ToolRegistry } from '../tools/tool-registry';
-import { Planner } from '../planning/planner';
-import { Executor } from '../execution/executor';
+import { MemoryStore } from '../memory/memory-store.js';
+import { ToolRegistry } from '../tools/tool-registry.js';
+import { Planner } from '../planning/planner.js';
+import { Executor } from '../execution/executor.js';
 
 export interface AgentConfig {
   id: string;

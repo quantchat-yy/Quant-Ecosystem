@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { QuantSyncAgent } from '../agents/quantsync.agent';
-import { HttpClient } from '../clients/http-client';
+import { QuantSyncAgent } from '../agents/quantsync.agent.js';
+import { HttpClient } from '../clients/http-client.js';
 
 describe('QuantSyncAgent - real HTTP calls', () => {
   let mockClient: HttpClient;

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { VoiceSafetyGuardrail } from '../safety/voice-safety';
-import type { ParsedIntent } from '../voice/voice-intent-parser';
+import { VoiceSafetyGuardrail } from '../safety/voice-safety.js';
+import type { ParsedIntent } from '../voice/voice-intent-parser.js';
 
 describe('VoiceSafetyGuardrail', () => {
   let safety: VoiceSafetyGuardrail;

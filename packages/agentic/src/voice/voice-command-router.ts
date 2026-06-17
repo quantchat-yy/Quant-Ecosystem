@@ -1,7 +1,7 @@
 import { UnifiedAIService } from '@quant/ai';
-import { AppController } from '../cross-app/app-controller';
-import { VoiceIntentParser, type ParsedIntent } from './voice-intent-parser';
-import type { CommandResult } from '../cross-app/command-bus';
+import { AppController } from '../cross-app/app-controller.js';
+import { VoiceIntentParser, type ParsedIntent } from './voice-intent-parser.js';
+import type { CommandResult } from '../cross-app/command-bus.js';
 
 /**
  * Voice Command Router

@@ -1,5 +1,5 @@
-import { MemoryStore } from '../memory/memory-store';
-import { ToolRegistry } from '../tools/tool-registry';
+import { MemoryStore } from '../memory/memory-store.js';
+import { ToolRegistry } from '../tools/tool-registry.js';
 import { logger } from '@quant/common';
 
 export interface PlanStep {

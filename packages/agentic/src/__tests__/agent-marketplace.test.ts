@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { AgentMarketplace, type MarketplaceBackend } from '../marketplace/agent-marketplace';
+import { AgentMarketplace, type MarketplaceBackend } from '../marketplace/agent-marketplace.js';
 
 describe('AgentMarketplace.installAgent - dual mode', () => {
   describe('real backend path (injected)', () => {

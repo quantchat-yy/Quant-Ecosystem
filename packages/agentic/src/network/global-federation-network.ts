@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { IntelligentOrchestrator } from '../orchestrator/intelligent-orchestrator';
+import { IntelligentOrchestrator } from '../orchestrator/intelligent-orchestrator.js';
 
 export interface FederationNode {
   id: string;

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { createAppError } from '@quant/server-core';
 import {
   MonetizationEngine,
   CreatorDashboardService,
@@ -119,11 +120,23 @@ export default async function creatorRoutes(fastify: FastifyInstance) {
       if (!parsed.success) {
         throw parsed.error;
       }
-      const tier = fastify.creatorEconomy.tiers.upgradeTier(
-        request.auth.userId,
-        parsed.data.tier as CreatorTier,
-      );
-      return reply.send({ success: true, data: { tier } });
+      const { tiers } = fastify.creatorEconomy;
+      const newTier = parsed.data.tier as CreatorTier;
+      try {
+        const tier = tiers.upgradeTier(request.auth.userId, newTier);
+        return reply.send({ success: true, data: { tier } });
+      } catch (err) {
+        // upgradeTier rejected the transition. Classify with the engine's
+        // as-shipped read predicates so the right client-facing status is
+        // returned without modifying TierService or matching on message text.
+        const current = tiers.getTier(request.auth.userId);
+        const nonUpward = TIER_VALUES.indexOf(newTier) <= TIER_VALUES.indexOf(current);
+        const ineligible = !tiers.checkEligibility(request.auth.userId, newTier);
+        if (nonUpward || ineligible) {
+          throw createAppError((err as Error).message, 403, 'FORBIDDEN');
+        }
+        throw err; // genuine, unexpected fault → handler maps to 500
+      }
     },
   );
 

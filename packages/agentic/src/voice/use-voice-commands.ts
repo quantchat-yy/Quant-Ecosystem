@@ -5,8 +5,8 @@
 // ============================================================================
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { VoiceOrchestrator } from './voice-orchestrator';
-import type { CommandResult } from '../cross-app/command-bus';
+import { VoiceOrchestrator } from './voice-orchestrator.js';
+import type { CommandResult } from '../cross-app/command-bus.js';
 
 export type VoiceStatus = 'idle' | 'listening' | 'processing' | 'error';
 

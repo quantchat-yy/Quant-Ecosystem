@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { AgentEconomyPayments, type PaymentBackend } from '../payments/agent-economy-payments';
-import type { AgentEconomy } from '../economy/agent-economy';
+import { AgentEconomyPayments, type PaymentBackend } from '../payments/agent-economy-payments.js';
+import type { AgentEconomy } from '../economy/agent-economy.js';
 
 const fakeEconomy = {} as unknown as AgentEconomy;
 

@@ -3,7 +3,7 @@ import {
   AgentTraining,
   type TrainingBackend,
   type TrainingExample,
-} from '../training/agent-training';
+} from '../training/agent-training.js';
 
 const examples: TrainingExample[] = [{ input: 'hi', expectedOutput: 'hello', agentId: 'a-1' }];
 
