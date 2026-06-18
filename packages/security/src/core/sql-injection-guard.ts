@@ -332,7 +332,15 @@ export class SQLInjectionGuard {
     return Math.max(0, 100 - deduction);
   }
 
-  /** Hash a query for caching/comparison */
+  /**
+   * Hash a query for caching/comparison.
+   *
+   * Bug E1 (security-crypto-hardening): intentionally left as a non-cryptographic
+   * FNV-1a cache key. This 8-hex value is used only as a cache/whitelist comparison
+   * key — it is never relied upon for integrity or unpredictability, and a collision
+   * cannot bypass detection because every query is independently analyzed by analyze().
+   * See design.md Property 14. No change required.
+   */
   private hashQuery(query: string): string {
     let hash = 0x811c9dc5;
     for (let i = 0; i < query.length; i++) {

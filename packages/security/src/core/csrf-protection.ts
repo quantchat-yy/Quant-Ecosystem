@@ -106,9 +106,14 @@ export class CSRFManager {
       return { valid: false, reason: 'token_already_used' };
     }
 
-    // Verify HMAC
+    // Verify HMAC with a length-guarded constant-time comparison.
     const expectedHmac = this.computeHMAC(token, sessionId);
-    if (!this.timingSafeEqual(storedToken.hmac, expectedHmac)) {
+    const storedBuf = Buffer.from(storedToken.hmac, 'hex');
+    const expectedBuf = Buffer.from(expectedHmac, 'hex');
+    if (
+      storedBuf.length !== expectedBuf.length ||
+      !crypto.timingSafeEqual(storedBuf, expectedBuf)
+    ) {
       return { valid: false, reason: 'hmac_invalid' };
     }
 
@@ -157,51 +162,12 @@ export class CSRFManager {
     return parts.join('; ');
   }
 
-  /** Compute HMAC-SHA256 simulation for token integrity */
+  /** Compute HMAC-SHA256 over token:sessionId, keyed by the configured secret */
   private computeHMAC(token: string, sessionId: string): string {
-    const message = `${token}:${sessionId}:${this.config.secretKey}`;
-    return this.sha256Simulate(message);
-  }
-
-  /** SHA-256 simulation using FNV-1a variant for deterministic hashing */
-  private sha256Simulate(input: string): string {
-    // Multi-round hash to simulate SHA-256 output
-    let h1 = 0x6a09e667;
-    let h2 = 0xbb67ae85;
-    let h3 = 0x3c6ef372;
-    let h4 = 0xa54ff53a;
-
-    for (let round = 0; round < 4; round++) {
-      for (let i = 0; i < input.length; i++) {
-        const ch = input.charCodeAt(i);
-        h1 = Math.imul(h1 ^ ch, 0x01000193);
-        h2 = Math.imul(h2 ^ (ch + round), 0x5bd1e995);
-        h3 = Math.imul(h3 ^ (ch * (i + 1)), 0x1b873593);
-        h4 = Math.imul(h4 ^ (ch ^ (i * round)), 0xcc9e2d51);
-      }
-      // Mix
-      h1 ^= h2 >>> 13;
-      h2 ^= h3 >>> 7;
-      h3 ^= h4 >>> 17;
-      h4 ^= h1 >>> 11;
-    }
-
-    return [
-      (h1 >>> 0).toString(16).padStart(8, '0'),
-      (h2 >>> 0).toString(16).padStart(8, '0'),
-      (h3 >>> 0).toString(16).padStart(8, '0'),
-      (h4 >>> 0).toString(16).padStart(8, '0'),
-    ].join('');
-  }
-
-  /** Timing-safe string comparison to prevent timing attacks */
-  private timingSafeEqual(a: string, b: string): boolean {
-    if (a.length !== b.length) return false;
-    let result = 0;
-    for (let i = 0; i < a.length; i++) {
-      result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-    }
-    return result === 0;
+    return crypto
+      .createHmac('sha256', this.config.secretKey)
+      .update(`${token}:${sessionId}`)
+      .digest('hex');
   }
 
   /** Generate a random token of specified length */

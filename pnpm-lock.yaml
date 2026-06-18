@@ -3043,6 +3043,9 @@ importers:
       '@quant/common':
         specifier: workspace:*
         version: link:../common
+      argon2:
+        specifier: ^0.43.0
+        version: 0.43.1
       ioredis:
         specifier: ^5.6.1
         version: 5.10.1
