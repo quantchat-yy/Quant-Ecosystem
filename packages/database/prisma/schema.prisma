@@ -95,6 +95,7 @@ model User {
   pushSubscriptions  PushSubscription[]
   scheduledMessages  ScheduledMessage[]
   quantAvatar        Avatar?           @relation()
+  preKeyBundle       PreKeyBundle?
 
   @@index([email])
   @@index([username])
@@ -1741,4 +1742,52 @@ model PushSubscription {
   @@index([userId])
   @@index([expiresAt])
   @@map("push_subscriptions")
+}
+
+// ==================== QUANTCHAT E2EE KEY STORE (W1) ====================
+// Zero-knowledge relay: PUBLIC key material only. Never persist private keys,
+// ratchet secrets, or plaintext.
+
+model PreKeyBundle {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  identityKey           String // public identity key (base64/DER)
+  signedPreKey          String // public signed prekey
+  signedPreKeySignature String
+  registrationId        Int
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  oneTimeKeys OneTimePreKey[]
+
+  @@map("prekey_bundles")
+}
+
+model OneTimePreKey {
+  id        String    @id @default(cuid())
+  userId    String
+  bundleId  String
+  publicKey String // public one-time prekey
+  claimed   Boolean   @default(false)
+  claimedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  bundle PreKeyBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+
+  @@index([userId, claimed])
+  @@map("onetime_prekeys")
+}
+
+model KeySession {
+  id          String   @id @default(cuid())
+  initiatorId String
+  responderId String
+  rootKey     String // opaque root key material as currently produced (server-relayed)
+  established Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@unique([initiatorId, responderId])
+  @@index([responderId])
+  @@map("key_sessions")
 }
