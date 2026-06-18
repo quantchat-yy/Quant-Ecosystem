@@ -1,5 +1,9 @@
 import type { PrismaClient } from '@prisma/client';
+import { createAppError } from '@quant/server-core';
 import type { KeyStorage, PreKeyBundle, KeySession } from './encryption.service';
+
+/** Maximum number of one-time prekeys accepted in a single upload batch. */
+const MAX_ONE_TIME_PREKEY_BATCH = 100;
 
 /**
  * Store for a user's pool of single-use (one-time) prekeys.
@@ -136,19 +140,118 @@ export class PrismaKeyStorage implements KeyStorage, OneTimePreKeyStore {
   }
 
   // ---------------------------------------------------------------------------
-  // OneTimePreKeyStore — implemented in Task 2.2 (atomic pool + claim).
-  // Signatures are declared here to satisfy the design's Component 1 interface.
+  // OneTimePreKeyStore — atomic one-time prekey pool (Task 2.2, design Algo 1).
   // ---------------------------------------------------------------------------
 
-  storeOneTimePreKeys(_userId: string, _preKeys: string[]): Promise<void> {
-    throw new Error('storeOneTimePreKeys is implemented in Task 2.2');
+  /**
+   * Persist a batch of one-time prekeys (public keys only) into the user's pool.
+   *
+   * The whole batch is validated before anything is written, and the inserts run
+   * as a single statement, so a validation failure persists nothing. The batch
+   * is rejected when it is empty, larger than 100, contains duplicates within
+   * itself, or contains a public key that already exists in the user's pool.
+   * (Requirements 2.1, 2.2)
+   *
+   * @throws when the batch is invalid or the user has no registered PreKeyBundle.
+   */
+  async storeOneTimePreKeys(userId: string, preKeys: string[]): Promise<void> {
+    // --- Validate the batch up front; reject the whole batch on any failure ---
+    if (!Array.isArray(preKeys) || preKeys.length === 0) {
+      throw createAppError(
+        'One-time prekey batch must contain between 1 and 100 keys',
+        400,
+        'INVALID_PREKEY_BATCH',
+      );
+    }
+
+    if (preKeys.length > MAX_ONE_TIME_PREKEY_BATCH) {
+      throw createAppError(
+        `One-time prekey batch must not exceed ${MAX_ONE_TIME_PREKEY_BATCH} keys`,
+        400,
+        'INVALID_PREKEY_BATCH',
+      );
+    }
+
+    // Reject duplicates within the batch itself.
+    const distinct = new Set(preKeys);
+    if (distinct.size !== preKeys.length) {
+      throw createAppError(
+        'One-time prekey batch contains duplicate public keys',
+        409,
+        'DUPLICATE_PREKEY',
+      );
+    }
+
+    // A pool entry must link to the user's current bundle.
+    const bundle = await this.prisma.preKeyBundle.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!bundle) {
+      throw createAppError('No prekey bundle registered for user', 404, 'BUNDLE_NOT_FOUND');
+    }
+
+    // Reject keys that duplicate one already present in the user's pool.
+    const existing = await this.prisma.oneTimePreKey.findMany({
+      where: { userId, publicKey: { in: preKeys } },
+      select: { publicKey: true },
+    });
+    if (existing.length > 0) {
+      throw createAppError(
+        'One-time prekey batch contains keys already present in the pool',
+        409,
+        'DUPLICATE_PREKEY',
+      );
+    }
+
+    // --- Persist the whole batch as unclaimed public keys (single statement) ---
+    await this.prisma.oneTimePreKey.createMany({
+      data: preKeys.map((publicKey) => ({
+        userId,
+        bundleId: bundle.id,
+        publicKey,
+      })),
+    });
   }
 
-  claimOneTimePreKey(_userId: string): Promise<string | null> {
-    throw new Error('claimOneTimePreKey is implemented in Task 2.2');
+  /**
+   * Atomically claim (consume) a single one-time prekey for a user.
+   *
+   * Uses the design's Algorithm 1: a single `UPDATE ... WHERE id = (SELECT ...
+   * FOR UPDATE SKIP LOCKED) RETURNING publicKey` statement. The `FOR UPDATE SKIP
+   * LOCKED` row lock guarantees that, even under concurrent claims, each
+   * one-time prekey is handed to at most one caller. Returns null when the pool
+   * is empty so the caller can fall back to signedPreKey-only X3DH.
+   * (Requirements 2.3, 2.4, 2.5, 2.6)
+   */
+  async claimOneTimePreKey(userId: string): Promise<string | null> {
+    const rows = await this.prisma.$queryRaw<Array<{ publicKey: string }>>`
+      UPDATE "onetime_prekeys"
+         SET "claimed" = true, "claimedAt" = now()
+       WHERE "id" = (
+         SELECT "id" FROM "onetime_prekeys"
+          WHERE "userId" = ${userId} AND "claimed" = false
+          ORDER BY "createdAt" ASC
+          LIMIT 1
+          FOR UPDATE SKIP LOCKED
+       )
+       RETURNING "publicKey"
+    `;
+
+    if (!rows || rows.length === 0) {
+      return null;
+    }
+
+    return rows[0].publicKey;
   }
 
-  countOneTimePreKeys(_userId: string): Promise<number> {
-    throw new Error('countOneTimePreKeys is implemented in Task 2.2');
+  /**
+   * Return the current count of unclaimed one-time prekeys for a user, which
+   * drives client-side replenishment. (Requirement 2.7)
+   */
+  async countOneTimePreKeys(userId: string): Promise<number> {
+    return this.prisma.oneTimePreKey.count({
+      where: { userId, claimed: false },
+    });
   }
 }
