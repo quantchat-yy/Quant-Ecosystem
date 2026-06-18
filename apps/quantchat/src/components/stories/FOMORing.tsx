@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { shouldShowFomoRing } from '../../lib/gamification';
 
 // ============================================================================
 // Task 11.9: FOMO Ring
@@ -28,7 +29,7 @@ export function FOMORing({
   children,
   className = '',
 }: FOMORingProps) {
-  if (viewed) {
+  if (!shouldShowFomoRing(viewed)) {
     // No FOMO ring for viewed stories — just a subtle gray border
     return (
       <div

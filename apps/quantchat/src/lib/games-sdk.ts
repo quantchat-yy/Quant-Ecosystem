@@ -103,6 +103,36 @@ export function formatGameScoreMessage(game: GameDefinition, scores: GameScore[]
 /** XP awarded to each participant when a game session ends. Requirement 17.3. */
 export const GAME_COMPLETION_XP = 20;
 
+/**
+ * XP divisor for the proportional game-XP rule: a participant earns 1 XP per
+ * this many game points (design section 10e: `Math.floor(score / 10)`).
+ * Requirement 17.3.
+ */
+export const GAME_XP_DIVISOR = 10;
+
+/**
+ * XP awarded to a single participant for a given game score, using the
+ * proportional rule defined in the design (Requirement 17.3). Negative scores
+ * are clamped to zero so XP is never negative.
+ */
+export function gameXpForScore(score: number): number {
+  if (!Number.isFinite(score) || score <= 0) return 0;
+  return Math.floor(score / GAME_XP_DIVISOR);
+}
+
+/**
+ * Compute the XP award for every participant when a game session ends. Returns
+ * a `userId → xp` map where each participant's XP is proportional to their
+ * score (Requirement 17.3, Property 37).
+ */
+export function awardGameXp(scores: GameScore[]): Record<string, number> {
+  const awards: Record<string, number> = {};
+  for (const s of scores) {
+    awards[s.userId] = gameXpForScore(s.score);
+  }
+  return awards;
+}
+
 // ─── SDK Hook Interface ──────────────────────────────────────────────────────
 
 /** Options accepted by {@link useGameSdk}. */

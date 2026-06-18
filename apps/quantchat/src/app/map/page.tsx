@@ -11,6 +11,7 @@ import { FriendPin } from '../../components/map/FriendPin';
 import { GhostModeToggle } from '../../components/map/GhostModeToggle';
 import { HeatmapOverlay } from '../../components/map/HeatmapOverlay';
 import { navItems, routes } from '../../lib/navigation';
+import { shouldBroadcastLocation } from './locationBroadcast';
 import type { GeoPosition, FriendLocation } from '../../components/map';
 
 // ============================================================================
@@ -168,8 +169,8 @@ export default function MapPage() {
       broadcastIntervalRef.current = null;
     }
 
-    if (ghostMode) {
-      // Task 8.5: When ghost mode enabled, send hide event
+    if (!shouldBroadcastLocation(ghostMode)) {
+      // Task 8.5: When ghost mode enabled, send hide event and never broadcast
       publish('map', {
         type: 'ghost-mode-enabled',
         timestamp: Date.now(),

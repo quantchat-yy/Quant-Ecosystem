@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BRAND_SPRINGS } from '../../lib/motion-tokens';
+import { MILESTONE_DAYS, isMilestone, type MilestoneDay } from '../../lib/gamification';
 import type { Badge } from '../../providers/MicroInteractionProvider';
 
 // ============================================================================
@@ -13,19 +14,19 @@ import type { Badge } from '../../providers/MicroInteractionProvider';
 // - 2-second duration, then auto-dismiss
 // ============================================================================
 
-export const MILESTONE_DAYS = [7, 30, 100, 365] as const;
-export type MilestoneDay = (typeof MILESTONE_DAYS)[number];
+// Re-exported from the pure gamification module (single source of truth).
+export { MILESTONE_DAYS, isMilestone };
+export type { MilestoneDay };
 
-const MILESTONE_CONFIG: Record<MilestoneDay, { emoji: string; title: string; color: string; badgeName: string }> = {
+const MILESTONE_CONFIG: Record<
+  MilestoneDay,
+  { emoji: string; title: string; color: string; badgeName: string }
+> = {
   7: { emoji: '🔥', title: 'Week Warrior!', color: '#FF6B6B', badgeName: '7-Day Streak' },
   30: { emoji: '💫', title: 'Monthly Legend!', color: '#FFD700', badgeName: '30-Day Streak' },
   100: { emoji: '⚡', title: 'Century Champion!', color: '#9966FF', badgeName: '100-Day Streak' },
   365: { emoji: '👑', title: 'Eternal Bond!', color: '#FF9FF3', badgeName: '365-Day Streak' },
 };
-
-export function isMilestone(count: number): count is MilestoneDay {
-  return MILESTONE_DAYS.includes(count as MilestoneDay);
-}
 
 interface MilestoneAnimationProps {
   /** The milestone day count */

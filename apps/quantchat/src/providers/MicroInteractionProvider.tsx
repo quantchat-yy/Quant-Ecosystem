@@ -1,6 +1,14 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, useCallback, useRef, type ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useReducer,
+  useCallback,
+  useRef,
+  type ReactNode,
+} from 'react';
+import { XP_MAP, xpForAction, isStreakUrgent, type XPAction } from '../lib/gamification';
 
 // ============================================================================
 // Task 11.1: MicroInteractionProvider — Global Gamification State
@@ -38,14 +46,8 @@ export interface RewardSchedule {
   lastRewardAt: Date | null;
 }
 
-export type XPAction = 'send_message' | 'post_story' | 'post_reel' | 'maintain_streak';
-
-const XP_MAP: Record<XPAction, number> = {
-  send_message: 10,
-  post_story: 25,
-  post_reel: 50,
-  maintain_streak: 15,
-};
+export type { XPAction };
+export { XP_MAP };
 
 export interface GamificationState {
   xp: number;
@@ -76,10 +78,13 @@ function calculateLevel(xp: number): number {
   return Math.floor(xp / 1000) + 1;
 }
 
-function gamificationReducer(state: GamificationState, action: GamificationAction): GamificationState {
+function gamificationReducer(
+  state: GamificationState,
+  action: GamificationAction,
+): GamificationState {
   switch (action.type) {
     case 'AWARD_XP': {
-      const amount = action.amount ?? XP_MAP[action.action] ?? 0;
+      const amount = action.amount ?? xpForAction(action.action);
       const newXp = state.xp + amount;
       return {
         ...state,
@@ -110,7 +115,7 @@ function gamificationReducer(state: GamificationState, action: GamificationActio
       };
       // Recalculate hoursRemaining and isUrgent
       updated.hoursRemaining = Math.max(0, (updated.expiresAt.getTime() - Date.now()) / 3600000);
-      updated.isUrgent = updated.hoursRemaining < 4;
+      updated.isUrgent = isStreakUrgent(updated.hoursRemaining);
       newStreaks.set(action.friendId, updated);
       return { ...state, streaks: newStreaks };
     }
@@ -188,7 +193,10 @@ interface MicroInteractionProviderProps {
   initialXP?: number;
 }
 
-export function MicroInteractionProvider({ children, initialXP = 0 }: MicroInteractionProviderProps) {
+export function MicroInteractionProvider({
+  children,
+  initialXP = 0,
+}: MicroInteractionProviderProps) {
   const [state, dispatch] = useReducer(gamificationReducer, {
     ...initialState,
     xp: initialXP,
@@ -255,9 +263,7 @@ export function MicroInteractionProvider({ children, initialXP = 0 }: MicroInter
   };
 
   return (
-    <MicroInteractionContext.Provider value={value}>
-      {children}
-    </MicroInteractionContext.Provider>
+    <MicroInteractionContext.Provider value={value}>{children}</MicroInteractionContext.Provider>
   );
 }
 

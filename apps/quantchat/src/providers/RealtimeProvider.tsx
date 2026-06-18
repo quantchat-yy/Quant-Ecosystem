@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { getAuthToken } from '../lib/auth';
+import { ChannelRouter } from './eventRouter';
 import { RealtimeContext } from './realtime-context';
 import type {
   RealtimeContextValue,
@@ -75,22 +76,16 @@ export function RealtimeProvider({ children }: Props) {
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastEventTimestampRef = useRef<number>(Date.now());
-  const handlersRef = useRef<Map<string, Set<ChannelHandler>>>(new Map());
+  // Task 16.2 / 16.5: pure ChannelRouter multiplexes all channel handlers over
+  // this provider's single WebSocket connection.
+  const routerRef = useRef<ChannelRouter<RealtimeEvent>>(new ChannelRouter<RealtimeEvent>());
   const subscribedChannelsRef = useRef<Set<string>>(new Set());
   const isUnmountedRef = useRef(false);
 
   // ─── Task 16.2: Route incoming events to registered channel handlers ────
   const routeEvent = useCallback((event: RealtimeEvent) => {
-    const handlers = handlersRef.current.get(event.channel);
-    if (handlers) {
-      handlers.forEach((handler) => {
-        try {
-          handler(event);
-        } catch {
-          // Swallow handler errors to protect the event loop
-        }
-      });
-    }
+    // Dispatch to all handlers registered for event.channel (and no others).
+    routerRef.current.route(event);
     // Track the latest event timestamp for long-polling
     if (event.timestamp) {
       lastEventTimestampRef.current = event.timestamp;
@@ -262,11 +257,8 @@ export function RealtimeProvider({ children }: Props) {
   // ─── Task 16.5: subscribe() — multiplexed channel subscription ──────────
   const subscribe = useCallback(
     (channel: ChannelId, handler: ChannelHandler): (() => void) => {
-      // Add handler to the handlers map
-      if (!handlersRef.current.has(channel)) {
-        handlersRef.current.set(channel, new Set());
-      }
-      handlersRef.current.get(channel)!.add(handler);
+      // Register the handler with the multiplexing router.
+      const removeHandler = routerRef.current.subscribe(channel, handler);
 
       // Track subscribed channel and send subscribe action
       if (!subscribedChannelsRef.current.has(channel)) {
@@ -276,15 +268,11 @@ export function RealtimeProvider({ children }: Props) {
 
       // Return unsubscribe function
       return () => {
-        const channelHandlers = handlersRef.current.get(channel);
-        if (channelHandlers) {
-          channelHandlers.delete(handler);
-          // If no more handlers for this channel, unsubscribe at wire level
-          if (channelHandlers.size === 0) {
-            handlersRef.current.delete(channel);
-            subscribedChannelsRef.current.delete(channel);
-            sendUnsubscribeAction(channel);
-          }
+        removeHandler();
+        // If no more handlers for this channel, unsubscribe at wire level
+        if (!routerRef.current.hasChannel(channel)) {
+          subscribedChannelsRef.current.delete(channel);
+          sendUnsubscribeAction(channel);
         }
       };
     },

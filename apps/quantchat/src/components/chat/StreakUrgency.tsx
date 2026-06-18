@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { isStreakUrgent } from '../../lib/gamification';
 import type { StreakData } from '../../providers/MicroInteractionProvider';
 
 // ============================================================================
@@ -28,11 +29,12 @@ export function StreakUrgency({
   className = '',
 }: StreakUrgencyProps) {
   // Only show when streak is urgent (< 4 hours remaining)
-  if (!streak.isUrgent || streak.hoursRemaining >= 4) {
+  if (!streak.isUrgent || !isStreakUrgent(streak.hoursRemaining)) {
     return null;
   }
 
-  const urgencyLevel = streak.hoursRemaining < 1 ? 'critical' : streak.hoursRemaining < 2 ? 'high' : 'medium';
+  const urgencyLevel =
+    streak.hoursRemaining < 1 ? 'critical' : streak.hoursRemaining < 2 ? 'high' : 'medium';
 
   const bgGradient = {
     critical: 'from-red-500/20 to-orange-500/10',
@@ -80,9 +82,7 @@ export function StreakUrgency({
         )}
 
         {/* Streak count */}
-        <span className={`text-xs font-bold ${textColor}`}>
-          {streak.count}
-        </span>
+        <span className={`text-xs font-bold ${textColor}`}>{streak.count}</span>
       </div>
     </div>
   );
@@ -103,13 +103,14 @@ export function StreakUrgencyBackground({
   children,
   className = '',
 }: StreakUrgencyBackgroundProps) {
-  const isUrgent = streak?.isUrgent && streak.hoursRemaining < 4;
+  const isUrgent = streak?.isUrgent && isStreakUrgent(streak.hoursRemaining);
 
   if (!isUrgent) {
     return <div className={className}>{children}</div>;
   }
 
-  const urgencyLevel = streak.hoursRemaining < 1 ? 'critical' : streak.hoursRemaining < 2 ? 'high' : 'medium';
+  const urgencyLevel =
+    streak.hoursRemaining < 1 ? 'critical' : streak.hoursRemaining < 2 ? 'high' : 'medium';
 
   const borderColor = {
     critical: 'border-red-500/30',
