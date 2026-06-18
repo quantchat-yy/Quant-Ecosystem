@@ -43,33 +43,47 @@ const DEFAULT_PAGE_SIZE = 20; // Req 10.2
 const MAX_PAGE_SIZE = 100; // Req 10.4
 
 /**
- * Validate a pagination query parameter (Req 10.6): when provided it MUST be a
- * positive integer (>= 1); a non-numeric, non-integer, or < 1 value is rejected
- * with a 400 that names the offending parameter. Returns `undefined` when omitted
- * so the caller can apply the default. NOTE: this REJECTS pageSize > 100 cases
- * never reach here — the caller CLAMPS the (valid) pageSize to MAX_PAGE_SIZE
- * afterward (Req 10.4), rather than rejecting it, reconciling the previous
- * `.max(100)` schema (which wrongly rejected) with the clamp requirement.
+ * Parse a pagination query parameter as an INTEGER, distinguishing the two
+ * failure modes the requirements treat differently (see CRITICAL reconciliation
+ * note below):
+ *   - REJECT (400, naming the param) when the raw value is non-numeric or a
+ *     non-integer (e.g. "abc", "1.5", "") — Req 10.6.
+ *   - ACCEPT any integer (including out-of-range values such as 0, negatives, or
+ *     > 100) WITHOUT range-checking here, leaving the caller to decide between
+ *     clamp (pageSize) and reject (page < 1) — Req 10.4 / 10.5 / 10.6.
+ * Returns `undefined` when the parameter is omitted so the caller applies the
+ * default (Req 10.1 / 10.2).
+ *
+ * CRITICAL pagination reconciliation (Req 10.4/10.5 vs 10.6):
+ *   Req 10.4/10.5 require CLAMPING an out-of-range *integer* pageSize
+ *   (`> 100 → 100`, `< 1 → 1`), while Req 10.6 requires REJECTING a
+ *   non-numeric / non-integer param with a 400. This parser therefore only
+ *   classifies "is it an integer?" — it does NOT range-check — so the caller can
+ *   CLAMP pageSize integers and REJECT page integers `< 1` (page has no clamp
+ *   requirement). This replaces the previous `.min(1).max(100)` schema, which
+ *   wrongly rejected out-of-range pageSize integers that must instead be clamped.
  */
-function parsePositiveIntParam(name: 'page' | 'pageSize', raw: unknown): number | undefined {
+function parseIntegerParam(name: 'page' | 'pageSize', raw: unknown): number | undefined {
   if (raw === undefined || raw === null) {
     return undefined;
   }
   // Query values may arrive as string | string[]; take the last occurrence.
   const value = Array.isArray(raw) ? raw[raw.length - 1] : raw;
   const str = String(value).trim();
-  // Digits-only ⇒ rejects empty, non-numeric, decimals (non-integer), signs.
-  if (str === '' || !/^\d+$/.test(str)) {
+  // Optional leading minus then digits ⇒ rejects empty, non-numeric, and
+  // decimals (non-integer). Out-of-range integers (0, negatives, > 100) ARE
+  // accepted here and handled by the caller (clamp vs reject).
+  if (str === '' || !/^-?\d+$/.test(str)) {
     throw createAppError(
-      `Invalid '${name}' parameter: must be an integer greater than or equal to 1`,
+      `Invalid '${name}' parameter: must be an integer`,
       400,
       'VALIDATION_ERROR',
     );
   }
   const n = Number(str);
-  if (!Number.isInteger(n) || n < 1) {
+  if (!Number.isInteger(n)) {
     throw createAppError(
-      `Invalid '${name}' parameter: must be an integer greater than or equal to 1`,
+      `Invalid '${name}' parameter: must be an integer`,
       400,
       'VALIDATION_ERROR',
     );
@@ -113,15 +127,29 @@ export default async function historyRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    // --- Pagination (Req 10): validate-then-default-then-clamp ---------------
-    // Reject non-numeric / non-integer / < 1 page|pageSize (naming the bad param,
-    // Req 10.6); apply defaults when omitted (Req 10.1/10.2); CLAMP the effective
-    // pageSize to [1, MAX_PAGE_SIZE] (Req 10.4 — > 100 is clamped, not rejected).
+    // --- Pagination (Req 10): validate → default → clamp/reject -------------
+    // Parse page|pageSize as integers, rejecting only non-numeric / non-integer
+    // values (naming the bad param, Req 10.6). Then:
+    //   • page  — reject a `< 1` integer (Req 10.6; page has NO clamp rule) and
+    //             apply the default when omitted (Req 10.1).
+    //   • pageSize — apply the default when omitted (Req 10.2), then CLAMP an
+    //             out-of-range integer to [1, MAX_PAGE_SIZE] (`< 1 → 1`,
+    //             `> 100 → 100`; Req 10.4 / 10.5) rather than rejecting it.
     const rawQuery = (request.query ?? {}) as Record<string, unknown>;
-    const pageInput = parsePositiveIntParam('page', rawQuery.page);
-    const pageSizeInput = parsePositiveIntParam('pageSize', rawQuery.pageSize);
+    const pageInput = parseIntegerParam('page', rawQuery.page);
+    const pageSizeInput = parseIntegerParam('pageSize', rawQuery.pageSize);
+
+    if (pageInput !== undefined && pageInput < 1) {
+      throw createAppError(
+        `Invalid 'page' parameter: must be an integer greater than or equal to 1`,
+        400,
+        'VALIDATION_ERROR',
+      );
+    }
     const page = pageInput ?? DEFAULT_PAGE;
-    const pageSize = Math.min(pageSizeInput ?? DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
+    // Clamp to [1, MAX_PAGE_SIZE]: Math.max lifts `< 1` (incl. 0/negatives) to 1
+    // (Req 10.5); Math.min caps `> 100` to 100 (Req 10.4).
+    const pageSize = Math.min(Math.max(pageSizeInput ?? DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
 
     // --- Snapshot: read the FULL ordered history once (Req 10.12) ------------
     // watchedAt-descending order is produced by HistoryService; ties keep service
