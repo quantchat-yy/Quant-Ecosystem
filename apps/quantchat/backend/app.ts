@@ -2,6 +2,7 @@ import { createApp } from '@quant/server-core';
 import type { AppConfig } from '@quant/server-core';
 import messagesRoutes from './routes/messages';
 import conversationsRoutes from './routes/conversations';
+import searchRoutes from './routes/search';
 import encryptionRoutes from './routes/encryption';
 import e2eeRoutes from './routes/e2ee';
 import e2eePreKeyRoutes from './routes/e2ee-prekeys';
@@ -54,6 +55,14 @@ export async function buildApp(config?: AppConfig) {
 
   await app.register(messagesRoutes, { prefix: '/conversations' });
   await app.register(conversationsRoutes, { prefix: '/conversations' });
+
+  // Unified search (W5, design Component 5 / Algorithm 5). Routes a plaintext
+  // `q` through the existing Postgres ILIKE path (non-E2EE messages — Req 15.7)
+  // and client-computed `tokenHashes` through the blind index (E2EE messages),
+  // returning both result sets. Uses the shared `fastify.prisma` decorator and
+  // the global auth hook from createApp(); the backend stays a zero-knowledge
+  // relay — it matches opaque HMAC token hashes only (Req 15.6, 16.1).
+  await app.register(searchRoutes, { prefix: '/search' });
 
   // Snapchat parity — chat themes + ephemeral/disappearing messages (Task 14).
   // Both mount under /conversations: themes persist the per-conversation theme
