@@ -13,6 +13,7 @@
     "start:backend": "tsx backend/server.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.backend.json",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint ."
   },
   "dependencies": {
