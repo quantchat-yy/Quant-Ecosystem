@@ -325,6 +325,9 @@ importers:
       '@quant/ai-memory':
         specifier: workspace:*
         version: link:../../packages/ai-memory
+      '@quant/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@quant/auth':
         specifier: workspace:*
         version: link:../../packages/auth

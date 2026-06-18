@@ -24,6 +24,7 @@
     "@quant/user-owned-ai": "workspace:*",
     "@quant/auth": "workspace:*",
     "@quant/ai": "workspace:*",
+    "@quant/api-client": "workspace:*",
     "@quant/brand": "workspace:*",
     "@quant/common": "workspace:*",
     "@quant/database": "workspace:*",
