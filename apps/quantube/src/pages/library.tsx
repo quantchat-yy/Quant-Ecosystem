@@ -3,9 +3,16 @@
 // User library with history, playlists, downloads, watch later
 // ============================================================================
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  useWatchHistory,
+  usePlaylists,
+  useWatchLater,
+  useCreatePlaylist,
+  useRemoveWatchLater,
+} from '../features/library/useLibrary';
 
-interface HistoryItem {
+export interface HistoryItem {
   id: string;
   videoId: string;
   title: string;
@@ -16,7 +23,14 @@ interface HistoryItem {
   progress: number;
 }
 
-interface PlaylistData {
+export interface HistoryListResponse {
+  items: HistoryItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface PlaylistData {
   id: string;
   title: string;
   thumbnail: string;
@@ -24,6 +38,10 @@ interface PlaylistData {
   visibility: 'public' | 'private' | 'unlisted';
   isSystem: boolean;
   updatedAt: string;
+}
+
+export interface PlaylistListResponse {
+  items: PlaylistData[];
 }
 
 interface DownloadItem {
@@ -37,7 +55,7 @@ interface DownloadItem {
   expiresAt: string;
 }
 
-interface WatchLaterItem {
+export interface WatchLaterItem {
   id: string;
   videoId: string;
   title: string;
@@ -47,116 +65,104 @@ interface WatchLaterItem {
   addedAt: string;
 }
 
-type LibrarySection = 'history' | 'playlists' | 'downloads' | 'watchLater';
-
-interface LibraryPageState {
-  history: HistoryItem[];
-  playlists: PlaylistData[];
-  downloads: DownloadItem[];
-  watchLater: WatchLaterItem[];
-  activeSection: LibrarySection;
-  loading: boolean;
-  error: string | null;
-  showCreatePlaylist: boolean;
-  newPlaylistName: string;
+export interface WatchLaterListResponse {
+  items: WatchLaterItem[];
 }
 
-const MOCK_HISTORY: HistoryItem[] = [
-  { id: 'h1', videoId: 'v1', title: 'React Hooks Deep Dive - Complete Guide', thumbnail: '/thumbs/hooks.jpg', channelName: 'TechVision', duration: 2400, watchedAt: '2024-01-15T10:30:00Z', progress: 0.75 },
-  { id: 'h2', videoId: 'v2', title: 'Building a Real-Time Chat App with WebSockets', thumbnail: '/thumbs/websocket.jpg', channelName: 'CodeMaster', duration: 3600, watchedAt: '2024-01-14T20:00:00Z', progress: 1.0 },
-  { id: 'h3', videoId: 'v3', title: 'CSS Grid Layout Masterclass', thumbnail: '/thumbs/cssgrid.jpg', channelName: 'DesignDev', duration: 1800, watchedAt: '2024-01-14T15:00:00Z', progress: 0.45 },
-  { id: 'h4', videoId: 'v4', title: 'Kubernetes for Beginners', thumbnail: '/thumbs/k8s.jpg', channelName: 'CloudPro', duration: 4200, watchedAt: '2024-01-13T11:00:00Z', progress: 0.3 },
-  { id: 'h5', videoId: 'v5', title: 'Music Production with Ableton', thumbnail: '/thumbs/ableton.jpg', channelName: 'BeatMaker', duration: 2700, watchedAt: '2024-01-12T19:00:00Z', progress: 0.9 },
-];
+type LibrarySection = 'history' | 'playlists' | 'downloads' | 'watchLater';
 
-const MOCK_PLAYLISTS: PlaylistData[] = [
-  { id: 'pl-mix', title: 'Your Mix', thumbnail: '/thumbs/mix.jpg', videoCount: 50, visibility: 'private', isSystem: true, updatedAt: '2024-01-15' },
-  { id: 'pl-liked', title: 'Liked Videos', thumbnail: '/thumbs/liked.jpg', videoCount: 234, visibility: 'private', isSystem: true, updatedAt: '2024-01-15' },
-  { id: 'pl-wl', title: 'Watch Later', thumbnail: '/thumbs/wl.jpg', videoCount: 18, visibility: 'private', isSystem: true, updatedAt: '2024-01-14' },
-  { id: 'pl-react', title: 'React Learning Path', thumbnail: '/thumbs/react-pl.jpg', videoCount: 24, visibility: 'public', isSystem: false, updatedAt: '2024-01-12' },
-  { id: 'pl-music', title: 'Chill Coding Music', thumbnail: '/thumbs/chill.jpg', videoCount: 42, visibility: 'unlisted', isSystem: false, updatedAt: '2024-01-10' },
-];
-
+// Downloads is a DEFERRED domain (out of scope for this slice). It keeps its
+// own local mock data + setTimeout loader; the in-scope History / Playlists /
+// Watch Later tabs are wired to the real hook -> proxy -> backend seam.
 const MOCK_DOWNLOADS: DownloadItem[] = [
-  { id: 'd1', videoId: 'v1', title: 'React Hooks Deep Dive', thumbnail: '/thumbs/hooks.jpg', quality: '1080p', fileSize: 524288000, downloadedAt: '2024-01-14', expiresAt: '2024-02-14' },
-  { id: 'd2', videoId: 'v3', title: 'CSS Grid Layout Masterclass', thumbnail: '/thumbs/cssgrid.jpg', quality: '720p', fileSize: 314572800, downloadedAt: '2024-01-13', expiresAt: '2024-02-13' },
-];
-
-const MOCK_WATCH_LATER: WatchLaterItem[] = [
-  { id: 'wl1', videoId: 'v10', title: 'Next.js 15 Features Breakdown', thumbnail: '/thumbs/nextjs15.jpg', channelName: 'TechVision', duration: 1500, addedAt: '2024-01-15' },
-  { id: 'wl2', videoId: 'v11', title: 'Advanced TypeScript Patterns', thumbnail: '/thumbs/tsadv.jpg', channelName: 'TypeScriptPro', duration: 2400, addedAt: '2024-01-14' },
-  { id: 'wl3', videoId: 'v12', title: 'Rust for JavaScript Developers', thumbnail: '/thumbs/rust.jpg', channelName: 'CodeBridge', duration: 3000, addedAt: '2024-01-13' },
-  { id: 'wl4', videoId: 'v13', title: 'Designing Scalable APIs', thumbnail: '/thumbs/apis.jpg', channelName: 'SystemDesign', duration: 2700, addedAt: '2024-01-12' },
+  {
+    id: 'd1',
+    videoId: 'v1',
+    title: 'React Hooks Deep Dive',
+    thumbnail: '/thumbs/hooks.jpg',
+    quality: '1080p',
+    fileSize: 524288000,
+    downloadedAt: '2024-01-14',
+    expiresAt: '2024-02-14',
+  },
+  {
+    id: 'd2',
+    videoId: 'v3',
+    title: 'CSS Grid Layout Masterclass',
+    thumbnail: '/thumbs/cssgrid.jpg',
+    quality: '720p',
+    fileSize: 314572800,
+    downloadedAt: '2024-01-13',
+    expiresAt: '2024-02-13',
+  },
 ];
 
 const LibraryPage: React.FC = () => {
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [playlists, setPlaylists] = useState<PlaylistData[]>([]);
+  // ---- In-scope tabs: real query-driven data (Req 1, 2, 3, 4) -------------
+  // History / Playlists / Watch Later are served through the sanctioned
+  // hook -> proxy -> backend seam. Each tab derives its own
+  // loading -> error -> empty -> data state from the query flags (Req 4.7).
+  const historyQuery = useWatchHistory();
+  const playlistsQuery = usePlaylists();
+  const watchLaterQuery = useWatchLater();
+
+  const history = historyQuery.data?.data.items ?? [];
+  const playlists = playlistsQuery.data?.data.items ?? [];
+  const watchLater = watchLaterQuery.data?.data.items ?? [];
+
+  // ---- Mutations (only those with a UI control on this page) --------------
+  const createPlaylist = useCreatePlaylist();
+  const removeWatchLater = useRemoveWatchLater();
+
+  // ---- Downloads tab: DEFERRED — still on its own local mock path ---------
   const [downloads, setDownloads] = useState<DownloadItem[]>([]);
-  const [watchLater, setWatchLater] = useState<WatchLaterItem[]>([]);
   const [activeSection, setActiveSection] = useState<LibrarySection>('history');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
 
   useEffect(() => {
-    const loadLibrary = async () => {
-      try {
-        setLoading(true);
-        await new Promise(resolve => setTimeout(resolve, 400));
-        setHistory(MOCK_HISTORY);
-        setPlaylists(MOCK_PLAYLISTS);
-        setDownloads(MOCK_DOWNLOADS);
-        setWatchLater(MOCK_WATCH_LATER);
-        setError(null);
-      } catch (err) {
-        setError('Failed to load library');
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadLibrary();
+    // Downloads-only mock load (deferred domain). The three in-scope tabs no
+    // longer use this loader — they are driven by react-query above.
+    const timer = setTimeout(() => setDownloads(MOCK_DOWNLOADS), 400);
+    return () => clearTimeout(timer);
   }, []);
 
+  // Watch History "Clear All"/"Remove" and Watch Later "Play Next" have no
+  // backend hook in this slice (no clear-history / reorder endpoint was built)
+  // and the lists are now server-authoritative. The controls are preserved
+  // but intentionally inert until those endpoints exist.
   const handleClearHistory = useCallback(() => {
-    setHistory([]);
+    /* no-op: no clear-history backend hook in this slice */
   }, []);
 
-  const handleRemoveHistoryItem = useCallback((itemId: string) => {
-    setHistory(prev => prev.filter(h => h.id !== itemId));
+  const handleRemoveHistoryItem = useCallback((_itemId: string) => {
+    /* no-op: no remove-history backend hook in this slice */
   }, []);
 
-  const handleRemoveWatchLater = useCallback((itemId: string) => {
-    setWatchLater(prev => prev.filter(wl => wl.id !== itemId));
+  const handlePlayNext = useCallback((_itemId: string) => {
+    /* no-op: no reorder/play-next backend endpoint in this slice */
   }, []);
 
-  const handlePlayNext = useCallback((itemId: string) => {
-    const item = watchLater.find(wl => wl.id === itemId);
-    if (item) {
-      setWatchLater(prev => [item, ...prev.filter(wl => wl.id !== itemId)]);
-    }
-  }, [watchLater]);
+  // Watch Later remove IS wired — the page has a Remove control (Req 3.x).
+  const handleRemoveWatchLater = useCallback(
+    (itemId: string) => {
+      removeWatchLater.mutate({ entryId: itemId });
+    },
+    [removeWatchLater],
+  );
 
+  // Create-playlist IS wired — the page has a create form (Req 2.12, 2.13).
   const handleCreatePlaylist = useCallback(() => {
-    if (newPlaylistName.trim()) {
-      const newPl: PlaylistData = {
-        id: `pl-${Date.now()}`,
-        title: newPlaylistName.trim(),
-        thumbnail: '/thumbs/default-pl.jpg',
-        videoCount: 0,
-        visibility: 'private',
-        isSystem: false,
-        updatedAt: new Date().toISOString().split('T')[0],
-      };
-      setPlaylists(prev => [...prev, newPl]);
+    const title = newPlaylistName.trim();
+    if (title) {
+      createPlaylist.mutate({ title, visibility: 'private' });
       setNewPlaylistName('');
       setShowCreatePlaylist(false);
     }
-  }, [newPlaylistName]);
+  }, [newPlaylistName, createPlaylist]);
 
   const handleDeleteDownload = useCallback((downloadId: string) => {
-    setDownloads(prev => prev.filter(d => d.id !== downloadId));
+    setDownloads((prev) => prev.filter((d) => d.id !== downloadId));
   }, []);
 
   const formatDuration = (seconds: number): string => {
@@ -184,28 +190,28 @@ const LibraryPage: React.FC = () => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-300 text-lg">Loading your library...</p>
-        </div>
-      </div>
-    );
-  }
+  // Section-level loading / error blocks (replace the old full-page gate).
+  // Loading is driven by the query flag, never a setTimeout (Req 4.2); the
+  // error block includes a Retry control that calls refetch (Req 4.3, 4.4).
+  const renderLoading = (label: string) => (
+    <div className="text-center py-16 bg-gray-800 rounded-xl">
+      <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+      <p className="text-gray-300 text-lg">{label}</p>
+    </div>
+  );
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900">
-        <div className="text-center">
-          <div className="text-red-400 text-5xl mb-4">!</div>
-          <p className="text-red-300 text-lg mb-4">{error}</p>
-          <button onClick={() => window.location.reload()} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Retry</button>
-        </div>
-      </div>
-    );
-  }
+  const renderError = (message: string, onRetry: () => void) => (
+    <div className="text-center py-16 bg-gray-800 rounded-xl">
+      <div className="text-red-400 text-5xl mb-4">!</div>
+      <p className="text-red-300 text-lg mb-4">{message}</p>
+      <button
+        onClick={onRetry}
+        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+      >
+        Retry
+      </button>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -219,12 +225,12 @@ const LibraryPage: React.FC = () => {
       {/* Section Tabs */}
       <nav className="border-b border-gray-800 px-6">
         <div className="max-w-7xl mx-auto flex gap-1">
-          {([
+          {[
             { id: 'history' as LibrarySection, label: 'History', count: history.length },
             { id: 'playlists' as LibrarySection, label: 'Playlists', count: playlists.length },
             { id: 'downloads' as LibrarySection, label: 'Downloads', count: downloads.length },
             { id: 'watchLater' as LibrarySection, label: 'Watch Later', count: watchLater.length },
-          ]).map(section => (
+          ].map((section) => (
             <button
               key={section.id}
               onClick={() => setActiveSection(section.id)}
@@ -243,12 +249,19 @@ const LibraryPage: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-medium text-white">Watch History</h2>
               {history.length > 0 && (
-                <button onClick={handleClearHistory} className="px-4 py-1.5 text-sm text-red-400 border border-red-400/30 rounded-lg hover:bg-red-400/10">
+                <button
+                  onClick={handleClearHistory}
+                  className="px-4 py-1.5 text-sm text-red-400 border border-red-400/30 rounded-lg hover:bg-red-400/10"
+                >
                   Clear All
                 </button>
               )}
             </div>
-            {history.length === 0 ? (
+            {historyQuery.isLoading ? (
+              renderLoading('Loading your watch history...')
+            ) : historyQuery.isError ? (
+              renderError('Watch history could not be loaded.', () => historyQuery.refetch())
+            ) : history.length === 0 ? (
               <div className="text-center py-16 bg-gray-800 rounded-xl">
                 <div className="text-4xl mb-3">Empty</div>
                 <p className="text-gray-400">Your watch history is empty.</p>
@@ -256,13 +269,25 @@ const LibraryPage: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {history.map(item => (
-                  <div key={item.id} className="flex items-center gap-4 p-3 bg-gray-800 rounded-xl hover:bg-gray-750 transition group">
+                {history.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-4 p-3 bg-gray-800 rounded-xl hover:bg-gray-750 transition group"
+                  >
                     <div className="relative flex-shrink-0">
-                      <img src={item.thumbnail} alt={item.title} className="w-40 h-22 rounded-lg object-cover" />
-                      <span className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/80 text-white text-xs rounded">{formatDuration(item.duration)}</span>
+                      <img
+                        src={item.thumbnail}
+                        alt={item.title}
+                        className="w-40 h-22 rounded-lg object-cover"
+                      />
+                      <span className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/80 text-white text-xs rounded">
+                        {formatDuration(item.duration)}
+                      </span>
                       <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700 rounded-b-lg overflow-hidden">
-                        <div className="h-full bg-red-500" style={{ width: `${item.progress * 100}%` }} />
+                        <div
+                          className="h-full bg-red-500"
+                          style={{ width: `${item.progress * 100}%` }}
+                        />
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
@@ -288,7 +313,10 @@ const LibraryPage: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-medium text-white">Your Playlists</h2>
-              <button onClick={() => setShowCreatePlaylist(true)} className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              <button
+                onClick={() => setShowCreatePlaylist(true)}
+                className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
                 + New Playlist
               </button>
             </div>
@@ -304,26 +332,60 @@ const LibraryPage: React.FC = () => {
                   className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
                   autoFocus
                 />
-                <button onClick={handleCreatePlaylist} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Create</button>
-                <button onClick={() => setShowCreatePlaylist(false)} className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600">Cancel</button>
+                <button
+                  onClick={handleCreatePlaylist}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Create
+                </button>
+                <button
+                  onClick={() => setShowCreatePlaylist(false)}
+                  className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {playlists.map(pl => (
-                <div key={pl.id} className="group cursor-pointer">
-                  <div className="relative rounded-xl overflow-hidden">
-                    <img src={pl.thumbnail} alt={pl.title} className="w-full aspect-video object-cover group-hover:opacity-80 transition" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-3">
-                      <span className="text-white text-sm font-medium">{pl.videoCount} videos</span>
+            {playlistsQuery.isLoading ? (
+              renderLoading('Loading your playlists...')
+            ) : playlistsQuery.isError ? (
+              renderError('Playlists could not be loaded.', () => playlistsQuery.refetch())
+            ) : playlists.length === 0 ? (
+              <div className="text-center py-16 bg-gray-800 rounded-xl">
+                <div className="text-4xl mb-3">Empty</div>
+                <p className="text-gray-400">You have no playlists yet.</p>
+                <p className="text-gray-500 text-sm mt-1">Create a playlist to get started.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {playlists.map((pl) => (
+                  <div key={pl.id} className="group cursor-pointer">
+                    <div className="relative rounded-xl overflow-hidden">
+                      <img
+                        src={pl.thumbnail}
+                        alt={pl.title}
+                        className="w-full aspect-video object-cover group-hover:opacity-80 transition"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-3">
+                        <span className="text-white text-sm font-medium">
+                          {pl.videoCount} videos
+                        </span>
+                      </div>
+                      {pl.isSystem && (
+                        <span className="absolute top-2 left-2 px-2 py-0.5 bg-gray-900/80 text-gray-300 text-xs rounded">
+                          System
+                        </span>
+                      )}
                     </div>
-                    {pl.isSystem && <span className="absolute top-2 left-2 px-2 py-0.5 bg-gray-900/80 text-gray-300 text-xs rounded">System</span>}
+                    <h3 className="mt-2 font-medium text-white truncate">{pl.title}</h3>
+                    <p className="text-xs text-gray-400">
+                      Updated {pl.updatedAt} - {pl.visibility}
+                    </p>
                   </div>
-                  <h3 className="mt-2 font-medium text-white truncate">{pl.title}</h3>
-                  <p className="text-xs text-gray-400">Updated {pl.updatedAt} - {pl.visibility}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -339,15 +401,26 @@ const LibraryPage: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {downloads.map(item => (
-                  <div key={item.id} className="flex items-center gap-4 p-3 bg-gray-800 rounded-xl group">
+                {downloads.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-4 p-3 bg-gray-800 rounded-xl group"
+                  >
                     <div className="relative flex-shrink-0">
-                      <img src={item.thumbnail} alt={item.title} className="w-36 h-20 rounded-lg object-cover" />
-                      <span className="absolute top-1 right-1 px-1.5 py-0.5 bg-green-600 text-white text-xs rounded font-medium">Offline</span>
+                      <img
+                        src={item.thumbnail}
+                        alt={item.title}
+                        className="w-36 h-20 rounded-lg object-cover"
+                      />
+                      <span className="absolute top-1 right-1 px-1.5 py-0.5 bg-green-600 text-white text-xs rounded font-medium">
+                        Offline
+                      </span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-white truncate">{item.title}</h3>
-                      <p className="text-sm text-gray-400">{item.quality} - {formatFileSize(item.fileSize)}</p>
+                      <p className="text-sm text-gray-400">
+                        {item.quality} - {formatFileSize(item.fileSize)}
+                      </p>
                       <p className="text-xs text-gray-500">Expires {item.expiresAt}</p>
                     </div>
                     <button
@@ -366,19 +439,34 @@ const LibraryPage: React.FC = () => {
         {/* Watch Later Section */}
         {activeSection === 'watchLater' && (
           <div>
-            <h2 className="text-lg font-medium text-white mb-4">Watch Later ({watchLater.length})</h2>
-            {watchLater.length === 0 ? (
+            <h2 className="text-lg font-medium text-white mb-4">
+              Watch Later ({watchLater.length})
+            </h2>
+            {watchLaterQuery.isLoading ? (
+              renderLoading('Loading your watch later list...')
+            ) : watchLaterQuery.isError ? (
+              renderError('Watch later list could not be loaded.', () => watchLaterQuery.refetch())
+            ) : watchLater.length === 0 ? (
               <div className="text-center py-16 bg-gray-800 rounded-xl">
                 <div className="text-4xl mb-3">Empty</div>
                 <p className="text-gray-400">Your watch later list is empty.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {watchLater.map(item => (
-                  <div key={item.id} className="flex items-center gap-4 p-3 bg-gray-800 rounded-xl hover:bg-gray-750 transition group">
+                {watchLater.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-4 p-3 bg-gray-800 rounded-xl hover:bg-gray-750 transition group"
+                  >
                     <div className="relative flex-shrink-0">
-                      <img src={item.thumbnail} alt={item.title} className="w-36 h-20 rounded-lg object-cover" />
-                      <span className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/80 text-white text-xs rounded">{formatDuration(item.duration)}</span>
+                      <img
+                        src={item.thumbnail}
+                        alt={item.title}
+                        className="w-36 h-20 rounded-lg object-cover"
+                      />
+                      <span className="absolute bottom-1 right-1 px-1 py-0.5 bg-black/80 text-white text-xs rounded">
+                        {formatDuration(item.duration)}
+                      </span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-white truncate">{item.title}</h3>
@@ -386,8 +474,18 @@ const LibraryPage: React.FC = () => {
                       <p className="text-xs text-gray-500">Added {formatDate(item.addedAt)}</p>
                     </div>
                     <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2 transition">
-                      <button onClick={() => handlePlayNext(item.id)} className="px-3 py-1 text-sm bg-gray-700 text-white rounded hover:bg-gray-600">Play Next</button>
-                      <button onClick={() => handleRemoveWatchLater(item.id)} className="px-3 py-1 text-sm text-red-400 hover:text-red-300">Remove</button>
+                      <button
+                        onClick={() => handlePlayNext(item.id)}
+                        className="px-3 py-1 text-sm bg-gray-700 text-white rounded hover:bg-gray-600"
+                      >
+                        Play Next
+                      </button>
+                      <button
+                        onClick={() => handleRemoveWatchLater(item.id)}
+                        className="px-3 py-1 text-sm text-red-400 hover:text-red-300"
+                      >
+                        Remove
+                      </button>
                     </div>
                   </div>
                 ))}
