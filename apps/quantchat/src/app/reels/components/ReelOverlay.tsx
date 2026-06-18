@@ -29,7 +29,7 @@ function LikeParticles({ show }: { show: boolean }) {
 
   const particles = Array.from({ length: 6 }, (_, i) => ({
     id: i,
-    angle: (i * 60) * (Math.PI / 180),
+    angle: i * 60 * (Math.PI / 180),
   }));
 
   return (
@@ -85,9 +85,7 @@ export function ReelOverlay({ reel, onLike, onUnlike, onComment, onShare }: Reel
           </div>
 
           {/* Caption text */}
-          <p className="text-sm text-white drop-shadow-lg line-clamp-3">
-            {reel.caption}
-          </p>
+          <p className="text-sm text-white drop-shadow-lg line-clamp-3">{reel.caption}</p>
         </div>
 
         {/* Right side: vertical action stack */}
@@ -105,9 +103,7 @@ export function ReelOverlay({ reel, onLike, onUnlike, onComment, onShare }: Reel
               <HeartIcon filled={reel.isLikedByUser} />
             </motion.div>
             <LikeParticles show={showParticles} />
-            <span className="text-xs font-medium text-white">
-              {formatCount(reel.likeCount)}
-            </span>
+            <span className="text-xs font-medium text-white">{formatCount(reel.likeCount)}</span>
           </button>
 
           {/* Comment icon */}
@@ -117,9 +113,7 @@ export function ReelOverlay({ reel, onLike, onUnlike, onComment, onShare }: Reel
             aria-label="Comments"
           >
             <CommentIcon />
-            <span className="text-xs font-medium text-white">
-              {formatCount(reel.commentCount)}
-            </span>
+            <span className="text-xs font-medium text-white">{formatCount(reel.commentCount)}</span>
           </button>
 
           {/* Share icon */}
@@ -129,9 +123,7 @@ export function ReelOverlay({ reel, onLike, onUnlike, onComment, onShare }: Reel
             aria-label="Share"
           >
             <ShareIcon />
-            <span className="text-xs font-medium text-white">
-              {formatCount(reel.shareCount)}
-            </span>
+            <span className="text-xs font-medium text-white">{formatCount(reel.shareCount)}</span>
           </button>
         </div>
       </div>

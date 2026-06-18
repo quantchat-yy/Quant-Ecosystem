@@ -19,7 +19,13 @@ const BRAND_SPRINGS = {
   snappy: { type: 'spring' as const, stiffness: 400, damping: 30 },
 };
 
-export function CommentSheet({ isOpen, onClose, reelId, commentCount, onAddComment }: CommentSheetProps) {
+export function CommentSheet({
+  isOpen,
+  onClose,
+  reelId,
+  commentCount,
+  onAddComment,
+}: CommentSheetProps) {
   const [commentText, setCommentText] = useState('');
 
   const handleSubmit = useCallback(
