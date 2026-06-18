@@ -1791,3 +1791,37 @@ model KeySession {
   @@index([responderId])
   @@map("key_sessions")
 }
+
+
+// ==================== QUANTCHAT DELIVERY & OUTBOX (W3) ====================
+// Reliable delivery: a transactional outbox guarantees an at-least-once delivery
+// intent is committed in the same transaction as a Message, and first-class
+// delivery/read receipts replace race-prone Message.metadata JSON.
+// NOTE: This is distinct from the generic data-plane `OutboxEvent` model above;
+// `MessageOutbox` is specific to QuantChat message fan-out.
+
+model MessageOutbox {
+  id             String    @id @default(cuid())
+  conversationId String
+  messageId      String
+  recipientIds   String[]
+  attempts       Int       @default(0)
+  processedAt    DateTime?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+
+  @@index([processedAt, createdAt])
+  @@map("message_outbox")
+}
+
+model MessageDelivery {
+  id          String    @id @default(cuid())
+  messageId   String
+  userId      String
+  deliveredAt DateTime?
+  readAt      DateTime?
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@map("message_deliveries")
+}
