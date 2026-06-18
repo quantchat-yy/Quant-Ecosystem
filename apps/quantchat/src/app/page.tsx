@@ -1,16 +1,16 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
 import { spring } from '@quant/brand';
 import { AppShell, TopBar, BottomNav, ChatList } from '@quant/shared-ui';
 import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
 import { useConversations } from '../hooks/useConversations';
+import { usePresence, type PresenceStatus } from '../hooks/usePresence';
+import { useChatSocket } from '../hooks/useChatSocket';
 import { navItems, routes } from '../lib/navigation';
 import { listContainerVariants, listItemVariants } from '../lib/motion-variants';
-
-type PresenceStatus = 'online' | 'away' | 'offline';
 
 interface EnhancedConversation {
   id: string;
@@ -43,14 +43,17 @@ function formatRelativeTime(dateStr: string): string {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-function getPresenceForIndex(index: number): PresenceStatus {
-  const statuses: PresenceStatus[] = ['online', 'online', 'away', 'offline', 'online', 'away'];
-  return statuses[index % statuses.length];
-}
-
 function PresenceDot({ status }: { status: PresenceStatus }) {
+  // Requirement 11.4: a user whose presence could not be resolved renders in an
+  // explicit `unknown` (neutral) state rather than being shown as online.
   const colorClass =
-    status === 'online' ? 'bg-emerald-500' : status === 'away' ? 'bg-yellow-400' : 'bg-gray-400';
+    status === 'online'
+      ? 'bg-emerald-500'
+      : status === 'away'
+        ? 'bg-yellow-400'
+        : status === 'unknown'
+          ? 'bg-gray-300'
+          : 'bg-gray-400';
 
   return (
     <span
@@ -163,14 +166,41 @@ function SwipeableChatItem({ item, onSelect, onArchive, onPin }: SwipeableChatIt
 
 export default function ChatListPage() {
   const router = useRouter();
-  const { data, isLoading, error, refetch } = useConversations();
+  const { conversations, isLoading, error, refetch } = useConversations();
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
 
+  // Live presence keyed on the real member ids of every conversation in the
+  // list (Requirements 11.1, 11.2). usePresence seeds from the backend presence
+  // snapshot and stays live over the WebSocket; it returns `unknown` for ids it
+  // cannot resolve rather than fabricating online state (Requirement 11.4).
+  const memberIds = useMemo(
+    () =>
+      Array.from(
+        new Set(conversations.flatMap((conv) => (conv.participants ?? []).map((p) => p.userId))),
+      ),
+    [conversations],
+  );
+  const presenceMap = usePresence(memberIds);
+
+  // Keep the conversation list live: join every conversation room over the
+  // shared chat socket and refetch the list when a new message arrives so the
+  // last-message preview / ordering / unread counts reflect real-time activity.
+  const conversationIds = useMemo(() => conversations.map((conv) => conv.id), [conversations]);
+  const handleSocketEvent = useCallback(
+    (event: { type?: string; payload?: { type?: string } }) => {
+      const type = event?.type ?? event?.payload?.type;
+      if (type === 'new_message') void refetch();
+    },
+    [refetch],
+  );
+  const { subscribe } = useChatSocket(handleSocketEvent);
+  useEffect(() => {
+    conversationIds.forEach((id) => subscribe(id));
+  }, [conversationIds, subscribe]);
+
   if (isLoading) return <LoadingState variant="skeleton" text="Loading conversations..." />;
   if (error) return <ErrorState message={error.message} onRetry={() => void refetch()} />;
-
-  const conversations = data ?? [];
 
   if (conversations.length === 0)
     return (
@@ -187,8 +217,20 @@ export default function ChatListPage() {
       </AppShell>
     );
 
+  // Derive a single presence indicator per conversation from its members' live
+  // statuses (online > away > offline; unknown when nothing is resolvable).
+  const presenceForConversation = (memberUserIds: string[]): PresenceStatus => {
+    const statuses = memberUserIds
+      .map((userId) => presenceMap[userId])
+      .filter((s): s is PresenceStatus => Boolean(s));
+    if (statuses.includes('online')) return 'online';
+    if (statuses.includes('away')) return 'away';
+    if (statuses.length === 0 || statuses.every((s) => s === 'unknown')) return 'unknown';
+    return 'offline';
+  };
+
   const enhancedItems: EnhancedConversation[] = conversations
-    .map((conv, idx: number) => ({
+    .map((conv) => ({
       id: conv.id,
       name: conv.name || 'Chat',
       lastMessage: conv.lastMessage?.content || 'Tap to start chatting',
@@ -200,7 +242,7 @@ export default function ChatListPage() {
           : '',
       ),
       unreadCount: conv.unreadCount || 0,
-      presence: getPresenceForIndex(idx),
+      presence: presenceForConversation((conv.participants ?? []).map((p) => p.userId)),
       isPinned: pinnedIds.has(conv.id),
       isArchived: archivedIds.has(conv.id),
       avatarInitial: (conv.name || 'C').charAt(0).toUpperCase(),
@@ -262,20 +304,3 @@ export default function ChatListPage() {
     </AppShell>
   );
 }
-
-// Addictive Streak Header for QuantChat
-const ChatStreakHeader = () => (
-  <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-[#0a0a0f]">
-    <div className="flex items-center gap-4">
-      <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-zinc-950 border border-zinc-800">
-        <span className="text-emerald-400">🔥</span>
-        <span className="font-mono text-emerald-400">31</span>
-        <span className="text-xs text-zinc-500">DAY STREAK</span>
-      </div>
-      <div className="text-sm text-white/60">+2,450 XP today</div>
-    </div>
-    <div className="flex items-center gap-2 text-sm">
-      <div className="px-3 py-1 rounded-full bg-white/5">12 friends online</div>
-    </div>
-  </div>
-);
