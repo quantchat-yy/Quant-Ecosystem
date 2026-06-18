@@ -10,6 +10,7 @@
     "build": "next build",
     "build:backend": "tsc --noEmit -p tsconfig.backend.json",
     "start": "next start",
+    "start:backend": "tsx backend/server.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.backend.json",
     "test": "vitest run",
     "lint": "eslint ."
