@@ -13,8 +13,11 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
+import { BottomNav } from '@quant/shared-ui';
 import { useSpotlight, type SpotlightReel } from '../../hooks/useSpotlight';
 import { FeaturedBadge } from './components/FeaturedBadge';
+import { navItems, routes } from '../../lib/navigation';
 
 function formatCount(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
@@ -69,22 +72,33 @@ function SpotlightCard({ reel, rank }: { reel: SpotlightReel; rank: number }) {
 }
 
 export default function SpotlightPage() {
+  const router = useRouter();
   const { reels, rankedAt, personalized, isLoading, isError, refetch } = useSpotlight();
 
   return (
     <div className="min-h-dvh bg-gradient-to-b from-black via-zinc-950 to-black text-white">
-      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 pb-20">
         <header className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h1 className="text-2xl font-bold">Spotlight</h1>
-            <p className="text-sm text-gray-400">
-              Top community reels{' '}
-              {personalized ? (
-                <span className="text-fuchsia-400">· personalized for you</span>
-              ) : (
-                <span className="text-gray-500">· trending now</span>
-              )}
-            </p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.push('/')}
+              aria-label="Back to chats"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg transition hover:bg-white/20 active:scale-95"
+            >
+              &#8592;
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold">Spotlight</h1>
+              <p className="text-sm text-gray-400">
+                Top community reels{' '}
+                {personalized ? (
+                  <span className="text-fuchsia-400">· personalized for you</span>
+                ) : (
+                  <span className="text-gray-500">· trending now</span>
+                )}
+              </p>
+            </div>
           </div>
           {rankedAt && (
             <span className="text-xs text-gray-500">
@@ -123,6 +137,15 @@ export default function SpotlightPage() {
           </div>
         )}
       </div>
+
+      <BottomNav
+        items={navItems}
+        activeId="spotlight"
+        onChange={(id) => {
+          const route = routes[id];
+          if (route) router.push(route);
+        }}
+      />
     </div>
   );
 }

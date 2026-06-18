@@ -10,15 +10,19 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BottomNav } from '@quant/shared-ui';
 import { useMemories, MEMORY_UNDO_WINDOW_MS, type Memory } from '../../hooks/useMemories';
 import { MemoryGrid } from './components/MemoryGrid';
 import { MemorySearch } from './components/MemorySearch';
 import { MemoryViewer } from './components/MemoryViewer';
+import { navItems, routes } from '../../lib/navigation';
 
 const SPRING = { type: 'spring' as const, stiffness: 400, damping: 30 };
 
 export default function MemoriesPage() {
+  const router = useRouter();
   const { memories, isLoading, filters, setFilters, clearFilters, deleteMemory, restoreMemory } =
     useMemories();
 
@@ -68,11 +72,21 @@ export default function MemoriesPage() {
 
   return (
     <div className="min-h-dvh bg-gradient-to-b from-black via-zinc-950 to-black text-white">
-      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 pb-20">
         <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Memories</h1>
-            <p className="text-sm text-gray-400">Your saved snaps, stories, and reels.</p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.push('/')}
+              aria-label="Back to chats"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg transition hover:bg-white/20 active:scale-95"
+            >
+              &#8592;
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold">Memories</h1>
+              <p className="text-sm text-gray-400">Your saved snaps, stories, and reels.</p>
+            </div>
           </div>
         </header>
 
@@ -113,6 +127,15 @@ export default function MemoriesPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <BottomNav
+        items={navItems}
+        activeId="memories"
+        onChange={(id) => {
+          const route = routes[id];
+          if (route) router.push(route);
+        }}
+      />
     </div>
   );
 }

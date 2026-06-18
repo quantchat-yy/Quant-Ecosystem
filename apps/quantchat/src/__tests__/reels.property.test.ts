@@ -19,7 +19,7 @@ import {
   hasAllRequiredOverlayFields,
   REQUIRED_OVERLAY_FIELDS,
   INFINITE_SCROLL_BUFFER,
-} from '../app/(reels)/feedLogic';
+} from '../app/reels/feedLogic';
 import type { Reel } from '../hooks/useReelsFeed';
 import {
   computeEngagementScore,

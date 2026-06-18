@@ -137,7 +137,14 @@ export function DuetMode({ originalVideoUrl, originalCreator, isOpen, onClose }:
           className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-800 text-white"
           aria-label="Close duet"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         </button>
@@ -152,9 +159,7 @@ export function DuetMode({ originalVideoUrl, originalCreator, isOpen, onClose }:
           } transition-colors`}
           aria-label={isRecording ? 'Stop recording' : 'Start recording'}
         >
-          {isRecording && (
-            <div className="h-6 w-6 rounded-sm bg-red-500" />
-          )}
+          {isRecording && <div className="h-6 w-6 rounded-sm bg-red-500" />}
         </button>
 
         {/* Flip camera placeholder */}
@@ -162,7 +167,14 @@ export function DuetMode({ originalVideoUrl, originalCreator, isOpen, onClose }:
           className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-800 text-white"
           aria-label="Flip camera"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <path d="M1 4v6h6M23 20v-6h-6" />
             <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
           </svg>

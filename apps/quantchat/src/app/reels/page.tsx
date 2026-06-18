@@ -10,6 +10,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, type PanInfo } from 'framer-motion';
 import { useReelsFeed } from '../../hooks/useReelsFeed';
 import { shouldFetchNext } from './feedLogic';
@@ -27,6 +28,7 @@ const BRAND_SPRINGS = {
 const SWIPE_THRESHOLD = 50; // px minimum to trigger transition
 
 export default function ReelsPage() {
+  const router = useRouter();
   const {
     reels,
     currentIndex,
@@ -147,14 +149,30 @@ export default function ReelsPage() {
 
   if (!currentReel) {
     return (
-      <div className="flex h-dvh w-full items-center justify-center bg-black">
+      <div className="flex h-dvh w-full flex-col items-center justify-center gap-4 bg-black">
         <p className="text-gray-400">No reels available</p>
+        <button
+          type="button"
+          onClick={() => router.push('/')}
+          className="rounded-lg bg-white/10 px-4 py-2 text-sm text-white transition hover:bg-white/20 active:scale-95"
+        >
+          Back to chats
+        </button>
       </div>
     );
   }
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-black">
+      {/* Back / nav affordance so the immersive feed isn't a dead end */}
+      <button
+        type="button"
+        onClick={() => router.push('/')}
+        aria-label="Back to chats"
+        className="absolute left-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-xl text-white backdrop-blur transition active:scale-95"
+      >
+        &#8592;
+      </button>
       {/* Full-viewport swipeable reel container */}
       <motion.div
         className="h-full w-full touch-none"

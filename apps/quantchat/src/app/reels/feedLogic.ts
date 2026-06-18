@@ -8,7 +8,7 @@
 //   - getReelOverlayFields()       required overlay field extraction (Task 3.4)
 //   - hasAllRequiredOverlayFields()overlay field-presence contract  (Task 3.4)
 //
-// These mirror the logic used by `(reels)/page.tsx`, `ReelPlayer.tsx`, and
+// These mirror the logic used by `reels/page.tsx`, `ReelPlayer.tsx`, and
 // `ReelOverlay.tsx` so the tests validate the real behaviour.
 // ============================================================================
 
