@@ -1,6 +1,7 @@
 import type { PrismaClient, Message } from '@prisma/client';
 import * as crypto from 'node:crypto';
 import { createAppError } from '@quant/server-core';
+import { PrismaOutboxService, type OutboxService } from './outbox.service';
 
 export interface PaginationOptions {
   page?: number;
@@ -45,7 +46,21 @@ export interface SendMessageInput {
 }
 
 export class MessageService {
-  constructor(private readonly prisma: PrismaClient) {}
+  private readonly outbox: OutboxService;
+
+  /**
+   * @param prisma  Prisma client used for all persistence.
+   * @param outbox  Transactional outbox service. Defaults to a
+   *   {@link PrismaOutboxService} bound to the same Prisma client so existing
+   *   callers (`new MessageService(prisma)`) keep working unchanged while the
+   *   delivery intent is written in the same transaction as the message.
+   */
+  constructor(
+    private readonly prisma: PrismaClient,
+    outbox?: OutboxService,
+  ) {
+    this.outbox = outbox ?? new PrismaOutboxService(prisma);
+  }
 
   /**
    * Encrypt plaintext for multiple recipients using AES-256-GCM with a
@@ -124,7 +139,10 @@ export class MessageService {
 
     let storedContent = content;
 
-    // When encryption is 'e2e', encrypt the content for recipients
+    // When encryption is 'e2e', encrypt the content for recipients. This check
+    // runs BEFORE any persistence: an E2EE send missing recipient public keys
+    // throws here, so neither the Message nor a MessageOutbox row is ever
+    // written (Req 7.5, 7.6, 16.1, 16.2).
     if (encryption === 'e2e') {
       if (!recipientPublicKeys || recipientPublicKeys.length === 0) {
         throw createAppError(
@@ -137,22 +155,46 @@ export class MessageService {
       storedContent = JSON.stringify(encryptedPayload);
     }
 
-    const message = await this.prisma.message.create({
-      data: {
-        conversationId,
-        senderId,
-        content: storedContent,
-        type: type ?? 'text',
-        mediaUrl: mediaUrl ?? null,
-        replyToId: replyToId ?? null,
-        metadata: metadata ?? {},
-      },
+    // Compute the recipient set: all active conversation members (leftAt: null)
+    // except the sender (design Algorithm 2).
+    const activeMembers = await this.prisma.conversationMember.findMany({
+      where: { conversationId, leftAt: null },
+      select: { userId: true },
     });
+    const recipientIds = activeMembers
+      .map((m: { userId: string }) => m.userId)
+      .filter((userId: string) => userId !== senderId);
 
-    // Update conversation's last message timestamp
-    await this.prisma.conversation.update({
-      where: { id: conversationId },
-      data: { lastMessageAt: new Date() },
+    // Persist the Message, bump the conversation's lastMessageAt, and enqueue
+    // the delivery intent in a SINGLE interactive transaction so the message and
+    // its outbox row commit atomically (Req 7.1, 7.2). The 201 is returned after
+    // commit, before any asynchronous fan-out (Req 7.3).
+    const message = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.message.create({
+        data: {
+          conversationId,
+          senderId,
+          content: storedContent,
+          type: type ?? 'text',
+          mediaUrl: mediaUrl ?? null,
+          replyToId: replyToId ?? null,
+          metadata: metadata ?? {},
+        },
+      });
+
+      await tx.conversation.update({
+        where: { id: conversationId },
+        data: { lastMessageAt: new Date() },
+      });
+
+      await this.outbox.enqueue(tx, {
+        conversationId,
+        messageId: created.id,
+        recipientIds,
+        createdAt: created.createdAt,
+      });
+
+      return created;
     });
 
     return message;
