@@ -91,3 +91,59 @@ export interface InboxResponse {
   envelopes: RelayedEnvelope[];
   count: number;
 }
+
+// ============================================================================
+// Blind-index encrypted search DTOs (W5, Requirements 14.1, 15.1, 15.6, 16.1)
+// ============================================================================
+//
+// SECURITY CONTRACT: every shape here carries OPAQUE HMAC token hashes and
+// message/conversation identifiers only. There is intentionally no `plaintext`,
+// `searchKey`, or `content` field — token hashing happens client-side via
+// `searchClient.ts` and the Search_Key never crosses the seam (Req 14.2, 16.1).
+
+/** Body for POST /api/search/index — upload a message's blind-index token
+ * hashes. The owner (Search_Key owner) is taken server-side from the
+ * authenticated session, never the client body (Req 14.3). Token hashes only. */
+export interface BlindIndexUploadInput {
+  messageId: string;
+  conversationId: string;
+  /** HMAC(Search_Key, token) values for the message's DISTINCT tokens. */
+  tokenHashes: string[];
+}
+
+export interface BlindIndexUploadResponse {
+  message: string;
+}
+
+/** Body for POST /api/search — unified search. The blind-index path is driven
+ * by `tokenHashes` (E2EE messages); a plaintext `q` drives the legacy ILIKE
+ * path (non-E2EE messages, Req 15.7). The Search_Key is NEVER sent (Req 15.1). */
+export interface UnifiedSearchInput {
+  q?: string;
+  tokenHashes?: string[];
+  page?: number;
+  pageSize?: number;
+}
+
+/** A single blind-index candidate match (owner-scoped, deduped — Req 15.2, 15.5).
+ * Re-exported from `searchClient` (the canonical definition) for DTO ergonomics. */
+export type { EncryptedSearchCandidate } from './searchClient';
+import type { EncryptedSearchCandidate } from './searchClient';
+
+/** Paginated blind-index result envelope returned by the search service. */
+export interface EncryptedSearchPage {
+  data: EncryptedSearchCandidate[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+/** Response for POST /api/search — plaintext (ILIKE) and encrypted (blind-index)
+ * result sets side by side; either may be null when its input was absent. */
+export interface UnifiedSearchResponse {
+  plaintext: unknown | null;
+  encrypted: EncryptedSearchPage | null;
+}

@@ -11,3 +11,8 @@
 export * from './types';
 export * from './useEncryption';
 export * from './e2eeClient';
+// W5 — client-built blind-index search: tokenize + HMAC on send, query by hash.
+// The Search_Key and plaintext stay client-side (`searchClient`); the hooks only
+// carry opaque token hashes over the `/api/search*` proxy (`useSearch`).
+export * from './searchClient';
+export * from './useSearch';

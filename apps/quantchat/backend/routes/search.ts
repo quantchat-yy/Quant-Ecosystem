@@ -56,9 +56,61 @@ const searchSchema = z
   });
 
 /**
+ * Blind-index upload request (W5, Requirement 14.1). The client uploads ONLY
+ * the message id, conversation id, and the opaque HMAC token hashes for a sent
+ * E2EE message. The owner (Search_Key owner) is taken from the authenticated
+ * session, NOT the body, so a caller can only ever write to their own index
+ * (Req 14.3). `.strict()` rejects any extra field, preserving the zero-knowledge
+ * invariant — plaintext / ciphertext / keys can never be smuggled in (Req 14.4,
+ * 16.1, 16.2).
+ */
+const indexUploadSchema = z
+  .object({
+    messageId: z.string().min(1),
+    conversationId: z.string().min(1),
+    tokenHashes: z.array(z.string().min(1)).max(1000),
+  })
+  .strict();
+
+/**
  * Unified search routes, registered under the `/search` prefix in `buildApp()`.
  */
 export default async function searchRoutes(fastify: FastifyInstance) {
+  // POST /search/index — accept a client-built blind-index upload for a sent
+  // E2EE message (Req 14.1). Token hashes are computed client-side with the
+  // Search_Key (which never leaves the client, Req 14.2); the server persists
+  // ONLY the message id, conversation id, owner id, and opaque token hashes via
+  // PrismaEncryptedSearchIndex.index, which additionally rejects any disallowed
+  // field (Req 14.3, 14.4, 16.1). The owner is the authenticated user.
+  fastify.post('/index', async (request, reply) => {
+    const parseResult = indexUploadSchema.safeParse(request.body);
+    if (!parseResult.success) {
+      throw parseResult.error;
+    }
+
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const { messageId, conversationId, tokenHashes } = parseResult.data;
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+
+    // Owner is bound to the session, never the client body — one user can only
+    // ever write to their own blind index (Req 14.3, 15.5).
+    await new PrismaEncryptedSearchIndex(prisma as never).index({
+      messageId,
+      conversationId,
+      userId,
+      tokenHashes,
+    });
+
+    return reply.status(201).send({
+      success: true,
+      data: { message: 'Blind-index entry stored' },
+    });
+  });
+
   // POST /search — unified search entry point. Routes a plaintext `q` through
   // the existing ILIKE path (non-E2EE messages) and `tokenHashes` through the
   // blind index (E2EE messages), returning both result sets (Req 15.7).
