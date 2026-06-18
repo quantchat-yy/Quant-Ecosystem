@@ -1,3 +1,6 @@
+import { PaymentValidationError } from './errors';
+import { isValidCurrency } from './currency';
+
 export interface PaymentMethod {
   id: string;
   userId: string;
@@ -118,6 +121,23 @@ export class PaymentEngine {
     type: Transaction['type'],
     metadata?: Record<string, unknown>,
   ): Promise<Transaction> {
+    // Validation guard (fail fast): reject invalid input BEFORE constructing or
+    // persisting a Transaction and BEFORE calling processor.charge, so a rejected
+    // call has no side effects. A negative amount is never valid for any type
+    // (refunds are positive amounts with type='refund').
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new PaymentValidationError(
+        `Invalid payment amount: ${String(amount)} (must be a finite, positive number)`,
+        'INVALID_PAYMENT_AMOUNT',
+      );
+    }
+    if (!isValidCurrency(currency)) {
+      throw new PaymentValidationError(
+        `Invalid payment currency: ${String(currency)} (must be a 3-letter ISO-4217 code)`,
+        'INVALID_PAYMENT_CURRENCY',
+      );
+    }
+
     const transaction: Transaction = {
       id: `tx_${Date.now()}`,
       userId,
