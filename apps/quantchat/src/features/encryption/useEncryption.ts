@@ -13,6 +13,7 @@
 // client-side by the `@quant/encryption` engine via `e2eeClient.ts` — they are
 // never passed to a hook and never reach the proxy/backend.
 import { useApiQuery, useApiMutation } from '@quant/api-client';
+import { apiFetch } from '@quant/api-client';
 import type { UseApiQueryOptions } from '@quant/api-client';
 import type {
   PublishKeyBundleInput,
@@ -21,7 +22,10 @@ import type {
   RelayMessageInput,
   RelayMessageResponse,
   InboxResponse,
+  ReplenishOneTimePreKeysInput,
+  OneTimePreKeyCountResponse,
 } from './types';
+import type { OneTimePreKeyReplenishmentTransport } from './e2eeClient';
 
 /** POST /api/e2ee/keys — publish my device's PUBLIC pre-key bundle. */
 export function usePublishKeyBundle() {
@@ -44,4 +48,55 @@ export function useRelayEncryptedMessage() {
 /** GET /api/e2ee/messages — drain my inbox of relayed CIPHERTEXT envelopes. */
 export function useEncryptedInbox(options?: UseApiQueryOptions) {
   return useApiQuery<InboxResponse>('/api/e2ee/messages', options);
+}
+
+/**
+ * GET /api/e2ee/prekeys/count — read my remaining unclaimed one-time prekey
+ * count, which drives replenishment (Req 2.7, 2.8).
+ */
+export function useOneTimePreKeyCount(options?: UseApiQueryOptions) {
+  return useApiQuery<OneTimePreKeyCountResponse>('/api/e2ee/prekeys/count', options);
+}
+
+/**
+ * POST /api/e2ee/prekeys — upload a batch of PUBLIC one-time prekeys to top up
+ * my pool (client replenishment, Req 2.8). Public material only.
+ */
+export function useUploadOneTimePreKeys() {
+  return useApiMutation<ReplenishOneTimePreKeysInput, { message: string }>('/api/e2ee/prekeys');
+}
+
+/**
+ * Default replenishment transport over the same-origin `/api/e2ee/prekeys*`
+ * proxy (Requirement 1.4: api-client only, no inline backend fetch). Injected
+ * into `replenishOneTimePreKeys` from `e2eeClient.ts` so the replenishment
+ * policy stays decoupled from the network. Carries PUBLIC one-time prekeys only
+ * — key material is generated and held client-side (Req 2.8, 16.1).
+ *
+ * @param token Optional bearer token (same-origin cookies also authenticate).
+ */
+export function createOneTimePreKeyTransport(token?: string): OneTimePreKeyReplenishmentTransport {
+  return {
+    async getRemainingCount(): Promise<number> {
+      const response = await apiFetch<OneTimePreKeyCountResponse>('/api/e2ee/prekeys/count', {
+        method: 'GET',
+        token,
+      });
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message ?? 'Failed to read one-time prekey count');
+      }
+      return response.data.remaining;
+    },
+    async uploadOneTimePreKeys(oneTimePreKeys: string[]): Promise<void> {
+      const body: ReplenishOneTimePreKeysInput = { oneTimePreKeys };
+      const response = await apiFetch('/api/e2ee/prekeys', {
+        method: 'POST',
+        body,
+        token,
+      });
+      if (!response.success) {
+        throw new Error(response.error?.message ?? 'Failed to upload one-time prekeys');
+      }
+    },
+  };
 }

@@ -43,6 +43,28 @@ export const uploadPreKeysSchema = z
   })
   .strict();
 
+/**
+ * One-time prekey top-up — the server-side half of client replenishment
+ * (Requirement 2.8). The client uploads ONLY a batch of PUBLIC one-time prekeys
+ * (no bundle, no private material) to extend its existing pool. `.strict()`
+ * rejects any other field, preserving the zero-knowledge invariant (Req 16.1);
+ * the durable store enforces the 1–100 batch size and rejects duplicates
+ * (Requirement 2.2).
+ */
+export const replenishPreKeysSchema = z
+  .object({
+    oneTimePreKeys: z.array(z.string().min(1)).min(1).max(100),
+  })
+  .strict();
+
+/** Bundle fields whose presence distinguishes a full publish from a top-up. */
+const BUNDLE_FIELDS = [
+  'identityKey',
+  'signedPreKey',
+  'signedPreKeySignature',
+  'registrationId',
+] as const;
+
 const userParamsSchema = z.object({ userId: z.string().min(1) });
 
 /**
@@ -52,15 +74,41 @@ export default async function e2eePreKeyRoutes(fastify: FastifyInstance) {
   const service = new EncryptionService(createKeyStorage(fastify.prisma));
 
   // POST /e2ee/prekeys — publish the authenticated user's PUBLIC prekey bundle
-  // (+ optional one-time prekey pool). Verifies the signed-prekey signature and
-  // persists public material only (Requirements 1.1, 1.2, 1.3, 2.1, 16.1).
+  // (+ optional one-time prekey pool), OR top up the one-time prekey pool with a
+  // PUBLIC-only batch (client replenishment — Requirement 2.8). A body carrying
+  // any bundle field is treated as a full publish (signature verified); a body
+  // with only `oneTimePreKeys` is a top-up appended to the existing pool.
+  // Persists public material only (Requirements 1.1, 1.2, 1.3, 2.1, 2.8, 16.1).
   fastify.post(
     '/prekeys',
     { preHandler: fastify.requireAuth({ scopes: ['encryption:write'] }) },
     async (request, reply) => {
-      // Missing-field rejection: the Zod error names the offending field and is
-      // rendered as VALIDATION_ERROR by the central error handler (Req 1.3).
-      const parsed = uploadPreKeysSchema.safeParse(request.body ?? {});
+      const body = (request.body ?? {}) as Record<string, unknown>;
+
+      // A top-up carries NONE of the bundle fields — only one-time prekeys.
+      const isTopUp = BUNDLE_FIELDS.every((field) => !(field in body));
+
+      if (isTopUp) {
+        const parsed = replenishPreKeysSchema.safeParse(body);
+        if (!parsed.success) {
+          throw parsed.error;
+        }
+
+        // Appends to the existing pool; the durable store enforces batch size
+        // (1–100) and rejects in-batch / pool duplicates (Requirement 2.2) and
+        // requires a previously registered bundle.
+        await service.addOneTimePreKeys(request.auth.userId, parsed.data.oneTimePreKeys);
+
+        return reply.status(201).send({
+          success: true,
+          data: { message: 'One-time prekeys added' },
+        });
+      }
+
+      // Full publish. Missing-field rejection: the Zod error names the offending
+      // field and is rendered as VALIDATION_ERROR by the central error handler
+      // (Req 1.3).
+      const parsed = uploadPreKeysSchema.safeParse(body);
       if (!parsed.success) {
         throw parsed.error;
       }
@@ -75,6 +123,23 @@ export default async function e2eePreKeyRoutes(fastify: FastifyInstance) {
       return reply.status(201).send({
         success: true,
         data: { message: 'Prekey bundle uploaded' },
+      });
+    },
+  );
+
+  // GET /e2ee/prekeys/count — return the authenticated user's remaining
+  // unclaimed one-time prekey count. Drives client replenishment: the Web_Client
+  // tops up the pool when this drops below the threshold (Requirements 2.7, 2.8).
+  // Registered before the `/prekeys/:userId` parametric route so `count` is never
+  // interpreted as a peer user id.
+  fastify.get(
+    '/prekeys/count',
+    { preHandler: fastify.requireAuth({ scopes: ['encryption:read'] }) },
+    async (request, reply) => {
+      const remaining = await service.countOneTimePreKeys(request.auth.userId);
+      return reply.send({
+        success: true,
+        data: { userId: request.auth.userId, remaining },
       });
     },
   );

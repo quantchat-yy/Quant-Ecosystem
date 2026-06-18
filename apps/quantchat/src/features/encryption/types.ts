@@ -41,6 +41,20 @@ export interface PeerKeyBundlesResponse {
   bundles: PublishedKeyBundle[];
 }
 
+/** Body for POST /api/e2ee/prekeys (top-up) — replenish my PUBLIC one-time
+ * prekey pool. ONLY public one-time prekey material crosses the seam (Req 2.8,
+ * 16.1); there is intentionally no private key / ratchet field. */
+export interface ReplenishOneTimePreKeysInput {
+  oneTimePreKeys: string[];
+}
+
+/** Response for GET /api/e2ee/prekeys/count — remaining unclaimed one-time
+ * prekeys for the authenticated user (drives replenishment, Req 2.7, 2.8). */
+export interface OneTimePreKeyCountResponse {
+  userId: string;
+  remaining: number;
+}
+
 /** Opaque CIPHERTEXT envelope — the backend can neither read nor decrypt this. */
 export interface CiphertextEnvelope {
   ciphertext: string;

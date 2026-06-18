@@ -94,6 +94,40 @@ export class EncryptionService {
     }
   }
 
+  /**
+   * Append a batch of PUBLIC one-time prekeys to a user's existing pool — the
+   * server-side half of client replenishment (Requirement 2.8). Reuses the same
+   * durable pool the publish path writes to: the batch is validated (1–100,
+   * no in-batch/pool duplicates) and requires a previously registered bundle.
+   *
+   * Public key material only — the zero-knowledge invariant is preserved
+   * (Requirement 16.1): the caller uploads one-time prekey *public* keys, never
+   * private keys or ratchet secrets.
+   */
+  async addOneTimePreKeys(userId: string, oneTimePreKeys: string[]): Promise<void> {
+    if (!supportsOneTimePreKeys(this.storage)) {
+      throw createAppError(
+        'One-time prekey storage is not available',
+        400,
+        'ONE_TIME_PREKEYS_UNSUPPORTED',
+      );
+    }
+    await this.storage.storeOneTimePreKeys(userId, oneTimePreKeys);
+  }
+
+  /**
+   * Return the count of remaining unclaimed one-time prekeys for a user, which
+   * drives client-side replenishment (Requirements 2.7, 2.8). When the backing
+   * store does not manage a one-time prekey pool (e.g. the in-memory store used
+   * in tests), reports zero so the client falls back to a fresh upload.
+   */
+  async countOneTimePreKeys(userId: string): Promise<number> {
+    if (!supportsOneTimePreKeys(this.storage)) {
+      return 0;
+    }
+    return this.storage.countOneTimePreKeys(userId);
+  }
+
   async getPreKeyBundle(userId: string): Promise<PreKeyBundle> {
     const bundle = await this.storage.getBundle(userId);
     if (!bundle) {
