@@ -3,6 +3,7 @@
 // ============================================================================
 
 import crypto from 'crypto';
+import argon2 from 'argon2';
 import type { PasswordHashResult, Argon2Params, PasswordStrength } from '../types';
 
 /** Default Argon2id parameters */
@@ -56,14 +57,22 @@ export class PasswordHasher {
     ]);
   }
 
-  /** Hash a password using Argon2id simulation */
+  /** Hash a password using real Argon2id (argon2 package) */
   async hash(password: string): Promise<PasswordHashResult> {
     this.hashCount++;
     const salt = this.generateSalt(16);
     const now = Date.now();
 
-    // Argon2id simulation: memory-hard iterative hashing
-    const hash = this.argon2idHash(password, salt);
+    // Real, memory-hard Argon2id derivation. The preserved CSPRNG salt
+    // (crypto.randomBytes) is passed explicitly so Argon2 uses it.
+    const hash = await argon2.hash(password, {
+      type: argon2.argon2id,
+      memoryCost: this.params.memoryCost,
+      timeCost: this.params.timeCost,
+      parallelism: this.params.parallelism,
+      hashLength: this.params.hashLength,
+      salt: Buffer.from(salt, 'hex'),
+    });
 
     return {
       hash,
@@ -75,18 +84,11 @@ export class PasswordHasher {
     };
   }
 
-  /** Verify a password against a stored hash */
+  /** Verify a password against a stored Argon2id PHC hash */
   async verify(password: string, stored: PasswordHashResult): Promise<boolean> {
-    // Re-hash with the stored salt and params
-    const prevParams = { ...this.params };
-    this.params = stored.params;
-
-    const computedHash = this.argon2idHash(password, stored.salt);
-
-    this.params = prevParams;
-
-    // Timing-safe comparison
-    return this.timingSafeEqual(computedHash, stored.hash);
+    // argon2.verify reads params from the self-describing PHC string and
+    // performs a vetted constant-time comparison internally.
+    return argon2.verify(stored.hash, password);
   }
 
   /** Score password strength */
@@ -164,8 +166,8 @@ export class PasswordHasher {
 
   /** Check if password appears in common breach lists (simulation) */
   async checkBreach(password: string): Promise<{ breached: boolean; count: number }> {
-    // Simulate breach database check using hash prefix
-    this.simpleHash(password.toLowerCase());
+    // Breach-prefix lookup derived from a real cryptographic hash.
+    crypto.createHash('sha256').update(password.toLowerCase()).digest('hex');
 
     // Simulate: common passwords are "breached"
     if (this.commonPasswords.has(password.toLowerCase())) {
@@ -178,98 +180,6 @@ export class PasswordHasher {
     }
 
     return { breached: false, count: 0 };
-  }
-
-  /** Argon2id simulation - memory-hard hashing */
-  private argon2idHash(password: string, salt: string): string {
-    const { memoryCost, timeCost, parallelism, hashLength } = this.params;
-
-    // Initialize memory blocks (simulated - actual Argon2 uses large memory arrays)
-    const blockSize = 1024;
-    const blocks = Math.min(memoryCost / blockSize, 64); // Limit for simulation
-    const memory: string[] = new Array(blocks);
-
-    // Initial hash: H0 = H(password || salt || params)
-    let h0 = this.multiRoundHash(`${password}|${salt}|${memoryCost}|${timeCost}|${parallelism}`);
-
-    // Fill memory blocks (data-independent addressing for Argon2id first pass)
-    for (let i = 0; i < blocks; i++) {
-      memory[i] = this.multiRoundHash(h0 + i.toString());
-    }
-
-    // Iterate (time cost)
-    for (let t = 0; t < timeCost; t++) {
-      for (let i = 0; i < blocks; i++) {
-        // Argon2id: first half data-independent, second half data-dependent
-        const refIndex =
-          t < timeCost / 2
-            ? (i + 1) % blocks
-            : Math.abs(parseInt(memory[i]!.substring(0, 8), 16)) % blocks;
-
-        // Mix blocks (simulating Blake2b compression)
-        memory[i] = this.multiRoundHash(memory[i]! + memory[refIndex]! + t.toString());
-      }
-    }
-
-    // Final hash: XOR all blocks and hash
-    let finalBlock = memory[0]!;
-    for (let i = 1; i < blocks; i++) {
-      finalBlock = this.xorStrings(finalBlock, memory[i]!);
-    }
-
-    // Truncate to desired hash length
-    const fullHash = this.multiRoundHash(finalBlock + salt);
-    return fullHash.substring(0, hashLength * 2);
-  }
-
-  /** Multi-round hash function */
-  private multiRoundHash(input: string): string {
-    let h1 = 0x6a09e667;
-    let h2 = 0xbb67ae85;
-    let h3 = 0x3c6ef372;
-    let h4 = 0xa54ff53a;
-    let h5 = 0x510e527f;
-    let h6 = 0x9b05688c;
-    let h7 = 0x1f83d9ab;
-    let h8 = 0x5be0cd19;
-
-    for (let round = 0; round < 4; round++) {
-      for (let i = 0; i < input.length; i++) {
-        const c = input.charCodeAt(i);
-        h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
-        h2 = Math.imul(h2 ^ (c + round), 0x5bd1e995) >>> 0;
-        h3 = Math.imul(h3 ^ (c * (i + 1)), 0x1b873593) >>> 0;
-        h4 = Math.imul(h4 ^ (c ^ round), 0xcc9e2d51) >>> 0;
-        h5 = Math.imul(h5 ^ (c + i), 0x85ebca6b) >>> 0;
-        h6 = Math.imul(h6 ^ (c * round), 0xc2b2ae35) >>> 0;
-        h7 = Math.imul(h7 ^ (c + 7), 0x27d4eb2f) >>> 0;
-        h8 = Math.imul(h8 ^ (c ^ i), 0x165667b1) >>> 0;
-      }
-      h1 ^= h5 >>> 13;
-      h2 ^= h6 >>> 7;
-      h3 ^= h7 >>> 17;
-      h4 ^= h8 >>> 11;
-      h5 ^= h1 >>> 5;
-      h6 ^= h2 >>> 19;
-      h7 ^= h3 >>> 3;
-      h8 ^= h4 >>> 23;
-    }
-
-    return [h1, h2, h3, h4, h5, h6, h7, h8]
-      .map((h) => (h >>> 0).toString(16).padStart(8, '0'))
-      .join('');
-  }
-
-  /** XOR two hex strings */
-  private xorStrings(a: string, b: string): string {
-    const len = Math.min(a.length, b.length);
-    let result = '';
-    for (let i = 0; i < len; i += 2) {
-      const byteA = parseInt(a.substring(i, i + 2), 16) || 0;
-      const byteB = parseInt(b.substring(i, i + 2), 16) || 0;
-      result += (byteA ^ byteB).toString(16).padStart(2, '0');
-    }
-    return result;
   }
 
   /** Calculate password entropy */
@@ -285,26 +195,6 @@ export class PasswordHasher {
   /** Generate cryptographic salt */
   private generateSalt(length: number): string {
     return crypto.randomBytes(length).toString('hex');
-  }
-
-  /** Timing-safe string comparison */
-  private timingSafeEqual(a: string, b: string): boolean {
-    if (a.length !== b.length) return false;
-    let result = 0;
-    for (let i = 0; i < a.length; i++) {
-      result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-    }
-    return result === 0;
-  }
-
-  /** Simple hash for breach checking */
-  private simpleHash(input: string): string {
-    let hash = 0x811c9dc5;
-    for (let i = 0; i < input.length; i++) {
-      hash ^= input.charCodeAt(i);
-      hash = Math.imul(hash, 0x01000193);
-    }
-    return (hash >>> 0).toString(16).padStart(8, '0');
   }
 
   /** Get hasher statistics */
