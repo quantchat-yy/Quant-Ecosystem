@@ -6,7 +6,8 @@ import { spring } from '@quant/brand';
 import { useGameSdk } from '../../hooks/useGameSdk';
 import { useMicroInteractions } from '../../providers/MicroInteractionProvider';
 import {
-  GAME_COMPLETION_XP,
+  awardGameXp,
+  gameXpForScore,
   formatGameScoreMessage,
   type GameDefinition,
   type GameOverPayload,
@@ -61,6 +62,11 @@ export interface GameLauncherProps {
   /** Games available in this conversation (defaults to {@link DEFAULT_GAMES}). */
   games?: GameDefinition[];
   /**
+   * The local user's id. When provided, the local user is awarded XP
+   * proportional to THEIR own score on game over (Property 37 / Req 17.3).
+   */
+  currentUserId?: string;
+  /**
    * Posts a system message to the conversation (Requirement 17.3). Typically
    * wired to the messages API with `type: 'system'`.
    */
@@ -73,6 +79,7 @@ export const GameLauncher: React.FC<GameLauncherProps> = ({
   conversationId,
   participantIds,
   games = DEFAULT_GAMES,
+  currentUserId,
   onPostSystemMessage,
   onClose,
 }) => {
@@ -86,13 +93,22 @@ export const GameLauncher: React.FC<GameLauncherProps> = ({
       // 14.5: post final scores to chat as a system message.
       void onPostSystemMessage(text);
 
-      // 14.5: award XP to each participant in this session.
-      payload.scores.forEach(() => {
-        // XPAction has no game-specific entry; award an explicit amount.
-        awardXP('send_message', GAME_COMPLETION_XP);
-      });
+      // 14.5 / Property 37 / Req 17.3: award XP PROPORTIONAL to each
+      // participant's score (floor(score / 10)), never a flat constant.
+      // The MicroInteractions provider only tracks the LOCAL user's XP, so we
+      // award the local user the proportional XP for THEIR own score. When the
+      // local participant is unknown we fall back to the proportional XP of the
+      // top score (still proportional, never flat).
+      const awards = awardGameXp(payload.scores);
+      const localXp =
+        currentUserId !== undefined && currentUserId in awards
+          ? awards[currentUserId]
+          : gameXpForScore(payload.scores.reduce((max, s) => Math.max(max, s.score), 0));
+
+      // XPAction has no game-specific entry; award an explicit amount.
+      awardXP('send_message', localXp);
     },
-    [games, onPostSystemMessage, awardXP],
+    [games, currentUserId, onPostSystemMessage, awardXP],
   );
 
   const sdk = useGameSdk({

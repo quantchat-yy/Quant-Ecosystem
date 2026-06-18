@@ -72,7 +72,9 @@ describe('WebSocket routing property tests', () => {
       for (let h = 0; h < numHandlers; h++) {
         const inbox: TestEvent[] = [];
         received.push(inbox);
-        router.subscribe(channel, (e) => inbox.push(e));
+        router.subscribe(channel, (e) => {
+          inbox.push(e);
+        });
       }
 
       const nonce = randInt(rng, 0, 1_000_000);
@@ -96,7 +98,9 @@ describe('WebSocket routing property tests', () => {
     for (const channel of CHANNELS) {
       const router = new ChannelRouter<TestEvent>();
       const inbox: TestEvent[] = [];
-      router.subscribe(channel, (e) => inbox.push(e));
+      router.subscribe(channel, (e) => {
+        inbox.push(e);
+      });
 
       const nonce = randInt(rng, 0, 1_000_000);
       const event = makeEvent(channel, 0, nonce);
@@ -133,7 +137,9 @@ describe('WebSocket routing property tests', () => {
         const numHandlers = randInt(rng, 1, 4);
         handlerCount.set(channel, numHandlers);
         for (let h = 0; h < numHandlers; h++) {
-          router.subscribe(channel, (e) => inbox.push(e));
+          router.subscribe(channel, (e) => {
+            inbox.push(e);
+          });
         }
       }
 
@@ -186,8 +192,12 @@ describe('WebSocket routing property tests', () => {
 
       const inboxA: TestEvent[] = [];
       const inboxB: TestEvent[] = [];
-      const offA = router.subscribe(a, (e) => inboxA.push(e));
-      router.subscribe(b, (e) => inboxB.push(e));
+      const offA = router.subscribe(a, (e) => {
+        inboxA.push(e);
+      });
+      router.subscribe(b, (e) => {
+        inboxB.push(e);
+      });
 
       router.route(makeEvent(a, 0, 1));
       router.route(makeEvent(b, 1, 2));
