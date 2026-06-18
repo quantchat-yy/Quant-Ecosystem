@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
-import { EncryptionService, InMemoryKeyStorage } from '../services/encryption.service';
+import { EncryptionService } from '../services/encryption.service';
+import { createKeyStorage } from '../services/key-storage-factory';
 
 export const uploadBundleSchema = z.object({
   identityKey: z.string().min(1),
@@ -15,11 +16,10 @@ const establishSessionSchema = z.object({
   responderId: z.string().min(1),
 });
 
-// Shared storage instance (in production, inject via DI)
-const keyStorage = new InMemoryKeyStorage();
-
 export default async function encryptionRoutes(fastify: FastifyInstance) {
-  const service = new EncryptionService(keyStorage);
+  // Config-driven key storage (Requirements 3.5, 3.6): durable PrismaKeyStorage
+  // by default; volatile InMemoryKeyStorage only when KEY_STORAGE=memory.
+  const service = new EncryptionService(createKeyStorage(fastify.prisma));
 
   // POST /encryption/keys - Upload prekey bundle
   fastify.post('/keys', async (request, reply) => {

@@ -4,6 +4,7 @@ import messagesRoutes from './routes/messages';
 import conversationsRoutes from './routes/conversations';
 import encryptionRoutes from './routes/encryption';
 import e2eeRoutes from './routes/e2ee';
+import e2eePreKeyRoutes from './routes/e2ee-prekeys';
 import federationRoutes, { createFederationService } from './routes/federation';
 import arLensesRoutes, { createArLensesService } from './routes/ar-lenses';
 import mediaRoutes from './routes/media';
@@ -125,6 +126,16 @@ export async function buildApp(config?: AppConfig) {
     e2eeRelay.shutdown();
   });
   await app.register(e2eeRoutes, { prefix: '/e2ee' });
+
+  // Durable E2EE prekey distribution (W1, design Component 1 / Sequence 1).
+  // Config-driven key storage (KEY_STORAGE=memory → volatile InMemoryKeyStorage,
+  // otherwise durable PrismaKeyStorage). Mounted under /e2ee alongside the
+  // ciphertext relay above: POST /e2ee/prekeys (publish PUBLIC bundle + verify
+  // signed-prekey signature) and GET /e2ee/prekeys/:userId (fetch PUBLIC bundle
+  // + atomically claim a one-time prekey). Zero-knowledge invariant preserved
+  // (public material only — Req 16.1, 16.3); paths do not collide with the
+  // relay's /e2ee/keys or /e2ee/messages.
+  await app.register(e2eePreKeyRoutes, { prefix: '/e2ee' });
 
   // federation engine — per-app lane, Task 14.1 (Req 3.1, 3.2, 7.4). Composes
   // the as-shipped `@quant/federation` exports (FederationModeration +
