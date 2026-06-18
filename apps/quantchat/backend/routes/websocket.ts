@@ -11,6 +11,7 @@ import {
   type RoomEvent,
   type RoomEventType,
 } from '../services/realtime-backplane';
+import { DeliveryReceiptService } from '../services/delivery-receipt.service';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -40,6 +41,18 @@ export async function websocketRoutes(fastify: FastifyInstance) {
 
   const rooms = new Map<string, Set<WebSocket>>();
   const socketUsers = new Map<WebSocket, string>();
+
+  // W3 — First-class delivery and read receipts (Task 14, design Data Model 5 /
+  // Sequence 2 / Requirement 10). Recipient sockets ack receipt and signal reads
+  // over the WS connection; the receipts are persisted in the `MessageDelivery`
+  // table (one row per `(messageId, userId)`) and the corresponding
+  // delivery/read room events are fanned across the cluster so the SENDER's
+  // socket can render sent/delivered/read ticks (ties into Requirement 12.5 on
+  // the frontend). The service is built from the shared `fastify.prisma`
+  // decorator; when Prisma is unavailable (e.g. a minimal test harness) receipt
+  // recording is skipped but realtime fan-out of the tick event still happens.
+  const prismaClient = (fastify as unknown as { prisma?: unknown }).prisma;
+  const deliveryReceipts = prismaClient ? new DeliveryReceiptService(prismaClient as never) : null;
 
   // W2 — Cross-instance realtime fan-out (design Component 2 / Algorithm 4).
   // Select the backplane implementation here (Task 6.2): use the Redis pub/sub
@@ -257,6 +270,41 @@ export async function websocketRoutes(fastify: FastifyInstance) {
   }
 
   /**
+   * Persist a delivery/read receipt for `(messageId, userId)` and fan the
+   * matching tick event across the cluster so the sender's socket updates its
+   * sent/delivered/read indicator (Requirement 10.1/10.2 + 12.5). Recording and
+   * fan-out are independent: if Prisma is unavailable the receipt is skipped but
+   * the realtime tick still propagates; if recording fails it is logged and the
+   * tick is suppressed so peers are not told of a receipt that was not stored.
+   */
+  function recordAndFan(
+    method: 'recordDelivered' | 'recordRead',
+    eventType: 'message:delivered' | 'message:read',
+    messageId: string,
+    conversationId: string,
+    recipientId: string,
+  ): void {
+    const fan = (): void => {
+      publishRoomEvent(conversationId, eventType, {
+        type: eventType,
+        data: { messageId, conversationId, userId: recipientId },
+      });
+    };
+
+    if (!deliveryReceipts) {
+      // No durable store wired (minimal harness): still propagate the tick.
+      fan();
+      return;
+    }
+
+    deliveryReceipts[method](messageId, recipientId)
+      .then(fan)
+      .catch((err: unknown) => {
+        fastify.log.error({ err, messageId, recipientId, eventType }, 'receipt recording failed');
+      });
+  }
+
+  /**
    * Remove a socket from every room it belongs to. When a room becomes empty
    * (the last local socket left), unsubscribe this instance from the backplane
    * channel for that conversation (Requirement 4.2).
@@ -358,6 +406,34 @@ export async function websocketRoutes(fastify: FastifyInstance) {
               },
               socket,
             );
+          }
+
+          // W3 — delivery acknowledgement (Requirement 10.1). A recipient socket
+          // confirms it received a message; persist `deliveredAt` for
+          // `(messageId, userId)` and fan a `message:delivered` tick across the
+          // cluster so the sender's socket can render the delivered state
+          // (Requirement 12.5). Accept `delivery_ack` and the `message:delivered`
+          // alias.
+          if (
+            (message.type === 'delivery_ack' || message.type === 'message:delivered') &&
+            typeof message.messageId === 'string' &&
+            typeof message.conversationId === 'string'
+          ) {
+            const { messageId, conversationId } = message;
+            recordAndFan('recordDelivered', 'message:delivered', messageId, conversationId, userId);
+          }
+
+          // W3 — read receipt (Requirements 10.2, 10.4). A recipient reads a
+          // message; persist `readAt` (back-filling `deliveredAt` so it is never
+          // later than `readAt`) and fan a `message:read` tick across the cluster.
+          // Accept `read_receipt` and the `message:read` alias.
+          if (
+            (message.type === 'read_receipt' || message.type === 'message:read') &&
+            typeof message.messageId === 'string' &&
+            typeof message.conversationId === 'string'
+          ) {
+            const { messageId, conversationId } = message;
+            recordAndFan('recordRead', 'message:read', messageId, conversationId, userId);
           }
         } catch (err) {
           fastify.log.error({ err }, 'WebSocket message handling failed');

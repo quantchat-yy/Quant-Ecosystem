@@ -27,7 +27,12 @@ import type Redis from 'ioredis';
  * `type` values already produced by the websocket layer (`new_message`,
  * `typing_indicator`) plus the delivery/presence events introduced by W2/W3.
  */
-export type RoomEventType = 'new_message' | 'typing_indicator' | 'message:read' | 'presence:update';
+export type RoomEventType =
+  | 'new_message'
+  | 'typing_indicator'
+  | 'message:delivered'
+  | 'message:read'
+  | 'presence:update';
 
 /**
  * A room event as it travels over the backplane. `originInstanceId` identifies
