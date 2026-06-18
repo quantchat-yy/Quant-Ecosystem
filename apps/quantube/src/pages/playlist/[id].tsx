@@ -126,7 +126,7 @@ const PlaylistPage: React.FC = () => {
     playlistQuery.isPending || playlistQuery.isLoading || (Boolean(detail) && !state.playlist);
 
   // Hydrate the LOCAL, edit-only draft state from the fetched playlist when it
-  // arrives (replacing initialization from MOCK_PLAYLIST). react-query's
+  // arrives (replacing the former mock initialization). react-query's
   // structural sharing keeps `detail` reference-stable, so this runs once per
   // distinct response rather than on every render.
   useEffect(() => {

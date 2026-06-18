@@ -45,9 +45,12 @@ function makeFetchMock(status = 200, payload: unknown = { success: true, data: {
 }
 
 function lastFetchCall(fetchMock: ReturnType<typeof makeFetchMock>) {
-  const call = fetchMock.mock.calls[0];
-  const url = call[0] as string;
-  const init = call[1] as RequestInit & { headers: Record<string, string> };
+  const call = fetchMock.mock.calls[0] as unknown as [
+    string,
+    RequestInit & { headers: Record<string, string> },
+  ];
+  const url = call[0];
+  const init = call[1];
   return { url, init, headers: init.headers as Record<string, string> };
 }
 

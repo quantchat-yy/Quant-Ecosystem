@@ -5,7 +5,9 @@ import { proxyEngineRequest } from '../../_lib/engine-proxy';
 // most-recently-added-first. Forwards to the registered backend
 // `/playlists/watch-later` route. Req 7.1, 7.4.
 export async function GET(request: NextRequest) {
-  return proxyEngineRequest(request, '/playlists/watch-later');
+  return proxyEngineRequest(request, '/playlists/watch-later', {
+    searchParams: request.nextUrl.searchParams,
+  });
 }
 
 // POST /api/playlists/watch-later — add a video to Watch Later (idempotent).
