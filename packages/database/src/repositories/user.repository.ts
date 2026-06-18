@@ -26,14 +26,28 @@ export const userPublicSelect = {
   loginCount: true,
   preferences: true,
   metadata: true,
+  // Public-facing gamification stats.
+  xpPoints: true,
+  level: true,
   createdAt: true,
   updatedAt: true,
   deletedAt: true,
 } satisfies Prisma.UserSelect;
 
+/**
+ * Public user shape. Excludes sensitive auth fields and the `ghostMode`
+ * privacy/location setting, which must never be exposed in public/API
+ * contexts. `xpPoints` and `level` are public gamification stats and are
+ * therefore retained. Keep this in sync with `userPublicSelect`.
+ */
 export type UserPublic = Omit<
   User,
-  'passwordHash' | 'twoFactorSecret' | 'lastLoginIp' | 'failedLoginAttempts' | 'lockoutUntil'
+  | 'passwordHash'
+  | 'twoFactorSecret'
+  | 'lastLoginIp'
+  | 'failedLoginAttempts'
+  | 'lockoutUntil'
+  | 'ghostMode'
 >;
 
 export class UserRepository extends BaseRepository {
