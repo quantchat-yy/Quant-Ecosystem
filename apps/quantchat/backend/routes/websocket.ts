@@ -37,7 +37,6 @@ export async function websocketRoutes(fastify: FastifyInstance) {
     jwtAudience: process.env.JWT_AUDIENCE || 'quant-ecosystem',
   });
 
-  const presence = new PresenceManager();
   const rooms = new Map<string, Set<WebSocket>>();
   const socketUsers = new Map<WebSocket, string>();
 
@@ -60,6 +59,33 @@ export async function websocketRoutes(fastify: FastifyInstance) {
     backplane = new InProcessBackplane();
   }
 
+  // W2 — Presence backplane wiring (Task 7, design Component 2 note / Sequence 3).
+  // The PresenceManager shares the SAME ioredis client as the RealtimeBackplane
+  // when REDIS_URL is set, so presence is recorded/read via the shared Redis
+  // ZSET (score = last-seen timestamp) and is therefore visible across every
+  // instance (Requirement 5.1). With no Redis it transparently falls back to
+  // in-memory single-node presence. A Redis read failure is logged so operators
+  // can see the degraded state; `isOnlineAnywhere` then reports offline and the
+  // delivery path falls back to push (Requirement 5.4).
+  const presence = new PresenceManager(
+    redis
+      ? {
+          redis,
+          onReadFailure: (userId: string, err: unknown) => {
+            fastify.log.error({ err, userId }, 'presence redis read failed; treating as offline');
+          },
+        }
+      : {},
+  );
+
+  // Dedicated, cluster-wide channel carrying user presence transitions. Presence
+  // is user-scoped rather than conversation-scoped, so it rides its own channel
+  // (reusing the per-conversation backplane plumbing) instead of a room channel.
+  const PRESENCE_CHANNEL = '__presence__';
+  backplane.subscribe(PRESENCE_CHANNEL).catch((err: unknown) => {
+    fastify.log.error({ err }, 'backplane presence subscribe failed');
+  });
+
   /**
    * Algorithm 4 — cross-instance fan-out. Inbound backplane events whose origin
    * is THIS instance were already delivered to local sockets at publish time, so
@@ -70,6 +96,14 @@ export async function websocketRoutes(fastify: FastifyInstance) {
    */
   backplane.onMessage((conversationId: string, event: RoomEvent) => {
     if (event.originInstanceId === backplane.instanceId) return;
+    // Presence transitions are user-scoped, not room-scoped: a remote instance
+    // published it on the dedicated presence channel, so fan it out to every
+    // open local socket (Requirement 5.3 — subscribed instances receive it; the
+    // frontend re-renders affected indicators per Requirement 11.3).
+    if (event.type === 'presence:update') {
+      broadcastToAllSockets(event.payload);
+      return;
+    }
     const room = rooms.get(conversationId);
     if (!room) return;
     const data = JSON.stringify(event.payload);
@@ -79,6 +113,35 @@ export async function websocketRoutes(fastify: FastifyInstance) {
       }
     }
   });
+
+  /** Send a payload to every open socket connected to THIS instance. */
+  function broadcastToAllSockets(payload: unknown): void {
+    const data = JSON.stringify(payload);
+    for (const socket of socketUsers.keys()) {
+      if (socket.readyState === socket.OPEN) {
+        socket.send(data);
+      }
+    }
+  }
+
+  /**
+   * Publish a user's online/offline transition over the backplane so every
+   * subscribed instance learns about it (Requirement 5.3), and deliver it to
+   * this instance's own sockets immediately. Stamped with this instance's id so
+   * the origin does not double-deliver when the event echoes back.
+   */
+  function publishPresence(userId: string, status: 'online' | 'offline'): void {
+    const payload = { type: 'presence:update', userId, status, lastSeen: Date.now() };
+    broadcastToAllSockets(payload);
+    const event: RoomEvent = {
+      type: 'presence:update',
+      originInstanceId: backplane.instanceId,
+      payload,
+    };
+    backplane.publish(PRESENCE_CHANNEL, event).catch((err: unknown) => {
+      fastify.log.error({ err, userId }, 'backplane presence publish failed');
+    });
+  }
 
   /**
    * Add a socket to a conversation's local room. Returns true when this is the
@@ -193,7 +256,12 @@ export async function websocketRoutes(fastify: FastifyInstance) {
       }
 
       socketUsers.set(socket, userId);
-      presence.setOnline(userId, 'quantchat');
+      // Record presence in the shared ZSET (score = now). When this is the
+      // first live device for the user, publish the online transition across
+      // the cluster (Requirement 5.1, 5.3).
+      if (presence.setOnline(userId, 'quantchat')) {
+        publishPresence(userId, 'online');
+      }
 
       const query = request.query as { conversationId?: string };
       if (query.conversationId) {
@@ -205,6 +273,16 @@ export async function websocketRoutes(fastify: FastifyInstance) {
       socket.on('message', (rawData: Buffer | string) => {
         try {
           const message = JSON.parse(rawData.toString());
+
+          // Any inbound activity refreshes the user's last-seen timestamp in the
+          // shared ZSET so the 30s freshness window stays accurate while the
+          // socket is alive (Requirement 5.2). Explicit heartbeat/ping frames
+          // exist so idle-but-connected clients keep their presence fresh.
+          presence.heartbeat(userId, 'quantchat');
+
+          if (message.type === 'heartbeat' || message.type === 'ping') {
+            return;
+          }
 
           if (message.type === 'join_conversation' && typeof message.conversationId === 'string') {
             if (joinRoom(message.conversationId, socket)) {
@@ -239,7 +317,11 @@ export async function websocketRoutes(fastify: FastifyInstance) {
       socket.on('close', () => {
         leaveAllRooms(socket);
         socketUsers.delete(socket);
-        presence.setOffline(userId);
+        // When the last live device disconnects, publish the offline transition
+        // across the cluster (Requirement 5.3).
+        if (presence.setOffline(userId)) {
+          publishPresence(userId, 'offline');
+        }
       });
     },
   );

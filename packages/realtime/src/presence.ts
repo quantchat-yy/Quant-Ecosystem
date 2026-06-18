@@ -27,15 +27,30 @@ export interface PresenceConfig {
   awayTimeoutMs: number;
   offlineTimeoutMs: number;
   maxSubscriptionsPerUser: number;
+  /**
+   * Window (ms) within which a user's last-seen timestamp must fall for them to
+   * count as "online anywhere" for delivery decisions (Requirement 5.2).
+   */
+  freshnessWindowMs: number;
   redis?: Redis;
   keyPrefix?: string;
+  /**
+   * Invoked when a Redis presence read fails (Requirement 5.4). The caller can
+   * use this to surface the degraded state; the manager itself reports the user
+   * offline so delivery falls back to push.
+   */
+  onReadFailure?: (userId: string, error: unknown) => void;
 }
+
+/** Presence freshness window for delivery decisions (Requirement 5.2): 30 seconds. */
+const PRESENCE_FRESHNESS_WINDOW_MS = 30000;
 
 const DEFAULT_PRESENCE_CONFIG: PresenceConfig = {
   heartbeatIntervalMs: 30000,
   awayTimeoutMs: 300000, // 5 minutes
   offlineTimeoutMs: 600000, // 10 minutes
   maxSubscriptionsPerUser: 500,
+  freshnessWindowMs: PRESENCE_FRESHNESS_WINDOW_MS,
 };
 
 /**
@@ -59,6 +74,8 @@ export class PresenceManager {
   private handlers: Map<string, Set<EventHandler<PresenceUpdateEvent>>> = new Map();
   private redis: Redis | null;
   private keyPrefix: string;
+  /** Count of Redis presence read failures recorded (Requirement 5.4). */
+  private readFailures = 0;
 
   constructor(config: Partial<PresenceConfig> = {}) {
     this.config = { ...DEFAULT_PRESENCE_CONFIG, ...config };
@@ -69,10 +86,15 @@ export class PresenceManager {
   /**
    * Set user as online (called on connection).
    * Uses Redis ZADD with current timestamp as score.
+   *
+   * @returns `true` when this connection transitions the user from offline to
+   *   online (first live device), so the caller can publish a `presence:update`
+   *   transition over the backplane (Requirement 5.3).
    */
-  setOnline(userId: string, app: QuantApp): void {
+  setOnline(userId: string, app: QuantApp): boolean {
     const existing = this.presenceState.get(userId);
     const now = Date.now();
+    const wasOffline = !existing || existing.connectedDevices <= 0 || existing.status === 'offline';
 
     const state: UserPresenceState = {
       userId,
@@ -100,15 +122,20 @@ export class PresenceManager {
     }
 
     this.notifySubscribers(userId);
+    return wasOffline;
   }
 
   /**
    * Set user as offline (called on disconnect).
    * Uses Redis ZREM to remove from active set.
+   *
+   * @returns `true` when the last live device disconnects and the user
+   *   transitions online -> offline, so the caller can publish a
+   *   `presence:update` transition over the backplane (Requirement 5.3).
    */
-  setOffline(userId: string): void {
+  setOffline(userId: string): boolean {
     const existing = this.presenceState.get(userId);
-    if (!existing) return;
+    if (!existing) return false;
 
     const devices = Math.max(0, existing.connectedDevices - 1);
     if (devices > 0) {
@@ -118,7 +145,7 @@ export class PresenceManager {
           .hset(`${this.keyPrefix}meta:${userId}`, 'devices', devices.toString())
           .catch(() => {});
       }
-      return;
+      return false;
     }
 
     existing.status = 'offline';
@@ -138,6 +165,7 @@ export class PresenceManager {
     }
 
     this.notifySubscribers(userId);
+    return true;
   }
 
   /**
@@ -246,6 +274,52 @@ export class PresenceManager {
       }
     }
     return entries;
+  }
+
+  /**
+   * Report whether a recipient is online on ANY instance for a delivery
+   * decision (Requirement 5.2). The recipient is online if and only if they
+   * have at least one live socket whose last-seen timestamp falls within the
+   * presence freshness window (30s by default).
+   *
+   * Backed by the shared Redis ZSET when configured: ZSCORE returns the user's
+   * last-seen timestamp (the ZADD score), which is compared against the
+   * freshness threshold. When Redis is absent, the in-memory state is used.
+   *
+   * On a Redis read failure (Requirement 5.4) the recipient is reported OFFLINE
+   * and the failure is recorded so the delivery path falls back to push.
+   */
+  async isOnlineAnywhere(userId: string): Promise<boolean> {
+    const threshold = Date.now() - this.config.freshnessWindowMs;
+
+    if (this.redis) {
+      try {
+        const score = await this.redis.zscore(`${this.keyPrefix}active`, userId);
+        if (score === null || score === undefined) return false;
+        const lastSeen = Number.parseInt(score, 10);
+        return Number.isFinite(lastSeen) && lastSeen >= threshold;
+      } catch (error) {
+        // Requirement 5.4: report offline + record so delivery falls back to push.
+        this.recordReadFailure(userId, error);
+        return false;
+      }
+    }
+
+    // In-memory fallback (single-node / no Redis configured).
+    const state = this.presenceState.get(userId);
+    if (!state) return false;
+    return state.status !== 'offline' && state.lastSeen >= threshold;
+  }
+
+  /** Number of Redis presence read failures recorded (Requirement 5.4). */
+  getReadFailureCount(): number {
+    return this.readFailures;
+  }
+
+  /** Record a Redis presence read failure and notify the optional callback. */
+  private recordReadFailure(userId: string, error: unknown): void {
+    this.readFailures += 1;
+    this.config.onReadFailure?.(userId, error);
   }
 
   /**
