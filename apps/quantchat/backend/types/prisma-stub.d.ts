@@ -12,6 +12,8 @@ declare module '@prisma/client' {
     name: string | null;
     description: string | null;
     createdBy: string;
+    themeId: string | null;
+    disappearTimer: number | null;
     lastMessageAt: Date;
     isArchived?: boolean;
     metadata: Record<string, unknown>;
@@ -46,6 +48,15 @@ declare module '@prisma/client' {
     expiresAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
+  }
+
+  export interface ChatTheme {
+    id: string;
+    name: string;
+    backgroundGradient: string;
+    bubbleColor: string;
+    fontStyle: string;
+    isAlienTheme: boolean;
   }
 
   interface WhereUniqueInput {
@@ -101,6 +112,7 @@ declare module '@prisma/client' {
     findUnique(args: {
       where: WhereUniqueInput;
       include?: Record<string, unknown>;
+      select?: Record<string, unknown>;
     }): Promise<T | null>;
     findFirst(args?: FindFirstArgs): Promise<T | null>;
     findMany(args?: FindManyArgs): Promise<T[]>;
@@ -116,6 +128,7 @@ declare module '@prisma/client' {
     conversation: ModelDelegate<Conversation>;
     conversationMember: ModelDelegate<ConversationMember>;
     message: ModelDelegate<Message>;
+    chatTheme: ModelDelegate<ChatTheme>;
   }
 
   export interface PrismaClient extends TransactionClient {

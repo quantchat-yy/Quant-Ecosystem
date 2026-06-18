@@ -139,3 +139,96 @@ html {
 .animate-shake {
   animation: shake 0.4s ease-in-out;
 }
+
+/* Skeleton shimmer animation — gradient slide from left to right, 1.5s infinite */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.15) 20%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0.15) 80%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+.dark .skeleton-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.05) 20%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.05) 80%,
+    transparent 100%
+  );
+}
+
+/* ─── Task 11.13: CSS Haptic Feedback ────────────────────────────────────── */
+/* 50ms scale transform on :active for all interactive elements */
+.haptic-feedback {
+  transition: transform 50ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.haptic-feedback:active {
+  transform: scale(0.95);
+}
+
+/* Apply haptic feedback to common interactive elements */
+button,
+a[role='button'],
+[role='button'],
+.nav-item,
+.like-button,
+.send-button {
+  transition: transform 50ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:active,
+a[role='button']:active,
+[role='button']:active,
+.nav-item:active,
+.like-button:active,
+.send-button:active {
+  transform: scale(0.95);
+}
+
+/* ─── Task 11.9: FOMO Ring Animation ────────────────────────────────────── */
+@keyframes fomo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-fomo-spin {
+  animation: fomo-spin 2s linear infinite;
+}
+
+/* ─── Shimmer for LevelProgress bar ─────────────────────────────────────── */
+@keyframes animate-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: animate-shimmer 2s infinite linear;
+}

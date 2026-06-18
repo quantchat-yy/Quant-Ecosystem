@@ -37,6 +37,9 @@ model User {
   lockoutUntil        DateTime?
   preferences         Json       @default("{}")
   metadata            Json       @default("{}")
+  xpPoints            Int        @default(0)
+  level               Int        @default(1)
+  ghostMode           Boolean    @default(false)
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
   deletedAt           DateTime?
@@ -82,6 +85,16 @@ model User {
 
   // Community membership
   communityMemberships CommunityMember[]
+
+  // QuantChat Mega Upgrade relations
+  reels              Reel[]
+  streaksA           Streak[]          @relation("streakUserA")
+  streaksB           Streak[]          @relation("streakUserB")
+  gameBadges         GameBadge[]
+  memories           Memory[]
+  pushSubscriptions  PushSubscription[]
+  scheduledMessages  ScheduledMessage[]
+  quantAvatar        Avatar?           @relation()
 
   @@index([email])
   @@index([username])
@@ -246,6 +259,8 @@ model Conversation {
   description   String?
   avatarUrl     String?
   createdBy     String
+  themeId       String?
+  disappearTimer Int?            // seconds, null = no timer
   isArchived    Boolean          @default(false)
   lastMessageAt DateTime?
   metadata      Json             @default("{}")
@@ -258,6 +273,7 @@ model Conversation {
 
   @@index([createdBy])
   @@index([lastMessageAt])
+  @@index([updatedAt])
   @@map("conversations")
 }
 
@@ -307,6 +323,7 @@ model Message {
   replyToId         String?
   isEdited          Boolean     @default(false)
   isDeleted         Boolean     @default(false)
+  isAIGenerated     Boolean     @default(false)
   expiresAt         DateTime?
   mentions          Json        @default("[]")
   metadata          Json        @default("{}")
@@ -322,6 +339,7 @@ model Message {
   @@index([conversationId])
   @@index([senderId])
   @@index([createdAt])
+  @@index([expiresAt])
   @@map("messages")
 }
 
@@ -1477,4 +1495,250 @@ model Like {
   @@index([userId])
   @@index([postId])
   @@map("likes")
+}
+
+// ==================== QUANTCHAT MEGA UPGRADE ====================
+
+model Reel {
+  id               String        @id @default(cuid())
+  creatorId        String
+  videoUrl         String
+  thumbnailUrl     String
+  caption          String
+  duration         Int           // seconds (5-60)
+  likeCount        Int           @default(0)
+  commentCount     Int           @default(0)
+  shareCount       Int           @default(0)
+  watchThroughRate Float         @default(0)
+  isFeatured       Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+
+  creator  User          @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  likes    ReelLike[]
+  comments ReelComment[]
+
+  @@index([creatorId])
+  @@index([createdAt])
+  @@index([likeCount, shareCount, watchThroughRate])
+  @@map("reels")
+}
+
+model ReelLike {
+  id        String   @id @default(cuid())
+  reelId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  reel Reel @relation(fields: [reelId], references: [id], onDelete: Cascade)
+
+  @@unique([reelId, userId])
+  @@index([reelId])
+  @@index([userId])
+  @@map("reel_likes")
+}
+
+model ReelComment {
+  id        String   @id @default(cuid())
+  reelId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  reel Reel @relation(fields: [reelId], references: [id], onDelete: Cascade)
+
+  @@index([reelId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("reel_comments")
+}
+
+model Call {
+  id             String   @id @default(cuid())
+  conversationId String
+  initiatorId    String
+  type           CallType @default(VIDEO)
+  status         CallStatus @default(RINGING)
+  startedAt      DateTime?
+  endedAt        DateTime?
+  duration       Int?     // seconds
+  participants   Json     @default("[]")
+  roomId         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([conversationId])
+  @@index([initiatorId])
+  @@index([createdAt])
+  @@map("calls")
+}
+
+enum CallType {
+  AUDIO
+  VIDEO
+}
+
+enum CallStatus {
+  RINGING
+  ACTIVE
+  ENDED
+  MISSED
+  DECLINED
+}
+
+model Media {
+  id           String         @id @default(cuid())
+  userId       String
+  type         QuantMediaType
+  url          String
+  thumbnailUrl String?
+  fileName     String?
+  fileSize     Int?
+  mimeType     String?
+  width        Int?
+  height       Int?
+  duration     Int?
+  createdAt    DateTime       @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("quantchat_media")
+}
+
+enum QuantMediaType {
+  PHOTO
+  VIDEO
+  AUDIO
+  DOCUMENT
+}
+
+model Avatar {
+  id           String     @id @default(cuid())
+  userId       String     @unique
+  style        AlienStyle
+  imageUrl     String
+  thumbnailUrl String
+  reactions    Json       // Map<ReactionEmotion, animationUrl>
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("avatars")
+}
+
+enum AlienStyle {
+  CRYSTALLINE
+  BIOLUMINESCENT
+  CYBERNETIC
+}
+
+model Streak {
+  id             String   @id @default(cuid())
+  userAId        String
+  userBId        String
+  count          Int      @default(0)
+  lastActivityAt DateTime
+  expiresAt      DateTime // midnight + 24h from last activity
+
+  userA User @relation("streakUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB User @relation("streakUserB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+  @@index([expiresAt])
+  @@map("streaks")
+}
+
+model FriendLocation {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  latitude  Float
+  longitude Float
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("friend_locations")
+}
+
+model GameBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeType String
+  awardedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([badgeType])
+  @@map("game_badges")
+}
+
+model Memory {
+  id        String         @id @default(cuid())
+  userId    String
+  mediaUrl  String
+  mediaType QuantMediaType
+  caption   String?
+  location  String?
+  createdAt DateTime       @default(now())
+  deletedAt DateTime?      // soft delete for undo window
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, deletedAt])
+  @@map("memories")
+}
+
+model ScheduledMessage {
+  id             String                @id @default(cuid())
+  userId         String
+  conversationId String
+  content        String
+  scheduledFor   DateTime
+  status         QuantScheduleStatus   @default(PENDING)
+  createdAt      DateTime              @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([conversationId])
+  @@index([scheduledFor, status])
+  @@map("scheduled_messages")
+}
+
+enum QuantScheduleStatus {
+  PENDING
+  SENT
+  CANCELLED
+}
+
+model ChatTheme {
+  id                 String  @id @default(cuid())
+  name               String
+  backgroundGradient String
+  bubbleColor        String
+  fontStyle          String
+  isAlienTheme       Boolean @default(false)
+
+  @@map("chat_themes")
+}
+
+model PushSubscription {
+  id        String    @id @default(cuid())
+  userId    String
+  endpoint  String
+  p256dh    String
+  auth      String
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("push_subscriptions")
 }

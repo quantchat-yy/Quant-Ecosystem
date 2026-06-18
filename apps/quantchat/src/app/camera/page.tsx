@@ -1,178 +1,250 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { spring } from '@quant/brand';
 import { BottomNav } from '@quant/shared-ui';
 import { navItems, routes } from '../../lib/navigation';
+import { Viewfinder } from './Viewfinder';
+import { CaptureButton } from './CaptureButton';
+import { CameraControls } from './CameraControls';
+import { PermissionDenied } from './PermissionDenied';
+import { ARLensCarousel, type ARLensConfig } from './ARLensCarousel';
 
-const filters = [
-  { id: 'none', label: 'None', color: 'from-gray-600 to-gray-800' },
-  { id: 'warm', label: 'Warm', color: 'from-amber-600 to-orange-800' },
-  { id: 'cool', label: 'Cool', color: 'from-blue-600 to-cyan-800' },
-  { id: 'vintage', label: 'Vintage', color: 'from-yellow-700 to-amber-900' },
-  { id: 'noir', label: 'Noir', color: 'from-gray-900 to-black' },
-  { id: 'vivid', label: 'Vivid', color: 'from-pink-500 to-purple-700' },
-  { id: 'emerald', label: 'Emerald', color: 'from-emerald-600 to-teal-800' },
-];
+type PermissionStatus = 'prompt' | 'granted' | 'denied';
+type FlashMode = 'off' | 'torch' | 'screen';
 
-const pageVariants = {
-  initial: { opacity: 0 },
-  enter: {
-    opacity: 1,
-    transition: { type: 'spring' as const, ...spring.gentle },
-  },
-};
-
+/**
+ * Camera page with:
+ * - getUserMedia initialization requesting video (facingMode: 'user' initially)
+ * - Permission handling (prompt -> granted -> render viewfinder; denied -> error state)
+ * - Canvas-based viewfinder rendering the live video stream at 30fps minimum
+ * - Photo capture, video recording, camera flip, and flash controls
+ */
 export default function CameraPage() {
   const router = useRouter();
-  const [flashOn, setFlashOn] = useState(false);
-  const [frontCamera, setFrontCamera] = useState(false);
-  const [activeFilter, setActiveFilter] = useState('none');
-  const [isRecording, setIsRecording] = useState(false);
-  const [captureStatus, setCaptureStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const capturedRef = useRef(false);
 
-  const activeFilterObj = filters.find((f) => f.id === activeFilter) || filters[0];
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+  const [flashMode, setFlashMode] = useState<FlashMode>('off');
+  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('prompt');
+  const [isFlipping, setIsFlipping] = useState(false);
+  const [screenFlashActive, setScreenFlashActive] = useState(false);
+  const [activeLens, setActiveLens] = useState<ARLensConfig | null>(null);
 
-  const handleCapture = async () => {
-    if (capturedRef.current) return;
-    capturedRef.current = true;
-    setTimeout(() => {
-      capturedRef.current = false;
-    }, 500);
-    setCaptureStatus('saving');
-    try {
-      const res = await fetch('/api/stories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'photo', filter: activeFilter }),
-      });
-      if (res.ok) {
-        setCaptureStatus('saved');
-      } else {
-        setCaptureStatus('error');
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Initialize camera stream
+  const initializeCamera = useCallback(
+    async (facing: 'user' | 'environment') => {
+      try {
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: facing,
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          audio: true,
+        });
+
+        setStream(mediaStream);
+        setPermissionStatus('granted');
+
+        // Apply torch constraint if flash mode is torch and rear camera
+        if (flashMode === 'torch' && facing === 'environment') {
+          const videoTrack = mediaStream.getVideoTracks()[0];
+          if (videoTrack) {
+            try {
+              await videoTrack.applyConstraints({
+                // @ts-expect-error — torch is a valid advanced constraint but not in TS types
+                advanced: [{ torch: true }],
+              });
+            } catch {
+              // Torch not supported on this device
+            }
+          }
+        }
+
+        return mediaStream;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'NotAllowedError') {
+          setPermissionStatus('denied');
+        } else if (error instanceof DOMException && error.name === 'NotFoundError') {
+          // No camera — still show denied state gracefully
+          setPermissionStatus('denied');
+        }
+        return null;
       }
-    } catch {
-      setCaptureStatus('error');
-    }
-    setTimeout(() => setCaptureStatus('idle'), 2000);
-  };
+    },
+    [flashMode],
+  );
 
-  return (
-    <motion.div
-      className="relative h-screen w-full overflow-hidden"
-      variants={pageVariants}
-      initial="initial"
-      animate="enter"
-    >
-      {/* Camera viewfinder placeholder */}
-      <div
-        className={`absolute inset-0 bg-gradient-to-b ${activeFilterObj.color} transition-all duration-300`}
-      >
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-32 h-32 border border-white/20 rounded-lg" />
+  // Stop all tracks on current stream
+  const stopStream = useCallback(() => {
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      setStream(null);
+    }
+  }, [stream]);
+
+  // Initialize on mount
+  useEffect(() => {
+    initializeCamera('user');
+
+    return () => {
+      // Cleanup on unmount
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Cleanup stream on unmount
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [stream]);
+
+  // Flip camera — stop current, request opposite facing, target 500ms
+  const handleFlipCamera = useCallback(async () => {
+    if (isFlipping) return;
+    setIsFlipping(true);
+
+    const newFacing = facingMode === 'user' ? 'environment' : 'user';
+
+    // Stop current stream
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      setStream(null);
+    }
+
+    // Request new stream with opposite facing
+    const newStream = await initializeCamera(newFacing);
+    if (newStream) {
+      setFacingMode(newFacing);
+    }
+
+    setIsFlipping(false);
+  }, [facingMode, stream, isFlipping, initializeCamera]);
+
+  // Flash toggle: off -> torch (rear) -> screen (front) -> off
+  const handleToggleFlash = useCallback(async () => {
+    const nextModeMap: Record<FlashMode, FlashMode> = {
+      off: 'torch',
+      torch: 'screen',
+      screen: 'off',
+    };
+    const nextMode = nextModeMap[flashMode];
+    setFlashMode(nextMode);
+
+    // Apply torch constraint on rear camera
+    if (stream && facingMode === 'environment') {
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        try {
+          await videoTrack.applyConstraints({
+            // @ts-expect-error — torch is a valid advanced constraint
+            advanced: [{ torch: nextMode === 'torch' }],
+          });
+        } catch {
+          // Torch not supported
+        }
+      }
+    }
+  }, [flashMode, stream, facingMode]);
+
+  // Photo capture handler
+  const handlePhotoCaptured = useCallback(
+    (blob: Blob) => {
+      // If screen flash mode is active on front camera, flash the screen
+      if (flashMode === 'screen' && facingMode === 'user') {
+        setScreenFlashActive(true);
+        setTimeout(() => setScreenFlashActive(false), 200);
+      }
+
+      // In a real app, this would save to gallery / upload
+      // For now, create a download link as proof of concept
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `quantchat-photo-${Date.now()}.jpg`;
+      // Don't auto-download, just log
+      URL.revokeObjectURL(url);
+    },
+    [flashMode, facingMode],
+  );
+
+  // Video recording handler
+  const handleVideoRecorded = useCallback((blob: Blob) => {
+    // In a real app, this would navigate to editor / upload
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `quantchat-video-${Date.now()}.webm`;
+    URL.revokeObjectURL(url);
+  }, []);
+
+  // Permission denied state
+  if (permissionStatus === 'denied') {
+    return (
+      <div className="relative h-screen w-full overflow-hidden bg-gray-900">
+        <PermissionDenied />
+        <div className="absolute bottom-0 left-0 right-0 z-10">
+          <BottomNav
+            items={navItems}
+            activeId="camera"
+            onChange={(id) => {
+              const route = routes[id];
+              if (route) router.push(route);
+            }}
+          />
         </div>
       </div>
+    );
+  }
 
-      {/* Capture status feedback */}
-      {captureStatus !== 'idle' && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30">
-          <div
-            className={`px-4 py-2 rounded-full backdrop-blur-md text-sm font-medium ${
-              captureStatus === 'saving'
-                ? 'bg-white/20 text-white'
-                : captureStatus === 'saved'
-                  ? 'bg-emerald-500/80 text-white'
-                  : 'bg-red-500/80 text-white'
-            }`}
-          >
-            {captureStatus === 'saving' && 'Saving...'}
-            {captureStatus === 'saved' && 'Story created!'}
-            {captureStatus === 'error' && 'Failed to save'}
+  return (
+    <div className="relative h-screen w-full overflow-hidden bg-black">
+      {/* Screen flash overlay for front camera */}
+      {screenFlashActive && <div className="absolute inset-0 bg-white z-50 pointer-events-none" />}
+
+      {/* Canvas-based viewfinder */}
+      <Viewfinder stream={stream} canvasRef={canvasRef} activeLens={activeLens} />
+
+      {/* Loading state while waiting for permission/stream */}
+      {permissionStatus === 'prompt' && !stream && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+            <span className="text-white/60 text-sm">Initializing camera...</span>
           </div>
         </div>
       )}
 
       {/* Top controls */}
-      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 pt-6">
-        {/* Flash toggle */}
-        <button
-          onClick={() => setFlashOn(!flashOn)}
-          className={`w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-sm min-w-touch min-h-touch ${
-            flashOn ? 'bg-yellow-500/80 text-white' : 'bg-black/30 text-white'
-          }`}
-          aria-label={flashOn ? 'Flash on' : 'Flash off'}
-        >
-          &#9889;
-        </button>
-
-        {/* Flip camera */}
-        <button
-          onClick={() => setFrontCamera(!frontCamera)}
-          className="w-11 h-11 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center text-white min-w-touch min-h-touch"
-          aria-label="Flip camera"
-        >
-          &#128260;
-        </button>
+      <div className="absolute top-0 left-0 right-0 z-10 pt-6">
+        <CameraControls
+          facingMode={facingMode}
+          flashMode={flashMode}
+          onFlipCamera={handleFlipCamera}
+          onToggleFlash={handleToggleFlash}
+          isFlipping={isFlipping}
+        />
       </div>
 
-      {/* Camera indicator */}
-      <div className="absolute top-16 left-1/2 -translate-x-1/2 z-10">
-        <span className="text-xs text-white/60 bg-black/30 backdrop-blur-sm px-3 py-1 rounded-full">
-          {frontCamera ? 'Front Camera' : 'Rear Camera'}
-        </span>
+      {/* Capture button */}
+      <div className="absolute bottom-24 left-0 right-0 z-10 flex items-center justify-center">
+        <CaptureButton
+          canvasRef={canvasRef}
+          stream={stream}
+          onPhotoCaptured={handlePhotoCaptured}
+          onVideoRecorded={handleVideoRecorded}
+        />
       </div>
 
-      {/* Filter carousel */}
-      <div className="absolute bottom-32 left-0 right-0 z-10">
-        <div className="flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide">
-          {filters.map((filter) => (
-            <button
-              key={filter.id}
-              onClick={() => setActiveFilter(filter.id)}
-              className={`flex-shrink-0 w-16 h-16 rounded-xl bg-gradient-to-br ${filter.color} border-2 transition-all min-w-touch min-h-touch ${
-                activeFilter === filter.id
-                  ? 'border-emerald-400 scale-110'
-                  : 'border-transparent opacity-70'
-              }`}
-            >
-              <span className="text-white text-[10px] flex items-end justify-center h-full pb-1">
-                {filter.label}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Shutter button */}
-      <div className="absolute bottom-20 left-0 right-0 z-10 flex items-center justify-center gap-8">
-        <button
-          onMouseDown={() => setIsRecording(true)}
-          onMouseUp={() => {
-            setIsRecording(false);
-            handleCapture();
-          }}
-          onMouseLeave={() => setIsRecording(false)}
-          onTouchStart={() => setIsRecording(true)}
-          onTouchEnd={() => {
-            setIsRecording(false);
-            handleCapture();
-          }}
-          className={`w-20 h-20 rounded-full border-4 border-white flex items-center justify-center transition-all ${
-            isRecording
-              ? 'bg-red-500 scale-110 border-red-300'
-              : 'bg-white/20 backdrop-blur-sm hover:bg-white/30'
-          }`}
-          aria-label="Capture"
-        >
-          <div
-            className={`rounded-full transition-all ${
-              isRecording ? 'w-8 h-8 bg-red-600 rounded-sm' : 'w-14 h-14 bg-white'
-            }`}
-          />
-        </button>
+      {/* AR Lens Carousel */}
+      <div className="absolute bottom-44 left-0 right-0 z-10">
+        <ARLensCarousel activeLens={activeLens} onLensSelect={setActiveLens} />
       </div>
 
       {/* Bottom nav */}
@@ -186,6 +258,6 @@ export default function CameraPage() {
           }}
         />
       </div>
-    </motion.div>
+    </div>
   );
 }

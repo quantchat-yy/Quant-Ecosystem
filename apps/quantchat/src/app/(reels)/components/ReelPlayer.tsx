@@ -6,6 +6,7 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { playbackStateForVisibility } from '../feedLogic';
 
 interface ReelPlayerProps {
   videoUrl: string;
@@ -43,7 +44,8 @@ export function ReelPlayer({ videoUrl, isActive, onVideoEnd }: ReelPlayerProps) 
     const video = videoRef.current;
     if (!video) return;
 
-    if (isVisible && isActive) {
+    const playback = playbackStateForVisibility(isVisible && isActive);
+    if (playback === 'playing') {
       video.play().catch(() => {
         // Autoplay might be blocked by browser policy - that's ok
       });
@@ -79,11 +81,7 @@ export function ReelPlayer({ videoUrl, isActive, onVideoEnd }: ReelPlayerProps) 
   }, []);
 
   return (
-    <div
-      ref={containerRef}
-      className="relative h-full w-full bg-black"
-      onClick={handleTap}
-    >
+    <div ref={containerRef} className="relative h-full w-full bg-black" onClick={handleTap}>
       <video
         ref={videoRef}
         src={videoUrl}

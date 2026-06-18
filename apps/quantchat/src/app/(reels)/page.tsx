@@ -12,6 +12,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, type PanInfo } from 'framer-motion';
 import { useReelsFeed } from '../../hooks/useReelsFeed';
+import { shouldFetchNext } from './feedLogic';
 import { ReelPlayer } from './components/ReelPlayer';
 import { ReelOverlay } from './components/ReelOverlay';
 import { CommentSheet } from './components/CommentSheet';
@@ -24,7 +25,6 @@ const BRAND_SPRINGS = {
 };
 
 const SWIPE_THRESHOLD = 50; // px minimum to trigger transition
-const INFINITE_SCROLL_BUFFER = 3; // Fetch when within 3 items of end
 
 export default function ReelsPage() {
   const {
@@ -68,7 +68,7 @@ export default function ReelsPage() {
 
   // Task 3.5: Infinite scroll - fetch when within 3 items of end
   useEffect(() => {
-    if (reels.length - currentIndex <= INFINITE_SCROLL_BUFFER && hasMore && !isFetchingNextPage) {
+    if (shouldFetchNext(currentIndex, reels.length, hasMore) && !isFetchingNextPage) {
       fetchNextPage();
     }
   }, [currentIndex, reels.length, hasMore, isFetchingNextPage, fetchNextPage]);
@@ -178,10 +178,7 @@ export default function ReelsPage() {
             className="absolute inset-0 h-full w-full"
           >
             {/* Video Player */}
-            <ReelPlayer
-              videoUrl={currentReel.videoUrl}
-              isActive={true}
-            />
+            <ReelPlayer videoUrl={currentReel.videoUrl} isActive={true} />
 
             {/* Overlay: creator info, actions */}
             <ReelOverlay
