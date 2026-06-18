@@ -1,7 +1,15 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import websocketPlugin, { type WebSocket } from '@fastify/websocket';
+import Redis from 'ioredis';
 import { ConnectionAuth, AuthError } from '@quant/realtime';
 import { PresenceManager } from '@quant/realtime/presence';
+import {
+  InProcessBackplane,
+  RedisRealtimeBackplane,
+  type RealtimeBackplane,
+  type RoomEvent,
+  type RoomEventType,
+} from '../services/realtime-backplane';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -33,32 +41,133 @@ export async function websocketRoutes(fastify: FastifyInstance) {
   const rooms = new Map<string, Set<WebSocket>>();
   const socketUsers = new Map<WebSocket, string>();
 
-  function joinRoom(conversationId: string, socket: WebSocket): void {
+  // W2 — Cross-instance realtime fan-out (design Component 2 / Algorithm 4).
+  // Select the backplane implementation here (Task 6.2): use the Redis pub/sub
+  // backplane when REDIS_URL is configured, otherwise fall back to the no-op
+  // single-node InProcessBackplane (the degraded-mode reconnect handling lands
+  // in Task 8). The `rooms` map above remains this instance's LOCAL socket
+  // registry; the backplane only carries events between instances.
+  const redisUrl = process.env.REDIS_URL;
+  let redis: Redis | null = null;
+  let backplane: RealtimeBackplane;
+  if (redisUrl) {
+    redis = new Redis(redisUrl, { lazyConnect: false, maxRetriesPerRequest: null });
+    redis.on('error', (err: Error) => {
+      fastify.log.error({ err }, 'realtime backplane Redis connection error');
+    });
+    backplane = new RedisRealtimeBackplane(redis);
+  } else {
+    backplane = new InProcessBackplane();
+  }
+
+  /**
+   * Algorithm 4 — cross-instance fan-out. Inbound backplane events whose origin
+   * is THIS instance were already delivered to local sockets at publish time, so
+   * they are discarded here to avoid double-delivery (Requirement 4.4). Genuine
+   * remote events are forwarded to every open local socket in the room
+   * (Requirement 4.5), guaranteeing each member socket receives the event
+   * exactly once across the cluster (Requirement 4.6).
+   */
+  backplane.onMessage((conversationId: string, event: RoomEvent) => {
+    if (event.originInstanceId === backplane.instanceId) return;
+    const room = rooms.get(conversationId);
+    if (!room) return;
+    const data = JSON.stringify(event.payload);
+    for (const client of room) {
+      if (client.readyState === client.OPEN) {
+        client.send(data);
+      }
+    }
+  });
+
+  /**
+   * Add a socket to a conversation's local room. Returns true when this is the
+   * first local socket for the conversation (i.e. the room did not previously
+   * exist), which is the signal that this instance must subscribe to the
+   * conversation channel on the backplane (Requirement 4.1).
+   */
+  function joinRoom(conversationId: string, socket: WebSocket): boolean {
     let room = rooms.get(conversationId);
+    const isNewRoom = !room;
     if (!room) {
       room = new Set();
       rooms.set(conversationId, room);
     }
     room.add(socket);
+    return isNewRoom;
   }
 
-  function broadcastToRoom(conversationId: string, payload: unknown, exclude?: WebSocket): void {
+  /**
+   * Subscribe this instance to a conversation channel the first time a local
+   * socket joins the room (Requirement 4.1). Subscription is idempotent at the
+   * backplane level, so a redundant call is harmless.
+   */
+  function ensureSubscribed(conversationId: string): void {
+    backplane.subscribe(conversationId).catch((err: unknown) => {
+      fastify.log.error({ err, conversationId }, 'backplane subscribe failed');
+    });
+  }
+
+  /**
+   * Deliver a room event to the local sockets AND publish it to the backplane so
+   * peer instances can fan it out to their own sockets (Requirement 4.3). Local
+   * delivery happens first so that — even if the backplane publish fails — the
+   * sockets on this instance still receive the event (the publish-failure
+   * retry/record path is completed in Task 8 / Requirement 4.7).
+   */
+  function publishRoomEvent(
+    conversationId: string,
+    type: RoomEventType,
+    payload: unknown,
+    exclude?: WebSocket,
+  ): void {
+    // 1. Local delivery (origin instance delivers at publish time).
     const room = rooms.get(conversationId);
-    if (!room) return;
-    const data = JSON.stringify(payload);
-    for (const client of room) {
-      if (client !== exclude && client.readyState === client.OPEN) {
-        client.send(data);
+    if (room) {
+      const data = JSON.stringify(payload);
+      for (const client of room) {
+        if (client !== exclude && client.readyState === client.OPEN) {
+          client.send(data);
+        }
+      }
+    }
+
+    // 2. Cross-instance fan-out — stamped with this instance's id by publish().
+    const event: RoomEvent = {
+      type,
+      originInstanceId: backplane.instanceId,
+      payload,
+    };
+    backplane.publish(conversationId, event).catch((err: unknown) => {
+      fastify.log.error({ err, conversationId }, 'backplane publish failed');
+    });
+  }
+
+  /**
+   * Remove a socket from every room it belongs to. When a room becomes empty
+   * (the last local socket left), unsubscribe this instance from the backplane
+   * channel for that conversation (Requirement 4.2).
+   */
+  function leaveAllRooms(socket: WebSocket): void {
+    for (const [conversationId, room] of rooms) {
+      if (!room.delete(socket)) continue;
+      if (room.size === 0) {
+        rooms.delete(conversationId);
+        backplane.unsubscribe(conversationId).catch((err: unknown) => {
+          fastify.log.error({ err, conversationId }, 'backplane unsubscribe failed');
+        });
       }
     }
   }
 
-  function leaveAllRooms(socket: WebSocket): void {
-    for (const [conversationId, room] of rooms) {
-      room.delete(socket);
-      if (room.size === 0) rooms.delete(conversationId);
+  // Tear down the backplane (and the Redis connection it was built on) when the
+  // app closes, alongside the existing close hooks (Task 6.2 wiring).
+  fastify.addHook('onClose', async () => {
+    await backplane.shutdown();
+    if (redis) {
+      redis.disconnect();
     }
-  }
+  });
 
   fastify.get(
     '/chat',
@@ -88,7 +197,9 @@ export async function websocketRoutes(fastify: FastifyInstance) {
 
       const query = request.query as { conversationId?: string };
       if (query.conversationId) {
-        joinRoom(query.conversationId, socket);
+        if (joinRoom(query.conversationId, socket)) {
+          ensureSubscribed(query.conversationId);
+        }
       }
 
       socket.on('message', (rawData: Buffer | string) => {
@@ -96,19 +207,22 @@ export async function websocketRoutes(fastify: FastifyInstance) {
           const message = JSON.parse(rawData.toString());
 
           if (message.type === 'join_conversation' && typeof message.conversationId === 'string') {
-            joinRoom(message.conversationId, socket);
+            if (joinRoom(message.conversationId, socket)) {
+              ensureSubscribed(message.conversationId);
+            }
           }
 
           if (message.type === 'chat_message' && typeof message.conversationId === 'string') {
-            broadcastToRoom(message.conversationId, {
+            publishRoomEvent(message.conversationId, 'new_message', {
               type: 'new_message',
               data: { ...message, senderId: userId },
             });
           }
 
           if (message.type === 'typing' && typeof message.conversationId === 'string') {
-            broadcastToRoom(
+            publishRoomEvent(
               message.conversationId,
+              'typing_indicator',
               {
                 type: 'typing_indicator',
                 userId,
