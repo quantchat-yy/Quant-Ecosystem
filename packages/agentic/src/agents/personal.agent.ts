@@ -1,5 +1,5 @@
-import { Agent } from '../core/agent';
-import { unifiedMemory } from '../memory/unified-memory';
+import { Agent } from '../core/agent.js';
+import { unifiedMemory } from '../memory/unified-memory.js';
 
 export class PersonalAgent extends Agent {
   private userId: string;

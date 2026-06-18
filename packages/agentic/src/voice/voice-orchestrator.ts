@@ -1,6 +1,6 @@
-import { AppController } from '../cross-app/app-controller';
-import { VoiceCommandRouter, type VoiceCommandInput } from './voice-command-router';
-import type { CommandResult } from '../cross-app/command-bus';
+import { AppController } from '../cross-app/app-controller.js';
+import { VoiceCommandRouter, type VoiceCommandInput } from './voice-command-router.js';
+import type { CommandResult } from '../cross-app/command-bus.js';
 import type { UnifiedAIService } from '@quant/ai';
 
 export class VoiceOrchestrator {

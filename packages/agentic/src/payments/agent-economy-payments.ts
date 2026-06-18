@@ -15,7 +15,7 @@
 // This mirrors the fail-closed posture of packages/payments (quant-pro.service).
 
 import { EventEmitter } from 'events';
-import { AgentEconomy } from '../economy/agent-economy';
+import { AgentEconomy } from '../economy/agent-economy.js';
 
 export interface PaymentTransaction {
   id: string;

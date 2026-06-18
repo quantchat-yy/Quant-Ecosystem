@@ -4,8 +4,10 @@
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/router';
+import { usePlaylist } from '../../features/playlist/usePlaylist';
 
-interface PlaylistData {
+export interface PlaylistData {
   id: string;
   title: string;
   description: string;
@@ -20,7 +22,7 @@ interface PlaylistData {
   updatedAt: string;
 }
 
-interface PlaylistVideo {
+export interface PlaylistVideo {
   id: string;
   title: string;
   channelName: string;
@@ -29,6 +31,11 @@ interface PlaylistVideo {
   views: number;
   addedAt: string;
   position: number;
+}
+
+export interface PlaylistDetailResponse {
+  playlist: PlaylistData;
+  videos: PlaylistVideo[];
 }
 
 interface ShareModalState {
@@ -45,8 +52,6 @@ interface PlaylistPageState {
   shareModalOpen: ShareModalState;
   draggedIndex: number | null;
   dragOverIndex: number | null;
-  loading: boolean;
-  error: string | null;
   editingTitle: boolean;
   editingDescription: boolean;
   titleDraft: string;
@@ -56,41 +61,12 @@ interface PlaylistPageState {
   confirmDelete: boolean;
 }
 
-const MOCK_PLAYLIST: PlaylistData = {
-  id: 'pl-123',
-  title: 'Web Development Masterclass',
-  description: 'A curated collection of the best web development tutorials covering React, TypeScript, Node.js, and modern CSS. Updated weekly with new content.',
-  coverUrl: '/covers/webdev-playlist.jpg',
-  creatorName: 'CodeMaster',
-  creatorAvatar: '/avatars/codemaster.jpg',
-  videoCount: 12,
-  totalDuration: 28800,
-  isPublic: true,
-  collaborative: false,
-  createdAt: '2023-11-01T10:00:00Z',
-  updatedAt: '2024-01-14T15:30:00Z',
-};
-
-const MOCK_VIDEOS: PlaylistVideo[] = [
-  { id: 'v1', title: 'React 19 Complete Guide - Everything New', channelName: 'ReactMasters', thumbnailUrl: '/thumbs/react19.jpg', duration: 3600, views: 245000, addedAt: '2024-01-14T10:00:00Z', position: 1 },
-  { id: 'v2', title: 'TypeScript 5.4 - Advanced Types Deep Dive', channelName: 'TSPro', thumbnailUrl: '/thumbs/ts54.jpg', duration: 2700, views: 189000, addedAt: '2024-01-13T09:00:00Z', position: 2 },
-  { id: 'v3', title: 'Building a Full-Stack App with Next.js 14', channelName: 'WebDevSimplified', thumbnailUrl: '/thumbs/nextjs14.jpg', duration: 5400, views: 312000, addedAt: '2024-01-12T14:00:00Z', position: 3 },
-  { id: 'v4', title: 'CSS Container Queries - The Future is Here', channelName: 'CSSWizardry', thumbnailUrl: '/thumbs/css-cq.jpg', duration: 1800, views: 98000, addedAt: '2024-01-11T11:00:00Z', position: 4 },
-  { id: 'v5', title: 'Node.js Performance Optimization Techniques', channelName: 'NodeNinja', thumbnailUrl: '/thumbs/node-perf.jpg', duration: 2400, views: 156000, addedAt: '2024-01-10T08:00:00Z', position: 5 },
-  { id: 'v6', title: 'Tailwind CSS v4 - Complete Migration Guide', channelName: 'TailwindLabs', thumbnailUrl: '/thumbs/tw4.jpg', duration: 1200, views: 423000, addedAt: '2024-01-09T16:00:00Z', position: 6 },
-  { id: 'v7', title: 'GraphQL vs REST - Which to Choose in 2024', channelName: 'APIDesign', thumbnailUrl: '/thumbs/graphql-rest.jpg', duration: 2100, views: 87000, addedAt: '2024-01-08T12:00:00Z', position: 7 },
-  { id: 'v8', title: 'Docker for Frontend Developers', channelName: 'DevOpsJourney', thumbnailUrl: '/thumbs/docker-fe.jpg', duration: 3000, views: 134000, addedAt: '2024-01-07T10:00:00Z', position: 8 },
-  { id: 'v9', title: 'Testing React Apps - Vitest & Testing Library', channelName: 'TestingJS', thumbnailUrl: '/thumbs/testing.jpg', duration: 2400, views: 76000, addedAt: '2024-01-06T09:00:00Z', position: 9 },
-  { id: 'v10', title: 'Zustand vs Redux Toolkit - State Management Battle', channelName: 'ReactMasters', thumbnailUrl: '/thumbs/zustand.jpg', duration: 1800, views: 201000, addedAt: '2024-01-05T14:00:00Z', position: 10 },
-  { id: 'v11', title: 'Web Animations API - No Library Needed', channelName: 'CSSWizardry', thumbnailUrl: '/thumbs/waapi.jpg', duration: 1500, views: 54000, addedAt: '2024-01-04T11:00:00Z', position: 11 },
-  { id: 'v12', title: 'Deploying to the Edge with Vercel', channelName: 'CloudDeploy', thumbnailUrl: '/thumbs/vercel-edge.jpg', duration: 900, views: 167000, addedAt: '2024-01-03T08:00:00Z', position: 12 },
-];
-
 const formatDuration = (seconds: number): string => {
   const hours = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
-  if (hours > 0) return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  if (hours > 0)
+    return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
@@ -115,8 +91,6 @@ const PlaylistPage: React.FC = () => {
     shareModalOpen: { isOpen: false, copied: false, shareUrl: '' },
     draggedIndex: null,
     dragOverIndex: null,
-    loading: true,
-    error: null,
     editingTitle: false,
     editingDescription: false,
     titleDraft: '',
@@ -129,26 +103,43 @@ const PlaylistPage: React.FC = () => {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const descInputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Route id (Pages Router). The query is gated on `id` inside the hook, so it
+  // stays disabled (pending) while the router hydrates and `id` is still empty.
+  const router = useRouter();
+  const id = typeof router.query.id === 'string' ? router.query.id : '';
+
+  // The ONLY sanctioned read path: typed react-query over the same-origin proxy
+  // `/api/playlists/{id}` (Req 2.2). Replaces the setTimeout + MOCK_* loader.
+  const playlistQuery = usePlaylist(id);
+  const envelope = playlistQuery.data; // APIResponse<PlaylistDetailResponse> | undefined
+  const detail = envelope?.success ? envelope.data : undefined;
+
+  // `apiFetch` never throws on non-2xx — it resolves with a `{ success: false,
+  // error: { statusCode } }` envelope — so react-query stays `isSuccess` and the
+  // 404 is carried in `envelope.error.statusCode`, not in `query.isError`.
+  const isNotFound = envelope?.success === false && envelope.error?.statusCode === 404;
+  const isGenericError =
+    playlistQuery.isError || (envelope?.success === false && envelope.error?.statusCode !== 404);
+  // Loading covers the pending fetch AND the brief gap between a successful
+  // response arriving and the local edit-draft state being hydrated below.
+  const isLoading =
+    playlistQuery.isPending || playlistQuery.isLoading || (Boolean(detail) && !state.playlist);
+
+  // Hydrate the LOCAL, edit-only draft state from the fetched playlist when it
+  // arrives (replacing initialization from MOCK_PLAYLIST). react-query's
+  // structural sharing keeps `detail` reference-stable, so this runs once per
+  // distinct response rather than on every render.
   useEffect(() => {
-    const loadPlaylist = async () => {
-      try {
-        setState(prev => ({ ...prev, loading: true, error: null }));
-        await new Promise(resolve => setTimeout(resolve, 600));
-        setState(prev => ({
-          ...prev,
-          playlist: MOCK_PLAYLIST,
-          videos: MOCK_VIDEOS,
-          collaborative: MOCK_PLAYLIST.collaborative,
-          titleDraft: MOCK_PLAYLIST.title,
-          descriptionDraft: MOCK_PLAYLIST.description,
-          loading: false,
-        }));
-      } catch (err) {
-        setState(prev => ({ ...prev, error: 'Failed to load playlist', loading: false }));
-      }
-    };
-    loadPlaylist();
-  }, []);
+    if (!detail) return;
+    setState((prev) => ({
+      ...prev,
+      playlist: detail.playlist,
+      videos: detail.videos,
+      collaborative: detail.playlist.collaborative,
+      titleDraft: detail.playlist.title,
+      descriptionDraft: detail.playlist.description,
+    }));
+  }, [detail]);
 
   useEffect(() => {
     if (state.editingTitle && titleInputRef.current) {
@@ -157,23 +148,23 @@ const PlaylistPage: React.FC = () => {
   }, [state.editingTitle]);
 
   const toggleEditMode = useCallback(() => {
-    setState(prev => ({ ...prev, editMode: !prev.editMode }));
+    setState((prev) => ({ ...prev, editMode: !prev.editMode }));
   }, []);
 
   const toggleCollaborative = useCallback(() => {
-    setState(prev => ({ ...prev, collaborative: !prev.collaborative }));
+    setState((prev) => ({ ...prev, collaborative: !prev.collaborative }));
   }, []);
 
   const handleDragStart = useCallback((index: number) => {
-    setState(prev => ({ ...prev, draggedIndex: index }));
+    setState((prev) => ({ ...prev, draggedIndex: index }));
   }, []);
 
   const handleDragOver = useCallback((index: number) => {
-    setState(prev => ({ ...prev, dragOverIndex: index }));
+    setState((prev) => ({ ...prev, dragOverIndex: index }));
   }, []);
 
   const handleDragEnd = useCallback(() => {
-    setState(prev => {
+    setState((prev) => {
       if (prev.draggedIndex === null || prev.dragOverIndex === null) {
         return { ...prev, draggedIndex: null, dragOverIndex: null };
       }
@@ -186,14 +177,19 @@ const PlaylistPage: React.FC = () => {
   }, []);
 
   const removeVideo = useCallback((videoId: string) => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
-      videos: prev.videos.filter(v => v.id !== videoId).map((v, idx) => ({ ...v, position: idx + 1 })),
+      videos: prev.videos
+        .filter((v) => v.id !== videoId)
+        .map((v, idx) => ({ ...v, position: idx + 1 })),
     }));
   }, []);
 
   const saveTitle = useCallback(() => {
-    setState(prev => ({
+    // LOCAL-ONLY draft edit: there is no backend playlist-mutation endpoint in
+    // this slice, so saving updates local state only. Persisting title/
+    // description/collaborative changes is a follow-up.
+    setState((prev) => ({
       ...prev,
       playlist: prev.playlist ? { ...prev.playlist, title: prev.titleDraft } : null,
       editingTitle: false,
@@ -201,7 +197,7 @@ const PlaylistPage: React.FC = () => {
   }, []);
 
   const saveDescription = useCallback(() => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
       playlist: prev.playlist ? { ...prev.playlist, description: prev.descriptionDraft } : null,
       editingDescription: false,
@@ -210,26 +206,26 @@ const PlaylistPage: React.FC = () => {
 
   const openShareModal = useCallback(() => {
     const url = `https://quantube.app/playlist/${state.playlist?.id || ''}`;
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
       shareModalOpen: { isOpen: true, copied: false, shareUrl: url },
     }));
   }, [state.playlist?.id]);
 
   const closeShareModal = useCallback(() => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
       shareModalOpen: { ...prev.shareModalOpen, isOpen: false },
     }));
   }, []);
 
   const copyShareLink = useCallback(() => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
       shareModalOpen: { ...prev.shareModalOpen, copied: true },
     }));
     setTimeout(() => {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         shareModalOpen: { ...prev.shareModalOpen, copied: false },
       }));
@@ -237,10 +233,10 @@ const PlaylistPage: React.FC = () => {
   }, []);
 
   const handleDeletePlaylist = useCallback(() => {
-    setState(prev => ({ ...prev, confirmDelete: true }));
+    setState((prev) => ({ ...prev, confirmDelete: true }));
   }, []);
 
-  if (state.loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-950">
         <div className="flex flex-col items-center space-y-4">
@@ -251,14 +247,28 @@ const PlaylistPage: React.FC = () => {
     );
   }
 
-  if (state.error) {
+  if (isNotFound) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-950">
+        <div className="text-center space-y-4">
+          <div className="text-6xl">📋</div>
+          <p className="text-white text-xl font-semibold">Playlist Not Found</p>
+          <p className="text-gray-400 text-sm">
+            This playlist may have been deleted or made private.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isGenericError) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-950">
         <div className="text-center space-y-4">
           <div className="text-red-500 text-4xl">⚠</div>
-          <p className="text-white text-lg">{state.error}</p>
+          <p className="text-white text-lg">Failed to load playlist</p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => playlistQuery.refetch()}
             className="px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
           >
             Retry
@@ -274,7 +284,9 @@ const PlaylistPage: React.FC = () => {
         <div className="text-center space-y-4">
           <div className="text-6xl">📋</div>
           <p className="text-white text-xl font-semibold">Playlist Not Found</p>
-          <p className="text-gray-400 text-sm">This playlist may have been deleted or made private.</p>
+          <p className="text-gray-400 text-sm">
+            This playlist may have been deleted or made private.
+          </p>
         </div>
       </div>
     );
@@ -287,7 +299,11 @@ const PlaylistPage: React.FC = () => {
         <div className="flex flex-col md:flex-row items-start space-y-4 md:space-y-0 md:space-x-6">
           {/* Cover Image */}
           <div className="w-48 h-48 rounded-xl bg-gray-800 overflow-hidden flex-shrink-0 shadow-xl">
-            <img src={state.playlist.coverUrl} alt={state.playlist.title} className="w-full h-full object-cover" />
+            <img
+              src={state.playlist.coverUrl}
+              alt={state.playlist.title}
+              className="w-full h-full object-cover"
+            />
           </div>
           {/* Info */}
           <div className="flex-1">
@@ -297,7 +313,7 @@ const PlaylistPage: React.FC = () => {
                   ref={titleInputRef}
                   type="text"
                   value={state.titleDraft}
-                  onChange={(e) => setState(prev => ({ ...prev, titleDraft: e.target.value }))}
+                  onChange={(e) => setState((prev) => ({ ...prev, titleDraft: e.target.value }))}
                   onBlur={saveTitle}
                   onKeyDown={(e) => e.key === 'Enter' && saveTitle()}
                   className="text-2xl font-bold bg-gray-800 text-white rounded-lg px-3 py-1 outline-none focus:ring-2 focus:ring-blue-500 w-full"
@@ -306,7 +322,9 @@ const PlaylistPage: React.FC = () => {
             ) : (
               <h1
                 className="text-2xl md:text-3xl font-bold cursor-pointer hover:text-blue-300 transition-colors"
-                onClick={() => state.editMode && setState(prev => ({ ...prev, editingTitle: true }))}
+                onClick={() =>
+                  state.editMode && setState((prev) => ({ ...prev, editingTitle: true }))
+                }
               >
                 {state.playlist.title}
                 {state.editMode && <span className="text-blue-400 text-sm ml-2">✎</span>}
@@ -316,7 +334,11 @@ const PlaylistPage: React.FC = () => {
             {/* Creator */}
             <div className="flex items-center space-x-2 mt-2">
               <div className="w-6 h-6 rounded-full bg-gray-600 overflow-hidden">
-                <img src={state.playlist.creatorAvatar} alt={state.playlist.creatorName} className="w-full h-full object-cover" />
+                <img
+                  src={state.playlist.creatorAvatar}
+                  alt={state.playlist.creatorName}
+                  className="w-full h-full object-cover"
+                />
               </div>
               <span className="text-sm text-gray-300">{state.playlist.creatorName}</span>
             </div>
@@ -333,14 +355,18 @@ const PlaylistPage: React.FC = () => {
               <textarea
                 ref={descInputRef}
                 value={state.descriptionDraft}
-                onChange={(e) => setState(prev => ({ ...prev, descriptionDraft: e.target.value }))}
+                onChange={(e) =>
+                  setState((prev) => ({ ...prev, descriptionDraft: e.target.value }))
+                }
                 onBlur={saveDescription}
                 className="mt-3 w-full bg-gray-800 text-gray-300 text-sm rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 resize-none h-20"
               />
             ) : (
               <p
                 className="text-gray-400 text-sm mt-3 line-clamp-3 cursor-pointer"
-                onClick={() => state.editMode && setState(prev => ({ ...prev, editingDescription: true }))}
+                onClick={() =>
+                  state.editMode && setState((prev) => ({ ...prev, editingDescription: true }))
+                }
               >
                 {state.playlist.description}
               </p>
@@ -391,9 +417,11 @@ const PlaylistPage: React.FC = () => {
               state.collaborative ? 'bg-blue-600' : 'bg-gray-700'
             }`}
           >
-            <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-              state.collaborative ? 'translate-x-5' : 'translate-x-0.5'
-            }`} />
+            <div
+              className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                state.collaborative ? 'translate-x-5' : 'translate-x-0.5'
+              }`}
+            />
           </button>
           <span className="text-xs text-gray-500">
             {state.collaborative ? 'Anyone with link can add videos' : 'Only you can edit'}
@@ -409,7 +437,7 @@ const PlaylistPage: React.FC = () => {
               <input
                 type="text"
                 value={state.searchQuery}
-                onChange={(e) => setState(prev => ({ ...prev, searchQuery: e.target.value }))}
+                onChange={(e) => setState((prev) => ({ ...prev, searchQuery: e.target.value }))}
                 placeholder="Search for videos to add..."
                 className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -429,16 +457,23 @@ const PlaylistPage: React.FC = () => {
               key={video.id}
               draggable={state.editMode}
               onDragStart={() => handleDragStart(idx)}
-              onDragOver={(e) => { e.preventDefault(); handleDragOver(idx); }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                handleDragOver(idx);
+              }}
               onDragEnd={handleDragEnd}
               className={`flex items-center space-x-3 p-3 rounded-xl transition-colors group ${
-                state.dragOverIndex === idx ? 'bg-blue-900/30 border border-blue-500/30' : 'hover:bg-gray-900'
+                state.dragOverIndex === idx
+                  ? 'bg-blue-900/30 border border-blue-500/30'
+                  : 'hover:bg-gray-900'
               } ${state.draggedIndex === idx ? 'opacity-50' : ''}`}
             >
               {/* Drag Handle / Position */}
               <div className="flex items-center w-8 flex-shrink-0">
                 {state.editMode ? (
-                  <span className="text-gray-500 cursor-grab active:cursor-grabbing text-lg">⋮⋮</span>
+                  <span className="text-gray-500 cursor-grab active:cursor-grabbing text-lg">
+                    ⋮⋮
+                  </span>
                 ) : (
                   <span className="text-gray-500 text-sm">{video.position}</span>
                 )}
@@ -446,7 +481,11 @@ const PlaylistPage: React.FC = () => {
 
               {/* Thumbnail */}
               <div className="relative w-28 h-16 rounded-lg bg-gray-800 overflow-hidden flex-shrink-0">
-                <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />
+                <img
+                  src={video.thumbnailUrl}
+                  alt={video.title}
+                  className="w-full h-full object-cover"
+                />
                 <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
                   {formatDuration(video.duration)}
                 </div>
@@ -454,7 +493,9 @@ const PlaylistPage: React.FC = () => {
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate hover:text-blue-300 cursor-pointer">{video.title}</p>
+                <p className="text-sm font-medium truncate hover:text-blue-300 cursor-pointer">
+                  {video.title}
+                </p>
                 <p className="text-xs text-gray-400 mt-0.5">{video.channelName}</p>
                 <p className="text-xs text-gray-500">{formatViews(video.views)}</p>
               </div>
@@ -493,7 +534,9 @@ const PlaylistPage: React.FC = () => {
           <div className="bg-gray-900 rounded-2xl p-6 max-w-sm w-full space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">Share Playlist</h3>
-              <button onClick={closeShareModal} className="text-gray-400 hover:text-white">✕</button>
+              <button onClick={closeShareModal} className="text-gray-400 hover:text-white">
+                ✕
+              </button>
             </div>
             <div className="flex items-center space-x-2">
               <input
@@ -540,10 +583,13 @@ const PlaylistPage: React.FC = () => {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900 rounded-2xl p-6 max-w-sm w-full space-y-4">
             <h3 className="text-lg font-bold">Delete Playlist?</h3>
-            <p className="text-gray-400 text-sm">This action cannot be undone. All {state.videos.length} videos will be removed from this playlist.</p>
+            <p className="text-gray-400 text-sm">
+              This action cannot be undone. All {state.videos.length} videos will be removed from
+              this playlist.
+            </p>
             <div className="flex space-x-3">
               <button
-                onClick={() => setState(prev => ({ ...prev, confirmDelete: false }))}
+                onClick={() => setState((prev) => ({ ...prev, confirmDelete: false }))}
                 className="flex-1 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
               >
                 Cancel

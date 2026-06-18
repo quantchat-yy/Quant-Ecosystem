@@ -14,6 +14,7 @@ const DEFAULT_CONFIG: SessionConfig = {
   secureCookie: true,
   sameSite: 'strict',
   fingerprintBinding: true,
+  fingerprintSecret: 'default-fingerprint-secret-change-in-production',
 };
 
 /**
@@ -30,6 +31,12 @@ export class SessionSecurity {
 
   constructor(config: Partial<SessionConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+    if (
+      process.env.NODE_ENV === 'production' &&
+      this.config.fingerprintSecret === DEFAULT_CONFIG.fingerprintSecret
+    ) {
+      throw new Error('SessionSecurity requires an explicit fingerprintSecret in production');
+    }
     this.sessions = new Map();
     this.userSessions = new Map();
     this.rotationHistory = new Map();
@@ -265,15 +272,12 @@ export class SessionSecurity {
     return id;
   }
 
-  /** Generate fingerprint from client attributes */
+  /** Generate fingerprint from client attributes (keyed HMAC-SHA256) */
   private generateFingerprint(ip: string, userAgent: string): string {
-    const data = `${ip}:${userAgent}`;
-    let hash = 0x811c9dc5;
-    for (let i = 0; i < data.length; i++) {
-      hash ^= data.charCodeAt(i);
-      hash = Math.imul(hash, 0x01000193);
-    }
-    return (hash >>> 0).toString(16).padStart(8, '0');
+    return crypto
+      .createHmac('sha256', this.config.fingerprintSecret)
+      .update(`${ip}:${userAgent}`)
+      .digest('hex');
   }
 
   /** Cleanup expired sessions */

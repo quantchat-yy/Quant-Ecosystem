@@ -3,10 +3,10 @@ import {
   VoiceCommandRouter,
   type PendingCommandStore,
   type PendingCommand,
-} from '../voice/voice-command-router';
-import type { AppController } from '../cross-app/app-controller';
-import type { CommandResult } from '../cross-app/command-bus';
-import type { ParsedIntent } from '../voice/voice-intent-parser';
+} from '../voice/voice-command-router.js';
+import type { AppController } from '../cross-app/app-controller.js';
+import type { CommandResult } from '../cross-app/command-bus.js';
+import type { ParsedIntent } from '../voice/voice-intent-parser.js';
 
 function makeController(results: CommandResult[]): {
   controller: AppController;

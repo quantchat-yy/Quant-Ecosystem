@@ -12,8 +12,8 @@
 //     swallowed). Training is not a money path, so graceful degradation is fine.
 
 import { EventEmitter } from 'events';
-import { IntelligentOrchestrator } from '../orchestrator/intelligent-orchestrator';
-import { MemoryStore } from '../memory/memory-store';
+import { IntelligentOrchestrator } from '../orchestrator/intelligent-orchestrator.js';
+import { MemoryStore } from '../memory/memory-store.js';
 
 export interface TrainingSession {
   id: string;

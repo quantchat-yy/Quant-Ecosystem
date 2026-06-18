@@ -8,6 +8,7 @@ import mediaRoutes, { createMediaService } from './routes/media';
 import feedRoutes from './routes/feed';
 import crossPublishRoutes, { createCrossPublishService } from './routes/cross-publish';
 import creatorRoutes, { createCreatorEconomyService } from './routes/creator';
+import playlistRoutes, { createPlaylistService } from './routes/playlists';
 import paymentsRoutes, { paymentsWebhookRoutes, createPaymentsService } from './routes/payments';
 import payoutRoutes, { createPayoutService } from './routes/payouts';
 import { createFeedEngines } from './lib/feed-engines';
@@ -42,6 +43,16 @@ export async function buildApp(config?: AppConfig) {
   await app.register(channelsRoutes, { prefix: '/channels' });
   await app.register(historyRoutes, { prefix: '/history' });
   await app.register(aiRoutes, { prefix: '/ai' });
+
+  // playlists engine — quantube Library "Playlists" + "Watch Later" surfaces
+  // and the playlist/[id] detail page (quantube-real-data-wiring, Task 3).
+  // Decorated once at boot as a singleton (`fastify.playlists`, never
+  // per-request). Routes sit behind the global auth hook (401 unauthenticated);
+  // mutating routes additionally declare a `library:write` scope. The
+  // `/playlists` prefix does NOT collide with any PUBLIC_PATHS entry, so every
+  // `/playlists*` route requires authentication.
+  app.decorate('playlists', createPlaylistService());
+  await app.register(playlistRoutes, { prefix: '/playlists' });
 
   // ==========================================================================
   // Task 13.1 — quantube video/feed/creator engine wiring (per-app lane).

@@ -187,12 +187,14 @@ export class DDoSProtector {
     return challenge;
   }
 
-  /** Compute proof-of-work answer */
+  /** Compute proof-of-work answer via iterated SHA-256 (client-reproducible) */
   private computeProofOfWork(nonce: string, difficulty: number): string {
-    // Simulate proof-of-work by creating a target based on difficulty
     let hash = nonce;
     for (let i = 0; i < difficulty; i++) {
-      hash = this.simpleHash(hash + i.toString());
+      hash = crypto
+        .createHash('sha256')
+        .update(hash + i.toString())
+        .digest('hex');
     }
     return hash.substring(0, difficulty * 2);
   }
@@ -397,22 +399,5 @@ export class DDoSProtector {
   /** Generate a unique ID */
   private generateId(): string {
     return `challenge_${Date.now()}_${this.generateRandomHex(8)}`;
-  }
-
-  /** Simple hash function for challenge computation */
-  private simpleHash(input: string): string {
-    let hash = 0x811c9dc5;
-    for (let i = 0; i < input.length; i++) {
-      hash ^= input.charCodeAt(i);
-      hash = Math.imul(hash, 0x01000193);
-    }
-    const h1 = (hash >>> 0).toString(16).padStart(8, '0');
-    let hash2 = 0x6c62272e;
-    for (let i = 0; i < input.length; i++) {
-      hash2 ^= input.charCodeAt(i);
-      hash2 = Math.imul(hash2, 0x5bd1e995);
-    }
-    const h2 = (hash2 >>> 0).toString(16).padStart(8, '0');
-    return h1 + h2;
   }
 }

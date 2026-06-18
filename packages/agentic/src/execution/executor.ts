@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
-import { MemoryStore } from '../memory/memory-store';
-import { ToolRegistry } from '../tools/tool-registry';
-import { Plan, PlanStep } from '../planning/planner';
+import { MemoryStore } from '../memory/memory-store.js';
+import { ToolRegistry } from '../tools/tool-registry.js';
+import { Plan, PlanStep } from '../planning/planner.js';
 
 export class Executor extends EventEmitter {
   private memory: MemoryStore;

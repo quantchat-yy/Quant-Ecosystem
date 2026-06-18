@@ -1,4 +1,4 @@
-import { QuantOrchestrator } from '../orchestrator/orchestrator';
+import { QuantOrchestrator } from '../orchestrator/orchestrator.js';
 
 export interface CollaborationSession {
   id: string;

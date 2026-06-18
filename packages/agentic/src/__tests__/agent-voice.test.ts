@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { AgentVoiceInterface, type VoiceBackend } from '../voice/agent-voice';
+import { AgentVoiceInterface, type VoiceBackend } from '../voice/agent-voice.js';
 
 describe('AgentVoiceInterface - dual mode', () => {
   describe('real backend path (injected)', () => {

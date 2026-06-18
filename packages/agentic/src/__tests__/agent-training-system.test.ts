@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { AgentTrainingSystem, type TrainingSystemBackend } from '../training/agent-training-system';
-import type { IntelligentOrchestrator } from '../orchestrator/intelligent-orchestrator';
+import {
+  AgentTrainingSystem,
+  type TrainingSystemBackend,
+} from '../training/agent-training-system.js';
+import type { IntelligentOrchestrator } from '../orchestrator/intelligent-orchestrator.js';
 
 function makeOrchestrator() {
   const runIntelligentTask = vi.fn().mockResolvedValue({ ok: true });

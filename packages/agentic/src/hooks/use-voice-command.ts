@@ -3,7 +3,7 @@ import {
   type VoiceCommand,
   type CommandResult,
   type CommandHandler,
-} from '../cross-app/command-bus';
+} from '../cross-app/command-bus.js';
 
 export function useVoiceCommand(
   appId: string,

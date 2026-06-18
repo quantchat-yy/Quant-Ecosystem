@@ -441,6 +441,7 @@ export interface SessionConfig {
   secureCookie: boolean;
   sameSite: 'strict' | 'lax' | 'none';
   fingerprintBinding: boolean;
+  fingerprintSecret: string;
 }
 
 /** Secure session data */
