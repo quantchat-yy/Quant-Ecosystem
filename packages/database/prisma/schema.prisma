@@ -1825,3 +1825,23 @@ model MessageDelivery {
   @@index([messageId])
   @@map("message_deliveries")
 }
+
+
+// ==================== QUANTCHAT ENCRYPTED SEARCH (W5) ====================
+// Client-built blind index: the client tokenizes plaintext, HMACs each token
+// with a per-user Search_Key, and uploads only opaque token hashes. The server
+// stores and matches HMAC token hashes only — it never sees plaintext tokens or
+// keys, preserving the zero-knowledge relay invariant (Requirements 14.3, 16.1).
+
+model BlindIndexEntry {
+  id             String   @id @default(cuid())
+  messageId      String
+  conversationId String
+  userId         String // index owner / Search_Key owner
+  tokenHash      String // single HMAC(Search_Key, token) value — one row per token
+  createdAt      DateTime @default(now())
+
+  @@index([userId, tokenHash])
+  @@index([conversationId])
+  @@map("blind_index_entries")
+}
