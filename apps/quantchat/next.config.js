@@ -1,6 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@quant/shared-ui', '@quant/common', '@quant/brand'],
+  transpilePackages: [
+    '@quant/shared-ui',
+    '@quant/common',
+    '@quant/brand',
+    '@quant/agentic',
+    '@quant/ai',
+  ],
   output: 'standalone',
   typescript: {
     ignoreBuildErrors: true,
@@ -8,6 +14,15 @@ const nextConfig = {
 
   serverExternalPackages: ['nats'],
   webpack: (config, { isServer }) => {
+    // @quant/agentic ships TS source only and uses NodeNext ESM imports with
+    // explicit ".js" extensions that point at ".ts" files. Map ".js" back to
+    // the TS/JS source extensions so webpack can resolve the transpiled sources.
+    config.resolve.extensionAlias = {
+      ...(config.resolve.extensionAlias || {}),
+      '.js': ['.ts', '.tsx', '.js', '.jsx'],
+      '.mjs': ['.mts', '.mjs'],
+      '.cjs': ['.cts', '.cjs'],
+    };
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
