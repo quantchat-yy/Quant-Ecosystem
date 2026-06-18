@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
 import { EncryptionService, InMemoryKeyStorage } from '../services/encryption.service';
 
-const uploadBundleSchema = z.object({
+export const uploadBundleSchema = z.object({
   identityKey: z.string().min(1),
   signedPreKey: z.string().min(1),
   signedPreKeySignature: z.string().min(1),
