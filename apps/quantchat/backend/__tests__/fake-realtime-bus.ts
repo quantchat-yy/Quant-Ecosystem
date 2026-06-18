@@ -129,6 +129,11 @@ export class SharedBusBackplane implements RealtimeBackplane {
     this.subscribed.clear();
     this.handler = null;
   }
+
+  /** The in-memory bus is always reachable, so the harness reports healthy. */
+  isHealthy(): boolean {
+    return true;
+  }
 }
 
 /** Minimal fake socket matching the `readyState === OPEN` check in websocket.ts. */

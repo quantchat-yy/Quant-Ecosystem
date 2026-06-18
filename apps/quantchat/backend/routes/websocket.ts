@@ -6,6 +6,7 @@ import { PresenceManager } from '@quant/realtime/presence';
 import {
   InProcessBackplane,
   RedisRealtimeBackplane,
+  backplaneRetryStrategy,
   type RealtimeBackplane,
   type RoomEvent,
   type RoomEventType,
@@ -43,20 +44,69 @@ export async function websocketRoutes(fastify: FastifyInstance) {
   // W2 — Cross-instance realtime fan-out (design Component 2 / Algorithm 4).
   // Select the backplane implementation here (Task 6.2): use the Redis pub/sub
   // backplane when REDIS_URL is configured, otherwise fall back to the no-op
-  // single-node InProcessBackplane (the degraded-mode reconnect handling lands
-  // in Task 8). The `rooms` map above remains this instance's LOCAL socket
-  // registry; the backplane only carries events between instances.
+  // single-node InProcessBackplane. The `rooms` map above remains this
+  // instance's LOCAL socket registry; the backplane only carries events between
+  // instances.
+  //
+  // W2 — Degraded single-node fallback + reconnect (Task 8, design Error
+  // Handling "Redis/NATS unavailable"). ioredis owns reconnection: a
+  // `retryStrategy` with exponential backoff (1s → cap 30s — Requirement 6.2)
+  // keeps retrying a downed Redis, while `maxRetriesPerRequest: null` prevents
+  // individual commands from erroring out mid-outage. The RedisRealtimeBackplane
+  // starts degraded until its first `ready`, re-subscribes every active
+  // conversation channel AND the presence channel on (re)connect, and reports
+  // its health via `isHealthy()` (surfaced on /healthz below). Throughout an
+  // outage local delivery still happens at publish time (Requirement 6.3).
   const redisUrl = process.env.REDIS_URL;
   let redis: Redis | null = null;
   let backplane: RealtimeBackplane;
   if (redisUrl) {
-    redis = new Redis(redisUrl, { lazyConnect: false, maxRetriesPerRequest: null });
+    redis = new Redis(redisUrl, {
+      lazyConnect: false,
+      maxRetriesPerRequest: null,
+      retryStrategy: (times: number) => backplaneRetryStrategy(times),
+    });
     redis.on('error', (err: Error) => {
       fastify.log.error({ err }, 'realtime backplane Redis connection error');
     });
-    backplane = new RedisRealtimeBackplane(redis);
+    const redisBackplane = new RedisRealtimeBackplane(redis);
+    // Log degraded/healthy transitions so operators can see the backplane drop
+    // into single-node mode and recover (design Error Handling table).
+    redisBackplane.onHealthChange((healthy: boolean) => {
+      if (healthy) {
+        fastify.log.info('realtime backplane connected; cross-instance fan-out healthy');
+      } else {
+        fastify.log.warn(
+          'realtime backplane disconnected; degraded to single-node mode (local delivery only)',
+        );
+      }
+    });
+    backplane = redisBackplane;
   } else {
     backplane = new InProcessBackplane();
+  }
+
+  // Surface backplane health on the shared /healthz endpoint (Requirement
+  // 6.1/6.2). The contributor is evaluated per request, so it always reflects
+  // the live connection state: `degraded` while a configured Redis backplane is
+  // unreachable (single-node mode), `ok` once connected (or when running as a
+  // deliberate single-node InProcessBackplane). Guarded so the route still works
+  // if the host app's health plugin predates the contributor registry.
+  const healthAware = fastify as unknown as {
+    addHealthContributor?: (
+      name: string,
+      contributor: () => { status: 'ok' | 'degraded' | 'unavailable'; detail?: string },
+    ) => void;
+  };
+  if (typeof healthAware.addHealthContributor === 'function') {
+    healthAware.addHealthContributor('realtime-backplane', () =>
+      backplane.isHealthy()
+        ? { status: 'ok' }
+        : {
+            status: 'degraded',
+            detail: 'realtime backplane unreachable; running in single-node mode',
+          },
+    );
   }
 
   // W2 — Presence backplane wiring (Task 7, design Component 2 note / Sequence 3).

@@ -62,6 +62,12 @@ export interface RealtimeBackplane {
   onMessage(handler: RoomEventHandler): void;
   /** Graceful shutdown — used by the existing onClose hook. */
   shutdown(): Promise<void>;
+  /**
+   * Whether cross-instance fan-out is fully operational. `false` means the
+   * backplane is running in degraded single-node mode (no peer connectivity);
+   * the health endpoint reports `degraded` in that state (Requirement 6.1/6.2).
+   */
+  isHealthy(): boolean;
 }
 
 /** Prefix for the per-conversation pub/sub channel names. */
@@ -88,6 +94,24 @@ export function createInstanceId(): string {
 }
 
 /**
+ * Exponential backoff schedule for backplane reconnect attempts (Requirement
+ * 6.2): the first retry waits 1 second and each subsequent attempt doubles, up
+ * to a hard cap of 30 seconds. Wired into the ioredis `retryStrategy` so a
+ * transient Redis/NATS outage is retried automatically with bounded backoff.
+ *
+ * @param attempt 1-based reconnect attempt number (as supplied by ioredis).
+ * @returns delay in milliseconds before the next attempt.
+ */
+export function backplaneRetryStrategy(attempt: number): number {
+  const baseMs = 1000; // start at 1s
+  const capMs = 30000; // cap at 30s
+  const exponent = Math.max(0, attempt - 1);
+  // Guard the shift against absurd attempt counts before clamping to the cap.
+  const delay = exponent >= 30 ? capMs : baseMs * 2 ** exponent;
+  return Math.min(delay, capMs);
+}
+
+/**
  * Redis-backed realtime backplane (default). Uses one ioredis pub/sub channel
  * per conversation. A dedicated subscriber connection is duplicated from the
  * supplied client because ioredis connections in subscriber mode cannot also
@@ -104,24 +128,98 @@ export class RedisRealtimeBackplane implements RealtimeBackplane {
   private readonly subscribed = new Set<string>();
   private handler: RoomEventHandler | null = null;
   private listening = false;
+  /**
+   * Whether the subscriber connection is currently established. Starts `false`
+   * — until the first `ready` event the backplane is in degraded single-node
+   * mode (Requirement 6.1). Flipped by the ioredis connection lifecycle events
+   * wired in the constructor.
+   */
+  private connected = false;
+  /** Optional observer notified whenever the connection health flips. */
+  private healthListener: ((healthy: boolean) => void) | null = null;
 
   constructor(redis: Redis, instanceId: string = createInstanceId()) {
     this.instanceId = instanceId;
     this.pub = redis;
     // A separate connection is required for subscriber mode.
     this.sub = redis.duplicate();
+    this.wireConnectionLifecycle();
+  }
+
+  /**
+   * Track the subscriber connection lifecycle so the backplane can report its
+   * health and recover after an outage (Requirement 6.2). ioredis performs the
+   * actual reconnection (with the {@link backplaneRetryStrategy} backoff wired
+   * at client construction); here we react to the resulting state changes:
+   *  - on `ready` (initial connect OR reconnect) we mark healthy and re-subscribe
+   *    every tracked channel — all active conversation channels AND the presence
+   *    channel — so fan-out resumes exactly where it left off;
+   *  - on `close`/`end` we mark degraded so the health endpoint reports it and
+   *    publishes short-circuit to local-only (single-node) delivery.
+   */
+  private wireConnectionLifecycle(): void {
+    this.sub.on('ready', () => {
+      this.setConnected(true);
+      this.resubscribeAll();
+    });
+    this.sub.on('close', () => this.setConnected(false));
+    this.sub.on('end', () => this.setConnected(false));
+    // `error` events are emitted during reconnect attempts; ioredis keeps
+    // retrying, so we leave the connection state for the close/ready events to
+    // drive and simply swallow the error here to avoid an unhandled emission.
+    this.sub.on('error', () => {
+      /* handled by the retry strategy; connection state driven by close/ready */
+    });
+  }
+
+  /** Flip the cached connection state and notify any health observer on change. */
+  private setConnected(connected: boolean): void {
+    if (this.connected === connected) return;
+    this.connected = connected;
+    this.healthListener?.(connected);
+  }
+
+  /**
+   * Re-subscribe every tracked channel after a (re)connect (Requirement 6.2).
+   * Idempotent at the Redis level; failures are swallowed because the next
+   * `ready` event will retry the full set.
+   */
+  private resubscribeAll(): void {
+    const channels = [...this.subscribed];
+    if (channels.length === 0) return;
+    void this.sub.subscribe(...channels).catch(() => {
+      /* a subsequent `ready` will re-attempt the full subscription set */
+    });
+  }
+
+  /**
+   * Whether cross-instance fan-out is operational. `false` until the subscriber
+   * connection is `ready`, and again after a disconnect — the degraded
+   * single-node state surfaced on the health endpoint (Requirement 6.1).
+   */
+  isHealthy(): boolean {
+    return this.connected;
+  }
+
+  /** Register an observer notified when connection health flips (degraded/healthy). */
+  onHealthChange(listener: (healthy: boolean) => void): void {
+    this.healthListener = listener;
   }
 
   /**
    * Subscribe this instance to a conversation channel. Idempotent: a repeat
    * call for an already-subscribed conversation is a no-op (Requirement 4.1).
+   * While disconnected the channel is only tracked; it is applied to Redis on
+   * the next `ready` event via {@link resubscribeAll} (Requirement 6.2).
    */
   async subscribe(conversationId: string): Promise<void> {
     this.ensureListening();
     const channel = channelFor(conversationId);
     if (this.subscribed.has(channel)) return;
     this.subscribed.add(channel);
-    await this.sub.subscribe(channel);
+    if (this.connected) {
+      await this.sub.subscribe(channel);
+    }
   }
 
   /**
@@ -132,16 +230,23 @@ export class RedisRealtimeBackplane implements RealtimeBackplane {
     const channel = channelFor(conversationId);
     if (!this.subscribed.has(channel)) return;
     this.subscribed.delete(channel);
-    await this.sub.unsubscribe(channel);
+    if (this.connected) {
+      await this.sub.unsubscribe(channel);
+    }
   }
 
   /**
    * Publish a room event to every instance subscribed to the conversation
    * channel (Requirement 4.3). The event is stamped with this instance's
    * Instance_Id so the origin can later suppress duplicate local delivery.
+   * While the backplane is disconnected this short-circuits: same-instance
+   * sockets were already served by the websocket layer at publish time, and
+   * there are no reachable peers, so we stay in single-node mode rather than
+   * buffering doomed commands (Requirement 6.3).
    */
   async publish(conversationId: string, event: RoomEvent): Promise<void> {
     const stamped: RoomEvent = { ...event, originInstanceId: this.instanceId };
+    if (!this.connected) return;
     await this.pub.publish(channelFor(conversationId), JSON.stringify(stamped));
   }
 
@@ -230,5 +335,15 @@ export class InProcessBackplane implements RealtimeBackplane {
 
   async shutdown(): Promise<void> {
     this.handler = null;
+  }
+
+  /**
+   * Single-node operation is a deliberate, fully-functional steady state (not a
+   * fault), so the in-process backplane always reports healthy. The degraded
+   * status applies specifically to a configured Redis backplane that has lost
+   * its connection (Requirement 6.1).
+   */
+  isHealthy(): boolean {
+    return true;
   }
 }
