@@ -29,8 +29,14 @@ const MOCK_REELS: ReelData[] = Array.from({ length: 20 }, (_, i) => ({
   id: `reel-${String(i + 1).padStart(3, '0')}`,
   creatorId: `user-${String((i % 8) + 1).padStart(3, '0')}`,
   creatorUsername: [
-    'cosmic_vibe', 'neon_rider', 'stellar_beats', 'quantum_flow',
-    'galaxy_girl', 'astro_dj', 'nebula_art', 'void_dancer',
+    'cosmic_vibe',
+    'neon_rider',
+    'stellar_beats',
+    'quantum_flow',
+    'galaxy_girl',
+    'astro_dj',
+    'nebula_art',
+    'void_dancer',
   ][i % 8]!,
   creatorAvatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=user${(i % 8) + 1}`,
   videoUrl: `https://storage.quantchat.dev/reels/sample-${i + 1}.mp4`,
@@ -62,7 +68,9 @@ const MOCK_REELS: ReelData[] = Array.from({ length: 20 }, (_, i) => ({
   commentCount: Math.floor(Math.random() * 5000) + 10,
   shareCount: Math.floor(Math.random() * 2000) + 5,
   watchThroughRate: Math.round((Math.random() * 0.6 + 0.3) * 100) / 100,
-  createdAt: new Date(Date.now() - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000)).toISOString(),
+  createdAt: new Date(
+    Date.now() - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000),
+  ).toISOString(),
   isLikedByUser: Math.random() > 0.7,
 }));
 
@@ -76,9 +84,37 @@ const commentBodySchema = z.object({
   text: z.string().min(1).max(500),
 });
 
+// Reel duration bounds (seconds) - mirrors client-side validation (Req 4.6).
+const MIN_REEL_DURATION = 5;
+const MAX_REEL_DURATION = 60;
+
+const textOverlaySchema = z.object({
+  id: z.string(),
+  text: z.string().max(200),
+  x: z.number(),
+  y: z.number(),
+  color: z.string(),
+});
+
+// POST /reels body - reel creation payload from the uploader.
+const createReelBodySchema = z.object({
+  videoUrl: z.string().min(1),
+  thumbnailUrl: z.string().optional(),
+  caption: z.string().max(2000).default(''),
+  duration: z.number().min(MIN_REEL_DURATION).max(MAX_REEL_DURATION),
+  coverFrameTimestamp: z.number().min(0).default(0),
+  textOverlays: z.array(textOverlaySchema).default([]),
+  creatorId: z.string().optional(),
+  creatorUsername: z.string().optional(),
+  creatorAvatar: z.string().optional(),
+});
+
 // In-memory state for likes/comments/shares (mock persistence)
 const reelLikes = new Map<string, number>();
-const reelComments = new Map<string, Array<{ id: string; userId: string; text: string; createdAt: string }>>();
+const reelComments = new Map<
+  string,
+  Array<{ id: string; userId: string; text: string; createdAt: string }>
+>();
 const reelShares = new Map<string, number>();
 
 // Initialize from mock data
@@ -87,6 +123,20 @@ MOCK_REELS.forEach((r) => {
   reelComments.set(r.id, []);
   reelShares.set(r.id, r.shareCount);
 });
+
+/**
+ * Snapshot of the current reels merged with live like/comment/share counts.
+ * Exposed for the Spotlight ranker (Task 13.5) so it can score reels by their
+ * up-to-date engagement metrics without coupling to the in-memory stores.
+ */
+export function getRankableReels(): ReelData[] {
+  return MOCK_REELS.map((reel) => ({
+    ...reel,
+    likeCount: reelLikes.get(reel.id) ?? reel.likeCount,
+    shareCount: reelShares.get(reel.id) ?? reel.shareCount,
+    commentCount: reel.commentCount + (reelComments.get(reel.id)?.length ?? 0),
+  }));
+}
 
 export default async function reelsRoutes(fastify: FastifyInstance) {
   // GET /reels/feed?cursor=&limit= - Returns ranked reels array + nextCursor
@@ -116,7 +166,7 @@ export default async function reelsRoutes(fastify: FastifyInstance) {
     }));
 
     const hasMore = startIndex + limit < MOCK_REELS.length;
-    const nextCursor = hasMore ? pageReels[pageReels.length - 1]?.id ?? null : null;
+    const nextCursor = hasMore ? (pageReels[pageReels.length - 1]?.id ?? null) : null;
 
     return reply.send({
       success: true,
@@ -191,6 +241,59 @@ export default async function reelsRoutes(fastify: FastifyInstance) {
     return reply.send({
       success: true,
       data: { id, shareCount: currentShares + 1 },
+    });
+  });
+
+  // POST /reels - Create a new reel (Task 4.5)
+  // Validates duration (5-60s), creates the reel, and inserts it at the front
+  // of the in-memory feed store so it is immediately discoverable (Task 4.6).
+  fastify.post('/', async (request, reply) => {
+    const body = createReelBodySchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.status(400).send({
+        error: 'Invalid reel payload',
+        details: body.error.flatten(),
+      });
+    }
+
+    const { videoUrl, thumbnailUrl, caption, duration, creatorId, creatorUsername, creatorAvatar } =
+      body.data;
+
+    // Defense-in-depth duration validation (also enforced by the schema).
+    if (duration < MIN_REEL_DURATION || duration > MAX_REEL_DURATION) {
+      return reply.status(400).send({
+        error: `Reel duration must be between ${MIN_REEL_DURATION} and ${MAX_REEL_DURATION} seconds`,
+      });
+    }
+
+    const id = `reel-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const newReel: ReelData = {
+      id,
+      creatorId: creatorId ?? 'current-user',
+      creatorUsername: creatorUsername ?? 'you',
+      creatorAvatar: creatorAvatar ?? 'https://api.dicebear.com/7.x/avataaars/svg?seed=you',
+      videoUrl,
+      thumbnailUrl: thumbnailUrl ?? `${videoUrl}#t=0.1`,
+      caption,
+      duration: Math.round(duration),
+      likeCount: 0,
+      commentCount: 0,
+      shareCount: 0,
+      watchThroughRate: 0,
+      createdAt: new Date().toISOString(),
+      isLikedByUser: false,
+    };
+
+    // Task 4.6: insert at the front of the in-memory feed so the freshly
+    // published reel surfaces in the feed immediately (well within 30s).
+    MOCK_REELS.unshift(newReel);
+    reelLikes.set(id, 0);
+    reelComments.set(id, []);
+    reelShares.set(id, 0);
+
+    return reply.status(201).send({
+      success: true,
+      data: newReel,
     });
   });
 }

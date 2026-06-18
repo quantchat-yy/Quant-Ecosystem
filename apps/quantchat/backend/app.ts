@@ -9,8 +9,18 @@ import arLensesRoutes, { createArLensesService } from './routes/ar-lenses';
 import mediaRoutes from './routes/media';
 import callsRoutes from './routes/calls';
 import aiRoutes from './routes/ai';
+import aiAgentRoutes from './routes/ai-agent';
+import reelsRoutes from './routes/reels';
+import avatarRoutes from './routes/avatar';
+import memoriesRoutes from './routes/memories';
+import spotlightRoutes from './routes/spotlight';
+import notificationsRoutes from './routes/notifications';
+import themesRoutes from './routes/themes';
+import ephemeralRoutes from './routes/ephemeral';
 import { websocketRoutes } from './routes/websocket';
 import { InMemoryE2EERelay } from './lib/e2ee-relay';
+import { AutoReplyManager } from './lib/auto-reply-manager';
+import { ScheduledMessageWorker } from './services/scheduled-message-worker';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -43,10 +53,58 @@ export async function buildApp(config?: AppConfig) {
 
   await app.register(messagesRoutes, { prefix: '/conversations' });
   await app.register(conversationsRoutes, { prefix: '/conversations' });
+
+  // Snapchat parity — chat themes + ephemeral/disappearing messages (Task 14).
+  // Both mount under /conversations: themes persist the per-conversation theme
+  // (Task 14.3), ephemeral handles disappear-timer config (14.8), post-view
+  // deletion scheduling (14.9), and screenshot notifications (14.10). They use
+  // the shared `fastify.prisma` decorator from createApp().
+  await app.register(themesRoutes, { prefix: '/conversations' });
+  await app.register(ephemeralRoutes, { prefix: '/conversations' });
+
   await app.register(encryptionRoutes, { prefix: '/encryption' });
   await app.register(mediaRoutes, { prefix: '/media' });
   await app.register(callsRoutes, { prefix: '/calls' });
   await app.register(aiRoutes, { prefix: '/ai' });
+
+  // Quant AI Agent — agentic chat capabilities (Task 12, Req 11). The
+  // AutoReplyManager is an in-memory singleton (no new schema — Req 9.5)
+  // decorated once at boot so the auto-reply enablement + cancellation state
+  // (Task 12.9) is shared across all /ai/auto-reply* requests. The scheduled
+  // message worker (Task 12.4) polls every 30s (< 60s tolerance) and delivers
+  // due ScheduledMessage rows; it is started here and stopped on app close.
+  const autoReplyManager = new AutoReplyManager();
+  app.decorate('autoReplyManager', autoReplyManager);
+  await app.register(aiAgentRoutes, { prefix: '/ai' });
+
+  const scheduledWorker = new ScheduledMessageWorker(
+    (app as unknown as { prisma: ConstructorParameters<typeof ScheduledMessageWorker>[0] }).prisma,
+    {
+      onError: (error) => {
+        app.log.error({ err: error }, 'scheduled message delivery failed');
+      },
+    },
+  );
+  scheduledWorker.start();
+  app.addHook('onClose', async () => {
+    scheduledWorker.stop();
+  });
+
+  await app.register(reelsRoutes, { prefix: '/reels' });
+  await app.register(avatarRoutes, { prefix: '/avatar' });
+
+  // Snapchat parity — Memories vault + Spotlight feed (Task 13). Both rely on
+  // the shared `fastify.prisma`/`fastify.notifications` decorators from
+  // createApp(), so they register after the cross-cutting plugins are wired.
+  await app.register(memoriesRoutes, { prefix: '/memories' });
+  await app.register(spotlightRoutes, { prefix: '/spotlight' });
+
+  // Push notifications — subscription storage + dispatch (Task 10.2, Req 9).
+  // Subscriptions persist to the Prisma `PushSubscription` model when available
+  // (falls back to an in-memory store in dev/test). Delivery uses the graceful
+  // web-push transport which degrades cleanly when the optional `web-push`
+  // dependency / VAPID keys are absent (Task 10.2).
+  await app.register(notificationsRoutes, { prefix: '/notifications' });
 
   // encryption (E2EE) engine — per-app lane, Task 14.1. SECURITY CONTRACT (Req
   // 7.5): the `@quant/encryption` engine runs CLIENT-SIDE — all key generation,

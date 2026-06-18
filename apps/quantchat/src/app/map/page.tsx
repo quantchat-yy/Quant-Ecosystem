@@ -1,119 +1,303 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { spring } from '@quant/brand';
 import { BottomNav } from '@quant/shared-ui';
-import { LoadingState } from '@quant/shared-ui';
+import { useRealtime } from '../../providers/realtime-context';
+import { MapCanvas } from '../../components/map/MapCanvas';
+import { FriendPin } from '../../components/map/FriendPin';
+import { GhostModeToggle } from '../../components/map/GhostModeToggle';
+import { HeatmapOverlay } from '../../components/map/HeatmapOverlay';
 import { navItems, routes } from '../../lib/navigation';
+import type { GeoPosition, FriendLocation } from '../../components/map';
 
-interface FriendLocation {
-  id: string;
-  name: string;
-  top: string;
-  left: string;
-  color: string;
+// ============================================================================
+// Task 8.1: Map page — MapCanvas + GhostModeToggle header + FriendPins
+//           + HeatmapOverlay (Explore tab). Tab switching Friends/Explore.
+// Task 8.6: Location broadcast every 30s when ghost mode is OFF
+// Task 8.8: Zoom/pan gestures (delegated to MapCanvas)
+// Task 8.9: Geolocation-denied fallback (delegated to MapCanvas)
+// ============================================================================
+
+/** Convert lng/lat offsets from user center into percentage positions */
+function positionToPercent(
+  friendPos: [number, number],
+  userPos: GeoPosition | null,
+): { top: string; left: string } {
+  if (!userPos) {
+    // Random placement fallback
+    return {
+      top: `${20 + Math.random() * 60}%`,
+      left: `${20 + Math.random() * 60}%`,
+    };
+  }
+
+  // Simple linear mapping: each 0.01 degree ≈ ~1km
+  // Map to viewport: center is 50%, scale factor for visibility
+  const scaleFactor = 800; // Pixels per degree
+  const dx = (friendPos[0] - userPos.longitude) * scaleFactor;
+  const dy = -(friendPos[1] - userPos.latitude) * scaleFactor; // Invert Y
+
+  const left = Math.max(5, Math.min(90, 50 + dx));
+  const top = Math.max(10, Math.min(85, 50 + dy));
+
+  return { top: `${top}%`, left: `${left}%` };
 }
 
-const FALLBACK_FRIENDS: FriendLocation[] = [
-  { id: '1', name: 'Alex', top: '25%', left: '35%', color: 'bg-emerald-500' },
-  { id: '2', name: 'Sam', top: '45%', left: '60%', color: 'bg-indigo-500' },
-  { id: '3', name: 'Jordan', top: '60%', left: '25%', color: 'bg-amber-500' },
-  { id: '4', name: 'Taylor', top: '35%', left: '75%', color: 'bg-pink-500' },
-  { id: '5', name: 'Riley', top: '70%', left: '55%', color: 'bg-purple-500' },
-];
-
-const heatMapAreas = [
-  { id: '1', top: '30%', left: '40%', size: 'w-24 h-24', color: 'bg-emerald-500/20' },
-  { id: '2', top: '55%', left: '50%', size: 'w-32 h-32', color: 'bg-amber-500/15' },
-  { id: '3', top: '40%', left: '20%', size: 'w-20 h-20', color: 'bg-indigo-500/20' },
-];
-
-const pageVariants = {
-  initial: { opacity: 0 },
-  enter: {
-    opacity: 1,
-    transition: { type: 'spring' as const, ...spring.gentle },
+/** Fallback friend data for demo */
+const DEMO_FRIENDS: FriendLocation[] = [
+  {
+    userId: '1',
+    username: 'Alex',
+    avatarUrl: '',
+    position: [-74.005, 40.714],
+    lastUpdated: new Date(Date.now() - 120000),
+    isOnline: true,
+    conversationId: 'conv-1',
   },
-};
-
-const pinVariants = {
-  hidden: { opacity: 0, scale: 0 },
-  visible: {
-    opacity: 1,
-    scale: 1,
-    transition: { type: 'spring' as const, ...spring.bouncy },
+  {
+    userId: '2',
+    username: 'Sam',
+    avatarUrl: '',
+    position: [-74.008, 40.716],
+    lastUpdated: new Date(Date.now() - 300000),
+    isOnline: true,
+    conversationId: 'conv-2',
   },
-};
+  {
+    userId: '3',
+    username: 'Jordan',
+    avatarUrl: '',
+    position: [-74.002, 40.71],
+    lastUpdated: new Date(Date.now() - 600000),
+    isOnline: false,
+    conversationId: 'conv-3',
+  },
+  {
+    userId: '4',
+    username: 'Taylor',
+    avatarUrl: '',
+    position: [-74.012, 40.718],
+    lastUpdated: new Date(Date.now() - 60000),
+    isOnline: true,
+    conversationId: 'conv-4',
+  },
+  {
+    userId: '5',
+    username: 'Riley',
+    avatarUrl: '',
+    position: [-73.998, 40.708],
+    lastUpdated: new Date(Date.now() - 900000),
+    isOnline: false,
+    conversationId: 'conv-5',
+  },
+];
 
 export default function MapPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'friends' | 'explore'>('friends');
-  const [friends, setFriends] = useState<FriendLocation[]>(FALLBACK_FRIENDS);
-  const [loading, setLoading] = useState(true);
+  const { subscribe, publish } = useRealtime();
 
-  useEffect(() => {
-    fetch('/api/map/friends')
-      .then((r) => r.json())
-      .then((json) => {
-        const data = json.data || json.friends || json;
-        if (Array.isArray(data) && data.length > 0) setFriends(data);
-      })
-      .catch(() => {
-        /* keep fallback */
-      })
-      .finally(() => setLoading(false));
+  const [activeTab, setActiveTab] = useState<'friends' | 'explore'>('friends');
+  const [ghostMode, setGhostMode] = useState(false);
+  const [userLocation, setUserLocation] = useState<GeoPosition | null>(null);
+  const [friends, setFriends] = useState<FriendLocation[]>(DEMO_FRIENDS);
+  const [locationDenied, setLocationDenied] = useState(false);
+
+  const broadcastIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Handle location acquired from MapCanvas
+  const handleLocationAcquired = useCallback((pos: GeoPosition) => {
+    setUserLocation(pos);
   }, []);
 
-  if (loading) return <LoadingState variant="skeleton" text="Loading map..." />;
+  const handleLocationDenied = useCallback(() => {
+    setLocationDenied(true);
+  }, []);
+
+  // ─── Task 8.2: Subscribe to friend location updates via WebSocket ─────
+  useEffect(() => {
+    const unsub = subscribe('map', (event: { type: string; payload: unknown }) => {
+      if (event.type === 'friend-location-update') {
+        const update = event.payload as {
+          userId: string;
+          username: string;
+          avatarUrl: string;
+          position: [number, number];
+          isOnline: boolean;
+        };
+
+        setFriends((prev) => {
+          const idx = prev.findIndex((f) => f.userId === update.userId);
+          if (idx >= 0) {
+            // Task 8.4: Update position (animated via FriendPin CSS transition)
+            const updated = [...prev];
+            updated[idx] = {
+              ...updated[idx],
+              position: update.position,
+              lastUpdated: new Date(),
+              isOnline: update.isOnline,
+            };
+            return updated;
+          }
+          // New friend appearing
+          return [
+            ...prev,
+            {
+              userId: update.userId,
+              username: update.username,
+              avatarUrl: update.avatarUrl,
+              position: update.position,
+              lastUpdated: new Date(),
+              isOnline: update.isOnline,
+            },
+          ];
+        });
+      }
+    });
+
+    return unsub;
+  }, [subscribe]);
+
+  // ─── Task 8.6: Location broadcast every 30s when ghost mode is OFF ────
+  useEffect(() => {
+    // Clear any existing interval
+    if (broadcastIntervalRef.current) {
+      clearInterval(broadcastIntervalRef.current);
+      broadcastIntervalRef.current = null;
+    }
+
+    if (ghostMode) {
+      // Task 8.5: When ghost mode enabled, send hide event
+      publish('map', {
+        type: 'ghost-mode-enabled',
+        timestamp: Date.now(),
+      });
+      return;
+    }
+
+    // Start broadcasting location every 30s
+    const broadcastLocation = () => {
+      if (!navigator.geolocation) return;
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          publish('map', {
+            type: 'location-update',
+            payload: {
+              position: [pos.coords.longitude, pos.coords.latitude],
+              timestamp: Date.now(),
+            },
+          });
+        },
+        () => {
+          // Silently fail — location not available
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 15000 },
+      );
+    };
+
+    // Broadcast immediately once
+    broadcastLocation();
+
+    // Then every 30 seconds
+    broadcastIntervalRef.current = setInterval(broadcastLocation, 30000);
+
+    return () => {
+      if (broadcastIntervalRef.current) {
+        clearInterval(broadcastIntervalRef.current);
+        broadcastIntervalRef.current = null;
+      }
+    };
+  }, [ghostMode, publish]);
+
+  // ─── Task 8.5: Ghost mode toggle handler ──────────────────────────────
+  const handleGhostModeToggle = useCallback(
+    (enabled: boolean) => {
+      setGhostMode(enabled);
+
+      if (enabled) {
+        // Clear broadcast interval immediately (Task 8.6)
+        if (broadcastIntervalRef.current) {
+          clearInterval(broadcastIntervalRef.current);
+          broadcastIntervalRef.current = null;
+        }
+        // Send ghost mode event to hide pin from friends within 5s
+        publish('map', {
+          type: 'ghost-mode-enabled',
+          timestamp: Date.now(),
+        });
+      } else {
+        // Disable ghost mode → resume broadcasting
+        publish('map', {
+          type: 'ghost-mode-disabled',
+          timestamp: Date.now(),
+        });
+      }
+    },
+    [publish],
+  );
+
+  // ─── Task 8.3: Navigate to chat on "Open Chat" tap ────────────────────
+  const handleOpenChat = useCallback(
+    (conversationId: string) => {
+      router.push(`/chat/${conversationId}`);
+    },
+    [router],
+  );
 
   return (
     <motion.div
       className="relative h-screen w-full overflow-hidden"
-      variants={pageVariants}
-      initial="initial"
-      animate="enter"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ type: 'spring', ...spring.gentle }}
     >
-      {/* Map background placeholder */}
-      <div className="absolute inset-0 bg-gradient-to-br from-emerald-900 via-teal-800 to-slate-900">
-        {/* Map grid lines for visual effect */}
-        <div className="absolute inset-0 opacity-10">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div
-              key={`h-${i}`}
-              className="absolute left-0 right-0 border-t border-white"
-              style={{ top: `${(i + 1) * 10}%` }}
-            />
-          ))}
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div
-              key={`v-${i}`}
-              className="absolute top-0 bottom-0 border-l border-white"
-              style={{ left: `${(i + 1) * 10}%` }}
-            />
-          ))}
-        </div>
-      </div>
+      {/* Map canvas with gestures, user location dot, and geolocation fallback */}
+      <MapCanvas
+        onLocationAcquired={handleLocationAcquired}
+        onLocationDenied={handleLocationDenied}
+      >
+        {/* Friend pins (Friends tab) */}
+        {activeTab === 'friends' &&
+          friends.map((friend) => {
+            const { top, left } = positionToPercent(friend.position, userLocation);
+            return (
+              <FriendPin
+                key={friend.userId}
+                friend={friend}
+                top={top}
+                left={left}
+                onOpenChat={handleOpenChat}
+              />
+            );
+          })}
 
-      {/* Search bar */}
-      <div className="absolute top-4 left-4 right-4 z-20">
-        <div className="bg-[var(--quant-card)]/90 backdrop-blur-md rounded-xl px-4 py-3 flex items-center gap-3 shadow-lg border border-[var(--quant-border)] min-h-touch">
+        {/* Heatmap overlay (Explore tab) — Task 8.7 */}
+        <HeatmapOverlay visible={activeTab === 'explore'} />
+      </MapCanvas>
+
+      {/* Search bar + Ghost mode toggle header */}
+      <div className="absolute top-4 left-4 right-4 z-30">
+        <div className="bg-[var(--quant-card)]/90 backdrop-blur-md rounded-xl px-4 py-3 flex items-center gap-3 shadow-lg border border-[var(--quant-border)]">
           <span className="text-[var(--quant-muted-foreground)]">&#128270;</span>
           <input
             type="text"
             placeholder="Search locations..."
             className="flex-1 bg-transparent text-[var(--quant-foreground)] placeholder:text-[var(--quant-muted-foreground)] text-sm outline-none"
           />
+          {/* Task 8.5: Ghost mode toggle in header */}
+          <GhostModeToggle enabled={ghostMode} onToggle={handleGhostModeToggle} />
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div className="absolute top-20 left-4 right-4 z-20">
+      {/* Tab bar: Friends / Explore */}
+      <div className="absolute top-20 left-4 right-4 z-30">
         <div className="flex bg-black/40 backdrop-blur-sm rounded-full p-1">
           <button
             onClick={() => setActiveTab('friends')}
-            className={`flex-1 py-2 text-sm font-medium rounded-full transition-colors min-h-touch flex items-center justify-center ${
+            className={`flex-1 py-2 text-sm font-medium rounded-full transition-colors min-h-[44px] flex items-center justify-center ${
               activeTab === 'friends'
                 ? 'bg-emerald-500 text-white'
                 : 'text-white/70 hover:text-white'
@@ -123,7 +307,7 @@ export default function MapPage() {
           </button>
           <button
             onClick={() => setActiveTab('explore')}
-            className={`flex-1 py-2 text-sm font-medium rounded-full transition-colors min-h-touch flex items-center justify-center ${
+            className={`flex-1 py-2 text-sm font-medium rounded-full transition-colors min-h-[44px] flex items-center justify-center ${
               activeTab === 'explore'
                 ? 'bg-emerald-500 text-white'
                 : 'text-white/70 hover:text-white'
@@ -134,48 +318,33 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* Heat map areas */}
-      {activeTab === 'explore' &&
-        heatMapAreas.map((area) => (
-          <div
-            key={area.id}
-            className={`absolute ${area.size} ${area.color} rounded-full blur-xl z-10`}
-            style={{ top: area.top, left: area.left }}
-          />
-        ))}
-
-      {/* Friend avatars */}
-      {activeTab === 'friends' &&
-        friends.map((friend, idx) => (
-          <motion.div
-            key={friend.id}
-            className="absolute z-10 flex flex-col items-center gap-1"
-            style={{ top: friend.top, left: friend.left }}
-            variants={pinVariants}
-            initial="hidden"
-            animate="visible"
-            transition={{ delay: idx * 0.08 }}
-          >
-            <div
-              className={`w-10 h-10 ${friend.color} rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg border-2 border-white`}
-            >
-              {friend.name.charAt(0)}
-            </div>
-            <span className="text-xs text-white bg-black/50 px-2 py-0.5 rounded-full">
-              {friend.name}
-            </span>
-          </motion.div>
-        ))}
-
-      {/* My Location button */}
-      <div className="absolute bottom-24 right-4 z-20">
-        <button className="w-12 h-12 bg-white dark:bg-slate-800 rounded-full shadow-lg flex items-center justify-center text-lg border border-[var(--quant-border)] min-w-touch min-h-touch">
+      {/* My Location re-center button */}
+      <div className="absolute bottom-24 right-4 z-30">
+        <button
+          className="w-12 h-12 bg-white dark:bg-slate-800 rounded-full shadow-lg flex items-center justify-center text-lg border border-[var(--quant-border)]"
+          onClick={() => {
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  setUserLocation({
+                    latitude: pos.coords.latitude,
+                    longitude: pos.coords.longitude,
+                    accuracy: pos.coords.accuracy,
+                    timestamp: pos.timestamp,
+                  });
+                },
+                () => {},
+              );
+            }
+          }}
+          aria-label="Center on my location"
+        >
           &#128205;
         </button>
       </div>
 
       {/* Bottom nav */}
-      <div className="absolute bottom-0 left-0 right-0 z-20">
+      <div className="absolute bottom-0 left-0 right-0 z-30">
         <BottomNav
           items={navItems}
           activeId="map"
