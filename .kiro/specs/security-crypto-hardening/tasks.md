@@ -311,19 +311,13 @@ this.config.fingerprintSecret).update(`${ip}:${userAgent}`).digest('hex');` Remo
       a long unique password→not breached).
     - _Requirements: 2.3_
 
-  - [ ] 18.3 CSRF HMAC equals `createHmac` reference (PBT)
-    - **Property 3: Expected Behavior** - CSRF Integrity Tag Equals HMAC-SHA256 Reference
-    - For ≥100 seeded random `(token, sessionId)` pairs, assert `computeHMAC(token, sessionId) ===
+  - [ ] 18.3 CSRF HMAC equals `createHmac` reference (PBT) - **Property 3: Expected Behavior** - CSRF Integrity Tag Equals HMAC-SHA256 Reference - For ≥100 seeded random `(token, sessionId)` pairs, assert `computeHMAC(token, sessionId) ===
 crypto.createHmac('sha256', secretKey).update(`${token}:${sessionId}`).digest('hex')`. Add an
-      edge case: length-mismatched buffers in the compare path yield `hmac_invalid`, not a throw.
-    - _Requirements: 2.4, 2.5_
+        edge case: length-mismatched buffers in the compare path yield `hmac_invalid`, not a throw. - _Requirements: 2.4, 2.5_
 
-  - [ ] 18.4 CSP hash equals browser base64 reference (PBT over content + algorithm)
-    - **Property 4: Expected Behavior** - CSP Hash Equals Browser Reference
-    - For ≥100 seeded random `content` strings × random `algorithm ∈ {sha256, sha384, sha512}`,
-      assert `computeHash(content, algorithm) === "'" + algorithm + "-" +
-crypto.createHash(algorithm).update(content).digest('base64') + "'"`. Include empty-content edge.
-    - _Requirements: 2.6_
+  - [ ] 18.4 CSP hash equals browser base64 reference (PBT over content + algorithm) - **Property 4: Expected Behavior** - CSP Hash Equals Browser Reference - For ≥100 seeded random `content` strings × random `algorithm ∈ {sha256, sha384, sha512}`,
+        assert `computeHash(content, algorithm) === "'" + algorithm + "-" +
+crypto.createHash(algorithm).update(content).digest('base64') + "'"`. Include empty-content edge. - _Requirements: 2.6_
 
   - [ ] 18.5 Session fingerprint equals keyed digest, stable, and distinct (PBT)
     - **Property 5: Expected Behavior** - Session Fingerprint Equals Keyed Digest and Is Stable

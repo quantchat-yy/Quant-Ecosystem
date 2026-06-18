@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { createAppError } from '@quant/server-core';
-import { paymentEngine } from '@quant/payment';
+import { paymentEngine, PaymentValidationError } from '@quant/payment';
 
 function escapeHtml(value: string): string {
   return value
@@ -58,7 +58,7 @@ export default async function paymentRoutes(fastify: FastifyInstance) {
     const sanitizedMethod = {
       type,
       isDefault,
-      details: (sanitizeValue(details ?? {}) as Record<string, unknown>),
+      details: sanitizeValue(details ?? {}) as Record<string, unknown>,
     };
 
     const method = await paymentEngine.addPaymentMethod(userId, sanitizedMethod as any);
@@ -72,14 +72,24 @@ export default async function paymentRoutes(fastify: FastifyInstance) {
     }
 
     const { amount, currency, type, metadata } = request.body as any;
-    const transaction = await paymentEngine.processPayment(
-      userId,
-      amount,
-      currency,
-      type,
-      metadata,
-    );
-    return reply.send(transaction);
+    try {
+      const transaction = await paymentEngine.processPayment(
+        userId,
+        amount,
+        currency,
+        type,
+        metadata,
+      );
+      return reply.send(transaction);
+    } catch (error) {
+      // A domain validation failure is a client error: map it to HTTP 400 with a
+      // stable code (never a 500). All other errors are forwarded unchanged so
+      // existing handling (incl. the global error handler) is preserved.
+      if (error instanceof PaymentValidationError) {
+        throw createAppError(error.message, 400, error.code);
+      }
+      throw error;
+    }
   });
 
   fastify.get('/transactions', async (request, reply) => {
