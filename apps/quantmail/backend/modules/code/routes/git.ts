@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
 import type { PrismaClient } from '@prisma/client';
+import { GitService } from '../services/git.service';
 
 function getUserId(request: unknown): string {
   const req = request as { auth?: { userId?: string } };
@@ -25,11 +26,25 @@ const UpdateRepoSchema = z.object({
   defaultBranch: z.string().optional(),
 });
 
+const PushRefsSchema = z.object({
+  refs: z
+    .array(
+      z.object({
+        ref: z.string().min(1),
+        newSha: z.string().min(1),
+        oldSha: z.string().optional(),
+        prId: z.string().optional(),
+      }),
+    )
+    .min(1),
+});
+
 export default async function gitRoutes(fastify: FastifyInstance) {
   const prisma = (fastify as unknown as { prisma?: PrismaClient }).prisma ?? null;
   if (!prisma) {
     throw new Error('PrismaClient is not available. Register the prisma plugin before git routes.');
   }
+  const gitService = new GitService(prisma);
 
   // POST /repos - create repo
   fastify.post('/repos', async (request, reply) => {
@@ -143,6 +158,31 @@ export default async function gitRoutes(fastify: FastifyInstance) {
       });
 
       return reply.send({ success: true, data: branches });
+    },
+  );
+
+  // POST /repos/:owner/:name/push - advance refs (write-scope + branch protection)
+  fastify.post<{ Params: { owner: string; name: string } }>(
+    '/repos/:owner/:name/push',
+    async (request, reply) => {
+      const userId = getUserId(request);
+      const { owner, name } = request.params;
+      const body = PushRefsSchema.parse(request.body);
+
+      const repo = await prisma.repository.findFirst({
+        where: { ownerId: owner, name },
+      });
+
+      if (!repo) {
+        throw createAppError('Repository not found', 404, 'REPO_NOT_FOUND');
+      }
+
+      // pushRefs enforces the write-scope gate (403 if the caller lacks write
+      // scope) and evaluates branch protection before any protected ref
+      // advances (Requirement 6.3).
+      const result = await gitService.pushRefs(userId, repo.id, body.refs);
+
+      return reply.send({ success: true, data: result });
     },
   );
 }

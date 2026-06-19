@@ -26,7 +26,16 @@ export type { PhoneAuthConfig, SMSDeliveryResult } from './providers/phone-provi
 
 // Services
 export { TokenService } from './services/token-service';
+export type { TokenServiceOptions } from './services/token-service';
 export { getJwtSecret, getJwtRefreshSecret } from './lib/secrets';
+export { EnvConfigJwtKms, VaultJwtKms, deriveKid } from './lib/jwt-kms';
+export type {
+  JwtKms,
+  JwtKeyPurpose,
+  JwtKeyVersion,
+  SecretVaultPort,
+  EnvConfigJwtKmsOptions,
+} from './lib/jwt-kms';
 export { SessionService } from './services/session-service';
 export type { CreateSessionOptions } from './services/session-service';
 export { WebAuthnService } from './services/webauthn-service';

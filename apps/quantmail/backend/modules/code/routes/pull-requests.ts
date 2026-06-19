@@ -7,6 +7,7 @@ import {
   CreatePRInputSchema,
   MergePRInputSchema,
 } from '../services/pr.service';
+import { MergeEligibilityService } from '../services/merge-eligibility.service';
 
 function getUserId(request: unknown): string {
   const req = request as { auth?: { userId?: string } };
@@ -31,6 +32,7 @@ export default async function pullRequestRoutes(fastify: FastifyInstance) {
     );
   }
   const prService = new PullRequestService(prisma);
+  const mergeEligibilityService = new MergeEligibilityService(prisma);
 
   // POST / - create PR
   fastify.post<{ Params: { owner: string; name: string } }>(
@@ -100,6 +102,29 @@ export default async function pullRequestRoutes(fastify: FastifyInstance) {
 
       const result = await prService.getPR(repo.id, prNumber);
       return reply.send({ success: true, data: result });
+    },
+  );
+
+  // GET /:number/merge-eligibility - evaluate merge decision (CI + protection + reviews)
+  fastify.get<{ Params: { owner: string; name: string; number: string } }>(
+    '/:owner/:name/pulls/:number/merge-eligibility',
+    async (request, reply) => {
+      const userId = getUserId(request);
+      const { owner, name } = request.params;
+      const prNumber = parseInt(request.params.number, 10);
+
+      const repo = await prisma.repository.findFirst({
+        where: { ownerId: owner, name },
+      });
+
+      if (!repo) {
+        throw createAppError('Repository not found', 404, 'REPO_NOT_FOUND');
+      }
+
+      const pr = await prService.getPR(repo.id, prNumber);
+      const decision = await mergeEligibilityService.evaluateMergeEligibility(pr.id);
+
+      return reply.send({ success: true, data: decision });
     },
   );
 

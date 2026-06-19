@@ -7,11 +7,7 @@ import foldersRoutes from './routes/folders';
 import contactsRoutes from './routes/contacts';
 import aiRoutes from './routes/ai';
 import aiServicesRoutes from './routes/ai-services';
-import gitRoutes from './routes/git';
-import pullRequestRoutes from './routes/pull-requests';
-import reviewRoutes from './routes/reviews';
-import issueRoutes from './routes/issues';
-import ciRoutes from './routes/ci';
+import { registerQuantCodeModule } from './modules/code';
 import aiDevtoolsRoutes from './routes/ai-devtools';
 import attachmentRoutes from './routes/attachments';
 import e2eeRoutes from './routes/e2ee';
@@ -57,11 +53,15 @@ export async function buildApp(config?: AppConfig) {
   await app.register(contactsRoutes, { prefix: '/contacts' });
   await app.register(aiRoutes, { prefix: '/emails' });
   await app.register(aiServicesRoutes, { prefix: '/api/v1' });
-  await app.register(gitRoutes, { prefix: '/api/v1/git' });
-  await app.register(pullRequestRoutes, { prefix: '/api/v1/git' });
-  await app.register(reviewRoutes, { prefix: '/api/v1/git' });
-  await app.register(issueRoutes, { prefix: '/api/v1/git' });
-  await app.register(ciRoutes, { prefix: '/api/v1' });
+
+  // QuantCode developer-platform module (Pillar 2, SRP-extracted — Task 9.1).
+  // Mounts repo/PR/issue/review/branch-protection/CI under the canonical
+  // `/api/code/*` prefix (Requirement 6.1), plus a `/api/v1/*` backward-compat
+  // alias preserving the pre-extraction paths. The mail domain above does not
+  // import any QuantCode service and this module imports no mail service
+  // (Requirement 6.2).
+  await registerQuantCodeModule(app);
+
   await app.register(aiDevtoolsRoutes, { prefix: '/api/v1' });
   await app.register(attachmentRoutes, { prefix: '/attachments' });
 

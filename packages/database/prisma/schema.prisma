@@ -71,6 +71,8 @@ model User {
   reviews        Review[]
   reviewComments ReviewComment[]
   issues         Issue[]
+  agentSessions  AgentSession[]
+  agentOrgs      AgentOrg[]
 
   // Self-relations for followers
   following UserRelationship[] @relation("UserFollowing")
@@ -235,14 +237,16 @@ model OAuthConsent {
 }
 
 model AuthorizationCode {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  clientId    String
-  userId      String
-  redirectUri String
-  scopes      String[]
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
+  id                  String   @id @default(cuid())
+  code                String   @unique
+  clientId            String
+  userId              String
+  redirectUri         String
+  scopes              String[]
+  codeChallenge       String?
+  codeChallengeMethod String?
+  expiresAt           DateTime
+  createdAt           DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -399,6 +403,14 @@ model Email {
   attachments    Json          @default("[]")
   labels         Json          @default("[]")
   inReplyTo      String?
+  // Real outbound/inbound delivery (QuantMail SuperHub Pillar 1). Additive; existing
+  // rows default to `draft`. Advanced toward a terminal state by the OutboundDeliveryPipeline.
+  deliveryStatus EmailDeliveryStatus @default(draft)
+  messageId      String?
+  // Combined SPF/DKIM/DMARC AuthVerdict recorded by the InboundIngestAdapter for
+  // inbound mail (QuantMail SuperHub Pillar 1, Requirement 5.1). Additive/nullable;
+  // outbound and existing rows leave it null.
+  authResults    Json?
   priority       EmailPriority @default(NORMAL)
   aiSummary      String?
   aiCategory     String?
@@ -411,6 +423,9 @@ model Email {
   user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   thread EmailThread? @relation(fields: [threadId], references: [id])
   folder EmailFolder? @relation(fields: [folderId], references: [id])
+
+  // Per-recipient delivery attempts recorded by the OutboundDeliveryPipeline worker.
+  deliveryAttempts DeliveryAttempt[]
 
   @@index([userId])
   @@index([threadId])
@@ -425,6 +440,18 @@ enum EmailPriority {
   NORMAL
   HIGH
   URGENT
+}
+
+// Per-email/per-recipient delivery lifecycle for real outbound/inbound mail.
+// Values are lowercase to match the design's Delivery_State literals
+// (draft -> queued -> sent/deferred -> bounced/delivered) and never regress.
+enum EmailDeliveryStatus {
+  draft
+  queued
+  sent
+  deferred
+  bounced
+  delivered
 }
 
 model EmailThread {
@@ -1240,6 +1267,7 @@ model Repository {
   issues            Issue[]
   branchProtections BranchProtection[]
   ciRuns            CIRun[]
+  agentSessions     AgentSession[]
 
   @@unique([ownerId, name])
   @@index([ownerId])
@@ -1405,6 +1433,508 @@ model CIJob {
   @@index([runId])
   @@index([status])
   @@map("ci_jobs")
+}
+
+// ==================== AGENT RUNTIME (Pillar 3) ====================
+// quantmail-superhub · Task 12.1 (Requirements 7.1, 7.2)
+// Additive models for the bounded, branch-isolated autonomous coding agent.
+// An AgentSession is one execution of the Agent Runtime against a repo, on an
+// isolated agent branch (branchRef != Repository.defaultBranch), bounded by
+// maxIterations and a credit budget. AgentTranscript is the append-only,
+// auditable step log for a session.
+
+enum AgentSessionStatus {
+  PLANNING
+  RUNNING
+  AWAITING_REVIEW
+  DONE
+  FAILED
+  CANCELLED
+}
+
+enum AgentTranscriptRole {
+  PLAN
+  TOOL_CALL
+  OBSERVATION
+  MESSAGE
+}
+
+model AgentSession {
+  id             String             @id @default(cuid())
+  userId         String
+  repoId         String
+  instruction    String
+  status         AgentSessionStatus @default(PLANNING)
+  branchRef      String // isolated agent working branch; never the repo default branch
+  maxIterations  Int                @default(10)
+  iterationCount Int                @default(0)
+  costBudget     Float              @default(0) // credit budget reserved for the session
+  costSpent      Float              @default(0)
+  linkedPrId     String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repository  Repository        @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  transcripts AgentTranscript[]
+
+  @@index([userId])
+  @@index([repoId])
+  @@index([status])
+  @@map("agent_sessions")
+}
+
+model AgentTranscript {
+  id         String              @id @default(cuid())
+  sessionId  String
+  seq        Int // monotonically increasing per session
+  role       AgentTranscriptRole
+  toolName   String?
+  payload    Json                @default("{}")
+  tokensUsed Int                 @default(0)
+  timestamp  DateTime            @default(now())
+
+  session AgentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, seq])
+  @@index([sessionId])
+  @@map("agent_transcripts")
+}
+
+// ==================== AGENT COMPANY OS (Phase 6) ====================
+// quantmail-superhub · Task 18.1 (Requirements 9.1, 9.2, 9.3, 9.4)
+// Additive models for the autonomous "agent company". An AgentOrg is the
+// company spun up for ONE CEO goal: tenant-scoped (every worker shares the
+// CEO's tenant), with a hard credit budget cap and an iteration cap. The
+// orchestrator creates it in PLANNING status bound to the authenticated tenant
+// owner (Req 9.1/9.2). An AgentWorker is a long-lived, role-specialized
+// "employee" with its own model, its own scoped QuantMail mailbox identity, a
+// tool scope, and a share of the org budget — fuller use lands in Tasks 19.x.
+// VALIDATION (enforced in app logic): org.costSpent <= org.budgetCap, and every
+// AgentWorker shares the org's tenantId.
+
+enum AgentOrgStatus {
+  PLANNING
+  PROVISIONING
+  RUNNING
+  AWAITING_APPROVAL
+  DONE
+  FAILED
+  CANCELLED
+}
+
+enum AgentRoleKey {
+  PLANNER
+  CODER
+  REVIEWER
+  TESTER
+  DEBUGGER
+  UPGRADER
+  DEVOPS
+}
+
+enum AgentWorkerStatus {
+  SPAWNING
+  ACTIVE
+  PAUSED
+  RETIRED
+}
+
+// Lifecycle of a worker's scoped agent mailbox identity (Task 19.2).
+// ACTIVE   — usable; holds only `agent-bus` + the worker's tool scope.
+// REVOKED  — tokens revoked (no longer authenticates) but not yet archived.
+// ARCHIVED — preserved for audit after retire; permanently unusable.
+enum AgentMailboxIdentityStatus {
+  ACTIVE
+  REVOKED
+  ARCHIVED
+}
+
+model AgentOrg {
+  id              String         @id @default(cuid())
+  ceoUserId       String // the human CEO; owner of the org's single tenant
+  tenantId        String // ownership/isolation boundary derived from the CEO
+  goalText        String
+  status          AgentOrgStatus @default(PLANNING)
+  workspaceRepoId String? // set at provisioning (Task 19.x); QuantCode repo id
+  budgetCap       Float          @default(0) // hard org-level credit ceiling
+  costSpent       Float          @default(0) // INVARIANT: costSpent <= budgetCap
+  maxIterations   Int            @default(100)
+  totalIterations Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  ceo     User          @relation(fields: [ceoUserId], references: [id], onDelete: Cascade)
+  workers AgentWorker[]
+
+  @@index([ceoUserId])
+  @@index([tenantId])
+  @@index([status])
+  @@map("agent_orgs")
+}
+
+model AgentWorker {
+  id                String            @id @default(cuid())
+  orgId             String
+  tenantId          String // INVARIANT: equals the org's tenantId
+  role              AgentRoleKey
+  modelRef          String // resolved ModelRef id (CEO override or role default)
+  mailboxIdentityId String? // scoped QuantMail identity (provisioned in Task 19.x)
+  toolScope         Json              @default("[]") // ToolDescriptor keys granted to the worker
+  status            AgentWorkerStatus @default(SPAWNING)
+  budgetShare       Float             @default(0) // share of org.budgetCap; SUM <= budgetCap
+  costSpent         Float             @default(0)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  org AgentOrg @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([tenantId])
+  @@index([status])
+  @@map("agent_workers")
+}
+
+// A tenant-scoped agent mailbox identity (Task 19.2 — design §"INTERFACE
+// AgentIdentityProvisioner"). Provisioned per `AgentWorker`, it EXTENDS the
+// existing alias/identity + OAuth-scope model: `scopes` is restricted to
+// `['agent-bus', ...the worker's tool scope]` and NEVER carries a human-inbox
+// or cross-tenant/global scope. `tenantId` (also baked into the agents domain
+// of `address`) confines the identity to its own tenant. On retire the row is
+// archived (never deleted) so it is preserved for audit but can no longer
+// authenticate (status != ACTIVE).
+model AgentMailboxIdentity {
+  id         String                     @id @default(cuid())
+  orgId      String
+  tenantId   String // INVARIANT: equals the org's tenantId (cross-tenant isolation)
+  workerSlot String // stable per-role slot, e.g. `coder-3`
+  roleKey    AgentRoleKey?
+  address    String                     @unique // unique + agent-namespaced
+  scopes     Json                       @default("[]") // ['agent-bus', ...toolScope] ONLY
+  status     AgentMailboxIdentityStatus @default(ACTIVE)
+  revokedAt  DateTime? // set when tokens are revoked on retire
+  archivedAt DateTime? // set when archived for audit on retire
+  createdAt  DateTime                   @default(now())
+  updatedAt  DateTime                   @updatedAt
+
+  @@unique([orgId, workerSlot])
+  @@index([orgId])
+  @@index([tenantId])
+  @@index([status])
+  @@map("agent_mailbox_identities")
+}
+
+// ==================== AGENT EMAIL BUS (Phase 6) ====================
+// quantmail-superhub · Task 20.1 (Requirements 12.1, 12.2, 12.3, 12.4)
+// Agents coordinate by emailing each other THROUGH the normal mail pipeline
+// (design §"Component: Email as Message Bus"). Two additive models support this
+// WITHOUT changing the mail-domain `Email`/`EmailThread` models:
+//
+//   • AgentWorkItem — the unit of agent work; each work item maps to one bus
+//     EmailThread (`busThreadId`) so every handoff is a reply in that thread,
+//     giving a durable, observable, per-task conversation log. It optionally
+//     links to the executing `AgentSession` and the resulting PR.
+//
+//   • AgentBusEmailMeta — a STRUCTURED SIDECAR over a delivered `Email`. The
+//     reserved `agent-bus` label, the artifacts, the recipients and the thread
+//     all live on the real `Email` (delivered via the normal pipeline); this
+//     sidecar additionally records the structured bus headers
+//     (`X-Quant-Agent-Org` / `-From-Role` / `-Msg-Type`), the message type, and
+//     the sender/recipient WORKER ids so the orchestrator can route by the
+//     `agent-bus` label and a worker can poll its own messages — all without a
+//     `headers` column on `Email`. One row per delivered bus email (`emailId`
+//     unique).
+
+// The kind of an agent-bus message (design §"STRUCTURE AgentBusMessage").
+enum AgentBusMsgType {
+  TASK_ASSIGN
+  PR_READY
+  CHANGE_REQUEST
+  CI_RESULT
+  STATUS
+  ESCALATION
+  DONE
+}
+
+// Lifecycle of an AgentWorkItem as it moves through the agent company.
+enum AgentWorkItemStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  IN_REVIEW
+  BLOCKED
+  DONE
+}
+
+model AgentWorkItem {
+  id               String              @id @default(cuid())
+  orgId            String
+  assignedWorkerId String? // the AgentWorker currently responsible
+  busThreadId      String? // the EmailThread the bus conversation lives in
+  title            String
+  spec             String? // free-form work specification / description
+  status           AgentWorkItemStatus @default(OPEN)
+  linkedSessionId  String? // the AgentSession executing the item, when started
+  linkedPrId       String? // the PullRequest produced for the item, when opened
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([orgId])
+  @@index([assignedWorkerId])
+  @@index([busThreadId])
+  @@index([status])
+  @@map("agent_work_items")
+}
+
+model AgentBusEmailMeta {
+  id           String          @id @default(cuid())
+  emailId      String          @unique // the delivered Email this annotates
+  orgId        String // INVARIANT: sender + all recipients share this org/tenant
+  threadId     String // the work item's bus thread (== Email.threadId)
+  workItemId   String
+  fromWorkerId String
+  fromRole     String // wire role for the X-Quant-Agent-From-Role header
+  toWorkerIds  Json            @default("[]") // recipient AgentWorker ids
+  msgType      AgentBusMsgType
+  label        String          @default("agent-bus") // reserved system label
+  headers      Json            @default("{}") // the X-Quant-Agent-* headers
+  artifacts    Json            @default("[]") // diff|plan|log|report metadata
+  createdAt    DateTime        @default(now())
+
+  @@index([orgId])
+  @@index([workItemId])
+  @@index([threadId])
+  @@index([msgType])
+  @@map("agent_bus_email_meta")
+}
+
+// ==================== AGENT ACTION AUDIT + APPROVAL GATING (Phase 6) ====================
+// quantmail-superhub · Task 22.1 (Requirements 14.1, 14.2, 14.3, 23.1, 23.3)
+// A unified, ADDITIVE audit trail for every SENSITIVE agent / Gmail-handler
+// action (design §"STRUCTURE AgentActionAudit"). Nothing in the existing schema
+// is modified. A sensitive action (a merge, or an external send above the
+// policy threshold) is NEVER executed autonomously: the approval-gating service
+// first records the action here in PENDING status (it does NOT execute), and a
+// human (the CEO / org owner) must explicitly APPROVE it before it may run.
+//
+// INVARIANT (enforced in app logic — design VALIDATION):
+//   sensitive actions (merge, external send above threshold) MUST have
+//   `approvedByHuman = true` before they are EXECUTED. `approvedByHuman` is set
+//   true ONLY by a human approval (Req 14.3 / 23.3); requesting or rejecting an
+//   action always leaves it false.
+//
+// `orgId` / `actorWorkerId` are nullable so the trail covers BOTH Company-OS
+// worker actions (orgId + actorWorkerId set) and plain Agent-Runtime / human
+// actions (org-less). `tenantId` always scopes the row for ownership authz.
+
+// The kind of sensitive action being gated/audited.
+enum AgentActionType {
+  MERGE // landing an agent PR onto a protected/base branch
+  GMAIL_SEND // an outbound send proposed by the autonomous handler
+  GMAIL_REPLY // an outbound reply proposed by the autonomous handler
+  GMAIL_ARCHIVE // archiving a message
+  GMAIL_LABEL // labeling a message
+  GMAIL_SCHEDULE_SEND // a scheduled send
+  GMAIL_FOLLOWUP // a follow-up send
+  EXTERNAL_SEND // any send/reply to an EXTERNAL recipient (above threshold)
+  OTHER
+}
+
+// Sensitivity / level of a proposed action (mirrors the Gmail handler's
+// SensitivityLevel). Actions above the policy threshold require human approval.
+enum AgentActionSensitivity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// Lifecycle of an audited sensitive action.
+//   PENDING  — recorded, awaiting a human decision; NOT executed.
+//   APPROVED — a human approved it (approvedByHuman = true); may now execute.
+//   REJECTED — a human rejected it; never executes.
+//   EXECUTED — the approved action has been carried out.
+enum AgentActionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXECUTED
+}
+
+model AgentActionAudit {
+  id               String                 @id @default(cuid())
+  tenantId         String // ownership/isolation boundary for authz
+  orgId            String? // set for Company-OS worker actions; null otherwise
+  actorWorkerId    String? // the AgentWorker that proposed it; null for non-worker actions
+  actionType       AgentActionType
+  targetRef        String // what the action targets (prId, emailId, address, ...)
+  sensitivity      AgentActionSensitivity @default(HIGH)
+  status           AgentActionStatus      @default(PENDING)
+  approvedByHuman  Boolean                @default(false) // true ONLY after a human approves (Req 14.3/23.3)
+  approvedByUserId String? // the human (CEO/owner) who decided
+  requestedAt      DateTime               @default(now())
+  decidedAt        DateTime? // set when approved or rejected
+  executedAt       DateTime? // set when the approved action is carried out
+  metadata         Json                   @default("{}") // payload/context for the action
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@index([tenantId])
+  @@index([orgId])
+  @@index([actorWorkerId])
+  @@index([status])
+  @@index([actionType])
+  @@map("agent_action_audits")
+}
+
+// ==================== ANSWER ENGINE (Pillar 4: Perplexity) ====================
+// A DocumentChunk is the unit of retrievable evidence for the RAG answer
+// engine. Every chunk is owned by exactly one user (`userId`), and that owner
+// scopes EVERY retrieval (no cross-tenant leakage — Requirement 8.1). The
+// `sourceRef` JSON carries the provenance needed to cite the chunk
+// (Requirement 8.4): { emailId } for EMAIL, { repo, path, commit? } for REPO,
+// { url } for WEB. `embeddingId` is the Qdrant point id; the keyword copy lives
+// in Meilisearch. Both indexes are populated by the `search-indexer` service.
+
+enum DocumentChunkSource {
+  EMAIL
+  REPO
+  WEB
+}
+
+model DocumentChunk {
+  id          String              @id @default(cuid())
+  userId      String // OWNER — scopes every retrieval (Requirement 8.1)
+  sourceType  DocumentChunkSource
+  sourceRef   Json                @default("{}") // provenance: { emailId } | { repo, path, commit? } | { url }
+  text        String
+  embeddingId String? // Qdrant point id for the vector copy
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([userId])
+  @@index([userId, sourceType])
+  @@map("document_chunks")
+}
+
+// ==================== BILLING / CREDITS (Phase 7) ====================
+// quantmail-superhub Task 25.1 (Requirements 16.1-16.5).
+//
+// A CreditWallet is owner-scoped (a user OR an org) and DOES NOT store its
+// balance authoritatively — the balance is DERIVED as `sum(ledger)` over the
+// owner's CreditLedgerEntry rows (Req 16.1). Each row is IMMUTABLE and
+// APPEND-ONLY: entries are never mutated or deleted (Req 16.3). `amount` is a
+// SIGNED whole-credit delta (positive for grants/purchases/refunds, negative
+// for debits) so the wallet total is literally `SUM(amount)` and the invariant
+// `total >= 0` is enforced at append time (Req 16.2). The `bucket` dimension
+// (DAILY / MONTHLY / PURCHASED) lets `getBalance` derive the
+// {daily, monthly, purchased, total} breakdown. `actionKey` is the idempotency
+// key reserved for the metered debits/daily-grants that land in tasks 26-27;
+// it is unique so a replayed action cannot append a second entry.
+
+enum CreditBucket {
+  DAILY // recurring daily free allowance (resets each UTC day, no rollover)
+  MONTHLY // plan-included monthly credits
+  PURCHASED // purchased top-ups (and refunds/adjustments against them)
+}
+
+model CreditLedgerEntry {
+  id        String       @id @default(cuid())
+  ownerRef  String // OWNER — the user/org id that owns the wallet (scopes the balance)
+  ownerType String       @default("user") // "user" | "org"
+  tenantId  String? // ownership/isolation boundary for authz (null for self-owned)
+  entryType String // daily_grant | monthly_grant | purchase | refund | adjustment | debit
+  bucket    CreditBucket // which sub-balance this entry contributes to
+  amount    Int // SIGNED whole-credit delta; balance == SUM(amount)
+  actionKey String? // idempotency key for debits/daily grants (tasks 26-27)
+  sourceRef String? // provenance (payment id, reservation id, grant source, ...)
+  utcDay    String? // YYYY-MM-DD UTC bucket for idempotent daily grants (task 26)
+  reason    String? // human-readable audit note
+  createdAt DateTime     @default(now())
+
+  @@unique([actionKey])
+  @@index([ownerRef])
+  @@index([ownerRef, bucket])
+  @@index([ownerRef, entryType])
+  @@index([tenantId])
+  @@map("credit_ledger_entries")
+}
+
+// ==================== PLANS / ENTITLEMENTS (Phase 7) ====================
+// quantmail-superhub Task 28.1 (Requirements 19.1, 19.2, 19.3, 19.4).
+//
+// An owner's active subscription tier. The four Plan_Tiers (free / pro / team /
+// enterprise) and the entitlements each grants (daily allowance, monthly
+// included credits, rate limits, unlocked models/features) live as CODE
+// constants in the billing module's static plan catalog — this row only records
+// WHICH tier an owner is on and the lifecycle of any scheduled change. The
+// authoritative entitlement resolution defaults to FREE when no active/trialing
+// row exists. `pendingPlanTier`/`effectiveAt` record a downgrade scheduled for
+// the next period/reset boundary; an upgrade is applied immediately by mutating
+// `planTier` (Req 19.3). At most one active/trialing subscription per owner is
+// enforced at the application layer (Req 19.4). `planTier`/`status` are stored
+// as strings (matching the CreditLedgerEntry style) to keep this change purely
+// additive — no enum migration is required.
+
+model PlanSubscription {
+  id                 String    @id @default(cuid())
+  ownerRef           String // OWNER — the user/org id the subscription is scoped to
+  ownerType          String    @default("user") // "user" | "org"
+  tenantId           String? // ownership/isolation boundary for authz
+  planTier           String // free | pro | team | enterprise
+  status             String // active | trialing | canceled | expired | past_due
+  currentPeriodStart DateTime  @default(now())
+  currentPeriodEnd   DateTime
+  pendingPlanTier    String? // a scheduled (downgrade) change applied at effectiveAt
+  effectiveAt        DateTime? // when the scheduled change takes effect (next reset)
+  providerSubId      String? // opaque ref into the PaymentProvider
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([ownerRef])
+  @@index([ownerRef, status])
+  @@index([tenantId])
+  @@map("plan_subscriptions")
+}
+
+// ==================== PAYMENTS / WEBHOOKS (Phase 7) ====================
+// quantmail-superhub Task 29.1 (Requirements 20.1, 20.2, 20.3, 20.4, 20.5).
+//
+// Tracks a single payment intent driven through the vendor-neutral
+// PaymentProvider port. NO card data is ever stored here — checkout is
+// provider-hosted (Req 20.1); this row only records the opaque provider session
+// id, the normalized outcome, and the credits/plan the payment grants. A
+// `pending` row is created at checkout time; the signed provider webhook later
+// stamps it `succeeded`/`failed` and records the `providerEventId`.
+//
+// IDEMPOTENCY (Req 20.3): `providerEventId` is the at-most-once key for applying
+// a verified webhook — it is @unique so a replayed event can never append a
+// second grant / re-activate a subscription. It is nullable because a freshly
+// created checkout has not yet received an event (Prisma treats multiple NULLs
+// as distinct, so many pending checkouts coexist). `kind`/`status`/`planTier`
+// are stored as strings (matching the CreditLedgerEntry/PlanSubscription style)
+// to keep this change purely additive — no enum migration is required.
+
+model PaymentRecord {
+  id                String   @id @default(cuid())
+  ownerRef          String // OWNER — the user/org id the payment is billed to
+  ownerType         String   @default("user") // "user" | "org"
+  tenantId          String? // ownership/isolation boundary for authz
+  providerEventId   String?  @unique // at-most-once webhook key (Req 20.3); null until an event arrives
+  providerSessionId String? // opaque hosted-checkout session id (Req 20.1)
+  providerSubId     String? // opaque provider subscription ref (subscription kind)
+  kind              String // topup | subscription
+  status            String   @default("pending") // pending | succeeded | failed
+  amountCredits     Int? // credits granted on a successful top-up
+  planTier          String? // target tier for a subscription payment
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([ownerRef])
+  @@index([ownerRef, status])
+  @@index([providerSessionId])
+  @@index([tenantId])
+  @@map("payment_records")
 }
 
 // ==================== FEATURE FLAGS ====================
@@ -1844,4 +2374,61 @@ model BlindIndexEntry {
   @@index([userId, tokenHash])
   @@index([conversationId])
   @@map("blind_index_entries")
+}
+
+
+
+// ==================== OUTBOUND DELIVERY AUTH (QuantMail SuperHub — Pillar 1) ====================
+//
+// Real outbound delivery: the OutboundDeliveryPipeline worker (`processDelivery`)
+// DKIM-signs each message, resolves recipient MX, attempts SMTP transmission, and
+// records a per-recipient DeliveryAttempt with a terminal-or-deferred state
+// (Requirements 4.3, 4.4). Per-recipient state only advances toward a terminal
+// state and never regresses (Requirement 4.5) — enforced in code via the
+// monotonic `advanceDeliveryState` guard, with one row per (emailId, recipient).
+
+model DeliveryAttempt {
+  id           String                @id @default(cuid())
+  emailId      String
+  recipient    String
+  status       DeliveryAttemptStatus @default(queued)
+  smtpResponse String?
+  attemptedAt  DateTime              @default(now())
+  nextRetryAt  DateTime?
+
+  email Email @relation(fields: [emailId], references: [id], onDelete: Cascade)
+
+  // One authoritative row per recipient: retries update the same row, so the
+  // recorded status is the recipient's current (monotonic) Delivery_State.
+  @@unique([emailId, recipient])
+  @@index([emailId])
+  @@index([recipient])
+  @@map("delivery_attempts")
+}
+
+// Per-recipient delivery lifecycle subset (no draft/delivered — those are
+// email-level states). Lowercase to match the design's Delivery_State literals.
+enum DeliveryAttemptStatus {
+  queued
+  sent
+  deferred
+  bounced
+}
+
+// DKIM/SPF/DMARC domain authentication keys used by DeliverabilityAuthService.
+// The DKIM private key is held only as a KMS-resolvable reference
+// (`@quant/encryption` KeyVault, `kms://...`); raw private key material is NEVER
+// persisted in plaintext (Requirement 2.4 / design DomainAuthKey.privateKeyRef).
+model DomainAuthKey {
+  id            String   @id @default(cuid())
+  domain        String   @unique
+  dkimSelector  String
+  publicKey     String
+  privateKeyRef String
+  spfRecord     String?
+  dmarcPolicy   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("domain_auth_keys")
 }

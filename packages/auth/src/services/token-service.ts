@@ -8,22 +8,84 @@ import type { PermissionScope, QuantApp } from '@quant/common';
 import { generateId } from '../crypto/secure-random';
 import { PrismaClient } from '@prisma/client';
 import prisma from '../lib/prisma';
+import { EnvConfigJwtKms } from '../lib/jwt-kms';
+import type { JwtKms, JwtKeyPurpose, JwtKeyVersion } from '../lib/jwt-kms';
 
 interface JWKSKeyPair {
   privateKey: CryptoKey;
   publicKey: CryptoKey;
 }
 
+export interface TokenServiceOptions {
+  /**
+   * KMS provider used to resolve the JWT signing/verification keys at runtime.
+   * Defaults to an env/config-backed provider derived from `config`. Inject a
+   * vault-backed provider (e.g. `VaultJwtKms`) in production for KMS-managed,
+   * rotatable keys.
+   */
+  kms?: JwtKms;
+}
+
 export class TokenService {
   private config: AuthConfig;
-  private secret: Uint8Array;
   private prisma: PrismaClient;
+  private kms: JwtKms;
   private jwksKeyPair: JWKSKeyPair | null = null;
 
-  constructor(config: AuthConfig, prismaClient?: PrismaClient) {
+  constructor(config: AuthConfig, prismaClient?: PrismaClient, options?: TokenServiceOptions) {
     this.config = config;
-    this.secret = new TextEncoder().encode(config.jwtSecret);
     this.prisma = prismaClient || prisma;
+    // Keys are never captured as a static literal: the KMS resolves the current
+    // key material on every sign/verify call (Requirement 2.1), supporting
+    // rotation with a previous-key grace window (Requirement 2.2).
+    this.kms =
+      options?.kms ??
+      new EnvConfigJwtKms({
+        accessSecret: config.jwtSecret,
+        refreshSecret: config.jwtRefreshSecret,
+      });
+  }
+
+  /**
+   * Verify a token against the KMS-resolved key set for a purpose. The token's
+   * `kid` header selects the exact key; legacy/kid-less tokens fall back to
+   * trying every currently-valid key (active first, then the rotation-grace
+   * previous key) so tokens signed under a rotated-out key still verify until
+   * they expire.
+   */
+  private async verifyWithKms(
+    token: string,
+    purpose: JwtKeyPurpose,
+    options?: jose.JWTVerifyOptions,
+  ): Promise<jose.JWTVerifyResult> {
+    let kid: string | undefined;
+    try {
+      const header = jose.decodeProtectedHeader(token);
+      kid = typeof header.kid === 'string' ? header.kid : undefined;
+    } catch {
+      kid = undefined;
+    }
+
+    const candidates: JwtKeyVersion[] = [];
+    if (kid) {
+      const byId = await this.kms.getKeyById(purpose, kid);
+      if (byId) {
+        candidates.push(byId);
+      }
+    }
+    if (candidates.length === 0) {
+      candidates.push(...(await this.kms.getVerificationKeys(purpose)));
+    }
+
+    let lastError: unknown = new Error('No verification key available');
+    for (const key of candidates) {
+      try {
+        return await jose.jwtVerify(token, key.secret, options);
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError;
   }
 
   async generateTokenPair(
@@ -37,6 +99,12 @@ export class TokenService {
     const familyId = generateId('fam');
     const now = Math.floor(Date.now() / 1000);
 
+    // Resolve the active signing keys from the KMS at sign time (Requirement
+    // 2.1) and stamp each token with the key's `kid` so it can be verified under
+    // the correct key after a rotation (Requirement 2.2).
+    const accessKey = await this.kms.getActiveKey('access');
+    const refreshKey = await this.kms.getActiveKey('refresh');
+
     const accessToken = await new jose.SignJWT({
       email: userInfo.email,
       username: userInfo.username,
@@ -44,14 +112,14 @@ export class TokenService {
       scopes,
       app,
     })
-      .setProtectedHeader({ alg: 'HS256' })
+      .setProtectedHeader({ alg: 'HS256', kid: accessKey.kid })
       .setIssuedAt()
       .setExpirationTime(`${this.config.accessTokenExpiresIn}s`)
       .setIssuer(this.config.issuer)
       .setAudience(this.config.audience)
       .setJti(tokenId)
       .setSubject(userId)
-      .sign(this.secret);
+      .sign(accessKey.secret);
 
     const refreshPayload: RefreshTokenPayload = {
       sub: userId,
@@ -62,14 +130,14 @@ export class TokenService {
     };
 
     const refreshToken = await new jose.SignJWT(refreshPayload as any)
-      .setProtectedHeader({ alg: 'HS256' })
+      .setProtectedHeader({ alg: 'HS256', kid: refreshKey.kid })
       .setIssuedAt()
       .setExpirationTime(`${this.config.refreshTokenExpiresIn}s`)
       .setIssuer(this.config.issuer)
       .setAudience(this.config.audience)
       .setJti(refreshTokenId)
       .setSubject(userId)
-      .sign(this.secret);
+      .sign(refreshKey.secret);
 
     await this.prisma.refreshToken.create({
       data: {
@@ -93,7 +161,7 @@ export class TokenService {
     let payload: any;
 
     try {
-      const verified = await jose.jwtVerify(oldRefreshToken, this.secret);
+      const verified = await this.verifyWithKms(oldRefreshToken, 'refresh');
       payload = verified.payload;
     } catch {
       throw new Error('Invalid refresh token');
@@ -157,7 +225,7 @@ export class TokenService {
 
   async validateAccessToken(token: string): Promise<TokenPayload | null> {
     try {
-      const { payload } = await jose.jwtVerify(token, this.secret, {
+      const { payload } = await this.verifyWithKms(token, 'access', {
         issuer: this.config.issuer,
         audience: this.config.audience,
       });

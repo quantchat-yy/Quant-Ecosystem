@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ReviewService } from '../services/review.service';
+import { ReviewService } from '../modules/code/services/review.service';
 
 function createMockPrisma() {
   return {

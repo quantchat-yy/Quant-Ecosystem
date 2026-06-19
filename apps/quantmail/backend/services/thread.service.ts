@@ -196,9 +196,94 @@ export class ThreadService {
   }
 
   /**
+   * Stitch an inbound message into the correct thread for a user and return the
+   * thread id (QuantMail SuperHub Pillar 1, Requirement 5.2). Resolution order:
+   *   1. If `inReplyTo` references a known message-id we already store, reuse that
+   *      email's thread.
+   *   2. Otherwise reuse the user's most-recent thread with a matching normalized
+   *      subject (Re:/Fwd: prefixes stripped).
+   *   3. Otherwise create a new thread.
+   * The chosen thread's `messageCount`, `lastEmailAt`, and participant set are
+   * updated. Idempotent fields are advanced, never regressed.
+   */
+  async stitchInbound(input: {
+    userId: string;
+    subject: string;
+    inReplyTo?: string | null;
+    participants?: string[];
+    at?: Date;
+  }): Promise<string> {
+    const at = input.at ?? new Date();
+    const normalizedSubject = normalizeSubject(input.subject);
+
+    let thread: EmailThread | null = null;
+
+    if (input.inReplyTo) {
+      const parent = await this.prisma.email.findFirst({
+        where: { userId: input.userId, messageId: input.inReplyTo, threadId: { not: null } },
+        orderBy: { receivedAt: 'desc' },
+      });
+      if (parent?.threadId) {
+        thread = await this.prisma.emailThread.findUnique({ where: { id: parent.threadId } });
+      }
+    }
+
+    if (!thread && normalizedSubject.length > 0) {
+      const candidates = await this.prisma.emailThread.findMany({
+        where: { userId: input.userId },
+        orderBy: { lastEmailAt: 'desc' },
+        take: 50,
+      });
+      thread =
+        candidates.find((t) => normalizeSubject(t.subject) === normalizedSubject) ?? null;
+    }
+
+    if (!thread) {
+      const created = await this.prisma.emailThread.create({
+        data: {
+          userId: input.userId,
+          subject: input.subject,
+          participantAddresses: input.participants ?? [],
+          messageCount: 1,
+          lastEmailAt: at,
+          isRead: false,
+        },
+      });
+      return created.id;
+    }
+
+    const existingParticipants = ((thread.participantAddresses as string[]) ?? []).map((p) => p);
+    const mergedParticipants = Array.from(
+      new Set([...existingParticipants, ...(input.participants ?? [])].map((p) => p.toLowerCase())),
+    );
+    const nextLastEmailAt =
+      !thread.lastEmailAt || at > thread.lastEmailAt ? at : thread.lastEmailAt;
+
+    await this.prisma.emailThread.update({
+      where: { id: thread.id },
+      data: {
+        messageCount: { increment: 1 },
+        lastEmailAt: nextLastEmailAt,
+        participantAddresses: mergedParticipants,
+        isRead: false,
+      },
+    });
+
+    return thread.id;
+  }
+
+  /**
    * Get thread preferences (mute/snooze state) from the in-memory store.
    */
   getThreadPreferences(threadId: string): ThreadPreferences | undefined {
     return this.threadPreferences.get(threadId);
   }
+}
+
+/** Strip common reply/forward prefixes and trim for subject-based threading. */
+function normalizeSubject(subject: string): string {
+  return subject
+    .replace(/^(\s*(re|fwd|fw)\s*:\s*)+/i, '')
+    .trim()
+    .toLowerCase();
 }

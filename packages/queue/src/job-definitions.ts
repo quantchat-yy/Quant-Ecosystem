@@ -5,6 +5,12 @@ export const SendEmailJobSchema = z.object({
   subject: z.string(),
   body: z.string(),
   templateId: z.string().optional(),
+  // Additive context for the QuantMail OutboundDeliveryPipeline worker (durable delivery).
+  // Optional so existing producers/consumers of SendEmailJob remain backward compatible.
+  emailId: z.string().optional(),
+  userId: z.string().optional(),
+  cc: z.array(z.string()).optional(),
+  bcc: z.array(z.string()).optional(),
 });
 
 export type SendEmailJob = z.infer<typeof SendEmailJobSchema>;

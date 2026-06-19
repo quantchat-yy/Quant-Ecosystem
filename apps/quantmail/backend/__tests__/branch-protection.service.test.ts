@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { BranchProtectionService } from '../services/branch-protection.service';
+import { BranchProtectionService } from '../modules/code/services/branch-protection.service';
 
 function createMockPrisma() {
   return {

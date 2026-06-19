@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
 import { CrossAppDispatcher } from '@quant/notifications';
 import { EmailService } from '../services/email.service';
+import { OutboundDeliveryPipeline } from '../services/outbound-delivery.service';
 import { validateComposeEmail, sanitizeHtml } from '../middleware/validate-email';
 
 const notifier = new CrossAppDispatcher('quantmail');
@@ -72,7 +73,14 @@ export default async function emailsRoutes(fastify: FastifyInstance) {
     });
 
     if (parseResult.data.send && parseResult.data.sentFolderId) {
-      const sent = await service.send(userId, email.id, parseResult.data.sentFolderId);
+      // Durable, queued outbound delivery: enqueue a real BullMQ job and set
+      // the email deliveryStatus to `queued` (Requirements 4.1/4.2).
+      const pipeline = new OutboundDeliveryPipeline(
+        prisma as never,
+        OutboundDeliveryPipeline.createQueue(),
+      );
+      const sendService = new EmailService(prisma as never, pipeline);
+      const sent = await sendService.send(userId, email.id, parseResult.data.sentFolderId);
 
       // Notify recipients about the new email
       try {

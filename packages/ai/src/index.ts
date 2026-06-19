@@ -17,6 +17,7 @@ export { retryWithBackoff } from './core/retry';
 export { SemanticCache } from './core/semantic-cache';
 export { SafetyPipeline } from './core/safety';
 export { CostTracker } from './core/cost-tracker';
+export { AIProviderUnavailableError } from './core/errors';
 export { RoutingTable } from './core/routing-table';
 export { ProviderHealthMonitor } from './core/provider-health';
 export { RequestCostLogger } from './core/request-cost-logger';
@@ -75,6 +76,7 @@ export {
   hasAnyProvider,
 } from './config/providers';
 export type { ProviderConfig, FallbackChainConfig } from './config/providers';
+export { isFailClosedMode, isProductionRuntime } from './config/runtime';
 export {
   generateMockTextResponse,
   generateMockStreamChunks,

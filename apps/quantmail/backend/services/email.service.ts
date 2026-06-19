@@ -1,5 +1,6 @@
 import type { PrismaClient, Email } from '@prisma/client';
 import { createAppError } from '@quant/server-core';
+import type { OutboundDeliveryPipeline } from './outbound-delivery.service';
 
 export interface PaginationOptions {
   page?: number;
@@ -46,6 +47,12 @@ export interface ReceiveEmailInput {
   hasAttachments?: boolean;
   attachments?: unknown[];
   receivedAt?: Date;
+  /** Combined SPF/DKIM/DMARC verdict recorded by the InboundIngestAdapter (Req 5.1). */
+  authResults?: unknown;
+  /** Quarantine flag — set when the message fails DMARC alignment (Req 5.3). */
+  isSpam?: boolean;
+  /** Inbound delivery lifecycle state (inbound mail is `delivered`). */
+  deliveryStatus?: string;
 }
 
 export interface Label {
@@ -56,7 +63,10 @@ export interface Label {
 }
 
 export class EmailService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly pipeline?: OutboundDeliveryPipeline,
+  ) {}
 
   async compose(input: ComposeEmailInput): Promise<Email> {
     const email = await this.prisma.email.create({
@@ -80,6 +90,19 @@ export class EmailService {
   }
 
   async send(userId: string, emailId: string, sentFolderId: string): Promise<Email> {
+    // When a durable delivery pipeline is wired in, sending a draft enqueues a
+    // real BullMQ delivery job and advances deliveryStatus to `queued`
+    // (Requirements 4.1/4.2). The pipeline enforces ownership and draft validity.
+    if (this.pipeline) {
+      await this.pipeline.enqueueSend(userId, emailId, { sentFolderId });
+      const queued = await this.prisma.email.findUnique({ where: { id: emailId } });
+      if (!queued) {
+        throw createAppError('Email not found', 404, 'EMAIL_NOT_FOUND');
+      }
+      return queued;
+    }
+
+    // Backward-compatible fallback (no pipeline injected): legacy flag-flip send.
     const email = await this.prisma.email.findUnique({ where: { id: emailId } });
 
     if (!email) {
@@ -123,7 +146,11 @@ export class EmailService {
         attachments: input.attachments ?? [],
         receivedAt: input.receivedAt ?? new Date(),
         isRead: false,
-      },
+        // Additive inbound fields (QuantMail SuperHub Pillar 1, Reqs 5.1/5.3).
+        ...(input.authResults !== undefined ? { authResults: input.authResults } : {}),
+        ...(input.isSpam !== undefined ? { isSpam: input.isSpam } : {}),
+        ...(input.deliveryStatus !== undefined ? { deliveryStatus: input.deliveryStatus } : {}),
+      } as never,
     });
 
     return email;
