@@ -1,10 +1,22 @@
 import { z } from 'zod';
-import crypto from 'node:crypto';
+import {
+  PgpCrypto,
+  InMemoryKeyVault,
+  isKeyRef,
+  type KeyVault,
+  type KeyRef,
+} from '@quant/encryption';
 
 export const KeyPairSchema = z.object({
   userId: z.string(),
   publicKey: z.string(),
-  privateKeyEncrypted: z.string(),
+  /**
+   * KMS-resolvable reference to the (passphrase-encrypted) private key. The raw
+   * private key material is NEVER stored here in plaintext (Requirement 2.4 /
+   * design `DomainAuthKey.privateKeyRef`); it lives only in the KeyVault and is
+   * resolved at crypto time.
+   */
+  privateKeyRef: z.string(),
   fingerprint: z.string(),
   createdAt: z.number(),
   algorithm: z.string(),
@@ -13,103 +25,95 @@ export const KeyPairSchema = z.object({
 export type KeyPair = z.infer<typeof KeyPairSchema>;
 
 /**
- * Demo PGP encryption service using symmetric AES-256-GCM.
+ * PGP-style email encryption service backed by REAL asymmetric cryptography.
  *
- * WARNING: This is a demo-only implementation. It does NOT perform actual
- * PGP asymmetric encryption. The `encrypt` method generates a random AES session
- * key and embeds it alongside the ciphertext, meaning anyone with the ciphertext
- * can decrypt it. The `verifySignature` method always returns true for any
- * well-formed base64 input without verifying against the message or public key.
- *
- * Production use requires integration with the `openpgp` package for real
- * asymmetric RSA/ECC key operations.
- *
- * @deprecated Use openpgp package for production
+ * All signing/encryption is routed through `@quant/encryption`'s `PgpCrypto`
+ * (RSA-4096 + RSA-OAEP + AES-256-GCM + RSA-SHA256) — there is no longer any
+ * reachable `@simulated` crypto path (Requirement 2.3). Private keys are
+ * persisted only as KMS-resolvable references via a `KeyVault`; the service
+ * never holds private key material in plaintext (Requirements 2.4, 2.5).
  */
 export class PGPEncryptionService {
   private keys: Map<string, KeyPair> = new Map();
+  private readonly crypto: PgpCrypto;
+  private readonly vault: KeyVault;
 
+  constructor(options?: { crypto?: PgpCrypto; vault?: KeyVault }) {
+    this.crypto = options?.crypto ?? new PgpCrypto();
+    this.vault = options?.vault ?? new InMemoryKeyVault();
+  }
+
+
+  /**
+   * Generate a real RSA keypair. The passphrase-encrypted private key is stored
+   * in the KeyVault and only its KMS reference is retained/returned.
+   */
   async generateKeyPair(userId: string, passphrase: string): Promise<KeyPair> {
-    const keyMaterial = crypto.randomBytes(32);
-    const publicKeyRaw = crypto.randomBytes(32);
-    const fingerprint = crypto.randomBytes(20).toString('hex');
-
-    // Encrypt private key with passphrase using AES-256-GCM
-    const salt = crypto.randomBytes(16);
-    const derivedKey = crypto.pbkdf2Sync(passphrase, salt, 100000, 32, 'sha256');
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv('aes-256-gcm', derivedKey, iv);
-    const encrypted = Buffer.concat([cipher.update(keyMaterial), cipher.final()]);
-    const authTag = cipher.getAuthTag();
-
-    const privateKeyEncrypted = Buffer.concat([salt, iv, authTag, encrypted]).toString('base64');
-    const publicKey = publicKeyRaw.toString('base64');
+    const material = this.crypto.generateKeyPair(passphrase);
+    const privateKeyRef = await this.vault.store(material.privateKeyPem, {
+      userId,
+      fingerprint: material.fingerprint,
+    });
 
     const keyPair: KeyPair = {
       userId,
-      publicKey: `-----BEGIN PGP PUBLIC KEY-----\n${publicKey}\n-----END PGP PUBLIC KEY-----`,
-      privateKeyEncrypted: `-----BEGIN PGP PRIVATE KEY-----\n${privateKeyEncrypted}\n-----END PGP PRIVATE KEY-----`,
-      fingerprint: fingerprint.toUpperCase(),
+      publicKey: material.publicKey,
+      privateKeyRef,
+      fingerprint: material.fingerprint,
       createdAt: Date.now(),
-      algorithm: 'RSA-4096',
+      algorithm: material.algorithm,
     };
 
     this.keys.set(userId, keyPair);
     return keyPair;
   }
 
+  /** Encrypt a message to a recipient's PUBLIC key (real RSA-OAEP + AES-GCM). */
   async encrypt(message: string, recipientPublicKey: string): Promise<string> {
-    // Simplified implementation: use AES-256-GCM with a random key
-    // In production, this would use the recipient's actual public key
-    const sessionKey = crypto.randomBytes(32);
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv('aes-256-gcm', sessionKey, iv);
-    const encrypted = Buffer.concat([cipher.update(Buffer.from(message, 'utf-8')), cipher.final()]);
-    const authTag = cipher.getAuthTag();
-
-    const payload = Buffer.concat([sessionKey, iv, authTag, encrypted]).toString('base64');
-    return `-----BEGIN PGP MESSAGE-----\n${payload}\n-----END PGP MESSAGE-----`;
+    return this.crypto.encrypt(message, recipientPublicKey);
   }
 
-  async decrypt(encryptedMessage: string, privateKey: string, passphrase: string): Promise<string> {
-    // Extract payload from PGP envelope
-    const payloadLine = encryptedMessage
-      .replace('-----BEGIN PGP MESSAGE-----', '')
-      .replace('-----END PGP MESSAGE-----', '')
-      .trim();
-
-    const raw = Buffer.from(payloadLine, 'base64');
-    const sessionKey = raw.subarray(0, 32);
-    const iv = raw.subarray(32, 44);
-    const authTag = raw.subarray(44, 60);
-    const ciphertext = raw.subarray(60);
-
-    const decipher = crypto.createDecipheriv('aes-256-gcm', sessionKey, iv);
-    decipher.setAuthTag(authTag);
-    const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-
-    return decrypted.toString('utf-8');
+  /**
+   * Decrypt a message. `privateKey` is a KMS reference (resolved via the vault);
+   * a raw PEM is accepted only as a fallback for direct callers/tests.
+   */
+  async decrypt(
+    encryptedMessage: string,
+    privateKey: string,
+    passphrase: string,
+  ): Promise<string> {
+    const pem = await this.resolvePrivateKey(privateKey);
+    return this.crypto.decrypt(encryptedMessage, pem, passphrase);
   }
 
+  /** Produce a real RSA-SHA256 signature using the KMS-resolved private key. */
   async signMessage(message: string, privateKey: string, passphrase: string): Promise<string> {
-    // Simplified: create HMAC-based signature
-    const signatureData = crypto.createHmac('sha256', passphrase).update(message).digest('base64');
-
-    return `-----BEGIN PGP SIGNATURE-----\n${signatureData}\n-----END PGP SIGNATURE-----`;
+    const pem = await this.resolvePrivateKey(privateKey);
+    return this.crypto.signMessage(message, pem, passphrase);
   }
 
-  async verifySignature(message: string, signature: string, publicKey: string): Promise<boolean> {
-    // Simplified: signature is considered valid if it is well-formed
-    const signatureContent = signature
-      .replace('-----BEGIN PGP SIGNATURE-----', '')
-      .replace('-----END PGP SIGNATURE-----', '')
-      .trim();
+  /** Verify a signature against the message AND the signer's public key. */
+  async verifySignature(
+    message: string,
+    signature: string,
+    publicKey: string,
+  ): Promise<boolean> {
+    return this.crypto.verifySignature(message, signature, publicKey);
+  }
 
-    try {
-      Buffer.from(signatureContent, 'base64');
-      return signatureContent.length > 0;
-    } catch {
-      return false;
+  /**
+   * Resolve private key material from its KMS reference. Throws if a reference
+   * cannot be resolved, so a missing/revoked key fails closed rather than
+   * silently degrading. A non-reference value is treated as a raw PEM.
+   */
+  private async resolvePrivateKey(privateKeyOrRef: string): Promise<string> {
+    if (isKeyRef(privateKeyOrRef)) {
+      const pem = await this.vault.resolve(privateKeyOrRef as KeyRef);
+      if (!pem) {
+        throw new Error('Private key reference could not be resolved from the KMS');
+      }
+      return pem;
     }
+    return privateKeyOrRef;
   }
 }

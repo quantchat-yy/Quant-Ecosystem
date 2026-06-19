@@ -61,6 +61,8 @@ declare module '@prisma/client' {
     name: string;
     description: string | null;
     visibility: string;
+    defaultBranch: string;
+    storagePathUrl: string | null;
     createdAt: Date;
     updatedAt: Date;
   }
@@ -142,8 +144,11 @@ declare module '@prisma/client' {
   export interface CiRun {
     id: string;
     repoId: string;
+    prId: string | null;
     branch: string;
+    commitSha: string;
     status: string;
+    triggeredBy: string | null;
     startedAt: Date | null;
     completedAt: Date | null;
     createdAt: Date;
@@ -174,6 +179,7 @@ declare module '@prisma/client' {
     repoId: string;
     name: string;
     sha: string;
+    commitSha: string;
     isDefault: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -184,6 +190,214 @@ declare module '@prisma/client' {
     userId: string;
     name: string;
     email: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  export interface AgentSession {
+    id: string;
+    userId: string;
+    repoId: string;
+    instruction: string;
+    status: string;
+    branchRef: string;
+    maxIterations: number;
+    iterationCount: number;
+    costBudget: number;
+    costSpent: number;
+    linkedPrId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  export interface AgentTranscript {
+    id: string;
+    sessionId: string;
+    seq: number;
+    role: string;
+    toolName: string | null;
+    payload: unknown;
+    tokensUsed: number;
+    timestamp: Date;
+  }
+
+  // Company OS (Phase 6) — quantmail-superhub Task 18.1 (Requirements 9.1–9.4).
+  export interface User {
+    id: string;
+    email: string;
+    username: string;
+    displayName: string;
+    role: string;
+    status: string;
+    emailVerified: boolean;
+    deletedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  export interface AgentOrg {
+    id: string;
+    ceoUserId: string;
+    tenantId: string;
+    goalText: string;
+    status: string;
+    workspaceRepoId: string | null;
+    budgetCap: number;
+    costSpent: number;
+    maxIterations: number;
+    totalIterations: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  export interface AgentWorker {
+    id: string;
+    orgId: string;
+    tenantId: string;
+    role: string;
+    modelRef: string;
+    mailboxIdentityId: string | null;
+    toolScope: unknown;
+    status: string;
+    budgetShare: number;
+    costSpent: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  export interface AgentMailboxIdentity {
+    id: string;
+    orgId: string;
+    tenantId: string;
+    workerSlot: string;
+    roleKey: string | null;
+    address: string;
+    scopes: unknown;
+    status: string;
+    revokedAt: Date | null;
+    archivedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  export interface DocumentChunk {
+    id: string;
+    userId: string;
+    sourceType: string;
+    sourceRef: unknown;
+    text: string;
+    embeddingId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  // Agent action audit + approval gating (Phase 6) —
+  // quantmail-superhub Task 22.1 (Requirements 14.1, 14.2, 14.3, 23.1, 23.3).
+  export interface AgentActionAudit {
+    id: string;
+    tenantId: string;
+    orgId: string | null;
+    actorWorkerId: string | null;
+    actionType: string;
+    targetRef: string;
+    sensitivity: string;
+    status: string;
+    approvedByHuman: boolean;
+    approvedByUserId: string | null;
+    requestedAt: Date;
+    decidedAt: Date | null;
+    executedAt: Date | null;
+    metadata: unknown;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  // Agent Email Bus (Phase 6) — quantmail-superhub Task 20.1
+  // (Requirements 12.1, 12.2, 12.3, 12.4).
+  export interface AgentWorkItem {
+    id: string;
+    orgId: string;
+    assignedWorkerId: string | null;
+    busThreadId: string | null;
+    title: string;
+    spec: string | null;
+    status: string;
+    linkedSessionId: string | null;
+    linkedPrId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  export interface AgentBusEmailMeta {
+    id: string;
+    emailId: string;
+    orgId: string;
+    threadId: string;
+    workItemId: string;
+    fromWorkerId: string;
+    fromRole: string;
+    toWorkerIds: unknown;
+    msgType: string;
+    label: string;
+    headers: unknown;
+    artifacts: unknown;
+    createdAt: Date;
+  }
+
+  // Billing / Credits (Phase 7) — quantmail-superhub Task 25.1
+  // (Requirements 16.1-16.5). Append-only, immutable ledger; the authoritative
+  // wallet balance is derived as SUM(amount) over an owner's entries.
+  export interface CreditLedgerEntry {
+    id: string;
+    ownerRef: string;
+    ownerType: string;
+    tenantId: string | null;
+    entryType: string;
+    bucket: string;
+    amount: number;
+    actionKey: string | null;
+    sourceRef: string | null;
+    utcDay: string | null;
+    reason: string | null;
+    createdAt: Date;
+  }
+
+  // Plans / entitlements (Phase 7) — quantmail-superhub Task 28.1
+  // (Requirements 19.1-19.4). Records WHICH tier an owner is on plus the
+  // lifecycle of any scheduled change; the tier entitlements themselves are
+  // code constants in the billing module's static plan catalog.
+  export interface PlanSubscription {
+    id: string;
+    ownerRef: string;
+    ownerType: string;
+    tenantId: string | null;
+    planTier: string;
+    status: string;
+    currentPeriodStart: Date;
+    currentPeriodEnd: Date;
+    pendingPlanTier: string | null;
+    effectiveAt: Date | null;
+    providerSubId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  // Payments / webhooks (Phase 7) — quantmail-superhub Task 29.1
+  // (Requirements 20.1-20.5). Tracks a single provider-hosted payment intent;
+  // NO card data is stored. `providerEventId` is the at-most-once webhook key
+  // (Req 20.3) and is unique (nullable until the signed event arrives).
+  export interface PaymentRecord {
+    id: string;
+    ownerRef: string;
+    ownerType: string;
+    tenantId: string | null;
+    providerEventId: string | null;
+    providerSessionId: string | null;
+    providerSubId: string | null;
+    kind: string;
+    status: string;
+    amountCredits: number | null;
+    planTier: string | null;
     createdAt: Date;
     updatedAt: Date;
   }
@@ -239,6 +453,12 @@ declare module '@prisma/client' {
     where: WhereUniqueInput;
   }
 
+  interface UpsertArgs {
+    where: WhereUniqueInput;
+    create: Record<string, unknown>;
+    update: Record<string, unknown>;
+  }
+
   interface CountArgs {
     where?: WhereInput;
   }
@@ -254,6 +474,7 @@ declare module '@prisma/client' {
     createMany(args: CreateManyArgs): Promise<{ count: number }>;
     update(args: UpdateArgs): Promise<T>;
     updateMany(args: UpdateManyArgs): Promise<{ count: number }>;
+    upsert(args: UpsertArgs): Promise<T>;
     delete(args: DeleteArgs): Promise<T>;
     count(args?: CountArgs): Promise<number>;
   }
@@ -274,6 +495,19 @@ declare module '@prisma/client' {
     build: ModelDelegate<Build>;
     branch: ModelDelegate<Branch>;
     contact: ModelDelegate<Contact>;
+    agentSession: ModelDelegate<AgentSession>;
+    agentTranscript: ModelDelegate<AgentTranscript>;
+    agentOrg: ModelDelegate<AgentOrg>;
+    agentWorker: ModelDelegate<AgentWorker>;
+    agentMailboxIdentity: ModelDelegate<AgentMailboxIdentity>;
+    user: ModelDelegate<User>;
+    documentChunk: ModelDelegate<DocumentChunk>;
+    agentWorkItem: ModelDelegate<AgentWorkItem>;
+    agentBusEmailMeta: ModelDelegate<AgentBusEmailMeta>;
+    agentActionAudit: ModelDelegate<AgentActionAudit>;
+    creditLedgerEntry: ModelDelegate<CreditLedgerEntry>;
+    planSubscription: ModelDelegate<PlanSubscription>;
+    paymentRecord: ModelDelegate<PaymentRecord>;
     $transaction<T>(fn: (tx: PrismaClient) => Promise<T>): Promise<T>;
   }
 }

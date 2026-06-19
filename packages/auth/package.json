@@ -10,7 +10,8 @@
     "./services/token-service": "./src/services/token-service.ts",
     "./lib/secrets": "./src/lib/secrets.ts",
     "./lib/prisma": "./src/lib/prisma.ts",
-    "./crypto/secure-random": "./src/crypto/secure-random.ts"
+    "./crypto/secure-random": "./src/crypto/secure-random.ts",
+    "./crypto/pkce": "./src/crypto/pkce.ts"
   },
   "scripts": {
     "build": "tsc",

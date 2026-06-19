@@ -3,6 +3,7 @@ import { TokenService } from '@quant/auth/services/token-service';
 import { getJwtSecret, getJwtRefreshSecret } from '@quant/auth/lib/secrets';
 import prisma from '@quant/auth/lib/prisma';
 import { generateId } from '@quant/auth/crypto/secure-random';
+import { validateCodeChallenge } from '@quant/auth/crypto/pkce';
 
 export async function oauthRoutes(fastify: FastifyInstance) {
   const tokenService = new TokenService({
@@ -49,6 +50,12 @@ export async function oauthRoutes(fastify: FastifyInstance) {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
 
+  // Normalize the bound PKCE challenge method. RFC 7636 allows 'plain' and
+  // 'S256'; anything other than an explicit 'plain' is treated as the
+  // SHA-256 transform ('S256'), which is what the spec mandates.
+  const normalizeChallengeMethod = (method: unknown): 'plain' | 'S256' =>
+    method === 'plain' ? 'plain' : 'S256';
+
   // POST /oauth/token
   fastify.post('/oauth/token', async (request, reply) => {
     const body = request.body as any;
@@ -78,7 +85,58 @@ export async function oauthRoutes(fastify: FastifyInstance) {
         });
       }
 
-      await prisma.authorizationCode.delete({ where: { code } });
+      // Enforce PKCE: when a code_challenge was bound at authorize time, the
+      // exchange MUST present a code_verifier whose challenge-method transform
+      // equals the stored code_challenge. Reject (issuing no tokens, and
+      // without consuming the code) on a missing or mismatched verifier.
+      if (authCode.codeChallenge) {
+        if (!code_verifier) {
+          return reply.code(400).send({
+            error: 'invalid_grant',
+            error_description: 'code_verifier required',
+          });
+        }
+
+        const method = normalizeChallengeMethod(authCode.codeChallengeMethod);
+        const verifierValid = await validateCodeChallenge(
+          code_verifier,
+          authCode.codeChallenge,
+          method,
+        );
+
+        if (!verifierValid) {
+          return reply.code(400).send({
+            error: 'invalid_grant',
+            error_description: 'PKCE verification failed',
+          });
+        }
+      }
+
+      // Enforce redirect_uri rebinding: the token-exchange redirect_uri MUST be
+      // an exact match of the value bound to the code at authorize time. Reject
+      // (issuing no tokens, and WITHOUT consuming the code) on any mismatch so a
+      // code intercepted for one redirect target cannot be exchanged against
+      // another. This runs before the single-use consumption step below.
+      if (redirect_uri !== authCode.redirectUri) {
+        return reply.code(400).send({
+          error: 'invalid_grant',
+          error_description: 'redirect_uri mismatch',
+        });
+      }
+
+      // Single-use consumption: atomically delete the code and reject if it was
+      // already consumed. deleteMany returns the affected row count, so under a
+      // replay (or two concurrent exchanges) only the first request observes
+      // count === 1; any later attempt sees count === 0 and is rejected with no
+      // tokens issued. The code is consumed only AFTER PKCE + redirect checks
+      // pass, so a failed attempt never burns the code prematurely.
+      const consumed = await prisma.authorizationCode.deleteMany({ where: { code } });
+      if (consumed.count === 0) {
+        return reply.code(400).send({
+          error: 'invalid_grant',
+          error_description: 'Authorization code already used',
+        });
+      }
 
       const user = await prisma.user.findUnique({ where: { id: authCode.userId } });
       if (!user) {
@@ -158,6 +216,10 @@ export async function oauthRoutes(fastify: FastifyInstance) {
           userId,
           redirectUri: redirect_uri,
           scopes: (scope || 'openid profile email').split(' '),
+          codeChallenge: code_challenge ?? null,
+          codeChallengeMethod: code_challenge
+            ? normalizeChallengeMethod(code_challenge_method)
+            : null,
           expiresAt,
         },
       });
@@ -188,6 +250,8 @@ export async function oauthRoutes(fastify: FastifyInstance) {
             <input type="hidden" name="user_id" value="${esc(userId)}">
             <input type="hidden" name="scope" value="${esc(scope || 'openid profile email')}">
             <input type="hidden" name="state" value="${esc(state || '')}">
+            <input type="hidden" name="code_challenge" value="${esc(code_challenge || '')}">
+            <input type="hidden" name="code_challenge_method" value="${esc(code_challenge_method || '')}">
             
             <button type="submit" name="action" value="approve" 
                     style="background: #0066ff; color: white; padding: 14px 28px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">
@@ -210,6 +274,7 @@ export async function oauthRoutes(fastify: FastifyInstance) {
   fastify.post('/oauth/consent', async (request, reply) => {
     const body = request.body as any;
     const { action, client_id, redirect_uri, user_id, scope, state } = body;
+    const { code_challenge, code_challenge_method } = body;
 
     const safeRedirectUri = await resolveRedirectUri(client_id, redirect_uri);
     if (!safeRedirectUri) {
@@ -251,6 +316,10 @@ export async function oauthRoutes(fastify: FastifyInstance) {
         userId: user_id,
         redirectUri: redirect_uri,
         scopes: scope.split(' '),
+        codeChallenge: code_challenge || null,
+        codeChallengeMethod: code_challenge
+          ? normalizeChallengeMethod(code_challenge_method)
+          : null,
         expiresAt,
       },
     });

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { PullRequestService } from '../services/pr.service';
+import { PullRequestService } from '../modules/code/services/pr.service';
 
 function createMockPrisma() {
   return {

@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
 import type { PrismaClient } from '@prisma/client';
+import { PipelineService } from '../services/pipeline.service';
 
 function getUserId(request: unknown): string {
   const req = request as { auth?: { userId?: string } };
@@ -19,11 +20,23 @@ const ListRunsQuerySchema = z.object({
   pageSize: z.coerce.number().int().positive().max(100).default(20),
 });
 
+const TriggerPipelineSchema = z.object({
+  ref: z.string().min(1),
+  type: z.enum(['PUSH', 'PULL_REQUEST', 'MANUAL', 'AGENT']).default('MANUAL'),
+  commitSha: z.string().optional(),
+  prId: z.string().optional(),
+  configYaml: z.string().optional(),
+  variables: z.record(z.string()).optional(),
+});
+
 export default async function ciRoutes(fastify: FastifyInstance) {
   const prisma = (fastify as unknown as { prisma?: PrismaClient }).prisma ?? null;
   if (!prisma) {
     throw new Error('PrismaClient is not available. Register the prisma plugin before CI routes.');
   }
+  // PipelineService uses the default offline ci-runner adapter here; production
+  // boot wires a queue-backed adapter via createQueueCiRunnerPort (see service).
+  const pipelineService = new PipelineService(prisma);
 
   // GET /runs - list CI runs
   fastify.get<{ Params: { owner: string; name: string } }>(
@@ -53,6 +66,48 @@ export default async function ciRoutes(fastify: FastifyInstance) {
       });
 
       return reply.send({ success: true, data: runs });
+    },
+  );
+
+  // POST /runs - trigger a new pipeline run against ci-runner
+  fastify.post<{ Params: { owner: string; name: string } }>(
+    '/:owner/:name/ci/runs',
+    async (request, reply) => {
+      const userId = getUserId(request);
+      const { owner, name } = request.params;
+      const body = TriggerPipelineSchema.parse(request.body);
+
+      const repo = await prisma.repository.findFirst({
+        where: { ownerId: owner, name },
+      });
+
+      if (!repo) {
+        throw createAppError('Repository not found', 404, 'REPO_NOT_FOUND');
+      }
+
+      const run = await pipelineService.triggerPipeline(repo.id, body.ref, {
+        type: body.type,
+        commitSha: body.commitSha,
+        prId: body.prId,
+        triggeredBy: userId,
+        configYaml: body.configYaml,
+        variables: body.variables,
+      });
+
+      return reply.send({ success: true, data: run });
+    },
+  );
+
+  // GET /runs/:runId/status - report run status + per-job breakdown
+  fastify.get<{ Params: { owner: string; name: string; runId: string } }>(
+    '/:owner/:name/ci/runs/:runId/status',
+    async (request, reply) => {
+      const userId = getUserId(request);
+      const { runId } = request.params;
+
+      const status = await pipelineService.getRunStatus(runId);
+
+      return reply.send({ success: true, data: status });
     },
   );
 

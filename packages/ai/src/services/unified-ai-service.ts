@@ -11,6 +11,8 @@ import type {
 } from '../types';
 import { AIEngine } from '../core/engine';
 import { hasAnyProvider } from '../config/providers';
+import { isFailClosedMode } from '../config/runtime';
+import { AIProviderUnavailableError } from '../core/errors';
 import {
   generateMockTextResponse,
   generateMockStreamChunks,
@@ -41,13 +43,37 @@ export interface GenerateStreamOptions {
  *
  * High-level wrapper around AIEngine that provides simple methods for
  * text generation, streaming, embeddings, and moderation.
- * Falls back to mock responses when no API keys are configured.
+ *
+ * Provider credentials (OPENAI_API_KEY / ANTHROPIC_API_KEY / GOOGLE_API_KEY)
+ * are sourced from the runtime environment so AI features run against a real
+ * provider (Requirement 3.2).
+ *
+ * In production (or when `QUANT_AI_FAIL_CLOSED` is enabled) the service fails
+ * closed: if no real provider is configured, or a provider call cannot be
+ * completed, it raises an explicit {@link AIProviderUnavailableError} instead
+ * of returning a mock/simulated payload (Requirements 3.1, 3.3). In
+ * non-production runtimes the legacy mock fallback is preserved.
  */
 export class UnifiedAIService {
   private engine: AIEngine;
 
   constructor(engine?: AIEngine) {
     this.engine = engine ?? new AIEngine();
+  }
+
+  /**
+   * Guard the silent mock-response fallback. When the engine must fail closed
+   * (production / failClosed mode), throw an explicit typed error rather than
+   * returning a simulated payload.
+   */
+  private assertMockFallbackAllowed(operation: string): void {
+    if (isFailClosedMode()) {
+      throw new AIProviderUnavailableError(
+        `${operation} cannot complete: no AI provider is configured and mock fallback is ` +
+          `disabled in production. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, or GOOGLE_API_KEY ` +
+          `to run against a real provider.`,
+      );
+    }
   }
 
   /**
@@ -59,6 +85,7 @@ export class UnifiedAIService {
     options: GenerateTextOptions = {},
   ): Promise<AIInferenceResponse> {
     if (!hasAnyProvider()) {
+      this.assertMockFallbackAllowed('AI text generation');
       return generateMockTextResponse(prompt);
     }
 
@@ -91,6 +118,7 @@ export class UnifiedAIService {
     options: GenerateStreamOptions = {},
   ): AsyncGenerator<StreamChunk> {
     if (!hasAnyProvider()) {
+      this.assertMockFallbackAllowed('AI stream generation');
       const chunks = generateMockStreamChunks(prompt);
       for (const chunk of chunks) {
         yield chunk;
@@ -128,6 +156,7 @@ export class UnifiedAIService {
   async generateEmbedding(text: string): Promise<number[]> {
     const apiKey = process.env['OPENAI_API_KEY'];
     if (!apiKey) {
+      this.assertMockFallbackAllowed('AI embedding generation');
       return generateMockEmbedding(1536);
     }
 
@@ -150,6 +179,7 @@ export class UnifiedAIService {
    */
   async moderateContent(text: string): Promise<ModerationResult> {
     if (!hasAnyProvider()) {
+      this.assertMockFallbackAllowed('AI content moderation');
       return generateMockModerationResult(text);
     }
 
@@ -177,7 +207,16 @@ export class UnifiedAIService {
         overallScore: isSafe ? 0.02 : 0.75,
         action: isSafe ? 'allow' : 'flag',
       };
-    } catch {
+    } catch (error) {
+      // Fail closed in production: a provider failure must surface as an
+      // explicit error, never a silently-fabricated "safe" moderation result.
+      if (isFailClosedMode()) {
+        if (error instanceof AIProviderUnavailableError) {
+          throw error;
+        }
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        throw new AIProviderUnavailableError(`AI content moderation failed: ${message}`);
+      }
       return generateMockModerationResult(text);
     }
   }

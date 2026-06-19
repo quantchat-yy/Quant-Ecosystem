@@ -77,6 +77,22 @@ export class BranchProtectionService {
     });
   }
 
+  /**
+   * Resolve the single branch-protection rule whose `branchPattern` matches the
+   * given branch, or `null` when the branch is unprotected. Exposed so other
+   * QuantCode services (e.g. merge-eligibility evaluation) can read the active
+   * rule without duplicating the glob-matching semantics used by `enforceOnPush`.
+   */
+  async getMatchingRule(repoId: string, branch: string): Promise<BranchProtection | null> {
+    const rules = await this.prisma.branchProtection.findMany({
+      where: { repoId },
+    });
+
+    return (
+      rules.find((rule: BranchProtection) => this.branchMatches(branch, rule.branchPattern)) ?? null
+    );
+  }
+
   async enforceOnPush(repoId: string, branch: string, prId?: string): Promise<EnforceResult> {
     const rules = await this.prisma.branchProtection.findMany({
       where: { repoId },

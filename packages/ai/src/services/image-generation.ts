@@ -10,6 +10,8 @@
 //     to the placeholder are logged as warnings (never silently swallowed).
 
 import OpenAI from 'openai';
+import { isFailClosedMode } from '../config/runtime';
+import { AIProviderUnavailableError } from '../core/errors';
 
 export type ImageSize = '256x256' | '512x512' | '1024x1024' | '1792x1024' | '1024x1792';
 export type ImageStyle = 'natural' | 'vivid' | 'digital-art' | 'photographic' | 'anime';
@@ -168,6 +170,21 @@ export class ImageGenerationService {
     return this.backend !== null;
   }
 
+  /**
+   * Guard the placeholder/stub fallback. In production (or failClosed mode) the
+   * service must not silently return a simulated image; it raises an explicit
+   * typed error instead (Requirements 3.1, 3.3).
+   */
+  private assertStubAllowed(op: string): void {
+    if (isFailClosedMode()) {
+      throw new AIProviderUnavailableError(
+        `${op} cannot complete: no image-generation provider is configured and the ` +
+          `placeholder fallback is disabled in production. Set IMAGE_GEN_PROVIDER / ` +
+          `OPENAI_API_KEY to run against a real provider.`,
+      );
+    }
+  }
+
   async generate(request: ImageGenerationRequest, userId: string): Promise<ImageGenerationResult> {
     const startTime = Date.now();
 
@@ -179,10 +196,12 @@ export class ImageGenerationService {
           return this.toResult(first, request, startTime, this.backend.model);
         }
       } catch (error) {
+        if (isFailClosedMode()) throw toImageUnavailable('generate', error);
         warnFallback('generate', error);
       }
     }
 
+    this.assertStubAllowed('image generation');
     return this.generateStubResult(request, userId, startTime);
   }
 
@@ -202,10 +221,12 @@ export class ImageGenerationService {
           );
         }
       } catch (error) {
+        if (isFailClosedMode()) throw toImageUnavailable('edit', error);
         warnFallback('edit', error);
       }
     }
 
+    this.assertStubAllowed('image edit');
     return {
       id: `img_edit_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`,
       url: `https://placeholder.quant.ai/images/edit/${userId}/${Date.now()}.png`,
@@ -241,10 +262,12 @@ export class ImageGenerationService {
           }));
         }
       } catch (error) {
+        if (isFailClosedMode()) throw toImageUnavailable('createVariation', error);
         warnFallback('createVariation', error);
       }
     }
 
+    this.assertStubAllowed('image variation');
     const results: ImageGenerationResult[] = [];
     for (let i = 0; i < n; i++) {
       results.push({
@@ -309,4 +332,11 @@ function warnFallback(op: string, error: unknown): void {
   const message = error instanceof Error ? error.message : String(error);
   // eslint-disable-next-line no-console
   console.warn(`[image-generation] real backend ${op} failed, using placeholder: ${message}`);
+}
+
+/** Wrap a backend failure as an explicit fail-closed error for production. */
+function toImageUnavailable(op: string, error: unknown): AIProviderUnavailableError {
+  if (error instanceof AIProviderUnavailableError) return error;
+  const message = error instanceof Error ? error.message : String(error);
+  return new AIProviderUnavailableError(`image ${op} failed: ${message}`);
 }
