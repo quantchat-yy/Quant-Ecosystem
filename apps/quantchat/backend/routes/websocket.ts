@@ -1,7 +1,17 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import websocketPlugin, { type WebSocket } from '@fastify/websocket';
+import Redis from 'ioredis';
 import { ConnectionAuth, AuthError } from '@quant/realtime';
 import { PresenceManager } from '@quant/realtime/presence';
+import {
+  InProcessBackplane,
+  RedisRealtimeBackplane,
+  backplaneRetryStrategy,
+  type RealtimeBackplane,
+  type RoomEvent,
+  type RoomEventType,
+} from '../services/realtime-backplane';
+import { DeliveryReceiptService } from '../services/delivery-receipt.service';
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -29,36 +39,296 @@ export async function websocketRoutes(fastify: FastifyInstance) {
     jwtAudience: process.env.JWT_AUDIENCE || 'quant-ecosystem',
   });
 
-  const presence = new PresenceManager();
   const rooms = new Map<string, Set<WebSocket>>();
   const socketUsers = new Map<WebSocket, string>();
 
-  function joinRoom(conversationId: string, socket: WebSocket): void {
+  // W3 — First-class delivery and read receipts (Task 14, design Data Model 5 /
+  // Sequence 2 / Requirement 10). Recipient sockets ack receipt and signal reads
+  // over the WS connection; the receipts are persisted in the `MessageDelivery`
+  // table (one row per `(messageId, userId)`) and the corresponding
+  // delivery/read room events are fanned across the cluster so the SENDER's
+  // socket can render sent/delivered/read ticks (ties into Requirement 12.5 on
+  // the frontend). The service is built from the shared `fastify.prisma`
+  // decorator; when Prisma is unavailable (e.g. a minimal test harness) receipt
+  // recording is skipped but realtime fan-out of the tick event still happens.
+  const prismaClient = (fastify as unknown as { prisma?: unknown }).prisma;
+  const deliveryReceipts = prismaClient ? new DeliveryReceiptService(prismaClient as never) : null;
+
+  // W2 — Cross-instance realtime fan-out (design Component 2 / Algorithm 4).
+  // Select the backplane implementation here (Task 6.2): use the Redis pub/sub
+  // backplane when REDIS_URL is configured, otherwise fall back to the no-op
+  // single-node InProcessBackplane. The `rooms` map above remains this
+  // instance's LOCAL socket registry; the backplane only carries events between
+  // instances.
+  //
+  // W2 — Degraded single-node fallback + reconnect (Task 8, design Error
+  // Handling "Redis/NATS unavailable"). ioredis owns reconnection: a
+  // `retryStrategy` with exponential backoff (1s → cap 30s — Requirement 6.2)
+  // keeps retrying a downed Redis, while `maxRetriesPerRequest: null` prevents
+  // individual commands from erroring out mid-outage. The RedisRealtimeBackplane
+  // starts degraded until its first `ready`, re-subscribes every active
+  // conversation channel AND the presence channel on (re)connect, and reports
+  // its health via `isHealthy()` (surfaced on /healthz below). Throughout an
+  // outage local delivery still happens at publish time (Requirement 6.3).
+  const redisUrl = process.env.REDIS_URL;
+  let redis: Redis | null = null;
+  let backplane: RealtimeBackplane;
+  if (redisUrl) {
+    redis = new Redis(redisUrl, {
+      lazyConnect: false,
+      maxRetriesPerRequest: null,
+      retryStrategy: (times: number) => backplaneRetryStrategy(times),
+    });
+    redis.on('error', (err: Error) => {
+      fastify.log.error({ err }, 'realtime backplane Redis connection error');
+    });
+    const redisBackplane = new RedisRealtimeBackplane(redis);
+    // Log degraded/healthy transitions so operators can see the backplane drop
+    // into single-node mode and recover (design Error Handling table).
+    redisBackplane.onHealthChange((healthy: boolean) => {
+      if (healthy) {
+        fastify.log.info('realtime backplane connected; cross-instance fan-out healthy');
+      } else {
+        fastify.log.warn(
+          'realtime backplane disconnected; degraded to single-node mode (local delivery only)',
+        );
+      }
+    });
+    backplane = redisBackplane;
+  } else {
+    backplane = new InProcessBackplane();
+  }
+
+  // Surface backplane health on the shared /healthz endpoint (Requirement
+  // 6.1/6.2). The contributor is evaluated per request, so it always reflects
+  // the live connection state: `degraded` while a configured Redis backplane is
+  // unreachable (single-node mode), `ok` once connected (or when running as a
+  // deliberate single-node InProcessBackplane). Guarded so the route still works
+  // if the host app's health plugin predates the contributor registry.
+  const healthAware = fastify as unknown as {
+    addHealthContributor?: (
+      name: string,
+      contributor: () => { status: 'ok' | 'degraded' | 'unavailable'; detail?: string },
+    ) => void;
+  };
+  if (typeof healthAware.addHealthContributor === 'function') {
+    healthAware.addHealthContributor('realtime-backplane', () =>
+      backplane.isHealthy()
+        ? { status: 'ok' }
+        : {
+            status: 'degraded',
+            detail: 'realtime backplane unreachable; running in single-node mode',
+          },
+    );
+  }
+
+  // W2 — Presence backplane wiring (Task 7, design Component 2 note / Sequence 3).
+  // The PresenceManager shares the SAME ioredis client as the RealtimeBackplane
+  // when REDIS_URL is set, so presence is recorded/read via the shared Redis
+  // ZSET (score = last-seen timestamp) and is therefore visible across every
+  // instance (Requirement 5.1). With no Redis it transparently falls back to
+  // in-memory single-node presence. A Redis read failure is logged so operators
+  // can see the degraded state; `isOnlineAnywhere` then reports offline and the
+  // delivery path falls back to push (Requirement 5.4).
+  const presence = new PresenceManager(
+    redis
+      ? {
+          redis,
+          onReadFailure: (userId: string, err: unknown) => {
+            fastify.log.error({ err, userId }, 'presence redis read failed; treating as offline');
+          },
+        }
+      : {},
+  );
+
+  // Dedicated, cluster-wide channel carrying user presence transitions. Presence
+  // is user-scoped rather than conversation-scoped, so it rides its own channel
+  // (reusing the per-conversation backplane plumbing) instead of a room channel.
+  const PRESENCE_CHANNEL = '__presence__';
+  backplane.subscribe(PRESENCE_CHANNEL).catch((err: unknown) => {
+    fastify.log.error({ err }, 'backplane presence subscribe failed');
+  });
+
+  /**
+   * Algorithm 4 — cross-instance fan-out. Inbound backplane events whose origin
+   * is THIS instance were already delivered to local sockets at publish time, so
+   * they are discarded here to avoid double-delivery (Requirement 4.4). Genuine
+   * remote events are forwarded to every open local socket in the room
+   * (Requirement 4.5), guaranteeing each member socket receives the event
+   * exactly once across the cluster (Requirement 4.6).
+   */
+  backplane.onMessage((conversationId: string, event: RoomEvent) => {
+    if (event.originInstanceId === backplane.instanceId) return;
+    // Presence transitions are user-scoped, not room-scoped: a remote instance
+    // published it on the dedicated presence channel, so fan it out to every
+    // open local socket (Requirement 5.3 — subscribed instances receive it; the
+    // frontend re-renders affected indicators per Requirement 11.3).
+    if (event.type === 'presence:update') {
+      broadcastToAllSockets(event.payload);
+      return;
+    }
+    const room = rooms.get(conversationId);
+    if (!room) return;
+    const data = JSON.stringify(event.payload);
+    for (const client of room) {
+      if (client.readyState === client.OPEN) {
+        client.send(data);
+      }
+    }
+  });
+
+  /** Send a payload to every open socket connected to THIS instance. */
+  function broadcastToAllSockets(payload: unknown): void {
+    const data = JSON.stringify(payload);
+    for (const socket of socketUsers.keys()) {
+      if (socket.readyState === socket.OPEN) {
+        socket.send(data);
+      }
+    }
+  }
+
+  /**
+   * Publish a user's online/offline transition over the backplane so every
+   * subscribed instance learns about it (Requirement 5.3), and deliver it to
+   * this instance's own sockets immediately. Stamped with this instance's id so
+   * the origin does not double-deliver when the event echoes back.
+   */
+  function publishPresence(userId: string, status: 'online' | 'offline'): void {
+    const payload = { type: 'presence:update', userId, status, lastSeen: Date.now() };
+    broadcastToAllSockets(payload);
+    const event: RoomEvent = {
+      type: 'presence:update',
+      originInstanceId: backplane.instanceId,
+      payload,
+    };
+    backplane.publish(PRESENCE_CHANNEL, event).catch((err: unknown) => {
+      fastify.log.error({ err, userId }, 'backplane presence publish failed');
+    });
+  }
+
+  /**
+   * Add a socket to a conversation's local room. Returns true when this is the
+   * first local socket for the conversation (i.e. the room did not previously
+   * exist), which is the signal that this instance must subscribe to the
+   * conversation channel on the backplane (Requirement 4.1).
+   */
+  function joinRoom(conversationId: string, socket: WebSocket): boolean {
     let room = rooms.get(conversationId);
+    const isNewRoom = !room;
     if (!room) {
       room = new Set();
       rooms.set(conversationId, room);
     }
     room.add(socket);
+    return isNewRoom;
   }
 
-  function broadcastToRoom(conversationId: string, payload: unknown, exclude?: WebSocket): void {
+  /**
+   * Subscribe this instance to a conversation channel the first time a local
+   * socket joins the room (Requirement 4.1). Subscription is idempotent at the
+   * backplane level, so a redundant call is harmless.
+   */
+  function ensureSubscribed(conversationId: string): void {
+    backplane.subscribe(conversationId).catch((err: unknown) => {
+      fastify.log.error({ err, conversationId }, 'backplane subscribe failed');
+    });
+  }
+
+  /**
+   * Deliver a room event to the local sockets AND publish it to the backplane so
+   * peer instances can fan it out to their own sockets (Requirement 4.3). Local
+   * delivery happens first so that — even if the backplane publish fails — the
+   * sockets on this instance still receive the event (the publish-failure
+   * retry/record path is completed in Task 8 / Requirement 4.7).
+   */
+  function publishRoomEvent(
+    conversationId: string,
+    type: RoomEventType,
+    payload: unknown,
+    exclude?: WebSocket,
+  ): void {
+    // 1. Local delivery (origin instance delivers at publish time).
     const room = rooms.get(conversationId);
-    if (!room) return;
-    const data = JSON.stringify(payload);
-    for (const client of room) {
-      if (client !== exclude && client.readyState === client.OPEN) {
-        client.send(data);
+    if (room) {
+      const data = JSON.stringify(payload);
+      for (const client of room) {
+        if (client !== exclude && client.readyState === client.OPEN) {
+          client.send(data);
+        }
+      }
+    }
+
+    // 2. Cross-instance fan-out — stamped with this instance's id by publish().
+    const event: RoomEvent = {
+      type,
+      originInstanceId: backplane.instanceId,
+      payload,
+    };
+    backplane.publish(conversationId, event).catch((err: unknown) => {
+      fastify.log.error({ err, conversationId }, 'backplane publish failed');
+    });
+  }
+
+  /**
+   * Persist a delivery/read receipt for `(messageId, userId)` and fan the
+   * matching tick event across the cluster so the sender's socket updates its
+   * sent/delivered/read indicator (Requirement 10.1/10.2 + 12.5). Recording and
+   * fan-out are independent: if Prisma is unavailable the receipt is skipped but
+   * the realtime tick still propagates; if recording fails it is logged and the
+   * tick is suppressed so peers are not told of a receipt that was not stored.
+   */
+  function recordAndFan(
+    method: 'recordDelivered' | 'recordRead',
+    eventType: 'message:delivered' | 'message:read',
+    messageId: string,
+    conversationId: string,
+    recipientId: string,
+  ): void {
+    const fan = (): void => {
+      publishRoomEvent(conversationId, eventType, {
+        type: eventType,
+        data: { messageId, conversationId, userId: recipientId },
+      });
+    };
+
+    if (!deliveryReceipts) {
+      // No durable store wired (minimal harness): still propagate the tick.
+      fan();
+      return;
+    }
+
+    deliveryReceipts[method](messageId, recipientId)
+      .then(fan)
+      .catch((err: unknown) => {
+        fastify.log.error({ err, messageId, recipientId, eventType }, 'receipt recording failed');
+      });
+  }
+
+  /**
+   * Remove a socket from every room it belongs to. When a room becomes empty
+   * (the last local socket left), unsubscribe this instance from the backplane
+   * channel for that conversation (Requirement 4.2).
+   */
+  function leaveAllRooms(socket: WebSocket): void {
+    for (const [conversationId, room] of rooms) {
+      if (!room.delete(socket)) continue;
+      if (room.size === 0) {
+        rooms.delete(conversationId);
+        backplane.unsubscribe(conversationId).catch((err: unknown) => {
+          fastify.log.error({ err, conversationId }, 'backplane unsubscribe failed');
+        });
       }
     }
   }
 
-  function leaveAllRooms(socket: WebSocket): void {
-    for (const [conversationId, room] of rooms) {
-      room.delete(socket);
-      if (room.size === 0) rooms.delete(conversationId);
+  // Tear down the backplane (and the Redis connection it was built on) when the
+  // app closes, alongside the existing close hooks (Task 6.2 wiring).
+  fastify.addHook('onClose', async () => {
+    await backplane.shutdown();
+    if (redis) {
+      redis.disconnect();
     }
-  }
+  });
 
   fastify.get(
     '/chat',
@@ -84,31 +354,51 @@ export async function websocketRoutes(fastify: FastifyInstance) {
       }
 
       socketUsers.set(socket, userId);
-      presence.setOnline(userId, 'quantchat');
+      // Record presence in the shared ZSET (score = now). When this is the
+      // first live device for the user, publish the online transition across
+      // the cluster (Requirement 5.1, 5.3).
+      if (presence.setOnline(userId, 'quantchat')) {
+        publishPresence(userId, 'online');
+      }
 
       const query = request.query as { conversationId?: string };
       if (query.conversationId) {
-        joinRoom(query.conversationId, socket);
+        if (joinRoom(query.conversationId, socket)) {
+          ensureSubscribed(query.conversationId);
+        }
       }
 
       socket.on('message', (rawData: Buffer | string) => {
         try {
           const message = JSON.parse(rawData.toString());
 
+          // Any inbound activity refreshes the user's last-seen timestamp in the
+          // shared ZSET so the 30s freshness window stays accurate while the
+          // socket is alive (Requirement 5.2). Explicit heartbeat/ping frames
+          // exist so idle-but-connected clients keep their presence fresh.
+          presence.heartbeat(userId, 'quantchat');
+
+          if (message.type === 'heartbeat' || message.type === 'ping') {
+            return;
+          }
+
           if (message.type === 'join_conversation' && typeof message.conversationId === 'string') {
-            joinRoom(message.conversationId, socket);
+            if (joinRoom(message.conversationId, socket)) {
+              ensureSubscribed(message.conversationId);
+            }
           }
 
           if (message.type === 'chat_message' && typeof message.conversationId === 'string') {
-            broadcastToRoom(message.conversationId, {
+            publishRoomEvent(message.conversationId, 'new_message', {
               type: 'new_message',
               data: { ...message, senderId: userId },
             });
           }
 
           if (message.type === 'typing' && typeof message.conversationId === 'string') {
-            broadcastToRoom(
+            publishRoomEvent(
               message.conversationId,
+              'typing_indicator',
               {
                 type: 'typing_indicator',
                 userId,
@@ -116,6 +406,34 @@ export async function websocketRoutes(fastify: FastifyInstance) {
               },
               socket,
             );
+          }
+
+          // W3 — delivery acknowledgement (Requirement 10.1). A recipient socket
+          // confirms it received a message; persist `deliveredAt` for
+          // `(messageId, userId)` and fan a `message:delivered` tick across the
+          // cluster so the sender's socket can render the delivered state
+          // (Requirement 12.5). Accept `delivery_ack` and the `message:delivered`
+          // alias.
+          if (
+            (message.type === 'delivery_ack' || message.type === 'message:delivered') &&
+            typeof message.messageId === 'string' &&
+            typeof message.conversationId === 'string'
+          ) {
+            const { messageId, conversationId } = message;
+            recordAndFan('recordDelivered', 'message:delivered', messageId, conversationId, userId);
+          }
+
+          // W3 — read receipt (Requirements 10.2, 10.4). A recipient reads a
+          // message; persist `readAt` (back-filling `deliveredAt` so it is never
+          // later than `readAt`) and fan a `message:read` tick across the cluster.
+          // Accept `read_receipt` and the `message:read` alias.
+          if (
+            (message.type === 'read_receipt' || message.type === 'message:read') &&
+            typeof message.messageId === 'string' &&
+            typeof message.conversationId === 'string'
+          ) {
+            const { messageId, conversationId } = message;
+            recordAndFan('recordRead', 'message:read', messageId, conversationId, userId);
           }
         } catch (err) {
           fastify.log.error({ err }, 'WebSocket message handling failed');
@@ -125,7 +443,11 @@ export async function websocketRoutes(fastify: FastifyInstance) {
       socket.on('close', () => {
         leaveAllRooms(socket);
         socketUsers.delete(socket);
-        presence.setOffline(userId);
+        // When the last live device disconnects, publish the offline transition
+        // across the cluster (Requirement 5.3).
+        if (presence.setOffline(userId)) {
+          publishPresence(userId, 'offline');
+        }
       });
     },
   );

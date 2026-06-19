@@ -95,6 +95,7 @@ model User {
   pushSubscriptions  PushSubscription[]
   scheduledMessages  ScheduledMessage[]
   quantAvatar        Avatar?           @relation()
+  preKeyBundle       PreKeyBundle?
 
   @@index([email])
   @@index([username])
@@ -1741,4 +1742,106 @@ model PushSubscription {
   @@index([userId])
   @@index([expiresAt])
   @@map("push_subscriptions")
+}
+
+// ==================== QUANTCHAT E2EE KEY STORE (W1) ====================
+// Zero-knowledge relay: PUBLIC key material only. Never persist private keys,
+// ratchet secrets, or plaintext.
+
+model PreKeyBundle {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  identityKey           String // public identity key (base64/DER)
+  signedPreKey          String // public signed prekey
+  signedPreKeySignature String
+  registrationId        Int
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  oneTimeKeys OneTimePreKey[]
+
+  @@map("prekey_bundles")
+}
+
+model OneTimePreKey {
+  id        String    @id @default(cuid())
+  userId    String
+  bundleId  String
+  publicKey String // public one-time prekey
+  claimed   Boolean   @default(false)
+  claimedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  bundle PreKeyBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+
+  @@index([userId, claimed])
+  @@map("onetime_prekeys")
+}
+
+model KeySession {
+  id          String   @id @default(cuid())
+  initiatorId String
+  responderId String
+  rootKey     String // opaque root key material as currently produced (server-relayed)
+  established Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@unique([initiatorId, responderId])
+  @@index([responderId])
+  @@map("key_sessions")
+}
+
+
+// ==================== QUANTCHAT DELIVERY & OUTBOX (W3) ====================
+// Reliable delivery: a transactional outbox guarantees an at-least-once delivery
+// intent is committed in the same transaction as a Message, and first-class
+// delivery/read receipts replace race-prone Message.metadata JSON.
+// NOTE: This is distinct from the generic data-plane `OutboxEvent` model above;
+// `MessageOutbox` is specific to QuantChat message fan-out.
+
+model MessageOutbox {
+  id             String    @id @default(cuid())
+  conversationId String
+  messageId      String
+  recipientIds   String[]
+  attempts       Int       @default(0)
+  processedAt    DateTime?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+
+  @@index([processedAt, createdAt])
+  @@map("message_outbox")
+}
+
+model MessageDelivery {
+  id          String    @id @default(cuid())
+  messageId   String
+  userId      String
+  deliveredAt DateTime?
+  readAt      DateTime?
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@map("message_deliveries")
+}
+
+
+// ==================== QUANTCHAT ENCRYPTED SEARCH (W5) ====================
+// Client-built blind index: the client tokenizes plaintext, HMACs each token
+// with a per-user Search_Key, and uploads only opaque token hashes. The server
+// stores and matches HMAC token hashes only — it never sees plaintext tokens or
+// keys, preserving the zero-knowledge relay invariant (Requirements 14.3, 16.1).
+
+model BlindIndexEntry {
+  id             String   @id @default(cuid())
+  messageId      String
+  conversationId String
+  userId         String // index owner / Search_Key owner
+  tokenHash      String // single HMAC(Search_Key, token) value — one row per token
+  createdAt      DateTime @default(now())
+
+  @@index([userId, tokenHash])
+  @@index([conversationId])
+  @@map("blind_index_entries")
 }

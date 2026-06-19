@@ -8,6 +8,7 @@ import { LoadingState, ErrorState, EmptyState } from '@quant/shared-ui';
 import { useMessages } from '../../../hooks/useMessages';
 import { useSendMessage } from '../../../hooks/useSendMessage';
 import { useRealtimeChat } from '../../../hooks/useRealtimeChat';
+import { useChatSocket } from '../../../hooks/useChatSocket';
 import { messageListVariants, messageVariants } from '../../../lib/motion-variants';
 import { ReactionPicker } from '../../../components/ReactionPicker';
 import { VoiceNoteRecorder } from '../../../components/VoiceNoteRecorder';
@@ -103,11 +104,9 @@ function detectLink(text: string): { url: string; title: string; description?: s
   return null;
 }
 
-function getStatusForMessage(idx: number, total: number): DeliveryStatus {
-  if (idx === total - 1) return 'sent';
-  if (idx === total - 2) return 'delivered';
-  return 'read';
-}
+// Delivery status ordering so out-of-order receipt events never downgrade a
+// tick (read supersedes delivered supersedes sent).
+const STATUS_RANK: Record<DeliveryStatus, number> = { sent: 1, delivered: 2, read: 3 };
 
 export default function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -116,6 +115,36 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const { typingUsers, incomingMessages, isConnected, sendRealtimeMessage, setTyping, markRead } =
     useRealtimeChat(id);
   const [reactions, setReactions] = useState<Record<string, string[]>>({});
+
+  // Real per-message delivery/read state (Requirement 12.5). Indicators are
+  // driven exclusively by live `message:delivered` / `message:read` events from
+  // the backend over the shared chat socket — never fabricated from list index.
+  const [statusByMessageId, setStatusByMessageId] = useState<Record<string, DeliveryStatus>>({});
+  const handleDeliveryEvent = useCallback(
+    (event: {
+      type?: string;
+      data?: { messageId?: string };
+      payload?: { type?: string; messageId?: string };
+    }) => {
+      const type = event?.type ?? event?.payload?.type;
+      if (type !== 'message:delivered' && type !== 'message:read') return;
+      const source = event?.data ?? event?.payload ?? event;
+      const messageId = (source as { messageId?: string })?.messageId;
+      if (!messageId) return;
+      const next: DeliveryStatus = type === 'message:read' ? 'read' : 'delivered';
+      setStatusByMessageId((prev) => {
+        const current = prev[messageId];
+        if (current && STATUS_RANK[current] >= STATUS_RANK[next]) return prev;
+        return { ...prev, [messageId]: next };
+      });
+    },
+    [],
+  );
+  const { subscribe: subscribeChatSocket } = useChatSocket(handleDeliveryEvent);
+  useEffect(() => {
+    if (id) subscribeChatSocket(id);
+  }, [id, subscribeChatSocket]);
+
   const [reactionPickerMsgId, setReactionPickerMsgId] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; content: string; sender: string } | null>(
     null,
@@ -130,20 +159,17 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
 
     const allMsgs = [
       ...deduped.map(
-        (
-          msg: {
-            id: string;
-            message?: string;
-            content?: string;
-            sender?: string;
-            role?: string;
-            timestamp?: string;
-            type?: string;
-            imageUrl?: string;
-            voiceDurationMs?: number;
-          },
-          idx: number,
-        ) => {
+        (msg: {
+          id: string;
+          message?: string;
+          content?: string;
+          sender?: string;
+          role?: string;
+          timestamp?: string;
+          type?: string;
+          imageUrl?: string;
+          voiceDurationMs?: number;
+        }) => {
           const content = msg.message ?? msg.content ?? '';
           const linkPreview = detectLink(content);
           return {
@@ -151,7 +177,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
             content,
             sender: (msg.sender ?? msg.role ?? 'other') as string,
             timestamp: msg.timestamp ?? '',
-            status: getStatusForMessage(idx, deduped.length) as DeliveryStatus,
+            status: (statusByMessageId[msg.id] ?? 'sent') as DeliveryStatus,
             reactions: reactions[msg.id] || [],
             replyTo: null,
             imageUrl: msg.imageUrl,
@@ -168,7 +194,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           content: msg.content,
           sender: msg.sender,
           timestamp: msg.timestamp,
-          status: 'sent' as DeliveryStatus,
+          status: (statusByMessageId[msg.id] ?? 'sent') as DeliveryStatus,
           reactions: reactions[msg.id] || [],
           replyTo: null,
           linkPreview,
@@ -178,7 +204,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     ];
 
     return allMsgs;
-  }, [data, incomingMessages, reactions]);
+  }, [data, incomingMessages, reactions, statusByMessageId]);
 
   const handleReaction = useCallback((msgId: string, emoji: string) => {
     setReactions((prev) => ({

@@ -110,3 +110,103 @@ export function decryptEnvelope(identity: LocalE2EEIdentity, envelope: Ciphertex
     identity.identityKeyPair,
   );
 }
+
+// ============================================================================
+// One-time prekey replenishment (Requirement 2.8)
+// ============================================================================
+//
+// X3DH consumes one one-time prekey per session initiation, so a user's pool
+// drains over time. The client watches its remaining unclaimed count and, once
+// it dips below the threshold, generates a fresh batch and tops the pool back up
+// to the target. Only PUBLIC one-time prekey material is uploaded — generation
+// happens here via the engine and the private/identity key material never leaves
+// this module (zero-knowledge invariant, Req 16.1).
+
+/** Replenish once the unclaimed pool drops below this many keys (Req 2.8). */
+export const ONE_TIME_PREKEY_REPLENISH_THRESHOLD = 10;
+
+/** Refill the unclaimed pool up to at least this many keys (Req 2.8). */
+export const ONE_TIME_PREKEY_TARGET = 100;
+
+/**
+ * Decide how many one-time prekeys to generate given the current remaining
+ * unclaimed count. Returns 0 when the pool is at or above the threshold (no
+ * replenishment needed); otherwise the number needed to reach the target.
+ * Pure and side-effect free so the replenishment policy is unit-testable.
+ */
+export function oneTimePreKeysToGenerate(remainingCount: number): number {
+  if (remainingCount >= ONE_TIME_PREKEY_REPLENISH_THRESHOLD) {
+    return 0;
+  }
+  return Math.max(0, ONE_TIME_PREKEY_TARGET - Math.max(0, remainingCount));
+}
+
+/**
+ * Generate `count` fresh PUBLIC one-time prekeys via the engine. Each engine
+ * prekey bundle yields a unique one-time prekey; only the PUBLIC value is
+ * collected — the identity's private/ratchet material stays inside `identity`.
+ */
+export function generateOneTimePreKeys(identity: LocalE2EEIdentity, count: number): string[] {
+  const keys: string[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const oneTimePreKey = identity.keyExchange.generatePreKeyBundle().oneTimePreKey;
+    if (oneTimePreKey) {
+      keys.push(oneTimePreKey);
+    }
+  }
+  return keys;
+}
+
+/**
+ * Transport seam for replenishment. The default implementation (see
+ * `useEncryption.ts`) talks to the same-origin `/api/e2ee/prekeys*` proxy; it is
+ * injected here so this module performs no inline network I/O and the policy is
+ * fully testable. The transport only ever sees PUBLIC one-time prekey strings.
+ */
+export interface OneTimePreKeyReplenishmentTransport {
+  /** Read the remaining unclaimed one-time prekey count from the backend. */
+  getRemainingCount(): Promise<number>;
+  /** Upload a batch (1–100) of PUBLIC one-time prekeys to the backend pool. */
+  uploadOneTimePreKeys(oneTimePreKeys: string[]): Promise<void>;
+}
+
+/** Outcome of a replenishment pass. */
+export interface ReplenishmentResult {
+  /** Remaining unclaimed count read before any upload. */
+  remainingBefore: number;
+  /** Number of fresh one-time prekeys generated and uploaded (0 when skipped). */
+  uploaded: number;
+}
+
+/**
+ * Replenish the one-time prekey pool when it runs low (Requirement 2.8):
+ * read the remaining unclaimed count; if it is below the threshold, generate
+ * enough fresh PUBLIC one-time prekeys to bring the pool to the target and
+ * upload them (chunked to the backend's 1–100 batch limit). When the pool is
+ * already at or above the threshold this is a no-op.
+ *
+ * Private key material never leaves the client: generation uses the local
+ * `identity`, and the transport carries only PUBLIC one-time prekey strings.
+ */
+export async function replenishOneTimePreKeys(
+  identity: LocalE2EEIdentity,
+  transport: OneTimePreKeyReplenishmentTransport,
+): Promise<ReplenishmentResult> {
+  const remainingBefore = await transport.getRemainingCount();
+  const toGenerate = oneTimePreKeysToGenerate(remainingBefore);
+
+  if (toGenerate === 0) {
+    return { remainingBefore, uploaded: 0 };
+  }
+
+  const oneTimePreKeys = generateOneTimePreKeys(identity, toGenerate);
+
+  // Respect the backend's 1–100 per-batch limit; a full top-up from an empty
+  // pool is exactly the target, so this is typically a single batch.
+  const BATCH_SIZE = 100;
+  for (let offset = 0; offset < oneTimePreKeys.length; offset += BATCH_SIZE) {
+    await transport.uploadOneTimePreKeys(oneTimePreKeys.slice(offset, offset + BATCH_SIZE));
+  }
+
+  return { remainingBefore, uploaded: oneTimePreKeys.length };
+}

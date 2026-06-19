@@ -5,6 +5,7 @@ export { default as authPlugin } from './plugins/auth';
 export type { RequireAuthOptions } from './plugins/auth';
 export { default as prismaPlugin } from './plugins/prisma';
 export { default as healthPlugin } from './plugins/health';
+export type { HealthStatus, HealthComponentResult, HealthContributor } from './plugins/health';
 export { default as metricsPlugin } from './plugins/metrics';
 export { default as requestIdPlugin } from './plugins/request-id';
 export { default as requestLoggerPlugin } from './plugins/request-logger';

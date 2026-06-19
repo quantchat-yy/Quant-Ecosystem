@@ -48,6 +48,30 @@ jobs:
       - name: Typecheck, lint, test changed packages
         run: npx turbo typecheck lint test --concurrency=3 --continue --filter='${{ steps.base.outputs.filter }}'
 
+  # Hard gate: QuantChat must meet the >=50% coverage threshold (Requirement 18.1).
+  # Thresholds live in apps/quantchat/vitest.config.ts; `vitest run --coverage` exits
+  # non-zero when any metric (statements/branches/functions/lines) drops below 50%.
+  quantchat-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: QuantChat coverage gate (>=50%)
+        run: pnpm --filter @quant/quantchat run test:coverage
+
   # Informational full sweep: tracks repo-wide health without blocking merges.
   # Make this required once the pre-existing failure backlog is cleared.
   full-sweep:

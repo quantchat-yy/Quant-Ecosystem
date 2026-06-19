@@ -187,6 +187,19 @@ export class QuantChatApiClient {
   }
 
   // --------------------------------------------------------------------------
+  // Presence
+  // --------------------------------------------------------------------------
+
+  /**
+   * Fetch the current presence snapshot for a set of users (Requirement 11.2).
+   * Returns the list of user ids currently online; the caller derives per-user
+   * online/offline state and keeps it live via WebSocket presence updates.
+   */
+  async getPresence(userIds: string[]): Promise<ApiResponse<{ online: string[] }>> {
+    return this.get('/presence', { params: { userIds: userIds.join(',') } });
+  }
+
+  // --------------------------------------------------------------------------
   // Stories
   // --------------------------------------------------------------------------
 

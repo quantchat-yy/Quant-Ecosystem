@@ -2,8 +2,10 @@ import { createApp } from '@quant/server-core';
 import type { AppConfig } from '@quant/server-core';
 import messagesRoutes from './routes/messages';
 import conversationsRoutes from './routes/conversations';
+import searchRoutes from './routes/search';
 import encryptionRoutes from './routes/encryption';
 import e2eeRoutes from './routes/e2ee';
+import e2eePreKeyRoutes from './routes/e2ee-prekeys';
 import federationRoutes, { createFederationService } from './routes/federation';
 import arLensesRoutes, { createArLensesService } from './routes/ar-lenses';
 import mediaRoutes from './routes/media';
@@ -53,6 +55,14 @@ export async function buildApp(config?: AppConfig) {
 
   await app.register(messagesRoutes, { prefix: '/conversations' });
   await app.register(conversationsRoutes, { prefix: '/conversations' });
+
+  // Unified search (W5, design Component 5 / Algorithm 5). Routes a plaintext
+  // `q` through the existing Postgres ILIKE path (non-E2EE messages — Req 15.7)
+  // and client-computed `tokenHashes` through the blind index (E2EE messages),
+  // returning both result sets. Uses the shared `fastify.prisma` decorator and
+  // the global auth hook from createApp(); the backend stays a zero-knowledge
+  // relay — it matches opaque HMAC token hashes only (Req 15.6, 16.1).
+  await app.register(searchRoutes, { prefix: '/search' });
 
   // Snapchat parity — chat themes + ephemeral/disappearing messages (Task 14).
   // Both mount under /conversations: themes persist the per-conversation theme
@@ -125,6 +135,16 @@ export async function buildApp(config?: AppConfig) {
     e2eeRelay.shutdown();
   });
   await app.register(e2eeRoutes, { prefix: '/e2ee' });
+
+  // Durable E2EE prekey distribution (W1, design Component 1 / Sequence 1).
+  // Config-driven key storage (KEY_STORAGE=memory → volatile InMemoryKeyStorage,
+  // otherwise durable PrismaKeyStorage). Mounted under /e2ee alongside the
+  // ciphertext relay above: POST /e2ee/prekeys (publish PUBLIC bundle + verify
+  // signed-prekey signature) and GET /e2ee/prekeys/:userId (fetch PUBLIC bundle
+  // + atomically claim a one-time prekey). Zero-knowledge invariant preserved
+  // (public material only — Req 16.1, 16.3); paths do not collide with the
+  // relay's /e2ee/keys or /e2ee/messages.
+  await app.register(e2eePreKeyRoutes, { prefix: '/e2ee' });
 
   // federation engine — per-app lane, Task 14.1 (Req 3.1, 3.2, 7.4). Composes
   // the as-shipped `@quant/federation` exports (FederationModeration +

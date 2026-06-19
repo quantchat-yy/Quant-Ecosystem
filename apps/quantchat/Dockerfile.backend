@@ -1,0 +1,98 @@
+# syntax=docker/dockerfile:1
+###############################################################################
+# Production image for the QuantChat Fastify backend (apps/quantchat/backend). #
+#                                                                             #
+# Multi-stage, workspace-aware (pnpm + turbo monorepo). The final image runs   #
+# the backend with PRODUCTION dependencies only — no vitest/eslint/typescript  #
+# or other dev-only tooling is shipped (Requirement 17.1).                     #
+#                                                                             #
+# Runtime note: most `@quant/*` workspace packages (server-core, realtime,     #
+# encryption, common, ...) publish their entrypoint as TypeScript source       #
+# (`main: src/index.ts`) rather than compiled JS, so the backend is executed    #
+# through the `tsx` TypeScript runtime instead of `node dist/*.js`. The         #
+# `@quant/database` package is the exception — it emits JS to `dist/` and is    #
+# compiled in the build stage below.                                           #
+#                                                                             #
+# Build from the repository root:                                              #
+#   docker build -f apps/quantchat/Dockerfile.backend -t quantchat-backend .   #
+###############################################################################
+
+# ---- base: pinned Node + pnpm (corepack) + OpenSSL for Prisma engines -------
+FROM node:22-slim AS base
+ENV PNPM_HOME=/pnpm \
+    PATH=/pnpm:$PATH
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && corepack enable \
+    && corepack prepare pnpm@10.28.1 --activate
+WORKDIR /app
+
+# ---- deps: full (dev+prod) workspace install, used only to build ------------
+FROM base AS deps
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json turbo.json ./
+COPY packages/ ./packages/
+COPY apps/quantchat/ ./apps/quantchat/
+RUN pnpm install --frozen-lockfile
+
+# ---- build: generate Prisma client + compile buildable @quant/* packages ----
+FROM deps AS build
+ENV NODE_OPTIONS=--max-old-space-size=2048
+# @quant/database's build script runs `prisma generate` AND `tsc`, producing the
+# generated Prisma client plus its compiled `dist/` consumed at runtime.
+RUN pnpm --filter @quant/database build
+# Source-TS packages (@quant/server-core, @quant/realtime, @quant/encryption,
+# @quant/common, ...) are executed directly by the tsx runtime, so they need no
+# separate compile step here.
+
+# ---- prod-deps: isolated production-only dependency tree --------------------
+FROM base AS prod-deps
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/ ./packages/
+COPY apps/quantchat/ ./apps/quantchat/
+# Install production dependencies only (drops vitest/eslint/typescript/fast-check
+# and other devDependencies). Build scripts for the allow-listed native deps
+# (argon2/sharp/prisma engines) still run so the runtime bindings are present.
+RUN pnpm install --frozen-lockfile --prod
+# Regenerate the Prisma client against the production dependency tree (the
+# `prisma` CLI itself is a devDependency, so invoke it transiently via npx —
+# matching the convention used by the existing frontend Dockerfile).
+RUN npx prisma@6.19.3 generate --schema=packages/database/prisma/schema.prisma
+
+# ---- runner: slim runtime, non-root, production deps only -------------------
+FROM base AS runner
+ENV NODE_ENV=production \
+    PORT=3002 \
+    HOST=0.0.0.0 \
+    HOME=/tmp
+# Secrets and connection strings are injected at RUNTIME (Kubernetes Secrets /
+# vault) and are intentionally NOT baked into the image (Requirement 17.3):
+#   DATABASE_URL  REDIS_URL  JWT_SECRET
+#   LIVEKIT_API_KEY  LIVEKIT_API_SECRET  LIVEKIT_URL
+#   VAPID_PUBLIC_KEY  VAPID_PRIVATE_KEY  VAPID_SUBJECT
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 quantapp \
+    && npm install -g tsx@4
+
+# Production dependency tree (incl. generated Prisma client + native builds)
+COPY --from=prod-deps --chown=quantapp:nodejs /app/node_modules ./node_modules
+COPY --from=prod-deps --chown=quantapp:nodejs /app/packages ./packages
+COPY --from=prod-deps --chown=quantapp:nodejs /app/apps/quantchat ./apps/quantchat
+COPY --from=prod-deps --chown=quantapp:nodejs /app/package.json ./package.json
+COPY --from=prod-deps --chown=quantapp:nodejs /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+# Compiled @quant/database output from the build stage (overlays the source-only
+# copy carried in via the production install).
+COPY --from=build --chown=quantapp:nodejs /app/packages/database/dist ./packages/database/dist
+
+USER quantapp
+WORKDIR /app/apps/quantchat
+EXPOSE 3002
+
+# Liveness/readiness probe against the Fastify health endpoint (registered by
+# @quant/server-core's health plugin; `/healthz` is in the public-path allowlist).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3002)+'/healthz').then(function(r){process.exit(r.ok?0:1)}).catch(function(){process.exit(1)})"
+
+# Run the Fastify backend through the production TS runtime. Only production
+# dependencies are present in this stage.
+CMD ["tsx", "backend/server.ts"]

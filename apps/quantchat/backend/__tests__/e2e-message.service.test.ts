@@ -3,7 +3,7 @@ import * as crypto from 'node:crypto';
 import { MessageService } from '../services/message.service';
 
 function createMockPrisma() {
-  return {
+  const prisma = {
     message: {
       create: vi.fn(),
       findUnique: vi.fn(),
@@ -16,8 +16,16 @@ function createMockPrisma() {
     },
     conversationMember: {
       findFirst: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
     },
+    messageOutbox: {
+      create: vi.fn(),
+    },
+    $transaction: vi.fn(),
   };
+  // Interactive transaction runs the callback with the same mock client.
+  prisma.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => cb(prisma));
+  return prisma;
 }
 
 function generateRSAKeyPair() {
