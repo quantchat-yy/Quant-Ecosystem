@@ -13,6 +13,9 @@ import { messageListVariants, messageVariants } from '../../../lib/motion-varian
 import { ReactionPicker } from '../../../components/ReactionPicker';
 import { VoiceNoteRecorder } from '../../../components/VoiceNoteRecorder';
 import { LinkPreviewCard } from '../../../components/LinkPreviewCard';
+import { AIAgentPanel } from '../../../components/chat/AIAgentPanel';
+import { ReplySuggestions } from '../../../components/chat/ReplySuggestions';
+import { GameLauncher } from '../../../components/games/GameLauncher';
 
 type DeliveryStatus = 'sent' | 'delivered' | 'read';
 
@@ -150,6 +153,10 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     null,
   );
 
+  // Orphaned-feature wiring: AI auto-reply panel + in-chat games launcher.
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [showGames, setShowGames] = useState(false);
+
   const lastMarkedRef = useRef<string | null>(null);
 
   const messages: EnhancedMessage[] = useMemo(() => {
@@ -255,6 +262,27 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     [setTyping],
   );
 
+  // Posts a system message into the conversation (e.g. final game scores from
+  // the in-chat GameLauncher). Persists via REST and broadcasts over WS.
+  const handlePostSystemMessage = useCallback(
+    (text: string) => {
+      sendMessage.mutate({ conversationId: id, content: text, type: 'text' as const });
+      sendRealtimeMessage(text);
+    },
+    [id, sendMessage, sendRealtimeMessage],
+  );
+
+  // Recent context handed to the AI reply-suggestion strip (oldest → newest).
+  const suggestionContext = useMemo(
+    () =>
+      messages.slice(-10).map((m) => ({
+        sender: m.sender,
+        content: m.content,
+        isSelf: m.sender === 'self',
+      })),
+    [messages],
+  );
+
   if (isLoading) return <LoadingState variant="skeleton" text="Loading messages..." />;
   if (error) return <ErrorState message={error.message} onRetry={() => void refetch()} />;
 
@@ -278,12 +306,53 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
           window.location.href = '/';
         }}
         rightActions={[
+          <button
+            key="games"
+            type="button"
+            onClick={() => setShowGames(true)}
+            aria-label="Open games"
+            className="min-w-touch min-h-touch flex items-center justify-center text-lg"
+            title="Play a game"
+          >
+            🎮
+          </button>,
+          <button
+            key="ai"
+            type="button"
+            onClick={() => setShowAIPanel((v) => !v)}
+            aria-label="Toggle AI auto-reply"
+            aria-pressed={showAIPanel}
+            className={`min-w-touch min-h-touch flex items-center justify-center text-lg transition-opacity ${
+              showAIPanel ? 'opacity-100' : 'opacity-70'
+            }`}
+            title="Quant AI"
+          >
+            👽
+          </button>,
           <div key="status" className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${getStatusColor()}`} />
             <span className="text-xs text-[var(--quant-muted-foreground)]">{getStatusLabel()}</span>
           </div>,
         ]}
       />
+      <AnimatePresence>
+        {showAIPanel && (
+          <motion.div
+            className="px-3 pt-2"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: 'spring', ...spring.stiff }}
+          >
+            <AIAgentPanel
+              conversationId={id}
+              onToggle={(enabled) => {
+                if (!enabled) setShowAIPanel(false);
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 ? (
           <EmptyState
@@ -486,6 +555,13 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         )}
       </AnimatePresence>
 
+      {/* AI reply suggestions (context-driven chips) */}
+      <ReplySuggestions
+        conversationId={id}
+        messages={suggestionContext}
+        onSelect={(suggestion) => handleSend(suggestion)}
+      />
+
       {/* Input area with voice note */}
       <div className="flex items-center gap-2 px-3 py-2 border-t border-[var(--quant-border)] bg-[var(--quant-background)]">
         <div className="flex-1">
@@ -497,6 +573,36 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
         </div>
         <VoiceNoteRecorder onRecordingComplete={handleVoiceRecording} />
       </div>
+
+      {/* In-chat games launcher (bottom sheet) */}
+      <AnimatePresence>
+        {showGames && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowGames(false)}
+          >
+            <motion.div
+              className="w-full max-w-md rounded-t-2xl bg-[var(--quant-background)] p-4 pb-6"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', ...spring.stiff }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GameLauncher
+                conversationId={id}
+                participantIds={[]}
+                currentUserId="self"
+                onPostSystemMessage={handlePostSystemMessage}
+                onClose={() => setShowGames(false)}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
