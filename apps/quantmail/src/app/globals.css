@@ -165,3 +165,162 @@ html {
 .animate-pulse-brand {
   animation: pulse-brand 2s var(--brand-ease-in-out) infinite;
 }
+
+
+/* ==========================================================================
+   CodeEditor (repos file viewer) — themed styles for the component's
+   classnames (the component ships markup only). Scoped under .code-editor.
+   ========================================================================== */
+.code-editor {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--quant-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: var(--quant-card, var(--quant-background));
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono',
+    monospace;
+}
+
+.code-editor .editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--quant-border);
+  background: var(--quant-muted);
+  flex-wrap: wrap;
+}
+
+.code-editor .file-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  font-size: 0.8125rem;
+}
+.code-editor .file-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.code-editor .file-language {
+  padding: 0.0625rem 0.375rem;
+  border-radius: 999px;
+  background: var(--quant-primary);
+  color: #fff;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.code-editor .file-lines {
+  color: var(--quant-muted-foreground);
+  font-size: 0.75rem;
+}
+
+.code-editor .editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.code-editor .btn {
+  appearance: none;
+  border: 1px solid var(--quant-border);
+  background: var(--quant-background);
+  color: var(--quant-foreground);
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.code-editor .btn:hover {
+  background: var(--quant-muted);
+}
+.code-editor .btn.active,
+.code-editor .btn-primary {
+  background: var(--quant-primary);
+  border-color: var(--quant-primary);
+  color: #fff;
+}
+
+.code-editor .editor-body {
+  display: flex;
+  overflow: auto;
+  max-height: 60vh;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.code-editor .editor-view-mode,
+.code-editor .editor-edit-mode {
+  display: flex;
+  width: 100%;
+}
+.code-editor .line-numbers {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0.5rem 0.5rem 0.75rem;
+  text-align: right;
+  color: var(--quant-muted-foreground);
+  background: var(--quant-muted);
+  user-select: none;
+  flex-shrink: 0;
+}
+.code-editor .line-number.highlighted {
+  color: var(--quant-primary);
+  font-weight: 700;
+}
+.code-editor .editor-content {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  overflow-x: auto;
+  flex: 1;
+}
+.code-editor .editor-body.wrap .editor-content,
+.code-editor .editor-body.wrap .code-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.code-editor .code-line {
+  white-space: pre;
+  min-height: 1.5em;
+}
+.code-editor .code-line.highlighted {
+  background: color-mix(in srgb, var(--quant-primary) 14%, transparent);
+}
+.code-editor .code-line.diff-addition {
+  background: color-mix(in srgb, #28a745 18%, transparent);
+}
+.code-editor .code-line.diff-deletion {
+  background: color-mix(in srgb, #dc3545 18%, transparent);
+}
+.code-editor .editor-textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--quant-foreground);
+  font: inherit;
+  padding: 0.5rem 0.75rem;
+  min-height: 40vh;
+}
+
+.code-editor .editor-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.25rem 0.75rem;
+  border-top: 1px solid var(--quant-border);
+  background: var(--quant-muted);
+  color: var(--quant-muted-foreground);
+  font-size: 0.6875rem;
+}
+.code-editor .editing-indicator {
+  color: var(--quant-primary);
+  font-weight: 600;
+}
