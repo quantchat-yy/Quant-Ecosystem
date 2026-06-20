@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { spring } from '@quant/brand';
-import { Card, Button } from '@quant/shared-ui';
+import { Card } from '@quant/shared-ui';
 
 interface Template {
   id: string;
