@@ -12,6 +12,7 @@ import { useUsageStats } from '../hooks/useUsageStats';
 import { useConversationSearch } from '../hooks/useConversationSearch';
 import { ModelSelector } from '../components/ModelSelector';
 import { VoiceToggle } from '../components/VoiceToggle';
+import { ExportMenu } from '../components/ExportMenu';
 import { AgenticMessage } from '../components/AgenticMessage';
 import { LoadingSkeleton } from '../components/LoadingSkeleton';
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
@@ -280,7 +281,8 @@ export default function AIPage() {
                 onSelect={handlePersonaSelect}
                 onCreateCustom={handleCreatePersona}
               />
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-2">
+                <ExportMenu conversation={activeConversation} messages={messages} />
                 <VoiceToggle isActive={voiceActive} onToggle={() => setVoiceActive(!voiceActive)} />
               </div>
             </div>
