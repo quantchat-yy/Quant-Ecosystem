@@ -184,11 +184,6 @@ describe('StoryViewer navigation', () => {
   });
 
   it('should go to previous story', () => {
-    const stories = [
-      { id: 's1', duration: 5 },
-      { id: 's2', duration: 5 },
-      { id: 's3', duration: 5 },
-    ];
     let currentIndex = 2;
 
     // Simulate prevStory
