@@ -111,7 +111,7 @@ interface ScopedSurface {
   name: string;
   method: 'POST';
   url: string;
-  body: unknown;
+  body: Record<string, unknown>;
   okStatus: number;
 }
 

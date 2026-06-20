@@ -1,8 +1,12 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
-import { CrossAppOrchestrator } from '../services/cross-app-orchestrator.service';
+import {
+  CrossAppOrchestrator,
+  type AppConnectors,
+} from '../services/cross-app-orchestrator.service';
 import { DemoModeConnector } from '../services/demo-mode.service';
+import { HttpAppConnectors } from '../services/http-connectors.service';
 
 const draftReplySchema = z.object({
   emailId: z.string().min(1),
@@ -22,48 +26,57 @@ const chatFollowupSchema = z.object({
   conversationId: z.string().min(1),
 });
 
+const ORCHESTRATION_APPS = ['mail', 'chat', 'docs', 'calendar', 'drive'];
+
 export default async function orchestrationRoutes(fastify: FastifyInstance) {
   const isDemoMode = process.env['DEMO_MODE'] === 'true';
-  const connectors = new DemoModeConnector();
 
-  // Only use wildcard permissions when DEMO_MODE=true.
-  // In production mode, users must have explicit permission entries.
-  const permissions: Record<string, string[]> = isDemoMode
-    ? { '*': ['mail', 'chat', 'docs', 'calendar', 'drive'] }
-    : {};
-  const orchestrator = new CrossAppOrchestrator(connectors, permissions);
-
-  function getUserId(request: unknown): string {
-    const req = request as { auth?: { userId?: string } };
-    const userId = req.auth?.userId ?? (isDemoMode ? 'demo-user' : '');
-    return userId;
+  function getUserId(request: FastifyRequest): string {
+    const req = request as unknown as { auth?: { userId?: string } };
+    return req.auth?.userId ?? (isDemoMode ? 'demo-user' : '');
   }
 
-  function ensurePermissions(userId: string): void {
-    if (!isDemoMode) {
-      // Production mode: require explicit permissions for the user
-      if (!permissions[userId]) {
-        throw createAppError(
-          'Permission denied: no explicit permissions for user',
-          403,
-          'FORBIDDEN',
-        );
-      }
-      return;
+  function bearerToken(request: FastifyRequest): string {
+    const header = request.headers['authorization'];
+    if (typeof header === 'string' && header.startsWith('Bearer ')) {
+      return header.slice('Bearer '.length);
     }
-    // Demo mode: fall back to wildcard if user has no explicit entry
-    if (!permissions[userId] && !permissions['*']) {
-      throw createAppError('Permission denied', 403, 'FORBIDDEN');
+    return '';
+  }
+
+  /**
+   * Build a per-request orchestrator. In demo mode it uses the curated
+   * DemoModeConnector; otherwise it uses real HTTP connectors that call the
+   * sibling app backends with the user's bearer token (and fail closed when a
+   * backend is not configured — never fabricated data).
+   */
+  function buildOrchestrator(request: FastifyRequest, userId: string): CrossAppOrchestrator {
+    const connectors: AppConnectors = isDemoMode
+      ? new DemoModeConnector()
+      : new HttpAppConnectors({ token: bearerToken(request) });
+
+    // The forwarded bearer token is the real authorization boundary (each app
+    // authorizes independently). quantai grants the authenticated user
+    // orchestration access to their own cross-app data.
+    const permissions: Record<string, string[]> = isDemoMode
+      ? { '*': ORCHESTRATION_APPS }
+      : { [userId]: ORCHESTRATION_APPS };
+
+    return new CrossAppOrchestrator(connectors, permissions);
+  }
+
+  function requireUser(request: FastifyRequest): string {
+    const userId = getUserId(request);
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
-    if (!permissions[userId]) {
-      permissions[userId] = permissions['*']!;
-    }
+    return userId;
   }
 
   // POST /api/v1/orchestrate/summarize-day
   fastify.post('/summarize-day', async (request, reply) => {
-    const userId = getUserId(request);
-    ensurePermissions(userId);
+    const userId = requireUser(request);
+    const orchestrator = buildOrchestrator(request, userId);
 
     const result = await orchestrator.summarizeDay(userId);
     return reply.send(result);
@@ -76,8 +89,8 @@ export default async function orchestrationRoutes(fastify: FastifyInstance) {
       throw createAppError('Invalid request body', 400, 'VALIDATION_ERROR');
     }
 
-    const userId = getUserId(request);
-    ensurePermissions(userId);
+    const userId = requireUser(request);
+    const orchestrator = buildOrchestrator(request, userId);
 
     const result = await orchestrator.draftReply(userId, parseResult.data.emailId);
     return reply.send(result);
@@ -90,8 +103,8 @@ export default async function orchestrationRoutes(fastify: FastifyInstance) {
       throw createAppError('Invalid request body', 400, 'VALIDATION_ERROR');
     }
 
-    const userId = getUserId(request);
-    ensurePermissions(userId);
+    const userId = requireUser(request);
+    const orchestrator = buildOrchestrator(request, userId);
 
     const result = await orchestrator.scheduleMeeting(userId, parseResult.data);
     return reply.send(result);
@@ -104,8 +117,8 @@ export default async function orchestrationRoutes(fastify: FastifyInstance) {
       throw createAppError('Invalid request body', 400, 'VALIDATION_ERROR');
     }
 
-    const userId = getUserId(request);
-    ensurePermissions(userId);
+    const userId = requireUser(request);
+    const orchestrator = buildOrchestrator(request, userId);
 
     const result = await orchestrator.searchAndSummarize(userId, parseResult.data.query);
     return reply.send(result);
@@ -118,8 +131,8 @@ export default async function orchestrationRoutes(fastify: FastifyInstance) {
       throw createAppError('Invalid request body', 400, 'VALIDATION_ERROR');
     }
 
-    const userId = getUserId(request);
-    ensurePermissions(userId);
+    const userId = requireUser(request);
+    const orchestrator = buildOrchestrator(request, userId);
 
     const result = await orchestrator.chatFollowup(userId, parseResult.data.conversationId);
     return reply.send(result);

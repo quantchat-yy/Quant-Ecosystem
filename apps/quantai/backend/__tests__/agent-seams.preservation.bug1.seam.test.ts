@@ -262,7 +262,7 @@ interface AgentSurface {
   name: string;
   method: 'POST' | 'GET';
   url: string;
-  body?: unknown;
+  body?: Record<string, unknown>;
   scoped: boolean;
   okStatus: number;
   // Optional: install/cleanup a spy on the external engine boundary; returns the

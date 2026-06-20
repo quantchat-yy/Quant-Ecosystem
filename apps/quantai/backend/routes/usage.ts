@@ -41,4 +41,18 @@ export default async function usageRoutes(fastify: FastifyInstance) {
 
     return reply.send({ success: true, data: billing });
   });
+
+  // GET /usage/stats - Real engagement stats (streak/xp/level) from AI sessions
+  fastify.get('/stats', async (request, reply) => {
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    const service = new UsageService(prisma as never);
+    const stats = await service.getStats(userId);
+
+    return reply.send({ success: true, data: stats });
+  });
 }

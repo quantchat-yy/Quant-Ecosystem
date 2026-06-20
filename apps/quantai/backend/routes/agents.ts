@@ -24,7 +24,10 @@ const paginationSchema = z.object({
 });
 
 export default async function agentsRoutes(fastify: FastifyInstance) {
-  const marketplace = new AgentMarketplace();
+  function getMarketplace() {
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    return new AgentMarketplace(prisma as never);
+  }
 
   // GET /agents/marketplace - List marketplace agents
   fastify.get('/marketplace', async (request, reply) => {
@@ -33,13 +36,13 @@ export default async function agentsRoutes(fastify: FastifyInstance) {
       throw queryResult.error;
     }
 
-    const result = marketplace.listAgents(queryResult.data);
+    const result = await getMarketplace().listAgents(queryResult.data);
     return reply.send({ success: true, data: result });
   });
 
   // GET /agents/:id - Get a specific agent
   fastify.get<{ Params: { id: string } }>('/:id', async (request, reply) => {
-    const agent = marketplace.getAgent(request.params.id);
+    const agent = await getMarketplace().getAgent(request.params.id);
     return reply.send({ success: true, data: agent });
   });
 
@@ -55,7 +58,7 @@ export default async function agentsRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const agent = marketplace.installAgent(userId, parseResult.data.agentId);
+    const agent = await getMarketplace().installAgent(userId, parseResult.data.agentId);
     return reply.status(201).send({ success: true, data: agent });
   });
 
@@ -66,7 +69,7 @@ export default async function agentsRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    marketplace.uninstallAgent(userId, request.params.id);
+    await getMarketplace().uninstallAgent(userId, request.params.id);
     return reply.send({ success: true, data: { message: 'Agent uninstalled' } });
   });
 
@@ -82,7 +85,7 @@ export default async function agentsRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const agent = marketplace.createAgent(userId, {
+    const agent = await getMarketplace().createAgent(userId, {
       ...parseResult.data,
       author: userId,
     });
