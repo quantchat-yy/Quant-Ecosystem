@@ -54,13 +54,13 @@ export class ABTestingFramework {
     let cumulative = 0;
 
     for (let i = 0; i < experiment.variants.length; i++) {
-      cumulative += experiment.trafficSplit[i];
+      cumulative += experiment.trafficSplit[i] ?? 0;
       if (bucket < cumulative) {
-        return experiment.variants[i];
+        return experiment.variants[i] ?? null;
       }
     }
 
-    return experiment.variants[0];
+    return experiment.variants[0] ?? null;
   }
 
   recordResult(experimentId: string, variantId: string, metrics: Record<string, number>) {

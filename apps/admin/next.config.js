@@ -8,6 +8,16 @@ const nextConfig = {
 
   serverExternalPackages: ['@prisma/client', 'prisma', 'nats'],
   webpack: (config, { isServer }) => {
+    // Resolve workspace TS packages that use NodeNext `.js` import specifiers
+    // (e.g. @quant/bharat-ai pulled in via @quant/shared-ui) to their `.ts` sources.
+    config.resolve = config.resolve ?? {};
+    config.resolve.extensionAlias = {
+      ...(config.resolve.extensionAlias ?? {}),
+      '.js': ['.ts', '.tsx', '.js', '.jsx'],
+      '.jsx': ['.tsx', '.jsx'],
+      '.mjs': ['.mts', '.mjs'],
+      '.cjs': ['.cts', '.cjs'],
+    };
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

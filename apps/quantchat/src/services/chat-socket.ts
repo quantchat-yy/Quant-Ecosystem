@@ -38,7 +38,7 @@ export interface ClientEvent {
 }
 
 /** Handler invoked for every inbound server event. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export type ChatEventHandler = (event: any) => void;
 
 type StateHandler = (state: ChatConnectionState) => void;

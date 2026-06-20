@@ -2,6 +2,19 @@
 const nextConfig = {
   transpilePackages: ['@quant/shared-ui', '@quant/common'],
   output: 'standalone',
+  webpack: (config) => {
+    // Resolve workspace TS packages that use NodeNext `.js` import specifiers
+    // (e.g. @quant/bharat-ai pulled in via @quant/shared-ui) to their `.ts` sources.
+    config.resolve = config.resolve ?? {};
+    config.resolve.extensionAlias = {
+      ...(config.resolve.extensionAlias ?? {}),
+      '.js': ['.ts', '.tsx', '.js', '.jsx'],
+      '.jsx': ['.tsx', '.jsx'],
+      '.mjs': ['.mts', '.mjs'],
+      '.cjs': ['.cts', '.cjs'],
+    };
+    return config;
+  },
   async headers() {
     return [
       {

@@ -82,7 +82,6 @@ export function useGameSdk(options: UseGameSdkOptions): GameSdk {
     // Force iframe reload by re-assigning its src.
     const iframe = iframeRef.current;
     if (iframe) {
-      // eslint-disable-next-line no-self-assign
       iframe.src = iframe.src;
     }
   }, [activeGame, startLoadTimer]);

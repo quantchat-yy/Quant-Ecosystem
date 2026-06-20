@@ -34,11 +34,7 @@ export function usePresence(userIds: string[]): Record<string, PresenceStatus> {
   const idsKey = userIds.join(',');
   // Stable, de-duplicated, ordered id list so the query key / effects only
   // re-run when the actual set of users changes (not on array identity churn).
-  const sortedIds = useMemo(
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    () => Array.from(new Set(userIds)).filter(Boolean).sort(),
-    [idsKey],
-  );
+  const sortedIds = useMemo(() => Array.from(new Set(userIds)).filter(Boolean).sort(), [idsKey]);
   const sortedKey = sortedIds.join(',');
 
   const [statuses, setStatuses] = useState<Record<string, PresenceStatus>>({});
@@ -80,7 +76,6 @@ export function usePresence(userIds: string[]): Record<string, PresenceStatus> {
       );
     }
     // sortedKey captures the identity of sortedIds.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, isError, sortedKey]);
 
   // Keep presence live over the shared WebSocket (Requirement 11.3). Defensive
@@ -90,7 +85,6 @@ export function usePresence(userIds: string[]): Record<string, PresenceStatus> {
     if (sortedIds.length === 0) return;
     const tracked = new Set(sortedIds);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const unsubscribe = subscribe('presence', (event: any) => {
       const type = event?.type ?? event?.payload?.type;
       if (type !== 'presence:update') return;
@@ -101,7 +95,6 @@ export function usePresence(userIds: string[]): Record<string, PresenceStatus> {
     });
 
     return unsubscribe;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subscribe, sortedKey]);
 
   return statuses;

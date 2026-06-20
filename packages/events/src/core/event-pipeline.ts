@@ -45,8 +45,7 @@ export class EventPipeline extends EventEmitter {
       try {
         await handler(event);
       } catch (error) {
-        const safeId = String(event.id).replace(/[\u0000-\u001f\u007f]/g, ' ');
-        console.error('Handler failed for event %s:', safeId, error);
+        // Surface the failure to subscribers and capture it for retry/inspection.
         this.deadLetterQueue.push(event);
         this.emit('event:failed', { event, error });
       }
