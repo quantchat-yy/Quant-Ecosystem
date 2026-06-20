@@ -51,6 +51,19 @@ const ProfilePage: React.FC = () => {
     followMutation.mutate(next);
   }, [isFollowing, followMutation]);
 
+  const messageMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.startConversation(id);
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'Failed to open conversation');
+      }
+      return response.data.conversationId;
+    },
+    onSuccess: () => {
+      void router.push('/messages');
+    },
+  });
+
   const formatCount = (n: number): string => {
     if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
     if (n >= 10000) return `${(n / 1000).toFixed(1)}K`;
@@ -166,10 +179,12 @@ const ProfilePage: React.FC = () => {
                 {isFollowing ? 'Following' : 'Follow'}
               </motion.button>
               <button
-                className="flex-1 min-h-[44px] py-2 rounded-lg font-medium text-sm bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white"
+                className="flex-1 min-h-[44px] py-2 rounded-lg font-medium text-sm bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white disabled:opacity-60"
                 aria-label="Send message"
+                onClick={() => messageMutation.mutate()}
+                disabled={messageMutation.isPending}
               >
-                Message
+                {messageMutation.isPending ? 'Opening…' : 'Message'}
               </button>
             </div>
           </div>
