@@ -65,7 +65,7 @@ describe('ConversationService', () => {
       expect(prisma.$transaction).toHaveBeenCalled();
       expect(prisma._tx.conversation.create).toHaveBeenCalledWith({
         data: {
-          type: 'group',
+          type: 'GROUP',
           name: 'Team Chat',
           description: null,
           createdBy: 'user-1',
@@ -148,7 +148,7 @@ describe('ConversationService', () => {
     });
 
     it('throws DIRECT_CONVERSATION when adding to direct chat', async () => {
-      prisma.conversation.findUnique.mockResolvedValue({ id: 'conv-1', type: 'direct' });
+      prisma.conversation.findUnique.mockResolvedValue({ id: 'conv-1', type: 'DIRECT' });
 
       await expect(service.addMember('conv-1', 'user-3')).rejects.toThrow(
         'Cannot add members to direct conversations',

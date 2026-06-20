@@ -35,6 +35,7 @@ import type {
   PushResult,
   PushSubscriptionResult,
 } from './delivery-worker';
+import { NoopPushDispatcher } from './delivery-worker';
 
 /** First retry waits 1 second; the delay doubles per retry (Requirement 9.3). */
 export const PUSH_BACKOFF_BASE_MS = 1_000;
@@ -302,4 +303,94 @@ export class PrismaPushSubscriptionStore implements PushSubscriptionStore {
   async prune(subscriptionId: string): Promise<void> {
     await this.prisma.pushSubscription.delete({ where: { id: subscriptionId } });
   }
+}
+
+// ----------------------------------------------------------------------------
+// Lazy web-push transport + production dispatcher factory
+// ----------------------------------------------------------------------------
+
+/**
+ * VAPID configuration read from the environment. Web Push delivery requires a
+ * VAPID keypair + a contact subject; absent any of these, real push is disabled
+ * and the {@link createPushDispatcher} factory falls back to the no-op
+ * dispatcher (the rest of the delivery pipeline still functions).
+ */
+interface VapidConfig {
+  publicKey: string;
+  privateKey: string;
+  subject: string;
+}
+
+function readVapidConfig(): VapidConfig | null {
+  const publicKey = process.env['VAPID_PUBLIC_KEY'];
+  const privateKey = process.env['VAPID_PRIVATE_KEY'];
+  const subject = process.env['VAPID_SUBJECT'] ?? 'mailto:ops@quantchat.dev';
+  if (!publicKey || !privateKey) return null;
+  return { publicKey, privateKey, subject };
+}
+
+/**
+ * {@link WebPushClient} that loads and configures the optional `web-push`
+ * dependency on first use. The module specifier is computed so TypeScript does
+ * not require `web-push` types at compile time (graceful optional dependency).
+ * A `WebPushError` from `web-push` carries the push endpoint's `statusCode`
+ * (e.g. `410 Gone`), which {@link WebPushDispatcher} uses to prune dead
+ * subscriptions; this client therefore lets such rejections propagate untouched.
+ */
+export class LazyWebPushClient implements WebPushClient {
+  private readonly vapid: VapidConfig;
+  private webpush: {
+    sendNotification: (sub: WebPushSubscription, payload: string) => Promise<unknown>;
+    setVapidDetails: (subject: string, publicKey: string, privateKey: string) => void;
+  } | null = null;
+  private loadAttempted = false;
+
+  constructor(vapid: VapidConfig) {
+    this.vapid = vapid;
+  }
+
+  private async ensureLoaded(): Promise<void> {
+    if (this.webpush || this.loadAttempted) {
+      if (!this.webpush) {
+        throw new Error('web-push dependency is not available');
+      }
+      return;
+    }
+    this.loadAttempted = true;
+    const moduleName = 'web-push';
+    const mod = (await import(moduleName)) as {
+      default?: LazyWebPushClient['webpush'];
+      sendNotification?: unknown;
+      setVapidDetails?: unknown;
+    };
+    const webpush = (mod?.default ?? mod) as LazyWebPushClient['webpush'];
+    if (!webpush || typeof webpush.sendNotification !== 'function') {
+      throw new Error('web-push dependency is not available');
+    }
+    webpush.setVapidDetails(this.vapid.subject, this.vapid.publicKey, this.vapid.privateKey);
+    this.webpush = webpush;
+  }
+
+  async sendNotification(subscription: WebPushSubscription, payload: string): Promise<void> {
+    await this.ensureLoaded();
+    await this.webpush!.sendNotification(subscription, payload);
+  }
+}
+
+/**
+ * Build the production {@link PushDispatcher} for the DeliveryWorker. When VAPID
+ * keys are configured a real {@link WebPushDispatcher} is returned (backed by
+ * the lazy `web-push` transport and the user's persisted `PushSubscription`
+ * rows); otherwise a {@link NoopPushDispatcher} is returned so offline delivery
+ * degrades cleanly without blocking the worker.
+ */
+export function createPushDispatcher(prisma: PrismaPushSubscriptionClient): PushDispatcher {
+  const vapid = readVapidConfig();
+  if (!vapid) {
+    return new NoopPushDispatcher();
+  }
+  return new WebPushDispatcher({
+    transport: new LazyWebPushClient(vapid),
+    subscriptions: new PrismaPushSubscriptionStore(prisma),
+  });
 }
