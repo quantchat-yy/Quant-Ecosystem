@@ -29,6 +29,19 @@ export default async function storiesRoutes(fastify: FastifyInstance) {
     return reply.status(201).send({ success: true, data: story });
   });
 
+  fastify.get('/feed', async (request, reply) => {
+    const userId = (request as unknown as { auth?: { userId?: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    const service = new StoryService(prisma as never);
+    const rings = await service.getStoriesFeed(userId);
+
+    return reply.send({ success: true, data: rings });
+  });
+
   fastify.get('/user/:userId', async (request, reply) => {
     const { userId } = request.params as { userId: string };
 
