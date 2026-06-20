@@ -72,7 +72,6 @@ export default function ImageGenPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const progressRef = useRef<number>(0);
 
   const selectedImageData = useMemo(() => {
     if (!selectedImage) return null;
