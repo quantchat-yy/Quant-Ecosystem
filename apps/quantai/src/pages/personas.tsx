@@ -4,7 +4,7 @@
 // knowledge upload, chat with persona, share toggle
 // ============================================================================
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 
 interface Persona {
   id: string;
