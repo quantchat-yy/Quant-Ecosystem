@@ -86,6 +86,18 @@ export function useFileTree(repoId: string) {
   });
 }
 
+export function useFileContent(repoId: string, path: string | null) {
+  return useQuery({
+    queryKey: ['file-content', repoId, path],
+    queryFn: async () => {
+      const response = await apiClient.getFileContent(repoId, path as string);
+      if (!response.success) throw new Error(response.error?.message || 'Failed to load file');
+      return response.data!;
+    },
+    enabled: !!repoId && !!path,
+  });
+}
+
 export function useCreateRepo() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -6,6 +6,7 @@ import { AppShell, Card, Badge, Button, Skeleton } from '@quant/shared-ui';
 import { ErrorState, EmptyState } from '@quant/shared-ui';
 import { AppSidebar } from '../../../components/AppSidebar';
 import { PageTransition } from '../../../components/PageTransition';
+import { CodeEditor } from '../../../components/CodeEditor';
 import {
   useRepo,
   useBranches,
@@ -13,6 +14,7 @@ import {
   usePullRequests,
   useIssues,
   useFileTree,
+  useFileContent,
 } from '../../../hooks/useRepos';
 
 type Tab = 'code' | 'prs' | 'issues' | 'branches' | 'commits';
@@ -22,9 +24,16 @@ export default function RepoDetailPage() {
   const router = useRouter();
   const repoId = (params?.id as string) || '';
   const [activeTab, setActiveTab] = useState<Tab>('code');
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
   const { data: repo, isLoading: loadingRepo, error: repoError } = useRepo(repoId);
   const { data: fileTree, isLoading: loadingTree } = useFileTree(repoId);
+  const {
+    data: fileContent,
+    isLoading: loadingContent,
+    error: contentError,
+    refetch: refetchContent,
+  } = useFileContent(repoId, selectedFile);
   const { data: branches, isLoading: loadingBranches } = useBranches(repoId);
   const { data: commits, isLoading: loadingCommits } = useCommits(repoId);
   const { data: prs, isLoading: loadingPRs } = usePullRequests(repoId);
@@ -78,27 +87,63 @@ export default function RepoDetailPage() {
 
           {/* Code tab */}
           {activeTab === 'code' && (
-            <>
-              {loadingTree && <Skeleton variant="rect" width="100%" height="300px" />}
-              {!loadingTree && (!fileTree || fileTree.length === 0) && (
-                <EmptyState title="No files" description="This repository is empty" />
-              )}
-              {!loadingTree && fileTree && fileTree.length > 0 && (
-                <div className="space-y-1">
-                  {fileTree.map((path) => (
-                    <div
-                      key={path}
-                      className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-[var(--quant-muted)] text-sm"
-                    >
-                      <span className="text-[var(--quant-muted-foreground)]">
-                        {path.endsWith('/') ? '\uD83D\uDCC1' : '\uD83D\uDCC4'}
-                      </span>
-                      <span>{path}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
+            <div className="flex flex-col md:flex-row gap-4 md:h-full">
+              {/* File tree */}
+              <div className="md:w-72 md:flex-shrink-0 md:overflow-y-auto md:border-r md:border-[var(--quant-border)] md:pr-2">
+                {loadingTree && <Skeleton variant="rect" width="100%" height="300px" />}
+                {!loadingTree && (!fileTree || fileTree.length === 0) && (
+                  <EmptyState title="No files" description="This repository is empty" />
+                )}
+                {!loadingTree && fileTree && fileTree.length > 0 && (
+                  <div className="space-y-1">
+                    {fileTree.map((path) => {
+                      const isFolder = path.endsWith('/');
+                      const isActive = selectedFile === path;
+                      return (
+                        <button
+                          key={path}
+                          type="button"
+                          disabled={isFolder}
+                          onClick={() => !isFolder && setSelectedFile(path)}
+                          className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                            isActive
+                              ? 'bg-[var(--quant-primary)] text-white'
+                              : 'hover:bg-[var(--quant-muted)]'
+                          } ${isFolder ? 'cursor-default opacity-80' : 'cursor-pointer'}`}
+                        >
+                          <span className={isActive ? '' : 'text-[var(--quant-muted-foreground)]'}>
+                            {isFolder ? '\uD83D\uDCC1' : '\uD83D\uDCC4'}
+                          </span>
+                          <span className="truncate">{path}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* File viewer */}
+              <div className="flex-1 min-w-0 md:overflow-auto">
+                {!selectedFile && (
+                  <EmptyState
+                    title="Select a file"
+                    description="Choose a file from the tree to view its contents"
+                  />
+                )}
+                {selectedFile && loadingContent && (
+                  <Skeleton variant="rect" width="100%" height="300px" />
+                )}
+                {selectedFile && contentError && (
+                  <ErrorState
+                    message={contentError.message}
+                    onRetry={() => void refetchContent()}
+                  />
+                )}
+                {selectedFile && !loadingContent && !contentError && fileContent && (
+                  <CodeEditor filename={selectedFile} content={fileContent.content} />
+                )}
+              </div>
+            </div>
           )}
 
           {/* Pull Requests tab */}
