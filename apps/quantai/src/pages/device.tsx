@@ -4,7 +4,7 @@
 // scenes panel, voice command input with waveform visualization
 // ============================================================================
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 
 interface SmartDevice {
   id: string;
@@ -96,8 +96,6 @@ export default function DevicePage(): JSX.Element {
   const [audioLevel, setAudioLevel] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-
-  const animationRef = useRef<number>(0);
 
   const roomDevices = useMemo(() => {
     return devices.filter(d => d.room === selectedRoom);
