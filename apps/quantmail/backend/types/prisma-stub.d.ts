@@ -189,6 +189,61 @@ declare module '@prisma/client' {
     updatedAt: Date;
   }
 
+  export interface MailFilter {
+    id: string;
+    userId: string;
+    name: string;
+    enabled: boolean;
+    priority: number;
+    matchAll: boolean;
+    conditions: unknown;
+    actions: unknown;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  export interface VacationResponder {
+    id: string;
+    userId: string;
+    enabled: boolean;
+    subject: string;
+    message: string;
+    startAt: Date | null;
+    endAt: Date | null;
+    onlyContacts: boolean;
+    intervalDays: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  export interface VacationAutoReplyLog {
+    id: string;
+    userId: string;
+    toAddress: string;
+    repliedAt: Date;
+  }
+
+  export interface EmailTemplate {
+    id: string;
+    userId: string;
+    name: string;
+    subject: string;
+    bodyHtml: string;
+    shortcut: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  export interface EmailSignature {
+    id: string;
+    userId: string;
+    name: string;
+    contentHtml: string;
+    isDefault: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
   export interface AgentSession {
     id: string;
     userId: string;
@@ -489,6 +544,11 @@ declare module '@prisma/client' {
     branch: ModelDelegate<Branch>;
     contact: ModelDelegate<Contact>;
     label: ModelDelegate<Label>;
+    mailFilter: ModelDelegate<MailFilter>;
+    vacationResponder: ModelDelegate<VacationResponder>;
+    vacationAutoReplyLog: ModelDelegate<VacationAutoReplyLog>;
+    emailTemplate: ModelDelegate<EmailTemplate>;
+    emailSignature: ModelDelegate<EmailSignature>;
     agentSession: ModelDelegate<AgentSession>;
     agentTranscript: ModelDelegate<AgentTranscript>;
     agentOrg: ModelDelegate<AgentOrg>;
