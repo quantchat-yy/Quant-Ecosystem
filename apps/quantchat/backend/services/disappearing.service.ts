@@ -1,4 +1,5 @@
 import type { PrismaClient, Message } from '@prisma/client';
+import { MessageType } from '@prisma/client';
 import { createAppError } from '@quant/server-core';
 
 export type ExpiryMode = 'after_view' | '24h' | '7d' | '30d';
@@ -215,7 +216,7 @@ export class DisappearingService {
       data: {
         conversationId: message.conversationId,
         senderId: viewerId,
-        type: 'system',
+        type: MessageType.SYSTEM,
         content: `${viewerName} took a screenshot`,
         metadata: {
           system: true,

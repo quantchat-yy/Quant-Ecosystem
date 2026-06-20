@@ -98,7 +98,7 @@ describe('DisappearingService (Tasks 14.8 / 14.9 / 14.10)', () => {
 
       const createArg = prisma.message.create.mock.calls[0][0];
       expect(createArg.data.content).toContain('Zara');
-      expect(createArg.data.type).toBe('system');
+      expect(createArg.data.type).toBe('SYSTEM');
       expect(createArg.data.conversationId).toBe('c1');
     });
 

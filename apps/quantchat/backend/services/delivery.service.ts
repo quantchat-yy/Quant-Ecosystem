@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { createAppError } from '@quant/server-core';
 import type { TypedEventEmitter, MessageReadEvent, RealtimeEvent } from '@quant/realtime';
 
@@ -62,7 +63,7 @@ export class DeliveryService {
 
     await this.prisma.message.update({
       where: { id: messageId },
-      data: { metadata },
+      data: { metadata: metadata as Prisma.InputJsonValue },
     });
 
     return {
@@ -118,7 +119,7 @@ export class DeliveryService {
 
     await this.prisma.message.update({
       where: { id: messageId },
-      data: { metadata },
+      data: { metadata: metadata as Prisma.InputJsonValue },
     });
 
     // Update lastReadAt on the member record
