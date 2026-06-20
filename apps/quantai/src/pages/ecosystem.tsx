@@ -97,7 +97,6 @@ export default function EcosystemPage(): JSX.Element {
   const [analytics] = useState<AnalyticsData[]>(ANALYTICS_DATA);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [showQuickActions, setShowQuickActions] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const unreadCount = useMemo(() => {
