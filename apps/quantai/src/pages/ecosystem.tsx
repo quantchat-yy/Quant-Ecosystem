@@ -4,7 +4,7 @@
 // app-to-app quick actions, per-app usage analytics
 // ============================================================================
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 
 interface EcosystemApp {
   id: string;
