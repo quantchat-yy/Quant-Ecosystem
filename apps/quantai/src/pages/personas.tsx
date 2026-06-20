@@ -96,7 +96,6 @@ export default function PersonasPage(): JSX.Element {
   const [formSeriousness, setFormSeriousness] = useState<number>(50);
   const [formDetail, setFormDetail] = useState<number>(50);
   const [formFiles, setFormFiles] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
