@@ -200,10 +200,6 @@ describe('StoryViewer navigation', () => {
   });
 
   it('should not go before first story', () => {
-    const stories = [
-      { id: 's1', duration: 5 },
-      { id: 's2', duration: 5 },
-    ];
     let currentIndex = 0;
 
     // Simulate prevStory at first story
