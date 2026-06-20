@@ -4,7 +4,7 @@
 // enabled/disabled toggle, "Create Custom Plugin" form, usage analytics
 // ============================================================================
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 
 interface Plugin {
   id: string;
