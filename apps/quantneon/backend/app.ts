@@ -1,6 +1,13 @@
 import { createApp } from '@quant/server-core';
 import type { AppConfig } from '@quant/server-core';
 import postsRoutes from './routes/posts';
+import profilesRoutes from './routes/profiles';
+import reelsRoutes from './routes/reels';
+import exploreRoutes from './routes/explore';
+import notificationsRoutes from './routes/notifications';
+import photosRoutes from './routes/photos';
+import storiesRoutes from './routes/stories';
+import filtersRoutes from './routes/filters';
 import aiRoutes from './routes/ai';
 import arLensesRoutes, { createArLensesService } from './routes/ar-lenses';
 import federationRoutes, { createFederationService } from './routes/federation';
@@ -34,6 +41,13 @@ export async function buildApp(config?: AppConfig) {
   const app = await createApp(appConfig);
 
   await app.register(postsRoutes, { prefix: '/posts' });
+  await app.register(profilesRoutes, { prefix: '/profiles' });
+  await app.register(reelsRoutes, { prefix: '/reels' });
+  await app.register(exploreRoutes, { prefix: '/explore' });
+  await app.register(notificationsRoutes, { prefix: '/notifications' });
+  await app.register(photosRoutes, { prefix: '/photos' });
+  await app.register(storiesRoutes, { prefix: '/stories' });
+  await app.register(filtersRoutes, { prefix: '/filters' });
   await app.register(aiRoutes, { prefix: '/ai' });
 
   // ar-lenses engine — per-app lane (Stage 4), SHARED DECORATOR approach

@@ -2616,3 +2616,35 @@ model AiAgentInstall {
   @@index([userId])
   @@map("ai_agent_installs")
 }
+
+
+// ==================== QUANTNEON ADDITIVE MODELS ====================
+// Relation-free bookmark + close-friends tables for the quantneon app.
+// Kept navigation-free (no User/Post back-relations) so they are additive
+// and safe for the shared schema.
+
+/// A user's bookmarked (saved) post. Toggled via POST /posts/:id/save.
+model SavedPost {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@map("saved_posts")
+}
+
+/// A close-friends edge (userId considers friendId a close friend).
+model CloseFriend {
+  id        String   @id @default(cuid())
+  userId    String
+  friendId  String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, friendId])
+  @@index([userId])
+  @@index([friendId])
+  @@map("close_friends")
+}

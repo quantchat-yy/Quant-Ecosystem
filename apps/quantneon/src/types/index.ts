@@ -3,6 +3,17 @@
 // All types for posts, reels, stories, games, products, AR filters
 // ============================================================================
 
+export interface PostComment {
+  id: string;
+  postId: string;
+  userId: string;
+  username: string;
+  userAvatar: string | null;
+  text: string;
+  likes: number;
+  createdAt: string;
+}
+
 export interface Post {
   id: string;
   userId: string;
@@ -25,6 +36,7 @@ export interface Post {
   authorUsername?: string;
   mediaUrls?: string[];
   likeCount: number;
+  comments?: PostComment[];
 }
 
 export interface MediaItem {

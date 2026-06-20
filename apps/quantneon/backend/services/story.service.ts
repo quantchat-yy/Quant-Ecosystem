@@ -42,6 +42,59 @@ export class StoryService {
     });
   }
 
+  /**
+   * Story rings for the viewer's feed: active (non-expired) stories grouped by
+   * the users the viewer follows (plus the viewer's own).
+   */
+  async getStoriesFeed(viewerId: string): Promise<
+    Array<{
+      id: string;
+      username: string;
+      avatar: string | null;
+      hasUnseenStory: boolean;
+      isCloseFriend: boolean;
+    }>
+  > {
+    const now = new Date();
+
+    const following = await this.prisma.userRelationship.findMany({
+      where: { followerId: viewerId, type: 'FOLLOW' },
+    });
+    const candidateIds = [...new Set([viewerId, ...following.map((r: any) => r.followingId)])];
+
+    const stories = await this.prisma.story.findMany({
+      where: { userId: { in: candidateIds }, expiresAt: { gt: now } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const usersWithStories = [...new Set(stories.map((s: any) => s.userId))];
+    if (usersWithStories.length === 0) return [];
+
+    const [users, closeFriends] = await Promise.all([
+      this.prisma.user.findMany({ where: { id: { in: usersWithStories } } }),
+      this.prisma.closeFriend.findMany({
+        where: { userId: viewerId, friendId: { in: usersWithStories } },
+      }),
+    ]);
+
+    const byId = new Map(users.map((u: any) => [u.id, u]));
+    const closeSet = new Set(closeFriends.map((c: any) => c.friendId));
+
+    return usersWithStories
+      .map((id) => {
+        const u = byId.get(id);
+        if (!u) return null;
+        return {
+          id,
+          username: u.username,
+          avatar: u.avatarUrl ?? null,
+          hasUnseenStory: true,
+          isCloseFriend: closeSet.has(id),
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => Boolean(r));
+  }
+
   async getActiveStories(userId: string): Promise<Story[]> {
     const now = new Date();
 
