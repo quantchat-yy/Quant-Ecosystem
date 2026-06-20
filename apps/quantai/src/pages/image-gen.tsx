@@ -4,7 +4,7 @@
 // result gallery, variations, upscale, download, edit regions with brush/inpaint
 // ============================================================================
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 
 interface GeneratedImage {
   id: string;
