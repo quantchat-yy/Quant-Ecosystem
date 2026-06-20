@@ -32,6 +32,8 @@ export default function AIPage() {
     selectConversation,
     switchModel: hookSwitchModel,
     setFeedback,
+    retryLastMessage,
+    stopStreaming,
   } = useAIChat({ defaultModel: currentModel.id });
 
   const [voiceActive, setVoiceActive] = useState(false);
@@ -296,9 +298,25 @@ export default function AIPage() {
           </div>
 
           {/* Chat Messages */}
-          <ChatMessages messages={messages} isStreaming={isStreaming} onFeedback={setFeedback} />
+          <ChatMessages
+            messages={messages}
+            isStreaming={isStreaming}
+            onFeedback={setFeedback}
+            onRegenerate={retryLastMessage}
+          />
 
           {/* Multi-modal input area */}
+          {isStreaming && (
+            <div className="flex justify-center pb-1">
+              <button
+                type="button"
+                onClick={stopStreaming}
+                className="text-xs px-3 py-1 rounded-full border border-[var(--quant-border)] bg-[var(--quant-surface)] text-[var(--foreground-secondary)] hover:text-[var(--foreground)] transition-colors"
+              >
+                ◼ Stop generating
+              </button>
+            </div>
+          )}
           <ChatInput
             onSend={sendMessage}
             isStreaming={isStreaming}
@@ -359,6 +377,7 @@ function ChatMessages({
   messages,
   isStreaming,
   onFeedback,
+  onRegenerate,
 }: {
   messages: Array<{
     id: string;
@@ -371,9 +390,18 @@ function ChatMessages({
   }>;
   isStreaming: boolean;
   onFeedback?: (messageId: string, value: 'POSITIVE' | 'NEGATIVE') => void;
+  onRegenerate?: () => void;
 }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
+
+  // Id of the last assistant message — only it offers "Regenerate".
+  const lastAssistantId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i]!.role === 'assistant') return messages[i]!.id;
+    }
+    return null;
+  }, [messages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -445,45 +473,88 @@ function ChatMessages({
                   minute: '2-digit',
                 })}
               </span>
-              {msg.role === 'assistant' &&
-                onFeedback &&
-                !msg.pending &&
-                !msg.id.startsWith('tmp-') && (
-                  <div className="flex items-center gap-1 mt-1.5">
+              {msg.role === 'assistant' && !msg.pending && (
+                <div className="flex items-center gap-1 mt-1.5">
+                  <CopyButton text={msg.content} />
+                  {onRegenerate && msg.id === lastAssistantId && !isStreaming && (
                     <button
                       type="button"
-                      aria-label="Good response"
-                      aria-pressed={msg.feedback === 'POSITIVE'}
-                      onClick={() => onFeedback(msg.id, 'POSITIVE')}
-                      className={`text-xs px-1.5 py-0.5 rounded-md transition-colors ${
-                        msg.feedback === 'POSITIVE'
-                          ? 'bg-emerald-500/20 text-emerald-500'
-                          : 'text-[var(--foreground-secondary)] hover:bg-[var(--quant-surface-hover)]'
-                      }`}
+                      aria-label="Regenerate response"
+                      onClick={onRegenerate}
+                      className="text-xs px-1.5 py-0.5 rounded-md text-[var(--foreground-secondary)] hover:bg-[var(--quant-surface-hover)] transition-colors"
                     >
-                      👍
+                      ↻
                     </button>
-                    <button
-                      type="button"
-                      aria-label="Bad response"
-                      aria-pressed={msg.feedback === 'NEGATIVE'}
-                      onClick={() => onFeedback(msg.id, 'NEGATIVE')}
-                      className={`text-xs px-1.5 py-0.5 rounded-md transition-colors ${
-                        msg.feedback === 'NEGATIVE'
-                          ? 'bg-red-500/20 text-red-500'
-                          : 'text-[var(--foreground-secondary)] hover:bg-[var(--quant-surface-hover)]'
-                      }`}
-                    >
-                      👎
-                    </button>
-                  </div>
-                )}
+                  )}
+                  {onFeedback && !msg.id.startsWith('tmp-') && (
+                    <>
+                      <button
+                        type="button"
+                        aria-label="Good response"
+                        aria-pressed={msg.feedback === 'POSITIVE'}
+                        onClick={() => onFeedback(msg.id, 'POSITIVE')}
+                        className={`text-xs px-1.5 py-0.5 rounded-md transition-colors ${
+                          msg.feedback === 'POSITIVE'
+                            ? 'bg-emerald-500/20 text-emerald-500'
+                            : 'text-[var(--foreground-secondary)] hover:bg-[var(--quant-surface-hover)]'
+                        }`}
+                      >
+                        👍
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Bad response"
+                        aria-pressed={msg.feedback === 'NEGATIVE'}
+                        onClick={() => onFeedback(msg.id, 'NEGATIVE')}
+                        className={`text-xs px-1.5 py-0.5 rounded-md transition-colors ${
+                          msg.feedback === 'NEGATIVE'
+                            ? 'bg-red-500/20 text-red-500'
+                            : 'text-[var(--foreground-secondary)] hover:bg-[var(--quant-surface-hover)]'
+                        }`}
+                      >
+                        👎
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </motion.div>
         ))}
       </AnimatePresence>
       <div ref={messagesEndRef} />
     </div>
+  );
+}
+
+/* ============ Copy Button ============ */
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard unavailable (e.g. insecure context) — ignore silently.
+    }
+  }, [text]);
+
+  return (
+    <button
+      type="button"
+      aria-label={copied ? 'Copied' : 'Copy message'}
+      onClick={handleCopy}
+      className={`text-xs px-1.5 py-0.5 rounded-md transition-colors ${
+        copied
+          ? 'bg-emerald-500/20 text-emerald-500'
+          : 'text-[var(--foreground-secondary)] hover:bg-[var(--quant-surface-hover)]'
+      }`}
+    >
+      {copied ? '✓' : '⧉'}
+    </button>
   );
 }
 
