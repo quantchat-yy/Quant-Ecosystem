@@ -339,8 +339,10 @@ function readVapidConfig(): VapidConfig | null {
  */
 export class LazyWebPushClient implements WebPushClient {
   private readonly vapid: VapidConfig;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private webpush: any | null = null;
+  private webpush: {
+    sendNotification: (sub: WebPushSubscription, payload: string) => Promise<unknown>;
+    setVapidDetails: (subject: string, publicKey: string, privateKey: string) => void;
+  } | null = null;
   private loadAttempted = false;
 
   constructor(vapid: VapidConfig) {
@@ -356,9 +358,12 @@ export class LazyWebPushClient implements WebPushClient {
     }
     this.loadAttempted = true;
     const moduleName = 'web-push';
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mod: any = await import(moduleName);
-    const webpush = mod?.default ?? mod;
+    const mod = (await import(moduleName)) as {
+      default?: LazyWebPushClient['webpush'];
+      sendNotification?: unknown;
+      setVapidDetails?: unknown;
+    };
+    const webpush = (mod?.default ?? mod) as LazyWebPushClient['webpush'];
     if (!webpush || typeof webpush.sendNotification !== 'function') {
       throw new Error('web-push dependency is not available');
     }
@@ -368,7 +373,7 @@ export class LazyWebPushClient implements WebPushClient {
 
   async sendNotification(subscription: WebPushSubscription, payload: string): Promise<void> {
     await this.ensureLoaded();
-    await this.webpush.sendNotification(subscription, payload);
+    await this.webpush!.sendNotification(subscription, payload);
   }
 }
 
