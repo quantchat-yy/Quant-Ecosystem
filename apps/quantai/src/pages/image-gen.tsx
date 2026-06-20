@@ -68,7 +68,7 @@ export default function ImageGenPage(): JSX.Element {
   const [showUpscaleOptions, setShowUpscaleOptions] = useState<boolean>(false);
   const [generationProgress, setGenerationProgress] = useState<number>(0);
   const [negativePrompt, setNegativePrompt] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
