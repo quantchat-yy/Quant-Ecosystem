@@ -306,7 +306,7 @@ describe('V3 — PKCE rejects a mismatched verifier (Req 1.2, 1.3)', () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ accessToken: 'mock-access-token' });
+    expect(res.json()).toMatchObject({ access_token: 'mock-access-token' });
     expect(generateTokenPair).toHaveBeenCalledTimes(1);
   });
 });

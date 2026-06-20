@@ -40,6 +40,11 @@ declare module '@prisma/client' {
     userId: string;
     subject: string;
     participantAddresses: string[];
+    messageCount: number;
+    isRead: boolean;
+    isStarred: boolean;
+    isMuted: boolean;
+    snoozedUntil: Date | null;
     lastEmailAt: Date;
     createdAt: Date;
     updatedAt: Date;
@@ -65,16 +70,6 @@ declare module '@prisma/client' {
     storagePathUrl: string | null;
     createdAt: Date;
     updatedAt: Date;
-  }
-
-  export interface Commit {
-    id: string;
-    repoId: string;
-    sha: string;
-    message: string;
-    authorId: string;
-    branch: string;
-    createdAt: Date;
   }
 
   export interface PullRequest {
@@ -165,15 +160,6 @@ declare module '@prisma/client' {
     updatedAt: Date;
   }
 
-  export interface Build {
-    id: string;
-    repoId: string;
-    status: string;
-    branch: string;
-    createdAt: Date;
-    updatedAt: Date;
-  }
-
   export interface Branch {
     id: string;
     repoId: string;
@@ -190,6 +176,70 @@ declare module '@prisma/client' {
     userId: string;
     name: string;
     email: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  export interface Label {
+    id: string;
+    userId: string;
+    name: string;
+    color: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  export interface MailFilter {
+    id: string;
+    userId: string;
+    name: string;
+    enabled: boolean;
+    priority: number;
+    matchAll: boolean;
+    conditions: unknown;
+    actions: unknown;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  export interface VacationResponder {
+    id: string;
+    userId: string;
+    enabled: boolean;
+    subject: string;
+    message: string;
+    startAt: Date | null;
+    endAt: Date | null;
+    onlyContacts: boolean;
+    intervalDays: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  export interface VacationAutoReplyLog {
+    id: string;
+    userId: string;
+    toAddress: string;
+    repliedAt: Date;
+  }
+
+  export interface EmailTemplate {
+    id: string;
+    userId: string;
+    name: string;
+    subject: string;
+    bodyHtml: string;
+    shortcut: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }
+
+  export interface EmailSignature {
+    id: string;
+    userId: string;
+    name: string;
+    contentHtml: string;
+    isDefault: boolean;
     createdAt: Date;
     updatedAt: Date;
   }
@@ -484,7 +534,6 @@ declare module '@prisma/client' {
     emailThread: ModelDelegate<EmailThread>;
     emailFolder: ModelDelegate<EmailFolder>;
     repository: ModelDelegate<Repository>;
-    commit: ModelDelegate<Commit>;
     pullRequest: ModelDelegate<PullRequest>;
     issue: ModelDelegate<Issue>;
     review: ModelDelegate<Review>;
@@ -492,9 +541,14 @@ declare module '@prisma/client' {
     branchProtection: ModelDelegate<BranchProtection>;
     ciRun: ModelDelegate<CiRun>;
     ciJob: ModelDelegate<CiJob>;
-    build: ModelDelegate<Build>;
     branch: ModelDelegate<Branch>;
     contact: ModelDelegate<Contact>;
+    label: ModelDelegate<Label>;
+    mailFilter: ModelDelegate<MailFilter>;
+    vacationResponder: ModelDelegate<VacationResponder>;
+    vacationAutoReplyLog: ModelDelegate<VacationAutoReplyLog>;
+    emailTemplate: ModelDelegate<EmailTemplate>;
+    emailSignature: ModelDelegate<EmailSignature>;
     agentSession: ModelDelegate<AgentSession>;
     agentTranscript: ModelDelegate<AgentTranscript>;
     agentOrg: ModelDelegate<AgentOrg>;

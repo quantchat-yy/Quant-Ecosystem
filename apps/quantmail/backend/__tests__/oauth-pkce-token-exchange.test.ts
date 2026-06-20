@@ -134,7 +134,7 @@ describe('Task 1.1 — PKCE enforcement at /oauth/token', () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ accessToken: 'mock-access-token' });
+    expect(res.json()).toMatchObject({ access_token: 'mock-access-token' });
     expect(generateTokenPair).toHaveBeenCalledTimes(1);
   });
 

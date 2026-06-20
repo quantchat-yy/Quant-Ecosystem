@@ -7,6 +7,11 @@ import foldersRoutes from './routes/folders';
 import contactsRoutes from './routes/contacts';
 import aiRoutes from './routes/ai';
 import aiServicesRoutes from './routes/ai-services';
+import mailFiltersRoutes from './routes/mail-filters';
+import vacationResponderRoutes from './routes/vacation-responder';
+import emailTemplatesRoutes from './routes/email-templates';
+import emailSignaturesRoutes from './routes/email-signatures';
+import searchRoutes from './routes/search';
 import { registerQuantCodeModule } from './modules/code';
 import aiDevtoolsRoutes from './routes/ai-devtools';
 import attachmentRoutes from './routes/attachments';
@@ -53,6 +58,15 @@ export async function buildApp(config?: AppConfig) {
   await app.register(contactsRoutes, { prefix: '/contacts' });
   await app.register(aiRoutes, { prefix: '/emails' });
   await app.register(aiServicesRoutes, { prefix: '/api/v1' });
+
+  // QuantMail productivity features (Gmail/Superhuman-class): server-side
+  // filters/rules, vacation auto-responder, reusable templates, signatures,
+  // and advanced (operator-based) search. Each sits behind the global auth hook.
+  await app.register(mailFiltersRoutes, { prefix: '/mail-filters' });
+  await app.register(vacationResponderRoutes, { prefix: '/vacation-responder' });
+  await app.register(emailTemplatesRoutes, { prefix: '/email-templates' });
+  await app.register(emailSignaturesRoutes, { prefix: '/email-signatures' });
+  await app.register(searchRoutes, { prefix: '/search' });
 
   // QuantCode developer-platform module (Pillar 2, SRP-extracted — Task 9.1).
   // Mounts repo/PR/issue/review/branch-protection/CI under the canonical

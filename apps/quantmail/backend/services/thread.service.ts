@@ -22,10 +22,10 @@ export interface ThreadWithEmails extends EmailThread {
 }
 
 /**
- * In-memory thread preferences store.
- * Workaround: The Prisma EmailThread model does not have isMuted/snoozedUntil columns.
- * Thread mute/snooze state is stored in memory until a schema migration adds a
- * `metadata Json` field or dedicated columns to the EmailThread model.
+ * Durable thread preferences (mute/snooze) persisted on the EmailThread row
+ * (the `isMuted` / `snoozedUntil` columns). Previously this lived in a
+ * per-request in-memory Map, which lost all state because ThreadService is
+ * constructed per request.
  */
 export interface ThreadPreferences {
   isMuted?: boolean;
@@ -33,13 +33,22 @@ export interface ThreadPreferences {
 }
 
 export class ThreadService {
-  /**
-   * In-memory store for thread preferences (mute/snooze state).
-   * Key: threadId, Value: ThreadPreferences
-   */
-  private readonly threadPreferences = new Map<string, ThreadPreferences>();
-
   constructor(private readonly prisma: PrismaClient) {}
+
+  /** Project the persisted mute/snooze columns into a ThreadPreferences view. */
+  private static toPreferences(thread: {
+    isMuted?: boolean | null;
+    snoozedUntil?: Date | null;
+  }): ThreadPreferences {
+    const preferences: ThreadPreferences = {};
+    if (thread.isMuted) {
+      preferences.isMuted = true;
+    }
+    if (thread.snoozedUntil) {
+      preferences.snoozedUntil = thread.snoozedUntil.toISOString();
+    }
+    return preferences;
+  }
 
   async getThread(threadId: string, userId: string): Promise<ThreadWithEmails> {
     const thread = await this.prisma.emailThread.findUnique({
@@ -135,11 +144,7 @@ export class ThreadService {
   }
 
   /**
-   * Mute a thread for the user.
-   *
-   * Workaround: The Prisma schema does not yet have isMuted/snoozedUntil columns
-   * or a metadata JSON field on EmailThread. Mute state is stored in an in-memory
-   * Map until a schema migration adds the appropriate fields.
+   * Mute a thread for the user. Persisted on the EmailThread `isMuted` column.
    */
   async muteThread(
     threadId: string,
@@ -157,19 +162,17 @@ export class ThreadService {
       throw createAppError('Not authorized', 403, 'FORBIDDEN');
     }
 
-    const existing = this.threadPreferences.get(threadId) ?? {};
-    const preferences: ThreadPreferences = { ...existing, isMuted: true };
-    this.threadPreferences.set(threadId, preferences);
+    const updated = await this.prisma.emailThread.update({
+      where: { id: threadId },
+      data: { isMuted: true },
+    });
 
-    return { ...thread, preferences };
+    return { ...updated, preferences: ThreadService.toPreferences(updated) };
   }
 
   /**
-   * Snooze a thread until a specified date.
-   *
-   * Workaround: The Prisma schema does not yet have isMuted/snoozedUntil columns
-   * or a metadata JSON field on EmailThread. Snooze state is stored in an in-memory
-   * Map until a schema migration adds the appropriate fields.
+   * Snooze a thread until a specified date. Persisted on the EmailThread
+   * `snoozedUntil` column.
    */
   async snoozeThread(
     threadId: string,
@@ -188,11 +191,12 @@ export class ThreadService {
       throw createAppError('Not authorized', 403, 'FORBIDDEN');
     }
 
-    const existing = this.threadPreferences.get(threadId) ?? {};
-    const preferences: ThreadPreferences = { ...existing, snoozedUntil: until.toISOString() };
-    this.threadPreferences.set(threadId, preferences);
+    const updated = await this.prisma.emailThread.update({
+      where: { id: threadId },
+      data: { snoozedUntil: until },
+    });
 
-    return { ...thread, preferences };
+    return { ...updated, preferences: ThreadService.toPreferences(updated) };
   }
 
   /**
@@ -234,8 +238,7 @@ export class ThreadService {
         orderBy: { lastEmailAt: 'desc' },
         take: 50,
       });
-      thread =
-        candidates.find((t) => normalizeSubject(t.subject) === normalizedSubject) ?? null;
+      thread = candidates.find((t) => normalizeSubject(t.subject) === normalizedSubject) ?? null;
     }
 
     if (!thread) {
@@ -273,10 +276,14 @@ export class ThreadService {
   }
 
   /**
-   * Get thread preferences (mute/snooze state) from the in-memory store.
+   * Get thread preferences (mute/snooze state) from the persisted thread row.
    */
-  getThreadPreferences(threadId: string): ThreadPreferences | undefined {
-    return this.threadPreferences.get(threadId);
+  async getThreadPreferences(threadId: string): Promise<ThreadPreferences | undefined> {
+    const thread = await this.prisma.emailThread.findUnique({ where: { id: threadId } });
+    if (!thread) {
+      return undefined;
+    }
+    return ThreadService.toPreferences(thread);
   }
 }
 

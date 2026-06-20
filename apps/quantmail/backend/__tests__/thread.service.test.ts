@@ -126,19 +126,30 @@ describe('ThreadService', () => {
   });
 
   describe('muteThread', () => {
-    it('mutes a thread owned by the user using in-memory store', async () => {
+    it('mutes a thread owned by the user and persists isMuted on the row', async () => {
       prisma.emailThread.findUnique.mockResolvedValue({
         id: 'thread-1',
         userId: 'user-1',
+        isMuted: true,
+        snoozedUntil: null,
+      });
+      prisma.emailThread.update.mockResolvedValue({
+        id: 'thread-1',
+        userId: 'user-1',
+        isMuted: true,
+        snoozedUntil: null,
       });
 
       const result = await service.muteThread('thread-1', 'user-1');
 
       expect(result.preferences.isMuted).toBe(true);
-      // Verify it does NOT call prisma.emailThread.update (in-memory only)
-      expect(prisma.emailThread.update).not.toHaveBeenCalled();
-      // Verify preferences are stored and retrievable
-      expect(service.getThreadPreferences('thread-1')).toEqual({ isMuted: true });
+      // Mute is now durably persisted on the EmailThread row.
+      expect(prisma.emailThread.update).toHaveBeenCalledWith({
+        where: { id: 'thread-1' },
+        data: { isMuted: true },
+      });
+      // Verify preferences are stored and retrievable from the DB.
+      await expect(service.getThreadPreferences('thread-1')).resolves.toEqual({ isMuted: true });
     });
 
     it('throws THREAD_NOT_FOUND when thread does not exist', async () => {
@@ -158,20 +169,31 @@ describe('ThreadService', () => {
   });
 
   describe('snoozeThread', () => {
-    it('snoozes a thread until the specified date using in-memory store', async () => {
+    it('snoozes a thread until the specified date and persists snoozedUntil', async () => {
       const snoozeDate = new Date('2025-01-25T09:00:00Z');
       prisma.emailThread.findUnique.mockResolvedValue({
         id: 'thread-1',
         userId: 'user-1',
+        isMuted: false,
+        snoozedUntil: snoozeDate,
+      });
+      prisma.emailThread.update.mockResolvedValue({
+        id: 'thread-1',
+        userId: 'user-1',
+        isMuted: false,
+        snoozedUntil: snoozeDate,
       });
 
       const result = await service.snoozeThread('thread-1', 'user-1', snoozeDate);
 
       expect(result.preferences.snoozedUntil).toEqual(snoozeDate.toISOString());
-      // Verify it does NOT call prisma.emailThread.update (in-memory only)
-      expect(prisma.emailThread.update).not.toHaveBeenCalled();
-      // Verify preferences are stored and retrievable
-      expect(service.getThreadPreferences('thread-1')).toEqual({
+      // Snooze is now durably persisted on the EmailThread row.
+      expect(prisma.emailThread.update).toHaveBeenCalledWith({
+        where: { id: 'thread-1' },
+        data: { snoozedUntil: snoozeDate },
+      });
+      // Verify preferences are stored and retrievable from the DB.
+      await expect(service.getThreadPreferences('thread-1')).resolves.toEqual({
         snoozedUntil: snoozeDate.toISOString(),
       });
     });

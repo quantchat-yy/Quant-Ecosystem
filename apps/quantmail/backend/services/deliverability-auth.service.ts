@@ -1,4 +1,4 @@
-import { createHash, createSign, createVerify } from 'node:crypto';
+import { createHash, createSign, createVerify, generateKeyPairSync } from 'node:crypto';
 import {
   resolveTxt as dnsResolveTxt,
   resolveMx as dnsResolveMx,
@@ -30,7 +30,10 @@ const DEFAULT_SIGNED_HEADERS = ['from', 'to', 'subject', 'date', 'message-id'];
 
 /** Canonicalize a single header for relaxed header canonicalization (RFC 6376 §3.4.2). */
 function canonicalizeHeader(name: string, value: string): string {
-  const unfolded = value.replace(/\r\n/g, '').replace(/[ \t]+/g, ' ').trim();
+  const unfolded = value
+    .replace(/\r\n/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
   return `${name.toLowerCase()}:${unfolded}`;
 }
 
@@ -170,7 +173,10 @@ export function domainOf(address: string | null | undefined): string | null {
   }
   const at = address.lastIndexOf('@');
   const domain = at >= 0 ? address.slice(at + 1) : address;
-  const clean = domain.trim().toLowerCase().replace(/[>.\s]+$/g, '');
+  const clean = domain
+    .trim()
+    .toLowerCase()
+    .replace(/[>.\s]+$/g, '');
   return clean.length > 0 ? clean : null;
 }
 
@@ -235,7 +241,6 @@ const SPF_QUALIFIERS: Record<string, AuthResult> = {
   '~': 'softfail',
   '?': 'neutral',
 };
-
 
 export interface DkimSignerConfig {
   domain: string;
@@ -335,7 +340,29 @@ interface DomainAuthKeyRow {
 interface DomainAuthPrisma {
   domainAuthKey: {
     findUnique(args: { where: { domain: string } }): Promise<DomainAuthKeyRow | null>;
+    upsert(args: {
+      where: { domain: string };
+      create: Record<string, unknown>;
+      update: Record<string, unknown>;
+    }): Promise<DomainAuthKeyRow>;
   };
+}
+
+/** A DNS record an operator must publish to activate a domain's mail auth. */
+export interface DnsRecord {
+  host: string;
+  type: 'TXT';
+  value: string;
+}
+
+/** The result of provisioning a domain's mail-authentication keys. */
+export interface ProvisionedDomainKey {
+  domain: string;
+  selector: string;
+  /** Base64-encoded DER SubjectPublicKeyInfo (the DKIM `p=` value). */
+  publicKey: string;
+  /** The exact DNS TXT records to publish (DKIM, SPF, DMARC). */
+  dnsRecords: { dkim: DnsRecord; spf: DnsRecord; dmarc: DnsRecord };
 }
 
 export class DeliverabilityAuthService {
@@ -382,6 +409,78 @@ export class DeliverabilityAuthService {
       selector: key.dkimSelector,
       privateKeyPem,
     });
+  }
+
+  /**
+   * Provision (or rotate) a domain's DKIM keypair so outbound mail from that
+   * domain can be signed. Generates a real RSA-2048 keypair, stores the private
+   * key ONLY as a KMS-resolvable reference in the vault (never persisted in
+   * plaintext — Requirement 2.4), upserts the `DomainAuthKey` row, and returns
+   * the exact DNS TXT records the operator must publish (DKIM/SPF/DMARC).
+   *
+   * After publishing the returned DKIM record at `selector._domainkey.<domain>`,
+   * receivers can verify mail signed by {@link getDkimSigner} for this domain.
+   */
+  async provisionDomainKey(
+    domain: string,
+    options?: { selector?: string; dmarcPolicy?: 'none' | 'quarantine' | 'reject' },
+  ): Promise<ProvisionedDomainKey> {
+    const normalized = domain.trim().toLowerCase();
+    if (!normalized || !normalized.includes('.')) {
+      throw createAppError('A valid domain is required', 400, 'INVALID_DOMAIN');
+    }
+    const selector = options?.selector ?? `qm${new Date().getUTCFullYear()}`;
+
+    const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+    const publicKeyDerB64 = (publicKey.export({ type: 'spki', format: 'der' }) as Buffer).toString(
+      'base64',
+    );
+
+    const privateKeyRef = await this.vault.store(privateKeyPem, {
+      domain: normalized,
+      selector,
+      purpose: 'dkim',
+    });
+
+    const spfRecord = 'v=spf1 mx -all';
+    const dmarcPolicy = options?.dmarcPolicy ?? 'none';
+    const dmarcValue = `v=DMARC1; p=${dmarcPolicy}; rua=mailto:dmarc@${normalized}; adkim=r; aspf=r`;
+
+    const db = this.prisma as unknown as DomainAuthPrisma;
+    await db.domainAuthKey.upsert({
+      where: { domain: normalized },
+      create: {
+        domain: normalized,
+        dkimSelector: selector,
+        publicKey: publicKeyDerB64,
+        privateKeyRef,
+        spfRecord,
+        dmarcPolicy,
+      },
+      update: {
+        dkimSelector: selector,
+        publicKey: publicKeyDerB64,
+        privateKeyRef,
+        spfRecord,
+        dmarcPolicy,
+      },
+    });
+
+    return {
+      domain: normalized,
+      selector,
+      publicKey: publicKeyDerB64,
+      dnsRecords: {
+        dkim: {
+          host: `${selector}._domainkey.${normalized}`,
+          type: 'TXT',
+          value: `v=DKIM1; k=rsa; p=${publicKeyDerB64}`,
+        },
+        spf: { host: normalized, type: 'TXT', value: spfRecord },
+        dmarc: { host: `_dmarc.${normalized}`, type: 'TXT', value: dmarcValue },
+      },
+    };
   }
 
   /**
@@ -437,7 +536,10 @@ export class DeliverabilityAuthService {
     }
 
     const spfAligned =
-      spf === 'pass' && !!spfDomain && !!fromDomain && isAlignedDomain(spfDomain, fromDomain, strictSpf);
+      spf === 'pass' &&
+      !!spfDomain &&
+      !!fromDomain &&
+      isAlignedDomain(spfDomain, fromDomain, strictSpf);
     const dkimAligned =
       dkim.result === 'pass' &&
       !!dkim.domain &&
@@ -490,7 +592,10 @@ export class DeliverabilityAuthService {
       return 'none';
     }
 
-    const terms = spfRecord.split(/\s+/).slice(1).filter((t) => t.length > 0);
+    const terms = spfRecord
+      .split(/\s+/)
+      .slice(1)
+      .filter((t) => t.length > 0);
     for (const term of terms) {
       const qualifier = SPF_QUALIFIERS[term[0] as string] ? (term[0] as string) : '+';
       const mech = SPF_QUALIFIERS[term[0] as string] ? term.slice(1) : term;
@@ -569,7 +674,10 @@ export class DeliverabilityAuthService {
     const tags = parseTagList(sigHeader);
     const domain = tags['d'] ? tags['d'].toLowerCase() : null;
     const selector = tags['s'];
-    const signedHeaderNames = (tags['h'] ?? '').split(':').map((h) => h.trim().toLowerCase()).filter(Boolean);
+    const signedHeaderNames = (tags['h'] ?? '')
+      .split(':')
+      .map((h) => h.trim().toLowerCase())
+      .filter(Boolean);
     const bodyHashB64 = tags['bh'];
     const signatureB64 = tags['b']?.replace(/\s+/g, '');
     const algorithm = (tags['a'] ?? 'rsa-sha256').toLowerCase();
@@ -585,7 +693,9 @@ export class DeliverabilityAuthService {
 
     // 1) Body hash check.
     const canonBody =
-      bodyCanon === 'relaxed' ? canonicalizeBody(message.rawBody) : simpleCanonicalizeBody(message.rawBody);
+      bodyCanon === 'relaxed'
+        ? canonicalizeBody(message.rawBody)
+        : simpleCanonicalizeBody(message.rawBody);
     const computedBodyHash = createHash('sha256').update(canonBody, 'utf-8').digest('base64');
     if (computedBodyHash !== bodyHashB64) {
       return { result: 'fail', domain };
@@ -605,7 +715,9 @@ export class DeliverabilityAuthService {
     // 3) Rebuild the signed data: each signed header, then the DKIM-Signature
     //    header itself with an empty b= value (and not terminated by CRLF).
     const canonHeader = (name: string, value: string): string =>
-      headerCanon === 'relaxed' ? canonicalizeHeader(name, value) : simpleCanonicalizeHeader(name, value);
+      headerCanon === 'relaxed'
+        ? canonicalizeHeader(name, value)
+        : simpleCanonicalizeHeader(name, value);
 
     const headerBlock = signedHeaderNames
       .filter((h) => message.headers[h] !== undefined)
@@ -629,7 +741,9 @@ export class DeliverabilityAuthService {
   private async resolveDkimPublicKey(selector: string, domain: string): Promise<string> {
     const host = `${selector}._domainkey.${domain}`;
     const records = await this.dns.resolveTxt(host);
-    const record = records.map((chunks) => chunks.join('')).find((r) => /(^|;)\s*p=/.test(r) || r.includes('k='));
+    const record = records
+      .map((chunks) => chunks.join(''))
+      .find((r) => /(^|;)\s*p=/.test(r) || r.includes('k='));
     if (!record) {
       return '';
     }
