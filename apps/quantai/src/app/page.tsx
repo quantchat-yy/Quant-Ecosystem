@@ -8,6 +8,7 @@ import { ErrorState } from '@quant/shared-ui';
 import type { SidebarItem } from '@quant/shared-ui';
 import { useAIChat } from '../hooks/useAIChat';
 import { useModelSelector } from '../hooks/useModelSelector';
+import { useUsageStats } from '../hooks/useUsageStats';
 import { ModelSelector } from '../components/ModelSelector';
 import { VoiceToggle } from '../components/VoiceToggle';
 import { AgenticMessage } from '../components/AgenticMessage';
@@ -17,49 +18,6 @@ import { PersonaSelector } from '../components/PersonaSelector';
 import type { Persona } from '../components/PersonaSelector';
 
 export default function AIPage() {
-  /* === ADDICTIVE HEADER === */
-  const AddictiveHeader = () => (
-    <div className="sticky top-0 z-50 border-b border-zinc-800 bg-[#0a0a0f]/95 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-white flex items-center justify-center">
-              <span className="text-black text-xl font-bold">Q</span>
-            </div>
-            <div>
-              <div className="font-semibold tracking-[-1px] text-2xl">QuantAI</div>
-              <div className="text-[10px] text-zinc-500 -mt-1">v3.3.0</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6 text-sm">
-            <div className="flex items-center gap-2 px-4 py-1.5 rounded-2xl bg-zinc-950 border border-zinc-800">
-              <span className="text-emerald-400">🔥</span>
-              <span className="font-mono text-emerald-400">47</span>
-              <span className="text-zinc-500 text-xs">DAY STREAK</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-amber-400">12,450</span>
-              <span className="text-zinc-500 text-xs">XP</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-purple-400">LVL 52</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-1.5 rounded-2xl bg-white/5 text-xs flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />8 agents online
-          </div>
-          <button className="px-5 py-2 rounded-2xl bg-white text-black text-sm font-medium hover:bg-white/90">
-            Upgrade
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
   const { models, currentModel, switchModel } = useModelSelector();
   const {
     messages,
@@ -293,6 +251,7 @@ export default function AIPage() {
                 <VoiceToggle isActive={voiceActive} onToggle={() => setVoiceActive(!voiceActive)} />
               </div>
             </div>
+            <StatsHeader />
             {activePersona && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
@@ -470,6 +429,44 @@ function StreamingCursor() {
       transition={{ duration: 1, repeat: Infinity, ease: 'steps(2)' }}
       aria-hidden="true"
     />
+  );
+}
+
+/* ============ Stats Header (real, activity-derived) ============ */
+
+function StatsHeader() {
+  const { stats, isLoading, error } = useUsageStats();
+
+  // Stay quiet on error or before the first load resolves with no data — never
+  // show fabricated numbers.
+  if (error) return null;
+
+  const fmt = (n: number) => n.toLocaleString();
+  const placeholder = isLoading && !stats;
+
+  return (
+    <div className="mt-3 flex items-center gap-3 text-xs" aria-label="Your QuantAI activity">
+      <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[var(--quant-surface)] border border-[var(--quant-border)]">
+        <span aria-hidden="true">🔥</span>
+        <span className="font-mono text-emerald-500">
+          {placeholder ? '—' : (stats?.streakDays ?? 0)}
+        </span>
+        <span className="text-[var(--foreground-secondary)]">day streak</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="font-mono text-amber-500">{placeholder ? '—' : fmt(stats?.xp ?? 0)}</span>
+        <span className="text-[var(--foreground-secondary)]">XP</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="font-mono text-purple-500">
+          LVL {placeholder ? '—' : (stats?.level ?? 1)}
+        </span>
+      </div>
+      <div className="hidden sm:flex items-center gap-1.5 text-[var(--foreground-secondary)]">
+        <span className="font-mono">{placeholder ? '—' : fmt(stats?.totalConversations ?? 0)}</span>
+        <span>chats</span>
+      </div>
+    </div>
   );
 }
 
@@ -678,8 +675,3 @@ function ChatInput({
     </div>
   );
 }
-
-
-
-
-

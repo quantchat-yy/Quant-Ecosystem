@@ -2432,3 +2432,42 @@ model DomainAuthKey {
 
   @@map("domain_auth_keys")
 }
+
+
+// ==================== QUANTAI MARKETPLACE ====================
+// QuantAI agent marketplace. First-party "official" agents are defined in code
+// (apps/quantai/backend/services/agent-marketplace.service.ts OFFICIAL_AGENTS);
+// these tables persist USER-CREATED custom agents and durable per-user installs
+// (previously held in a per-request in-memory Map that lost state immediately).
+
+/// A user-published custom agent in the QuantAI marketplace.
+model AiMarketplaceAgent {
+  id              String   @id @default(cuid())
+  name            String
+  description     String
+  version         String
+  author          String
+  capabilities    Json     @default("[]")
+  systemPrompt    String
+  tools           Json     @default("[]")
+  modelPreference String?
+  icon            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([author])
+  @@index([createdAt])
+  @@map("ai_marketplace_agents")
+}
+
+/// A durable record that a user has installed a marketplace agent (official or custom).
+model AiAgentInstall {
+  id        String   @id @default(cuid())
+  userId    String
+  agentId   String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, agentId])
+  @@index([userId])
+  @@map("ai_agent_installs")
+}
