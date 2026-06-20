@@ -2617,6 +2617,26 @@ model AiAgentInstall {
   @@map("ai_agent_installs")
 }
 
+/// A reusable prompt template saved by a user in the QuantAI prompt library.
+/// Persisted (not in-memory) so templates survive reloads and sync across
+/// devices. Additive and QuantAI-owned; per-user and indexed for fast listing.
+model AiPromptTemplate {
+  id         String   @id @default(cuid())
+  userId     String
+  title      String
+  content    String
+  category   String   @default("general")
+  tags       Json     @default("[]")
+  isFavorite Boolean  @default(false)
+  usageCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, category])
+  @@map("ai_prompt_templates")
+}
+
 
 // ==================== QUANTNEON ADDITIVE MODELS ====================
 // Relation-free bookmark + close-friends tables for the quantneon app.
