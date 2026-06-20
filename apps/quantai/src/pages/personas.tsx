@@ -101,11 +101,6 @@ export default function PersonasPage(): JSX.Element {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const selectedPersonaData = useMemo(() => {
-    if (!selectedPersona) return null;
-    return personas.find(p => p.id === selectedPersona) || null;
-  }, [selectedPersona, personas]);
-
   const handleCreateNew = useCallback(() => {
     setIsCreating(true);
     setIsEditing(false);
