@@ -1,7 +1,13 @@
 'use client';
 
 import { useEffect } from 'react';
-import { ThemeProvider, CommandPaletteProvider, useCommandPalette } from '@quant/shared-ui';
+import {
+  ThemeProvider,
+  CommandPaletteProvider,
+  useCommandPalette,
+  QuantSidekickProvider,
+  QuantSidekick,
+} from '@quant/shared-ui';
 import type { CommandPaletteItem } from '@quant/shared-ui';
 
 const QUANTMEET_COMMANDS: CommandPaletteItem[] = [
@@ -38,10 +44,13 @@ function QuantMeetCommandRegistrar() {
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider defaultTheme="system">
-      <CommandPaletteProvider appName="QuantMeet">
-        <QuantMeetCommandRegistrar />
-        {children}
-      </CommandPaletteProvider>
+      <QuantSidekickProvider>
+        <CommandPaletteProvider appName="QuantMeet">
+          <QuantMeetCommandRegistrar />
+          {children}
+        </CommandPaletteProvider>
+        <QuantSidekick />
+      </QuantSidekickProvider>
     </ThemeProvider>
   );
 }
