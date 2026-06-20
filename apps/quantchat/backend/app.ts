@@ -1,5 +1,6 @@
 import { createApp } from '@quant/server-core';
 import type { AppConfig } from '@quant/server-core';
+import type { PrismaClient } from '@prisma/client';
 import messagesRoutes from './routes/messages';
 import conversationsRoutes from './routes/conversations';
 import searchRoutes from './routes/search';
@@ -23,6 +24,13 @@ import { websocketRoutes } from './routes/websocket';
 import { InMemoryE2EERelay } from './lib/e2ee-relay';
 import { AutoReplyManager } from './lib/auto-reply-manager';
 import { ScheduledMessageWorker } from './services/scheduled-message-worker';
+import { createRealtimeContext } from './lib/realtime-context';
+import { PrismaOutboxService } from './services/outbox.service';
+import { DeliveryWorker } from './services/delivery-worker';
+import {
+  createPushDispatcher,
+  type PrismaPushSubscriptionClient,
+} from './services/push-dispatcher';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -50,7 +58,19 @@ export async function buildApp(config?: AppConfig) {
   const appConfig = config ?? getConfig();
   const app = await createApp(appConfig);
 
-  // WebSocket real-time routes
+  // W2/W3 — Shared realtime context (backplane + presence). Created once and
+  // decorated on the app BEFORE the websocket routes register, so the websocket
+  // layer AND the DeliveryWorker below share the SAME instances (one Redis
+  // client, one presence ZSET, one channel-subscription set).
+  const realtime = createRealtimeContext({
+    error: (obj, msg) => app.log.error(obj as object, msg),
+    warn: (msg) => app.log.warn(msg),
+    info: (msg) => app.log.info(msg),
+  });
+  app.decorate('realtimeBackplane', realtime.backplane);
+  app.decorate('presence', realtime.presence);
+
+  // WebSocket real-time routes (consume the decorated backplane + presence)
   await app.register(websocketRoutes, { prefix: '/ws' });
 
   await app.register(messagesRoutes, { prefix: '/conversations' });
@@ -167,6 +187,43 @@ export async function buildApp(config?: AppConfig) {
   // intact; mutating routes declare `ar-lenses:write` (Req 7.4).
   app.decorate('arLenses', createArLensesService());
   await app.register(arLensesRoutes, { prefix: '/ar-lenses' });
+
+  // W3 — At-least-once delivery drain loop. Drains the transactional
+  // `MessageOutbox` (written atomically with each Message by MessageService),
+  // fanning every recipient to realtime delivery (online) via the shared
+  // backplane or to Web Push (offline). The worker was previously only exercised
+  // in its own tests; wiring it here makes HTTP-posted messages actually reach
+  // online recipients and trigger offline push in production. Push uses a real
+  // web-push transport when VAPID keys are configured, otherwise degrades to a
+  // no-op dispatcher so the loop still drains.
+  const prisma = (app as unknown as { prisma: PrismaClient }).prisma;
+  const deliveryWorker = new DeliveryWorker(
+    {
+      outbox: new PrismaOutboxService(prisma),
+      backplane: realtime.backplane,
+      presence: realtime.presence,
+      pushDispatcher: createPushDispatcher(prisma as unknown as PrismaPushSubscriptionClient),
+    },
+    {
+      onError: (error) => app.log.error({ err: error }, 'message delivery drain failed'),
+    },
+  );
+  // The 1s drain loop is not started under the test harness (no live DB); the
+  // worker is covered directly by its own unit/integration tests.
+  if (appConfig.env !== 'test') {
+    deliveryWorker.start();
+  }
+
+  // Tear down the worker + the shared realtime context (backplane + Redis) on
+  // app close. This is the single owner of the backplane lifecycle now that the
+  // websocket layer consumes the shared instance.
+  app.addHook('onClose', async () => {
+    deliveryWorker.stop();
+    await realtime.backplane.shutdown();
+    if (realtime.redis) {
+      realtime.redis.disconnect();
+    }
+  });
 
   return app;
 }

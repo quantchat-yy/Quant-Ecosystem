@@ -1,7 +1,34 @@
 import type { PrismaClient, Message } from '@prisma/client';
+import { Prisma, MessageType } from '@prisma/client';
 import * as crypto from 'node:crypto';
 import { createAppError } from '@quant/server-core';
 import { PrismaOutboxService, type OutboxService } from './outbox.service';
+
+/**
+ * Map the public (lowercase) message-type string accepted by the API/clients to
+ * the Prisma `MessageType` enum stored in Postgres. The HTTP layer validates the
+ * incoming value against a lowercase enum; here we translate it to the DB enum so
+ * Postgres never rejects a mismatched-case value at insert time. Unknown values
+ * fall back to TEXT.
+ */
+const MESSAGE_TYPE_MAP: Record<string, MessageType> = {
+  text: MessageType.TEXT,
+  image: MessageType.IMAGE,
+  video: MessageType.VIDEO,
+  audio: MessageType.AUDIO,
+  file: MessageType.FILE,
+  sticker: MessageType.STICKER,
+  gif: MessageType.GIF,
+  location: MessageType.LOCATION,
+  contact: MessageType.CONTACT,
+  poll: MessageType.POLL,
+  system: MessageType.SYSTEM,
+};
+
+export function toMessageType(type?: string): MessageType {
+  if (!type) return MessageType.TEXT;
+  return MESSAGE_TYPE_MAP[type.toLowerCase()] ?? MessageType.TEXT;
+}
 
 export interface PaginationOptions {
   page?: number;
@@ -175,10 +202,10 @@ export class MessageService {
           conversationId,
           senderId,
           content: storedContent,
-          type: type ?? 'text',
+          type: toMessageType(type),
           mediaUrl: mediaUrl ?? null,
           replyToId: replyToId ?? null,
-          metadata: metadata ?? {},
+          metadata: (metadata ?? {}) as Prisma.InputJsonValue,
         },
       });
 

@@ -122,8 +122,9 @@ async function exchange(payload: Record<string, unknown>) {
 // so any string exercises the same code path; constraining to the legal alphabet
 // keeps the inputs faithful to real PKCE clients.
 // ----------------------------------------------------------------------------
-const VERIFIER_CHARS =
-  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'.split('');
+const VERIFIER_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'.split(
+  '',
+);
 
 const verifierArb: fc.Arbitrary<string> = fc
   .array(fc.constantFrom(...VERIFIER_CHARS), { minLength: 43, maxLength: 128 })
@@ -192,7 +193,7 @@ describe('Feature: quantmail-superhub, Property 1: PKCE rejects mismatched verif
         });
 
         expect(res.statusCode).toBe(200);
-        expect(res.json()).toMatchObject({ accessToken: 'mock-access-token' });
+        expect(res.json()).toMatchObject({ access_token: 'mock-access-token' });
         expect(generateTokenPair).toHaveBeenCalledTimes(1);
       }),
       { numRuns: 100 },

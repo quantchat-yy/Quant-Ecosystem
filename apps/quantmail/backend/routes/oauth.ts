@@ -4,6 +4,20 @@ import { getJwtSecret, getJwtRefreshSecret } from '@quant/auth/lib/secrets';
 import prisma from '@quant/auth/lib/prisma';
 import { generateId } from '@quant/auth/crypto/secure-random';
 import { validateCodeChallenge } from '@quant/auth/crypto/pkce';
+import { oidcKeyService } from '../services/oidc-key.service';
+
+/** The OIDC issuer identifier. MUST match the `iss` claim in issued id_tokens
+ *  and the `issuer` field of the discovery document (env-overridable). */
+function getIssuer(): string {
+  return process.env['QUANTMAIL_ISSUER'] ?? 'https://quantmail.com';
+}
+
+/** Build an absolute endpoint URL under the issuer origin. */
+function endpoint(path: string): string {
+  return `${getIssuer().replace(/\/$/, '')}${path}`;
+}
+
+const ACCESS_TOKEN_TTL_SECONDS = 900;
 
 export async function oauthRoutes(fastify: FastifyInstance) {
   const tokenService = new TokenService({
@@ -20,12 +34,12 @@ export async function oauthRoutes(fastify: FastifyInstance) {
 
   const requireAuth = async (request: any, reply: any) => {
     const header = request.headers?.authorization as string | undefined;
-    if (!header || !header.startsWith("Bearer ")) {
-      return reply.code(401).send({ error: "unauthorized" });
+    if (!header || !header.startsWith('Bearer ')) {
+      return reply.code(401).send({ error: 'unauthorized' });
     }
     const payload = await tokenService.validateAccessToken(header.slice(7));
     if (!payload) {
-      return reply.code(401).send({ error: "invalid_token" });
+      return reply.code(401).send({ error: 'invalid_token' });
     }
     (request as any).user = payload;
   };
@@ -56,6 +70,22 @@ export async function oauthRoutes(fastify: FastifyInstance) {
   const normalizeChallengeMethod = (method: unknown): 'plain' | 'S256' =>
     method === 'plain' ? 'plain' : 'S256';
 
+  // Map the internal camelCase TokenPair to an RFC 6749 §5.1 token response
+  // (snake_case `access_token` / `token_type` / `expires_in` / `refresh_token`,
+  // plus the granted `scope` and an optional OIDC `id_token`).
+  const toTokenResponse = (
+    tokens: { accessToken: string; refreshToken: string; expiresIn: number; tokenType: string },
+    scopes: string[],
+    idToken?: string,
+  ): Record<string, unknown> => ({
+    access_token: tokens.accessToken,
+    token_type: tokens.tokenType,
+    expires_in: tokens.expiresIn,
+    refresh_token: tokens.refreshToken,
+    scope: scopes.join(' '),
+    ...(idToken ? { id_token: idToken } : {}),
+  });
+
   // POST /oauth/token
   fastify.post('/oauth/token', async (request, reply) => {
     const body = request.body as any;
@@ -64,7 +94,7 @@ export async function oauthRoutes(fastify: FastifyInstance) {
     if (grant_type === 'refresh_token' && refresh_token) {
       try {
         const tokens = await tokenService.refreshToken(refresh_token);
-        return reply.send(tokens);
+        return reply.send(toTokenResponse(tokens, []));
       } catch (err: any) {
         return reply.code(400).send({
           error: 'invalid_grant',
@@ -143,14 +173,40 @@ export async function oauthRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({ error: 'invalid_grant' });
       }
 
+      const scopes: string[] = Array.isArray(authCode.scopes) ? authCode.scopes : [];
+
       const tokens = await tokenService.generateTokenPair(
         user.id,
         { email: user.email, username: user.username, role: user.role },
-        authCode.scopes as any,
+        scopes as any,
         'quantmail' as any,
       );
 
-      return reply.send(tokens);
+      // OpenID Connect: when the `openid` scope was granted, mint an RS256
+      // id_token signed by QuantMail's OIDC key (verifiable via the published
+      // JWKS). The id_token is bound to the requesting client (`aud`) and
+      // echoes the request `nonce` when present (OIDC Core 3.1.3.6).
+      let idToken: string | undefined;
+      if (scopes.includes('openid')) {
+        idToken = await oidcKeyService.signIdToken(
+          {
+            sub: user.id,
+            aud: authCode.clientId,
+            azp: authCode.clientId,
+            nonce: (authCode as { nonce?: string | null }).nonce ?? undefined,
+            email: user.email,
+            email_verified: user.emailVerified,
+            name: user.displayName,
+            preferred_username: user.username,
+            auth_time: authCode.createdAt
+              ? Math.floor(authCode.createdAt.getTime() / 1000)
+              : undefined,
+          },
+          { issuer: getIssuer(), expiresInSeconds: ACCESS_TOKEN_TTL_SECONDS },
+        );
+      }
+
+      return reply.send(toTokenResponse(tokens, scopes, idToken));
     }
 
     return reply.code(400).send({ error: 'unsupported_grant_type' });
@@ -176,6 +232,7 @@ export async function oauthRoutes(fastify: FastifyInstance) {
       state,
       code_challenge,
       code_challenge_method,
+      nonce,
     } = query;
 
     if (response_type !== 'code') {
@@ -220,6 +277,7 @@ export async function oauthRoutes(fastify: FastifyInstance) {
           codeChallengeMethod: code_challenge
             ? normalizeChallengeMethod(code_challenge_method)
             : null,
+          nonce: nonce ?? null,
           expiresAt,
         },
       });
@@ -252,6 +310,7 @@ export async function oauthRoutes(fastify: FastifyInstance) {
             <input type="hidden" name="state" value="${esc(state || '')}">
             <input type="hidden" name="code_challenge" value="${esc(code_challenge || '')}">
             <input type="hidden" name="code_challenge_method" value="${esc(code_challenge_method || '')}">
+            <input type="hidden" name="nonce" value="${esc(nonce || '')}">
             
             <button type="submit" name="action" value="approve" 
                     style="background: #0066ff; color: white; padding: 14px 28px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer;">
@@ -274,7 +333,7 @@ export async function oauthRoutes(fastify: FastifyInstance) {
   fastify.post('/oauth/consent', async (request, reply) => {
     const body = request.body as any;
     const { action, client_id, redirect_uri, user_id, scope, state } = body;
-    const { code_challenge, code_challenge_method } = body;
+    const { code_challenge, code_challenge_method, nonce } = body;
 
     const safeRedirectUri = await resolveRedirectUri(client_id, redirect_uri);
     if (!safeRedirectUri) {
@@ -320,6 +379,7 @@ export async function oauthRoutes(fastify: FastifyInstance) {
         codeChallengeMethod: code_challenge
           ? normalizeChallengeMethod(code_challenge_method)
           : null,
+        nonce: nonce || null,
         expiresAt,
       },
     });
@@ -359,17 +419,38 @@ export async function oauthRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // Discovery
+  // Discovery (OpenID Connect Discovery 1.0 + RFC 8414)
   fastify.get('/.well-known/openid-configuration', async () => ({
-    issuer: 'https://quantmail.com',
-    authorization_endpoint: '/oauth/authorize',
-    token_endpoint: '/oauth/token',
-    revocation_endpoint: '/oauth/revoke',
-    registration_endpoint: '/oauth/register',
-    jwks_uri: '/.well-known/jwks.json',
+    issuer: getIssuer(),
+    authorization_endpoint: endpoint('/oauth/authorize'),
+    token_endpoint: endpoint('/oauth/token'),
+    revocation_endpoint: endpoint('/oauth/revoke'),
+    registration_endpoint: endpoint('/oauth/register'),
+    jwks_uri: endpoint('/.well-known/jwks.json'),
     response_types_supported: ['code'],
     grant_types_supported: ['authorization_code', 'refresh_token'],
+    subject_types_supported: ['public'],
+    id_token_signing_alg_values_supported: ['RS256'],
+    token_endpoint_auth_methods_supported: ['client_secret_post', 'none'],
+    code_challenge_methods_supported: ['S256', 'plain'],
+    scopes_supported: ['openid', 'profile', 'email'],
+    claims_supported: [
+      'sub',
+      'iss',
+      'aud',
+      'exp',
+      'iat',
+      'auth_time',
+      'nonce',
+      'email',
+      'email_verified',
+      'name',
+      'preferred_username',
+    ],
   }));
 
-  fastify.get('/.well-known/jwks.json', async () => ({ keys: [] }));
+  // JWKS — the public half of QuantMail's OIDC signing key(s). Relying parties
+  // fetch this to verify id_tokens. Served from the asymmetric key resolved by
+  // the OidcKeyService (env-provided in production, ephemeral in dev).
+  fastify.get('/.well-known/jwks.json', async () => oidcKeyService.getPublicJwks());
 }

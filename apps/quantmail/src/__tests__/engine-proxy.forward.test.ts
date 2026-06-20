@@ -29,7 +29,7 @@ const BACKEND = 'http://localhost:3010';
 
 function makeFetchMock(status = 200, payload: unknown = { success: true, data: {} }) {
   return vi.fn(
-    async () =>
+    async (_input: string | URL | Request, _init?: RequestInit) =>
       new Response(JSON.stringify(payload), {
         status,
         headers: { 'content-type': 'application/json' },
@@ -39,8 +39,11 @@ function makeFetchMock(status = 200, payload: unknown = { success: true, data: {
 
 function lastFetchCall(fetchMock: ReturnType<typeof makeFetchMock>) {
   const call = fetchMock.mock.calls[0];
+  if (!call) {
+    throw new Error('expected fetch to have been called at least once');
+  }
   const url = call[0] as string;
-  const init = call[1] as RequestInit & { headers: Record<string, string> };
+  const init = (call[1] ?? {}) as RequestInit & { headers: Record<string, string> };
   return { url, init, headers: init.headers as Record<string, string> };
 }
 

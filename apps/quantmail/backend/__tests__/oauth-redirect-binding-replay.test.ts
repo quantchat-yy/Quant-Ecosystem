@@ -170,7 +170,7 @@ describe('Task 1.4 — redirect_uri rebinding at /oauth/token (Req 1.4)', () => 
     });
 
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ accessToken: 'mock-access-token' });
+    expect(res.json()).toMatchObject({ access_token: 'mock-access-token' });
     expect(generateTokenPair).toHaveBeenCalledTimes(1);
   });
 });
@@ -202,7 +202,7 @@ describe('Task 1.4 — single-use auth-code replay rejection (Req 1.6)', () => {
       redirect_uri: BOUND_REDIRECT,
     });
     expect(first.statusCode).toBe(200);
-    expect(first.json()).toMatchObject({ accessToken: 'mock-access-token' });
+    expect(first.json()).toMatchObject({ access_token: 'mock-access-token' });
     expect(generateTokenPair).toHaveBeenCalledTimes(1);
 
     // Replay of the SAME code — rejected, no second token pair issued.

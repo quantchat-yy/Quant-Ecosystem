@@ -1,5 +1,30 @@
 import type { PrismaClient, Conversation, ConversationMember } from '@prisma/client';
+import { Prisma, ConversationType, ConversationRole } from '@prisma/client';
 import { createAppError } from '@quant/server-core';
+
+/** Map the public (lowercase) conversation-type string to the Prisma enum. */
+function toConversationType(type: string): ConversationType {
+  switch (type) {
+    case 'group':
+      return ConversationType.GROUP;
+    case 'channel':
+      return ConversationType.CHANNEL;
+    default:
+      return ConversationType.DIRECT;
+  }
+}
+
+/** Map a role string (any case) to the Prisma `ConversationRole` enum. */
+function toConversationRole(role: string): ConversationRole {
+  switch (role.toUpperCase()) {
+    case 'OWNER':
+      return ConversationRole.OWNER;
+    case 'ADMIN':
+      return ConversationRole.ADMIN;
+    default:
+      return ConversationRole.MEMBER;
+  }
+}
 
 export interface PaginationOptions {
   page?: number;
@@ -48,34 +73,32 @@ export class ConversationService {
     const allParticipants = [creatorId, ...participantIds.filter((id) => id !== creatorId)];
 
     // Use a transaction to create conversation and members atomically
-    const conversation = await this.prisma.$transaction(
-      async (tx: import('@prisma/client').TransactionClient) => {
-        const conv = await tx.conversation.create({
-          data: {
-            type,
-            name: name ?? null,
-            description: description ?? null,
-            createdBy: creatorId,
-            lastMessageAt: new Date(),
-            metadata: {},
-          },
-        });
+    const conversation = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const conv = await tx.conversation.create({
+        data: {
+          type: toConversationType(type),
+          name: name ?? null,
+          description: description ?? null,
+          createdBy: creatorId,
+          lastMessageAt: new Date(),
+          metadata: {},
+        },
+      });
 
-        const memberData = allParticipants.map((userId, index) => ({
-          conversationId: conv.id,
-          userId,
-          role: userId === creatorId ? 'OWNER' : 'MEMBER',
-          joinedAt: new Date(),
-          nickname: null,
-          isMuted: false,
-          lastReadAt: index === 0 ? new Date() : null,
-        }));
+      const memberData = allParticipants.map((userId, index) => ({
+        conversationId: conv.id,
+        userId,
+        role: userId === creatorId ? ConversationRole.OWNER : ConversationRole.MEMBER,
+        joinedAt: new Date(),
+        nickname: null,
+        isMuted: false,
+        lastReadAt: index === 0 ? new Date() : null,
+      }));
 
-        await tx.conversationMember.createMany({ data: memberData });
+      await tx.conversationMember.createMany({ data: memberData });
 
-        return conv;
-      },
-    );
+      return conv;
+    });
 
     return conversation;
   }
@@ -132,7 +155,7 @@ export class ConversationService {
       throw createAppError('Conversation not found', 404, 'CONVERSATION_NOT_FOUND');
     }
 
-    if (conversation.type === 'direct') {
+    if (conversation.type === ConversationType.DIRECT) {
       throw createAppError(
         'Cannot add members to direct conversations',
         400,
@@ -153,7 +176,7 @@ export class ConversationService {
       data: {
         conversationId,
         userId,
-        role,
+        role: toConversationRole(role),
         joinedAt: new Date(),
         nickname: null,
         isMuted: false,

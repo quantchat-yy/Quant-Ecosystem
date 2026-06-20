@@ -28,8 +28,9 @@ function getUserId(request: unknown): string {
 
 /**
  * Message-scoped routes mounted under the /sessions prefix. Persisted chat:
- * history + send (both backed by ChatService -> AISession/AIMessage), plus
- * thumbs-up / thumbs-down feedback on assistant messages.
+ * history + send (both backed by ChatService -> AISession/AIMessage), token
+ * streaming over SSE, plus thumbs-up / thumbs-down feedback on assistant
+ * messages.
  */
 export default async function messagesRoutes(fastify: FastifyInstance) {
   function getService(): ChatService {

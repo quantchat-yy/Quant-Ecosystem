@@ -1,16 +1,8 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import websocketPlugin, { type WebSocket } from '@fastify/websocket';
-import Redis from 'ioredis';
 import { ConnectionAuth, AuthError } from '@quant/realtime';
-import { PresenceManager } from '@quant/realtime/presence';
-import {
-  InProcessBackplane,
-  RedisRealtimeBackplane,
-  backplaneRetryStrategy,
-  type RealtimeBackplane,
-  type RoomEvent,
-  type RoomEventType,
-} from '../services/realtime-backplane';
+import type { PresenceManager } from '@quant/realtime/presence';
+import type { RealtimeBackplane, RoomEvent, RoomEventType } from '../services/realtime-backplane';
 import { DeliveryReceiptService } from '../services/delivery-receipt.service';
 
 function getJwtSecret(): string {
@@ -70,34 +62,17 @@ export async function websocketRoutes(fastify: FastifyInstance) {
   // conversation channel AND the presence channel on (re)connect, and reports
   // its health via `isHealthy()` (surfaced on /healthz below). Throughout an
   // outage local delivery still happens at publish time (Requirement 6.3).
-  const redisUrl = process.env.REDIS_URL;
-  let redis: Redis | null = null;
-  let backplane: RealtimeBackplane;
-  if (redisUrl) {
-    redis = new Redis(redisUrl, {
-      lazyConnect: false,
-      maxRetriesPerRequest: null,
-      retryStrategy: (times: number) => backplaneRetryStrategy(times),
-    });
-    redis.on('error', (err: Error) => {
-      fastify.log.error({ err }, 'realtime backplane Redis connection error');
-    });
-    const redisBackplane = new RedisRealtimeBackplane(redis);
-    // Log degraded/healthy transitions so operators can see the backplane drop
-    // into single-node mode and recover (design Error Handling table).
-    redisBackplane.onHealthChange((healthy: boolean) => {
-      if (healthy) {
-        fastify.log.info('realtime backplane connected; cross-instance fan-out healthy');
-      } else {
-        fastify.log.warn(
-          'realtime backplane disconnected; degraded to single-node mode (local delivery only)',
-        );
-      }
-    });
-    backplane = redisBackplane;
-  } else {
-    backplane = new InProcessBackplane();
-  }
+  // W2/W3 — Shared realtime context. The backplane + presence manager are
+  // created once in buildApp() and decorated on the app, so this websocket layer
+  // and the DeliveryWorker share the SAME instances (one Redis client, one
+  // presence ZSET, one channel-subscription set) — the single source of truth
+  // required for at-least-once cross-instance delivery. Backplane health
+  // transitions are logged at the factory; the contributor below reflects them.
+  const realtime = fastify as unknown as {
+    realtimeBackplane: RealtimeBackplane;
+    presence: PresenceManager;
+  };
+  const backplane = realtime.realtimeBackplane;
 
   // Surface backplane health on the shared /healthz endpoint (Requirement
   // 6.1/6.2). The contributor is evaluated per request, so it always reflects
@@ -122,24 +97,10 @@ export async function websocketRoutes(fastify: FastifyInstance) {
     );
   }
 
-  // W2 — Presence backplane wiring (Task 7, design Component 2 note / Sequence 3).
-  // The PresenceManager shares the SAME ioredis client as the RealtimeBackplane
-  // when REDIS_URL is set, so presence is recorded/read via the shared Redis
-  // ZSET (score = last-seen timestamp) and is therefore visible across every
-  // instance (Requirement 5.1). With no Redis it transparently falls back to
-  // in-memory single-node presence. A Redis read failure is logged so operators
-  // can see the degraded state; `isOnlineAnywhere` then reports offline and the
-  // delivery path falls back to push (Requirement 5.4).
-  const presence = new PresenceManager(
-    redis
-      ? {
-          redis,
-          onReadFailure: (userId: string, err: unknown) => {
-            fastify.log.error({ err, userId }, 'presence redis read failed; treating as offline');
-          },
-        }
-      : {},
-  );
+  // Presence shares the same instance created in buildApp() (Redis-backed when
+  // REDIS_URL is set, in-memory otherwise) so the DeliveryWorker's offline
+  // check sees the exact same online set this layer maintains.
+  const presence = realtime.presence;
 
   // Dedicated, cluster-wide channel carrying user presence transitions. Presence
   // is user-scoped rather than conversation-scoped, so it rides its own channel
@@ -321,14 +282,9 @@ export async function websocketRoutes(fastify: FastifyInstance) {
     }
   }
 
-  // Tear down the backplane (and the Redis connection it was built on) when the
-  // app closes, alongside the existing close hooks (Task 6.2 wiring).
-  fastify.addHook('onClose', async () => {
-    await backplane.shutdown();
-    if (redis) {
-      redis.disconnect();
-    }
-  });
+  // The backplane + Redis connection are owned by buildApp() (shared with the
+  // DeliveryWorker) and torn down there on app close, so this layer no longer
+  // registers its own shutdown hook.
 
   fastify.get(
     '/chat',

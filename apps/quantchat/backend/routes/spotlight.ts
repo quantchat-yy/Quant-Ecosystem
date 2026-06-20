@@ -11,8 +11,9 @@
 //                    ordering (13.8).
 // ============================================================================
 import type { FastifyInstance } from 'fastify';
+import type { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { getRankableReels } from './reels';
+import { ReelService } from '../services/reel.service';
 import {
   SpotlightService,
   applyPersonalization,
@@ -76,6 +77,7 @@ function serializeReel(reel: RankedSpotlightReel) {
 export default async function spotlightRoutes(fastify: FastifyInstance) {
   // One ranking cache per backend instance (15-minute TTL — Task 13.6).
   const spotlight = new SpotlightService();
+  const reelService = new ReelService((fastify as unknown as { prisma: PrismaClient }).prisma);
   // Reels whose creators have already received a "Featured" notification, so a
   // reel that stays featured across refreshes is not re-notified (Task 13.7).
   const notifiedFeatured = new Set<string>();
@@ -87,7 +89,7 @@ export default async function spotlightRoutes(fastify: FastifyInstance) {
     }
     const userId = optionalUserId(request);
 
-    const source = getRankableReels();
+    const source = await reelService.getRankableReels();
     const ranking = spotlight.getEngagementRanking(source, {
       forceRefresh: parsed.data.refresh ?? false,
     });

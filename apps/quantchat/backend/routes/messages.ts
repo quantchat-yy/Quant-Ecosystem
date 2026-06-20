@@ -48,17 +48,34 @@ export default async function messagesRoutes(fastify: FastifyInstance) {
       metadata: parseResult.data.metadata,
     });
 
-    // Notify conversation participants about new message
-    // NOTE: In production, fetch participant IDs from the conversation record
+    // Notify conversation participants about the new message. Recipients are
+    // resolved from the conversation's active members (excluding the sender);
+    // a notification failure must never block message delivery.
     try {
-      notifier.dispatch({
-        type: 'message',
-        title: `New message in conversation`,
-        body: parseResult.data.content.slice(0, 100),
-        recipientIds: [], // TODO: Resolve from conversation members via prisma
-        priority: 'normal',
-        data: { conversationId: request.params.id, senderId: userId },
+      const memberClient = prisma as {
+        conversationMember: {
+          findMany: (args: {
+            where: { conversationId: string; leftAt: null };
+            select: { userId: true };
+          }) => Promise<Array<{ userId: string }>>;
+        };
+      };
+      const members = await memberClient.conversationMember.findMany({
+        where: { conversationId: request.params.id, leftAt: null },
+        select: { userId: true },
       });
+      const recipientIds = members.map((m) => m.userId).filter((memberId) => memberId !== userId);
+
+      if (recipientIds.length > 0) {
+        notifier.dispatch({
+          type: 'message',
+          title: `New message in conversation`,
+          body: parseResult.data.content.slice(0, 100),
+          recipientIds,
+          priority: 'normal',
+          data: { conversationId: request.params.id, senderId: userId },
+        });
+      }
     } catch {
       /* notification failure should not block message sending */
     }
