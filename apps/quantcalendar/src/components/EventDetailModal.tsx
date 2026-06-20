@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { spring } from '@quant/brand';
 import { Modal, Button, Badge, Avatar } from '@quant/shared-ui';
 import type { CalendarEvent } from '../hooks/useEvents';
