@@ -9,6 +9,7 @@ import type { SidebarItem } from '@quant/shared-ui';
 import { useAIChat } from '../hooks/useAIChat';
 import { useModelSelector } from '../hooks/useModelSelector';
 import { useUsageStats } from '../hooks/useUsageStats';
+import { useConversationSearch } from '../hooks/useConversationSearch';
 import { ModelSelector } from '../components/ModelSelector';
 import { VoiceToggle } from '../components/VoiceToggle';
 import { AgenticMessage } from '../components/AgenticMessage';
@@ -105,6 +106,13 @@ export default function AIPage() {
     return () => document.removeEventListener('paste', handlePaste);
   }, []);
 
+  // Server-side conversation search (title + message content) when typing.
+  const {
+    results: searchResults,
+    isSearching: isSearchingConversations,
+    active: searchActive,
+  } = useConversationSearch(sidebarSearch);
+
   // Group conversations by date
   const groupedConversations = useMemo(() => {
     const now = new Date();
@@ -145,6 +153,25 @@ export default function AIPage() {
       { id: 'new-chat', label: 'New Chat', icon: <span>➕</span>, onClick: createConversation },
     ];
 
+    // While searching, show flat server-side results (title + message content).
+    if (searchActive) {
+      items.push({
+        id: 'search-header',
+        label: isSearchingConversations ? 'Searching…' : `Results (${searchResults.length})`,
+        icon: <span>🔍</span>,
+      });
+      for (const conv of searchResults) {
+        items.push({
+          id: conv.id,
+          label: conv.title || 'Untitled',
+          icon: <span>💬</span>,
+          active: activeConversation?.id === conv.id,
+          onClick: () => selectConversation(conv.id),
+        });
+      }
+      return items;
+    }
+
     for (const group of groupedConversations) {
       items.push({ id: `group-${group.label}`, label: group.label, icon: <span /> });
       for (const conv of group.items) {
@@ -165,6 +192,9 @@ export default function AIPage() {
     createConversation,
     selectConversation,
     pinnedConversations,
+    searchActive,
+    searchResults,
+    isSearchingConversations,
   ]);
 
   if (isLoading) {
