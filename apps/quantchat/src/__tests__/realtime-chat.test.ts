@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 // TODO: These tests replicate hook branching logic in plain imperative code rather than
 // exercising useRealtimeChat directly. Once @testing-library/react-hooks (or equivalent
