@@ -9,6 +9,7 @@ import {
 } from '@quant/shared-ui';
 import type { CommandPaletteItem } from '@quant/shared-ui';
 import { RealtimeProvider } from './realtime-provider';
+import { MicroInteractionProvider } from './MicroInteractionProvider';
 
 const commands: CommandPaletteItem[] = [
   { id: 'new-chat', label: 'New Chat', shortcut: 'N', action: () => {} },
@@ -34,12 +35,14 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     <ThemeProvider defaultTheme="system">
       <QuantSidekickProvider>
         <RealtimeProvider>
-          {children}
-          <CommandPaletteUI
-            isOpen={commandPaletteOpen}
-            onClose={() => setCommandPaletteOpen(false)}
-            commands={commands}
-          />
+          <MicroInteractionProvider>
+            {children}
+            <CommandPaletteUI
+              isOpen={commandPaletteOpen}
+              onClose={() => setCommandPaletteOpen(false)}
+              commands={commands}
+            />
+          </MicroInteractionProvider>
         </RealtimeProvider>
         <QuantSidekick />
       </QuantSidekickProvider>
