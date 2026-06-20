@@ -1,13 +1,15 @@
 // ============================================================================
-// QuantAI - useAIChat Hook
-// Streaming chat state, message history, context window, model switching
+// QuantAI - useAIChat Hook (server-persisted)
+// Conversations and messages are persisted server-side via the /api/sessions
+// endpoints (real AISession / AIMessage rows). This unlocks cross-device
+// history, server-side search, and per-message feedback on real message ids.
 // ============================================================================
 
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { getAuthToken } from '../lib/auth';
 import type { ToolCall } from '../types/tool-calls';
 
-interface ChatMessage {
+export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -19,15 +21,20 @@ interface ChatMessage {
   attachments?: string[];
   toolCalls?: ToolCall[];
   reasoning?: string;
+  feedback?: 'POSITIVE' | 'NEGATIVE' | null;
+  /** True until the message has been persisted server-side (has a real id). */
+  pending?: boolean;
 }
 
-interface ChatConversation {
+export interface ChatConversation {
   id: string;
   title: string;
   messages: ChatMessage[];
   model: string;
   createdAt: string;
   updatedAt: string;
+  /** Whether full message history has been loaded for this conversation. */
+  loaded?: boolean;
 }
 
 interface UseAIChatOptions {
@@ -53,339 +60,365 @@ interface UseAIChatReturn {
   clearMessages: () => void;
   retryLastMessage: () => void;
   stopStreaming: () => void;
+  setFeedback: (messageId: string, value: 'POSITIVE' | 'NEGATIVE') => void;
 }
 
 const API_BASE = '/api';
 
+interface ServerSession {
+  id: string;
+  title: string | null;
+  model: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ServerMessage {
+  id: string;
+  role: string;
+  content: string;
+  tokenCount: number | null;
+  model: string | null;
+  latencyMs: number | null;
+  feedback: 'POSITIVE' | 'NEGATIVE' | null;
+  createdAt: string;
+}
+
+function authHeaders(json = false): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (json) headers['Content-Type'] = 'application/json';
+  const token = getAuthToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+}
+
+function mapServerMessage(m: ServerMessage): ChatMessage {
+  return {
+    id: m.id,
+    role: (m.role || 'assistant').toLowerCase() as ChatMessage['role'],
+    content: m.content,
+    timestamp: m.createdAt,
+    model: m.model ?? undefined,
+    tokens: m.tokenCount ?? undefined,
+    latencyMs: m.latencyMs ?? undefined,
+    feedback: m.feedback ?? null,
+  };
+}
+
+function mapServerSession(s: ServerSession): ChatConversation {
+  return {
+    id: s.id,
+    title: s.title || 'New Chat',
+    messages: [],
+    model: s.model,
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
+    loaded: false,
+  };
+}
+
 export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
-  const { defaultModel = 'gpt-4', maxContextTokens = 128000, streamingEnabled = true } = options;
+  const { defaultModel = 'gpt-4' } = options;
 
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [currentModel, setCurrentModel] = useState<string>(defaultModel);
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const activeConversation = useMemo(() => {
-    if (!activeConversationId) return null;
-    return conversations.find((c) => c.id === activeConversationId) || null;
-  }, [conversations, activeConversationId]);
+  const activeConversation = useMemo(
+    () => conversations.find((c) => c.id === activeConversationId) ?? null,
+    [conversations, activeConversationId],
+  );
 
-  const messages = useMemo(() => {
-    return activeConversation?.messages || [];
-  }, [activeConversation]);
+  const messages = useMemo(() => activeConversation?.messages ?? [], [activeConversation]);
 
-  const tokenCount = useMemo(() => {
-    return messages.reduce(
-      (sum, msg) => sum + (msg.tokens || Math.ceil(msg.content.length / 4)),
-      0,
-    );
-  }, [messages]);
+  const tokenCount = useMemo(
+    () => messages.reduce((sum, msg) => sum + (msg.tokens || Math.ceil(msg.content.length / 4)), 0),
+    [messages],
+  );
 
-  const createConversation = useCallback(() => {
-    const newConv: ChatConversation = {
-      id: `conv-${Date.now()}`,
-      title: 'New Chat',
-      messages: [],
-      model: currentModel,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+  // ---- Initial load: fetch the user's conversations -----------------------
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/sessions?pageSize=50`, { headers: authHeaders() });
+        if (!res.ok) {
+          // Unauthenticated or backend offline: start with an empty workspace.
+          if (!cancelled) setConversations([]);
+          return;
+        }
+        const json = (await res.json()) as { data?: { data?: ServerSession[] } };
+        const list = json.data?.data ?? [];
+        if (!cancelled) setConversations(list.map(mapServerSession));
+      } catch {
+        if (!cancelled) setConversations([]);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
     };
-    setConversations((prev) => [newConv, ...prev]);
-    setActiveConversationId(newConv.id);
-    setError(null);
-  }, [currentModel]);
-
-  const selectConversation = useCallback((id: string) => {
-    setActiveConversationId(id);
-    setError(null);
   }, []);
 
-  const deleteConversation = useCallback(
-    (id: string) => {
-      setConversations((prev) => prev.filter((c) => c.id !== id));
-      if (activeConversationId === id) {
-        setActiveConversationId(null);
-      }
+  const patchConversation = useCallback(
+    (id: string, updater: (c: ChatConversation) => ChatConversation) => {
+      setConversations((prev) => prev.map((c) => (c.id === id ? updater(c) : c)));
     },
-    [activeConversationId],
+    [],
   );
 
-  const addMessageToConversation = useCallback(
-    (message: ChatMessage) => {
-      setConversations((prev) =>
-        prev.map((conv) => {
-          if (conv.id !== activeConversationId) return conv;
-          const updatedMessages = [...conv.messages, message];
-          const title =
-            conv.messages.length === 0 && message.role === 'user'
-              ? message.content.slice(0, 40)
-              : conv.title;
-          return { ...conv, messages: updatedMessages, title, updatedAt: new Date().toISOString() };
-        }),
-      );
-    },
-    [activeConversationId],
-  );
-
-  const updateLastAssistantMessage = useCallback(
-    (content: string, isComplete: boolean) => {
-      setConversations((prev) =>
-        prev.map((conv) => {
-          if (conv.id !== activeConversationId) return conv;
-          const msgs = [...conv.messages];
-          const lastIdx = msgs.length - 1;
-          if (lastIdx >= 0 && msgs[lastIdx].role === 'assistant') {
-            msgs[lastIdx] = { ...msgs[lastIdx], content, isStreaming: !isComplete };
-            if (isComplete) {
-              msgs[lastIdx].tokens = Math.ceil(content.length / 4);
-            }
-          }
-          return { ...conv, messages: msgs };
-        }),
-      );
-    },
-    [activeConversationId],
-  );
-
-  const updateLastAssistantToolCalls = useCallback(
-    (toolCalls: ToolCall[]) => {
-      setConversations((prev) =>
-        prev.map((conv) => {
-          if (conv.id !== activeConversationId) return conv;
-          const msgs = [...conv.messages];
-          const lastIdx = msgs.length - 1;
-          if (lastIdx >= 0 && msgs[lastIdx].role === 'assistant') {
-            msgs[lastIdx] = { ...msgs[lastIdx], toolCalls: [...toolCalls] };
-          }
-          return { ...conv, messages: msgs };
-        }),
-      );
-    },
-    [activeConversationId],
-  );
-
-  const processSSEStream = useCallback(
-    async (response: Response, signal: AbortSignal) => {
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let accumulated = '';
-      let streamDone = false;
-      const toolCalls: ToolCall[] = [];
-
+  const loadMessages = useCallback(
+    async (conversationId: string) => {
       try {
-        while (true) {
-          if (signal.aborted || streamDone) break;
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') {
-                streamDone = true;
-                break;
-              }
-              try {
-                const parsed = JSON.parse(data);
-
-                // Handle tool_call events
-                if (parsed.type === 'tool_call' || parsed.tool_calls) {
-                  const calls = parsed.tool_calls || [parsed];
-                  for (const tc of calls) {
-                    const existing = toolCalls.find((t) => t.id === tc.id);
-                    if (existing) {
-                      existing.status = tc.status || existing.status;
-                      existing.result = tc.result ?? existing.result;
-                      existing.duration = tc.duration ?? existing.duration;
-                      existing.error = tc.error ?? existing.error;
-                    } else {
-                      toolCalls.push({
-                        id: tc.id || `tc-${Date.now()}-${toolCalls.length}`,
-                        name: tc.name || 'unknown',
-                        status: tc.status || 'running',
-                        arguments: tc.arguments || {},
-                        result: tc.result,
-                        duration: tc.duration,
-                        error: tc.error,
-                      });
-                    }
-                  }
-                  updateLastAssistantToolCalls(toolCalls);
-                  continue;
-                }
-
-                const token = parsed.content || parsed.token || parsed.delta?.content || '';
-                if (token) {
-                  accumulated += token;
-                  updateLastAssistantMessage(accumulated, false);
-                }
-              } catch {
-                // skip non-JSON lines
-              }
-            }
-          }
-        }
-      } finally {
-        reader.releaseLock();
+        const res = await fetch(`${API_BASE}/sessions/${conversationId}/messages?pageSize=200`, {
+          headers: authHeaders(),
+        });
+        if (!res.ok) return;
+        const json = (await res.json()) as { data?: { data?: ServerMessage[] } };
+        const msgs = (json.data?.data ?? []).map(mapServerMessage);
+        patchConversation(conversationId, (c) => ({ ...c, messages: msgs, loaded: true }));
+      } catch {
+        // best-effort; leave existing messages in place
       }
-
-      updateLastAssistantMessage(accumulated || '', true);
-      if (toolCalls.length > 0) {
-        updateLastAssistantToolCalls(toolCalls);
-      }
-      return accumulated;
     },
-    [updateLastAssistantMessage, updateLastAssistantToolCalls],
+    [patchConversation],
   );
 
-  const processJSONResponse = useCallback(
-    async (response: Response) => {
-      const data = await response.json();
-      const content =
-        data?.data?.response?.content || data?.response?.content || data?.content || '';
-      updateLastAssistantMessage(content || 'I received your message.', true);
-      return content;
+  const selectConversation = useCallback(
+    (id: string) => {
+      setActiveConversationId(id);
+      setError(null);
+      const conv = conversations.find((c) => c.id === id);
+      if (conv && !conv.loaded) {
+        void loadMessages(id);
+      }
     },
-    [updateLastAssistantMessage],
+    [conversations, loadMessages],
+  );
+
+  const createConversation = useCallback(async (): Promise<string | null> => {
+    try {
+      const res = await fetch(`${API_BASE}/sessions`, {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify({ model: currentModel }),
+      });
+      if (!res.ok) throw new Error(`Failed to create conversation: ${res.status}`);
+      const json = (await res.json()) as { data?: ServerSession };
+      if (!json.data) throw new Error('Malformed create response');
+      const conv = { ...mapServerSession(json.data), loaded: true };
+      setConversations((prev) => [conv, ...prev]);
+      setActiveConversationId(conv.id);
+      setError(null);
+      return conv.id;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create conversation');
+      return null;
+    }
+  }, [currentModel]);
+
+  const deleteConversation = useCallback(
+    async (id: string) => {
+      // Optimistic removal.
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+      if (activeConversationId === id) setActiveConversationId(null);
+      try {
+        await fetch(`${API_BASE}/sessions/${id}`, { method: 'DELETE', headers: authHeaders() });
+      } catch {
+        // ignore — already removed locally
+      }
+    },
+    [activeConversationId],
+  );
+
+  const appendMessage = useCallback(
+    (conversationId: string, message: ChatMessage) => {
+      patchConversation(conversationId, (c) => ({
+        ...c,
+        messages: [...c.messages, message],
+        updatedAt: new Date().toISOString(),
+      }));
+    },
+    [patchConversation],
   );
 
   const sendMessage = useCallback(
     (content: string, attachments?: string[]) => {
-      if (!content.trim() || isStreaming) return;
+      const trimmed = content.trim();
+      if (!trimmed || isStreaming) return;
 
-      if (!activeConversationId) {
-        createConversation();
-      }
+      void (async () => {
+        let conversationId = activeConversationId;
+        if (!conversationId) {
+          conversationId = await createConversation();
+          if (!conversationId) return;
+        }
 
-      const userMessage: ChatMessage = {
-        id: `msg-${Date.now()}`,
-        role: 'user',
-        content: content.trim(),
-        timestamp: new Date().toISOString(),
-        tokens: Math.ceil(content.length / 4),
-        attachments,
-      };
-      addMessageToConversation(userMessage);
+        const convId = conversationId;
+        const tempUserId = `tmp-user-${Date.now()}`;
+        const tempAssistantId = `tmp-assistant-${Date.now() + 1}`;
 
-      const assistantMessage: ChatMessage = {
-        id: `msg-${Date.now() + 1}`,
-        role: 'assistant',
-        content: '',
-        timestamp: new Date().toISOString(),
-        model: currentModel,
-        isStreaming: true,
-      };
+        // Optimistic user message + thinking placeholder.
+        appendMessage(convId, {
+          id: tempUserId,
+          role: 'user',
+          content: trimmed,
+          timestamp: new Date().toISOString(),
+          attachments,
+          pending: true,
+        });
+        appendMessage(convId, {
+          id: tempAssistantId,
+          role: 'assistant',
+          content: '',
+          timestamp: new Date().toISOString(),
+          model: currentModel,
+          isStreaming: true,
+          pending: true,
+        });
 
-      setTimeout(() => {
-        addMessageToConversation(assistantMessage);
+        // Title the conversation from the first user message.
+        const conv = conversations.find((c) => c.id === convId);
+        const isFirstMessage = !conv || conv.messages.length === 0;
 
         const controller = new AbortController();
         abortControllerRef.current = controller;
         setIsStreaming(true);
         setError(null);
 
-        const token = getAuthToken();
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        fetch(`${API_BASE}/assistant/chat`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            message: content.trim(),
-            model: currentModel,
-            conversationId: activeConversationId || undefined,
-            attachments,
-            stream: streamingEnabled,
-          }),
-          signal: controller.signal,
-        })
-          .then(async (response) => {
-            if (!response.ok) {
-              throw new Error(`Server error: ${response.status}`);
-            }
-
-            const contentType = response.headers.get('Content-Type') || '';
-            const isSSE = contentType.includes('text/event-stream');
-            const isNDJSON = contentType.includes('application/x-ndjson');
-
-            if ((isSSE || isNDJSON) && response.body && streamingEnabled) {
-              await processSSEStream(response, controller.signal);
-            } else {
-              await processJSONResponse(response);
-            }
-          })
-          .catch((err) => {
-            if (err instanceof Error && err.name === 'AbortError') {
-              // User cancelled - mark as complete with current content
-              return;
-            }
-            const message = err instanceof Error ? err.message : 'Failed to get response';
-            setError(message);
-            updateLastAssistantMessage('Sorry, I encountered an error.', true);
-          })
-          .finally(() => {
-            setIsStreaming(false);
-            abortControllerRef.current = null;
+        try {
+          const res = await fetch(`${API_BASE}/sessions/${convId}/messages`, {
+            method: 'POST',
+            headers: authHeaders(true),
+            body: JSON.stringify({ content: trimmed }),
+            signal: controller.signal,
           });
-      }, 200);
+
+          if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
+          const json = (await res.json()) as {
+            data?: { message?: ServerMessage; usage?: { totalTokens?: number } };
+          };
+          const serverMsg = json.data?.message;
+
+          // Replace the thinking placeholder with the persisted assistant message.
+          patchConversation(convId, (c) => {
+            const msgs = c.messages.map((m) =>
+              m.id === tempAssistantId && serverMsg
+                ? { ...mapServerMessage(serverMsg), pending: false }
+                : m.id === tempUserId
+                  ? { ...m, pending: false }
+                  : m,
+            );
+            return { ...c, messages: msgs };
+          });
+
+          if (isFirstMessage) {
+            const title = trimmed.slice(0, 60);
+            patchConversation(convId, (c) => ({ ...c, title }));
+            void fetch(`${API_BASE}/sessions/${convId}`, {
+              method: 'PUT',
+              headers: authHeaders(true),
+              body: JSON.stringify({ title }),
+            }).catch(() => undefined);
+          }
+        } catch (err) {
+          if (err instanceof Error && err.name === 'AbortError') return;
+          setError(err instanceof Error ? err.message : 'Failed to get response');
+          patchConversation(convId, (c) => ({
+            ...c,
+            messages: c.messages.map((m) =>
+              m.id === tempAssistantId
+                ? { ...m, content: 'Sorry, I encountered an error.', isStreaming: false }
+                : m,
+            ),
+          }));
+        } finally {
+          setIsStreaming(false);
+          abortControllerRef.current = null;
+        }
+      })();
     },
     [
       activeConversationId,
       isStreaming,
       currentModel,
-      streamingEnabled,
+      conversations,
       createConversation,
-      addMessageToConversation,
-      updateLastAssistantMessage,
-      processSSEStream,
-      processJSONResponse,
+      appendMessage,
+      patchConversation,
     ],
   );
 
-  const switchModel = useCallback((modelId: string) => {
-    setCurrentModel(modelId);
-  }, []);
+  const setFeedback = useCallback(
+    (messageId: string, value: 'POSITIVE' | 'NEGATIVE') => {
+      const convId = activeConversationId;
+      if (!convId || messageId.startsWith('tmp-')) return;
+
+      let previous: ChatMessage['feedback'] = null;
+      patchConversation(convId, (c) => ({
+        ...c,
+        messages: c.messages.map((m) => {
+          if (m.id !== messageId) return m;
+          previous = m.feedback ?? null;
+          return { ...m, feedback: previous === value ? null : value };
+        }),
+      }));
+
+      const next = previous === value ? null : value;
+      void fetch(`${API_BASE}/sessions/${convId}/messages/${messageId}/feedback`, {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify({ feedback: next }),
+      }).catch(() => {
+        // Roll back on failure.
+        patchConversation(convId, (c) => ({
+          ...c,
+          messages: c.messages.map((m) => (m.id === messageId ? { ...m, feedback: previous } : m)),
+        }));
+      });
+    },
+    [activeConversationId, patchConversation],
+  );
+
+  const switchModel = useCallback(
+    (modelId: string) => {
+      setCurrentModel(modelId);
+      if (activeConversationId) {
+        void fetch(`${API_BASE}/sessions/${activeConversationId}`, {
+          method: 'PUT',
+          headers: authHeaders(true),
+          body: JSON.stringify({ model: modelId }),
+        }).catch(() => undefined);
+        patchConversation(activeConversationId, (c) => ({ ...c, model: modelId }));
+      }
+    },
+    [activeConversationId, patchConversation],
+  );
 
   const clearMessages = useCallback(() => {
     if (!activeConversationId) return;
-    setConversations((prev) =>
-      prev.map((conv) => (conv.id === activeConversationId ? { ...conv, messages: [] } : conv)),
-    );
-  }, [activeConversationId]);
+    patchConversation(activeConversationId, (c) => ({ ...c, messages: [] }));
+  }, [activeConversationId, patchConversation]);
 
   const retryLastMessage = useCallback(() => {
-    if (!activeConversation || activeConversation.messages.length < 2) return;
-    const lastUserMsg = [...activeConversation.messages].reverse().find((m) => m.role === 'user');
-    if (lastUserMsg) {
-      setConversations((prev) =>
-        prev.map((conv) => {
-          if (conv.id !== activeConversationId) return conv;
-          const msgs = conv.messages.slice(0, -1);
-          return { ...conv, messages: msgs };
-        }),
-      );
-      setTimeout(() => sendMessage(lastUserMsg.content), 100);
-    }
-  }, [activeConversation, activeConversationId, sendMessage]);
+    if (!activeConversation) return;
+    const lastUser = [...activeConversation.messages].reverse().find((m) => m.role === 'user');
+    if (lastUser) sendMessage(lastUser.content);
+  }, [activeConversation, sendMessage]);
 
   const stopStreaming = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     setIsStreaming(false);
-    updateLastAssistantMessage(messages[messages.length - 1]?.content || '', true);
-  }, [messages, updateLastAssistantMessage]);
+  }, []);
 
   return {
     conversations,
@@ -397,13 +430,14 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
     currentModel,
     tokenCount,
     sendMessage,
-    createConversation,
+    createConversation: () => void createConversation(),
     selectConversation,
     deleteConversation,
     switchModel,
     clearMessages,
     retryLastMessage,
     stopStreaming,
+    setFeedback,
   };
 }
 

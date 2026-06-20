@@ -1,19 +1,66 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
-import { ChatService } from '../services/chat.service';
+import { ChatService, type AIEngineInterface } from '../services/chat.service';
 
 const feedbackSchema = z.object({
   // 'POSITIVE' | 'NEGATIVE' to set, null to clear.
   feedback: z.union([z.enum(['POSITIVE', 'NEGATIVE']), z.null()]),
 });
 
+const sendMessageSchema = z.object({
+  content: z.string().min(1).max(100000),
+  attachments: z.array(z.record(z.string(), z.unknown())).optional(),
+});
+
+const historyQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(200).optional(),
+});
+
+function getUserId(request: unknown): string {
+  const userId = (request as { auth?: { userId?: string } }).auth?.userId;
+  if (!userId) {
+    throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+  }
+  return userId;
+}
+
 /**
- * Message-scoped routes mounted under the /sessions prefix. Currently exposes
- * thumbs-up / thumbs-down feedback on assistant messages, persisted on the
- * AIMessage record (drives the quality/eval loop).
+ * Message-scoped routes mounted under the /sessions prefix. Persisted chat:
+ * history + send (both backed by ChatService -> AISession/AIMessage), plus
+ * thumbs-up / thumbs-down feedback on assistant messages.
  */
 export default async function messagesRoutes(fastify: FastifyInstance) {
+  function getService(): ChatService {
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    const engine = (fastify as unknown as { aiEngine?: AIEngineInterface }).aiEngine;
+    return new ChatService(prisma as never, engine);
+  }
+
+  // GET /sessions/:id/messages - Paginated message history for a conversation
+  fastify.get<{ Params: { id: string } }>('/:id/messages', async (request, reply) => {
+    const queryResult = historyQuerySchema.safeParse(request.query);
+    if (!queryResult.success) {
+      throw queryResult.error;
+    }
+    const userId = getUserId(request);
+    const result = await getService().getHistory(request.params.id, userId, queryResult.data);
+    return reply.send({ success: true, data: result });
+  });
+
+  // POST /sessions/:id/messages - Persist a user message, generate + persist the reply
+  fastify.post<{ Params: { id: string } }>('/:id/messages', async (request, reply) => {
+    const parseResult = sendMessageSchema.safeParse(request.body);
+    if (!parseResult.success) {
+      throw parseResult.error;
+    }
+    const userId = getUserId(request);
+    const { content, attachments } = parseResult.data;
+    const result = await getService().sendMessage(request.params.id, userId, content, attachments);
+    return reply.status(201).send({ success: true, data: result });
+  });
+
   // POST /sessions/:id/messages/:messageId/feedback
   fastify.post<{ Params: { id: string; messageId: string } }>(
     '/:id/messages/:messageId/feedback',
@@ -23,14 +70,8 @@ export default async function messagesRoutes(fastify: FastifyInstance) {
         throw parseResult.error;
       }
 
-      const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
-      if (!userId) {
-        throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
-      }
-
-      const prisma = (fastify as unknown as { prisma: unknown }).prisma;
-      const service = new ChatService(prisma as never);
-      const message = await service.setFeedback(
+      const userId = getUserId(request);
+      const message = await getService().setFeedback(
         request.params.id,
         userId,
         request.params.messageId,

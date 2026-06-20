@@ -30,6 +30,7 @@ export default function AIPage() {
     createConversation,
     selectConversation,
     switchModel: hookSwitchModel,
+    setFeedback,
   } = useAIChat({ defaultModel: currentModel.id });
 
   const [voiceActive, setVoiceActive] = useState(false);
@@ -265,7 +266,7 @@ export default function AIPage() {
           </div>
 
           {/* Chat Messages */}
-          <ChatMessages messages={messages} isStreaming={isStreaming} />
+          <ChatMessages messages={messages} isStreaming={isStreaming} onFeedback={setFeedback} />
 
           {/* Multi-modal input area */}
           <ChatInput
@@ -327,6 +328,7 @@ export default function AIPage() {
 function ChatMessages({
   messages,
   isStreaming,
+  onFeedback,
 }: {
   messages: Array<{
     id: string;
@@ -334,8 +336,11 @@ function ChatMessages({
     content: string;
     timestamp: string;
     isStreaming?: boolean;
+    pending?: boolean;
+    feedback?: 'POSITIVE' | 'NEGATIVE' | null;
   }>;
   isStreaming: boolean;
+  onFeedback?: (messageId: string, value: 'POSITIVE' | 'NEGATIVE') => void;
 }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
@@ -410,6 +415,39 @@ function ChatMessages({
                   minute: '2-digit',
                 })}
               </span>
+              {msg.role === 'assistant' &&
+                onFeedback &&
+                !msg.pending &&
+                !msg.id.startsWith('tmp-') && (
+                  <div className="flex items-center gap-1 mt-1.5">
+                    <button
+                      type="button"
+                      aria-label="Good response"
+                      aria-pressed={msg.feedback === 'POSITIVE'}
+                      onClick={() => onFeedback(msg.id, 'POSITIVE')}
+                      className={`text-xs px-1.5 py-0.5 rounded-md transition-colors ${
+                        msg.feedback === 'POSITIVE'
+                          ? 'bg-emerald-500/20 text-emerald-500'
+                          : 'text-[var(--foreground-secondary)] hover:bg-[var(--quant-surface-hover)]'
+                      }`}
+                    >
+                      👍
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Bad response"
+                      aria-pressed={msg.feedback === 'NEGATIVE'}
+                      onClick={() => onFeedback(msg.id, 'NEGATIVE')}
+                      className={`text-xs px-1.5 py-0.5 rounded-md transition-colors ${
+                        msg.feedback === 'NEGATIVE'
+                          ? 'bg-red-500/20 text-red-500'
+                          : 'text-[var(--foreground-secondary)] hover:bg-[var(--quant-surface-hover)]'
+                      }`}
+                    >
+                      👎
+                    </button>
+                  </div>
+                )}
             </div>
           </motion.div>
         ))}
