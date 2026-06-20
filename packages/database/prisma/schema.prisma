@@ -2082,6 +2082,34 @@ model PaymentRecord {
   @@map("payment_records")
 }
 
+// ==================== OVERAGE (Phase 7+) ====================
+// Per-owner OVERAGE policy: whether the owner has explicitly OPTED IN to let
+// metered actions proceed BEYOND their available credit balance (the excess is
+// recorded as billable overage), and the per-period ceiling on such overage.
+//
+// Overage is OFF by default — the absence of a row (or `enabled = false`) means
+// the wallet stays fail-closed and a user is NEVER charged beyond the credits
+// they hold unless they deliberately turn this on (the vision's "overage only
+// when the user toggles it ON"). The UsageGate reads this (via an
+// OveragePolicyPort) to decide whether an over-balance action may proceed, and
+// QuantTrinity can manage it centrally. Strings/ints/bools only — purely
+// additive, no enum migration.
+
+model OverageSetting {
+  id                  String   @id @default(cuid())
+  ownerRef            String   @unique // OWNER — exactly one policy per wallet owner
+  ownerType           String   @default("user") // "user" | "org"
+  tenantId            String? // ownership/isolation boundary for authz
+  enabled             Boolean  @default(false) // OPT-IN; default OFF (no surprise charges)
+  monthlyLimitCredits Int      @default(0) // ceiling on overage credits per UTC month (0 = none)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([ownerRef])
+  @@index([tenantId])
+  @@map("overage_settings")
+}
+
 // ==================== FEATURE FLAGS ====================
 
 model FeatureFlag {
