@@ -3,7 +3,12 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { spring } from '@quant/brand';
-import { CommandPaletteProvider, useCommandPalette } from '@quant/shared-ui';
+import {
+  CommandPaletteProvider,
+  useCommandPalette,
+  QuantSidekickProvider,
+  QuantSidekick,
+} from '@quant/shared-ui';
 import type { CommandPaletteItem } from '@quant/shared-ui';
 import { QueryProvider } from '../providers/query-provider';
 import { ThemeProvider } from '../providers/theme-provider';
@@ -42,21 +47,24 @@ export default function App({ Component, pageProps }: AppProps) {
       <QueryProvider>
         <ThemeProvider>
           <CommandPaletteProvider appName="QuantMax">
-            <QuantMaxCommandRegistrar />
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={router.pathname}
-                initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
-                transition={
-                  prefersReducedMotion ? { duration: 0 } : { type: 'spring', ...spring.gentle }
-                }
-                className="min-h-screen"
-              >
-                <Component {...pageProps} />
-              </motion.div>
-            </AnimatePresence>
+            <QuantSidekickProvider>
+              <QuantMaxCommandRegistrar />
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={router.pathname}
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                  transition={
+                    prefersReducedMotion ? { duration: 0 } : { type: 'spring', ...spring.gentle }
+                  }
+                  className="min-h-screen"
+                >
+                  <Component {...pageProps} />
+                </motion.div>
+              </AnimatePresence>
+              <QuantSidekick />
+            </QuantSidekickProvider>
           </CommandPaletteProvider>
         </ThemeProvider>
       </QueryProvider>
