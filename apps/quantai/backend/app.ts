@@ -39,6 +39,7 @@ import quantToolsRoutes from './routes/quant-tools';
 import browserAgentRoutes from './routes/browser-agent';
 import codeAgentRoutes from './routes/code-agent';
 import userOwnedAiRoutes from './routes/user-owned-ai';
+import promptTemplateRoutes from './routes/prompt-templates';
 import { AIEngine } from './services/ai-engine';
 import { Orchestrator } from '@quant/agent-runtime';
 import { SwarmOrchestrator } from '@quant/agent-swarm';
@@ -123,6 +124,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(userOwnedAiRoutes, { prefix: '/agents/owned' });
   await app.register(sessionsRoutes, { prefix: '/sessions' });
   await app.register(messagesRoutes, { prefix: '/sessions' });
+  await app.register(promptTemplateRoutes, { prefix: '/prompts' });
   await app.register(orchestrationRoutes, { prefix: '/orchestration' });
   await app.register(toolsRoutes, { prefix: '/tools' });
   await app.register(memoryRoutes, { prefix: '/memory' });
