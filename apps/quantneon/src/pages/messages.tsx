@@ -1,295 +1,79 @@
 // ============================================================================
-// QuantNeon - Direct Messages
-// DMs inbox with conversations, group chats, message requests, read receipts
+// QuantNeon - Direct Messages (real, Prisma-backed)
+// Conversation inbox + 1:1 thread, wired end-to-end via the DM API.
 // ============================================================================
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { PageTransition } from '@quant/shared-ui';
-
-interface Conversation {
-  id: string;
-  participants: Participant[];
-  lastMessage: Message;
-  unreadCount: number;
-  isGroup: boolean;
-  groupName: string | null;
-  groupAvatar: string | null;
-  isMuted: boolean;
-  isPinned: boolean;
-}
-
-interface Participant {
-  id: string;
-  username: string;
-  avatar: string;
-  isOnline: boolean;
-}
-
-interface Message {
-  id: string;
-  senderId: string;
-  text: string;
-  timestamp: string;
-  isRead: boolean;
-  type: 'text' | 'image' | 'voice' | 'post_share' | 'reel_share';
-  mediaUrl: string | null;
-}
-
-interface MessageRequest {
-  id: string;
-  from: Participant;
-  preview: string;
-  timestamp: string;
-}
-
-interface MessagesPageState {
-  conversations: Conversation[];
-  activeConversation: Conversation | null;
-  messages: Message[];
-  messageRequests: MessageRequest[];
-  inputText: string;
-  loading: boolean;
-  error: string | null;
-  showRequests: boolean;
-  searchQuery: string;
-  disappearingMode: boolean;
-  sending: boolean;
-}
-
-const MOCK_CONVERSATIONS: Conversation[] = [
-  {
-    id: 'conv1',
-    participants: [
-      { id: 'u1', username: 'alex_photo', avatar: '/avatars/alex.jpg', isOnline: true },
-    ],
-    lastMessage: {
-      id: 'm1',
-      senderId: 'u1',
-      text: 'That sunset shot was incredible!',
-      timestamp: '2024-01-15T19:30:00Z',
-      isRead: false,
-      type: 'text',
-      mediaUrl: null,
-    },
-    unreadCount: 3,
-    isGroup: false,
-    groupName: null,
-    groupAvatar: null,
-    isMuted: false,
-    isPinned: true,
-  },
-  {
-    id: 'conv2',
-    participants: [
-      { id: 'u2', username: 'travel_emma', avatar: '/avatars/emma.jpg', isOnline: true },
-      { id: 'u3', username: 'foodie_mark', avatar: '/avatars/mark.jpg', isOnline: false },
-    ],
-    lastMessage: {
-      id: 'm2',
-      senderId: 'u2',
-      text: 'When are we meeting for the collab?',
-      timestamp: '2024-01-15T18:00:00Z',
-      isRead: true,
-      type: 'text',
-      mediaUrl: null,
-    },
-    unreadCount: 0,
-    isGroup: true,
-    groupName: 'Collab Squad',
-    groupAvatar: null,
-    isMuted: false,
-    isPinned: false,
-  },
-  {
-    id: 'conv3',
-    participants: [
-      { id: 'u4', username: 'design_sara', avatar: '/avatars/sara.jpg', isOnline: false },
-    ],
-    lastMessage: {
-      id: 'm3',
-      senderId: 'me',
-      text: 'Check out this reel!',
-      timestamp: '2024-01-15T16:00:00Z',
-      isRead: true,
-      type: 'reel_share',
-      mediaUrl: null,
-    },
-    unreadCount: 0,
-    isGroup: false,
-    groupName: null,
-    groupAvatar: null,
-    isMuted: true,
-    isPinned: false,
-  },
-  {
-    id: 'conv4',
-    participants: [{ id: 'u5', username: 'music_jay', avatar: '/avatars/jay.jpg', isOnline: true }],
-    lastMessage: {
-      id: 'm4',
-      senderId: 'u5',
-      text: 'Voice message',
-      timestamp: '2024-01-15T14:00:00Z',
-      isRead: false,
-      type: 'voice',
-      mediaUrl: '/audio/voice1.mp3',
-    },
-    unreadCount: 1,
-    isGroup: false,
-    groupName: null,
-    groupAvatar: null,
-    isMuted: false,
-    isPinned: false,
-  },
-];
-
-const MOCK_MESSAGES: Message[] = [
-  {
-    id: 'msg1',
-    senderId: 'u1',
-    text: 'Hey! Did you see my latest post?',
-    timestamp: '2024-01-15T19:00:00Z',
-    isRead: true,
-    type: 'text',
-    mediaUrl: null,
-  },
-  {
-    id: 'msg2',
-    senderId: 'me',
-    text: 'Yes! The lighting was perfect',
-    timestamp: '2024-01-15T19:10:00Z',
-    isRead: true,
-    type: 'text',
-    mediaUrl: null,
-  },
-  {
-    id: 'msg3',
-    senderId: 'u1',
-    text: 'Thanks! Golden hour magic',
-    timestamp: '2024-01-15T19:15:00Z',
-    isRead: true,
-    type: 'text',
-    mediaUrl: null,
-  },
-  {
-    id: 'msg4',
-    senderId: 'u1',
-    text: 'That sunset shot was incredible!',
-    timestamp: '2024-01-15T19:30:00Z',
-    isRead: false,
-    type: 'text',
-    mediaUrl: null,
-  },
-];
-
-const MOCK_REQUESTS: MessageRequest[] = [
-  {
-    id: 'req1',
-    from: { id: 'u10', username: 'new_follower', avatar: '/avatars/nf.jpg', isOnline: false },
-    preview: 'Hi! Love your content...',
-    timestamp: '2024-01-15T12:00:00Z',
-  },
-  {
-    id: 'req2',
-    from: { id: 'u11', username: 'brand_collab', avatar: '/avatars/brand.jpg', isOnline: true },
-    preview: 'We would love to work with you on...',
-    timestamp: '2024-01-14T10:00:00Z',
-  },
-];
+import {
+  useConversations,
+  useConversationMessages,
+  useSendMessage,
+  useMarkConversationRead,
+} from '../hooks/useDirectMessages';
 
 const MessagesPage: React.FC = () => {
-  const [state, setState] = useState<MessagesPageState>({
-    conversations: [],
-    activeConversation: null,
-    messages: [],
-    messageRequests: [],
-    inputText: '',
-    loading: true,
-    error: null,
-    showRequests: false,
-    searchQuery: '',
-    disappearingMode: false,
-    sending: false,
-  });
-
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [inputText, setInputText] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setState((prev) => ({ ...prev, loading: true }));
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        setState((prev) => ({
-          ...prev,
-          conversations: MOCK_CONVERSATIONS,
-          messageRequests: MOCK_REQUESTS,
-          loading: false,
-        }));
-      } catch {
-        setState((prev) => ({ ...prev, error: 'Failed to load messages', loading: false }));
-      }
-    };
-    load();
-  }, []);
+  const { data: conversations = [], isLoading, error, refetch } = useConversations();
+  const { data: messages = [] } = useConversationMessages(activeId);
+  const sendMessage = useSendMessage();
+  const markRead = useMarkConversationRead();
+
+  const activeConversation = useMemo(
+    () => conversations.find((c) => c.id === activeId) ?? null,
+    [conversations, activeId],
+  );
+
+  const filteredConversations = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return conversations;
+    return conversations.filter((c) => c.participant?.username.toLowerCase().includes(q));
+  }, [conversations, searchQuery]);
 
   useEffect(() => {
     if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-  }, [state.messages]);
+  }, [messages]);
 
-  const selectConversation = useCallback((conv: Conversation) => {
-    setState((prev) => ({ ...prev, activeConversation: conv, messages: MOCK_MESSAGES }));
-  }, []);
+  const selectConversation = useCallback(
+    (id: string) => {
+      setActiveId(id);
+      markRead.mutate(id);
+    },
+    [markRead],
+  );
 
-  const sendMessage = useCallback(async () => {
-    if (!state.inputText.trim()) return;
-    const newMsg: Message = {
-      id: `msg_${Date.now()}`,
-      senderId: 'me',
-      text: state.inputText,
-      timestamp: new Date().toISOString(),
-      isRead: false,
-      type: 'text',
-      mediaUrl: null,
-    };
-    setState((prev) => ({
-      ...prev,
-      messages: [...prev.messages, newMsg],
-      inputText: '',
-      sending: false,
-    }));
-  }, [state.inputText]);
+  const handleSend = useCallback(() => {
+    const text = inputText.trim();
+    if (!text || !activeId) return;
+    setInputText('');
+    sendMessage.mutate({ conversationId: activeId, text });
+  }, [inputText, activeId, sendMessage]);
 
-  const acceptRequest = useCallback((requestId: string) => {
-    setState((prev) => ({
-      ...prev,
-      messageRequests: prev.messageRequests.filter((r) => r.id !== requestId),
-    }));
-  }, []);
+  const fmtTime = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
-  const declineRequest = useCallback((requestId: string) => {
-    setState((prev) => ({
-      ...prev,
-      messageRequests: prev.messageRequests.filter((r) => r.id !== requestId),
-    }));
-  }, []);
-
-  if (state.loading) {
+  if (isLoading) {
     return (
       <PageTransition>
         <div className="flex items-center justify-center min-h-screen bg-black dark:bg-[#0F0F14]">
-          <div className="w-10 h-10 border-3 border-pink-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-[3px] border-pink-500 border-t-transparent rounded-full animate-spin" />
         </div>
       </PageTransition>
     );
   }
 
-  if (state.error) {
+  if (error) {
     return (
       <PageTransition>
         <div className="flex items-center justify-center min-h-screen bg-black dark:bg-[#0F0F14]">
           <div className="text-center space-y-3">
-            <p className="text-white">{state.error}</p>
+            <p className="text-white">Failed to load messages</p>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => void refetch()}
               className="min-h-[44px] px-4 py-2 bg-pink-600 text-white rounded-lg text-sm"
             >
               Retry
@@ -306,191 +90,132 @@ const MessagesPage: React.FC = () => {
         {/* Conversations List */}
         <div className="w-80 border-r border-gray-800 flex flex-col">
           <div className="p-4 border-b border-gray-800">
-            <div className="flex items-center justify-between mb-3">
-              <h1 className="text-xl font-bold">Messages</h1>
-              <button className="min-w-[44px] min-h-[44px] flex items-center justify-center text-white hover:bg-gray-800 rounded">
-                ✏
-              </button>
-            </div>
+            <h1 className="text-xl font-bold mb-3">Messages</h1>
             <input
               type="text"
-              value={state.searchQuery}
-              onChange={(e) => setState((prev) => ({ ...prev, searchQuery: e.target.value }))}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search messages..."
               className="w-full h-11 bg-gray-900 dark:bg-gray-800 text-white rounded-xl px-4 text-sm outline-none focus:ring-2 focus:ring-pink-500"
             />
           </div>
-          <div className="flex border-b border-gray-800">
-            <button
-              onClick={() => setState((prev) => ({ ...prev, showRequests: false }))}
-              className={`flex-1 min-h-[44px] py-2 text-sm font-medium ${!state.showRequests ? 'text-white border-b-2 border-white' : 'text-gray-500'}`}
-            >
-              Primary
-            </button>
-            <button
-              onClick={() => setState((prev) => ({ ...prev, showRequests: true }))}
-              className={`flex-1 min-h-[44px] py-2 text-sm font-medium relative ${state.showRequests ? 'text-white border-b-2 border-white' : 'text-gray-500'}`}
-            >
-              Requests
-              {state.messageRequests.length > 0 && (
-                <span className="absolute -top-1 right-4 w-4 h-4 bg-red-500 rounded-full text-xs flex items-center justify-center">
-                  {state.messageRequests.length}
-                </span>
-              )}
-            </button>
-          </div>
           <div className="flex-1 overflow-y-auto">
-            {!state.showRequests
-              ? state.conversations.map((conv) => (
-                  <div
-                    key={conv.id}
-                    onClick={() => selectConversation(conv)}
-                    className={`flex items-center space-x-3 px-4 py-3 cursor-pointer hover:bg-gray-900 dark:hover:bg-gray-800 ${state.activeConversation?.id === conv.id ? 'bg-gray-900 dark:bg-gray-800' : ''}`}
-                  >
-                    <div className="relative">
-                      <div className="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
-                        <img
-                          src={conv.participants[0].avatar}
-                          alt=""
-                          className="w-full h-full object-cover"
-                        />
+            {filteredConversations.length === 0 ? (
+              <div className="p-6 text-center text-gray-500 text-sm">No conversations yet</div>
+            ) : (
+              filteredConversations.map((conv) => (
+                <button
+                  key={conv.id}
+                  onClick={() => selectConversation(conv.id)}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-900 dark:hover:bg-gray-800 ${
+                    activeId === conv.id ? 'bg-gray-900 dark:bg-gray-800' : ''
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-full bg-gray-700 overflow-hidden flex-shrink-0">
+                    {conv.participant?.avatarUrl ? (
+                      <img
+                        src={conv.participant.avatarUrl}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-lg">
+                        {(conv.participant?.username ?? '?').charAt(0).toUpperCase()}
                       </div>
-                      {conv.participants[0].isOnline && (
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-black" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold truncate">
+                        {conv.participant?.username ?? 'Unknown'}
+                      </span>
+                      <span className="text-xs text-gray-500">{fmtTime(conv.lastMessageAt)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={`text-xs truncate ${
+                          conv.unreadCount > 0 ? 'text-white font-medium' : 'text-gray-500'
+                        }`}
+                      >
+                        {conv.lastMessage ?? 'Start the conversation'}
+                      </span>
+                      {conv.unreadCount > 0 && (
+                        <span className="w-5 h-5 bg-pink-600 rounded-full text-xs flex items-center justify-center flex-shrink-0">
+                          {conv.unreadCount}
+                        </span>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold truncate">
-                          {conv.isGroup ? conv.groupName : conv.participants[0].username}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {new Date(conv.lastMessage.timestamp).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span
-                          className={`text-xs truncate ${conv.unreadCount > 0 ? 'text-white font-medium' : 'text-gray-500'}`}
-                        >
-                          {conv.lastMessage.text}
-                        </span>
-                        {conv.unreadCount > 0 && (
-                          <span className="w-5 h-5 bg-pink-600 rounded-full text-xs flex items-center justify-center flex-shrink-0">
-                            {conv.unreadCount}
-                          </span>
-                        )}
-                      </div>
-                    </div>
                   </div>
-                ))
-              : state.messageRequests.map((req) => (
-                  <div key={req.id} className="flex items-center space-x-3 px-4 py-3">
-                    <div className="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
-                      <img src={req.from.avatar} alt="" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold">{req.from.username}</p>
-                      <p className="text-xs text-gray-500 truncate">{req.preview}</p>
-                    </div>
-                    <div className="flex space-x-1">
-                      <button
-                        onClick={() => acceptRequest(req.id)}
-                        className="min-h-[44px] px-2 py-1 bg-pink-600 text-white rounded text-xs"
-                      >
-                        Accept
-                      </button>
-                      <button
-                        onClick={() => declineRequest(req.id)}
-                        className="min-h-[44px] px-2 py-1 bg-gray-700 text-white rounded text-xs"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                </button>
+              ))
+            )}
           </div>
         </div>
 
         {/* Chat Area */}
         <div className="flex-1 flex flex-col">
-          {state.activeConversation ? (
+          {activeConversation ? (
             <>
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden">
+              <div className="flex items-center space-x-3 px-4 py-3 border-b border-gray-800">
+                <div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden">
+                  {activeConversation.participant?.avatarUrl ? (
                     <img
-                      src={state.activeConversation.participants[0].avatar}
+                      src={activeConversation.participant.avatarUrl}
                       alt=""
                       className="w-full h-full object-cover"
                     />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">
-                      {state.activeConversation.isGroup
-                        ? state.activeConversation.groupName
-                        : state.activeConversation.participants[0].username}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {state.activeConversation.participants[0].isOnline ? 'Active now' : 'Offline'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <button className="min-w-[44px] min-h-[44px] flex items-center justify-center text-white hover:bg-gray-800 rounded-full">
-                    📞
-                  </button>
-                  <button className="min-w-[44px] min-h-[44px] flex items-center justify-center text-white hover:bg-gray-800 rounded-full">
-                    📹
-                  </button>
-                  <button className="min-w-[44px] min-h-[44px] flex items-center justify-center text-white hover:bg-gray-800 rounded-full">
-                    ℹ
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {state.messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.senderId === 'me' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`max-w-xs px-4 py-2 rounded-2xl ${msg.senderId === 'me' ? 'bg-pink-600 text-white' : 'bg-gray-800 text-white'}`}
-                    >
-                      <p className="text-sm">{msg.text}</p>
-                      <p className="text-xs opacity-60 mt-1">
-                        {new Date(msg.timestamp).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </p>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xs">
+                      {(activeConversation.participant?.username ?? '?').charAt(0).toUpperCase()}
                     </div>
+                  )}
+                </div>
+                <p className="text-sm font-semibold">
+                  {activeConversation.participant?.username ?? 'Unknown'}
+                </p>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {messages.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-gray-500 text-sm">
+                    Say hi 👋
                   </div>
-                ))}
+                ) : (
+                  messages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex ${msg.isMine ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-xs px-4 py-2 rounded-2xl ${
+                          msg.isMine ? 'bg-pink-600 text-white' : 'bg-gray-800 text-white'
+                        }`}
+                      >
+                        <p className="text-sm break-words">{msg.content}</p>
+                        <p className="text-xs opacity-60 mt-1">{fmtTime(msg.createdAt)}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
                 <div ref={messagesEndRef} />
               </div>
+
               <div className="px-4 py-3 border-t border-gray-800 flex items-center space-x-3">
-                <button className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-white">
-                  📷
-                </button>
                 <input
                   type="text"
-                  value={state.inputText}
-                  onChange={(e) => setState((prev) => ({ ...prev, inputText: e.target.value }))}
-                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                   placeholder="Message..."
                   className="flex-1 h-11 bg-gray-900 dark:bg-gray-800 text-white rounded-full px-4 text-sm outline-none focus:ring-2 focus:ring-pink-500"
                 />
-                <button className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-white">
-                  🎤
+                <button
+                  onClick={handleSend}
+                  disabled={!inputText.trim() || sendMessage.isPending}
+                  className="text-pink-500 font-semibold text-sm disabled:opacity-40"
+                >
+                  Send
                 </button>
-                {state.inputText.trim() && (
-                  <button onClick={sendMessage} className="text-pink-500 font-semibold text-sm">
-                    Send
-                  </button>
-                )}
               </div>
             </>
           ) : (
