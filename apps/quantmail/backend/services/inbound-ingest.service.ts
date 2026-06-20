@@ -8,6 +8,8 @@ import {
 } from './deliverability-auth.service';
 import { EmailService } from './email.service';
 import { ThreadService } from './thread.service';
+import { MailFilterService, type ResolvedActions } from './mail-filter.service';
+import { VacationResponderService } from './vacation-responder.service';
 // Observability (Task 23.1, Req 23.2): every inbound delivery operation emits a span.
 import { noopSpanPort, withSpan, type SpanPort } from '../shared/observability';
 
@@ -52,6 +54,23 @@ export class NoopEmailIndexer implements EmailIndexerPort {
 }
 
 /**
+ * Injectable seam for sending mail the ingest pipeline originates itself —
+ * vacation auto-replies and filter "forward" actions. Decoupled from the
+ * outbound delivery pipeline so ingest stays testable; production wiring passes
+ * an adapter that enqueues onto the OutboundDeliveryPipeline.
+ */
+export interface InboundAutoResponderPort {
+  send(input: {
+    userId: string;
+    to: string;
+    subject: string;
+    bodyPlain: string;
+    inReplyTo?: string | null;
+    kind: 'vacation-reply' | 'filter-forward';
+  }): Promise<void>;
+}
+
+/**
  * Raw inbound message as bridged from `smtp-inbound` (a superset of its
  * `ParsedEmail`). The envelope/header/raw fields are optional because the SMTP
  * transport may not always surface them; SPF/DKIM/DMARC degrade gracefully when
@@ -93,14 +112,26 @@ export interface InboundIngestDeps {
    * adapter stays a zero-cost no-op when nothing is wired.
    */
   tracer?: SpanPort;
+  /**
+   * Optional server-side filters/rules engine. When provided, the user's
+   * enabled filters are evaluated against each non-quarantined inbound message
+   * and their merged actions (label/move/read/star/archive/spam/delete/forward)
+   * are applied. Omitted => no filtering (legacy behaviour).
+   */
+  filters?: MailFilterService;
+  /**
+   * Optional vacation auto-responder. When provided (with an `autoResponder`),
+   * a one-shot out-of-office reply is sent to eligible senders.
+   */
+  vacation?: VacationResponderService;
+  /** Sink for ingest-originated mail (vacation replies, filter forwards). */
+  autoResponder?: InboundAutoResponderPort;
 }
 
 /** Structural view of the folder lookups this adapter needs. */
 interface FolderLookupPrisma {
   emailFolder: {
-    findFirst(args: {
-      where: { userId: string; type: string };
-    }): Promise<{ id: string } | null>;
+    findFirst(args: { where: { userId: string; type: string } }): Promise<{ id: string } | null>;
   };
   user: {
     findUnique(args: { where: { email: string } }): Promise<{ id: string } | null>;
@@ -134,6 +165,9 @@ export class InboundIngestAdapter {
   private readonly thread: ThreadService;
   private readonly indexer: EmailIndexerPort;
   private readonly tracer: SpanPort;
+  private readonly filters: MailFilterService | undefined;
+  private readonly vacation: VacationResponderService | undefined;
+  private readonly autoResponder: InboundAutoResponderPort | undefined;
 
   constructor(
     private readonly prisma: PrismaClient,
@@ -144,6 +178,9 @@ export class InboundIngestAdapter {
     this.thread = deps.thread ?? new ThreadService(prisma);
     this.indexer = deps.indexer ?? new NoopEmailIndexer();
     this.tracer = deps.tracer ?? noopSpanPort;
+    this.filters = deps.filters;
+    this.vacation = deps.vacation;
+    this.autoResponder = deps.autoResponder;
   }
 
   /**
@@ -232,19 +269,71 @@ export class InboundIngestAdapter {
           });
         }
 
-        // 6) Index only authenticated (non-quarantined) mail (Requirement 5.2).
-        if (!quarantine) {
-          await this.indexer.index(email);
+        // 6) Apply the user's server-side filters/rules to non-quarantined mail.
+        //    Filter actions may re-route the message (move/archive/spam), flag it
+        //    (read/star), label it, forward it, or delete it. Best-effort: a
+        //    filter failure must never break ingest of the (already persisted)
+        //    message.
+        let finalEmail = email;
+        let filterSuppressedIndex = false;
+        if (this.filters && !quarantine) {
+          try {
+            const actions = await this.filters.computeActions(userId, {
+              fromAddress,
+              toAddresses: rawMessage.to,
+              subject: rawMessage.subject,
+              bodyPlain: text,
+              bodyHtml: rawMessage.html ?? null,
+              hasAttachments:
+                rawMessage.hasAttachments ?? (rawMessage.attachments?.length ?? 0) > 0,
+            });
+            if (actions.matchedFilterIds.length > 0) {
+              finalEmail = await this.applyFilterActions(userId, email, actions);
+              filterSuppressedIndex = actions.delete === true || actions.markSpam === true;
+              await this.forwardViaFilters(userId, finalEmail, actions, rawMessage);
+            }
+            span.setAttributes({ 'delivery.matched_filters': actions.matchedFilterIds.length });
+          } catch {
+            // Swallow: the message is already safely persisted.
+          }
+        }
+
+        // 7) Index only authenticated mail that wasn't spam'd/deleted by a filter
+        //    (Requirement 5.2).
+        if (!quarantine && !filterSuppressedIndex) {
+          await this.indexer.index(finalEmail);
+        }
+
+        // 8) Vacation auto-responder: send a one-shot out-of-office reply to
+        //    eligible senders (service enforces window/contacts/interval/
+        //    automated-sender rules). Best-effort and never blocks ingest.
+        if (this.vacation && this.autoResponder && !quarantine && !filterSuppressedIndex) {
+          try {
+            const now = rawMessage.date ?? new Date();
+            const reply = await this.vacation.buildAutoReply(userId, fromAddress, now);
+            if (reply) {
+              await this.autoResponder.send({
+                userId,
+                to: fromAddress,
+                subject: reply.subject,
+                bodyPlain: reply.message,
+                inReplyTo: rawMessage.messageId ?? null,
+                kind: 'vacation-reply',
+              });
+            }
+          } catch {
+            // Swallow: auto-reply is best-effort.
+          }
         }
 
         span.setAttributes({
           'delivery.user_id': userId,
           'delivery.quarantined': quarantine,
           'delivery.dmarc': verdict.dmarc,
-          'delivery.indexed': !quarantine,
+          'delivery.indexed': !quarantine && !filterSuppressedIndex,
         });
 
-        return email;
+        return finalEmail;
       },
     );
   }
@@ -277,10 +366,91 @@ export class InboundIngestAdapter {
     return null;
   }
 
-  /** Find the recipient's folder of the given type (INBOX or SPAM). */
-  private async resolveFolder(userId: string, type: 'INBOX' | 'SPAM'): Promise<string | null> {
+  /** Find the recipient's folder of the given type (INBOX/SPAM/ARCHIVE/TRASH). */
+  private async resolveFolder(
+    userId: string,
+    type: 'INBOX' | 'SPAM' | 'ARCHIVE' | 'TRASH',
+  ): Promise<string | null> {
     const db = this.prisma as unknown as FolderLookupPrisma;
     const folder = await db.emailFolder.findFirst({ where: { userId, type } });
     return folder?.id ?? null;
+  }
+
+  /**
+   * Apply the merged {@link ResolvedActions} from the filter engine to a freshly
+   * persisted email via a single update. Precedence for routing: delete > spam >
+   * archive > explicit move. Labels are appended (deduped); flags are set when
+   * requested.
+   */
+  private async applyFilterActions(
+    userId: string,
+    email: Email,
+    actions: ResolvedActions,
+  ): Promise<Email> {
+    const data: Record<string, unknown> = {};
+
+    if (actions.markRead) data['isRead'] = true;
+    if (actions.star) data['isStarred'] = true;
+
+    if (actions.addLabelIds.length > 0) {
+      const current =
+        ((email as unknown as { labels?: unknown }).labels as string[] | undefined) ?? [];
+      data['labels'] = Array.from(new Set([...current, ...actions.addLabelIds]));
+    }
+
+    // Routing — highest-precedence destination wins.
+    if (actions.delete) {
+      data['isTrash'] = true;
+      data['deletedAt'] = new Date();
+      const trash = await this.resolveFolder(userId, 'TRASH');
+      if (trash) data['folderId'] = trash;
+    } else if (actions.markSpam) {
+      data['isSpam'] = true;
+      const spam = await this.resolveFolder(userId, 'SPAM');
+      if (spam) data['folderId'] = spam;
+    } else if (actions.archive) {
+      const archive = await this.resolveFolder(userId, 'ARCHIVE');
+      if (archive) data['folderId'] = archive;
+    } else if (actions.moveToFolderId) {
+      data['folderId'] = actions.moveToFolderId;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return email;
+    }
+
+    const updated = await this.prisma.email.update({
+      where: { id: email.id },
+      data: data as never,
+    });
+    return updated;
+  }
+
+  /** Forward the message to any addresses requested by matching filters. */
+  private async forwardViaFilters(
+    userId: string,
+    email: Email,
+    actions: ResolvedActions,
+    rawMessage: InboundRawMessage,
+  ): Promise<void> {
+    if (!this.autoResponder || !actions.forwardTo || actions.forwardTo.length === 0) {
+      return;
+    }
+    const subject = `Fwd: ${rawMessage.subject}`;
+    const body = rawMessage.text ?? rawMessage.html ?? '';
+    for (const to of actions.forwardTo) {
+      try {
+        await this.autoResponder.send({
+          userId,
+          to,
+          subject,
+          bodyPlain: body,
+          inReplyTo: rawMessage.messageId ?? null,
+          kind: 'filter-forward',
+        });
+      } catch {
+        // Best-effort per recipient.
+      }
+    }
   }
 }
