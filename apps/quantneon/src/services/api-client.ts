@@ -4,6 +4,28 @@
 
 import type { Post, Reel, Story, Profile, Game, Product, ARFilter, Comment } from '../types';
 
+export interface DMParticipant {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+export interface DMConversation {
+  id: string;
+  participant: DMParticipant | null;
+  lastMessage: string | null;
+  lastMessageAt: string | null;
+  unreadCount: number;
+}
+export interface DirectMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  content: string;
+  isMine: boolean;
+  createdAt: string;
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -240,6 +262,33 @@ class QuantNeonApiClient {
     return this.request<{ captions: string[] }>('/api/ai/caption/generate', {
       method: 'POST',
       body: input,
+    });
+  }
+  // Messaging (Direct Messages)
+  async getConversations() {
+    return this.request<{ conversations: DMConversation[] }>('/api/messages/conversations');
+  }
+  async startConversation(userId: string) {
+    return this.request<{ conversationId: string }>('/api/messages/conversations', {
+      method: 'POST',
+      body: { userId },
+    });
+  }
+  async getMessages(conversationId: string, page?: number) {
+    return this.request<{ messages: DirectMessage[]; page: number; hasMore: boolean }>(
+      `/api/messages/conversations/${conversationId}/messages`,
+      { params: page ? { page: String(page) } : undefined },
+    );
+  }
+  async sendMessage(conversationId: string, text: string) {
+    return this.request<{ message: DirectMessage }>(
+      `/api/messages/conversations/${conversationId}/messages`,
+      { method: 'POST', body: { text } },
+    );
+  }
+  async markConversationRead(conversationId: string) {
+    return this.request<{ updated: number }>(`/api/messages/conversations/${conversationId}/read`, {
+      method: 'POST',
     });
   }
 }

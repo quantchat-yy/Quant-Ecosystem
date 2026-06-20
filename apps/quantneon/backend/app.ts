@@ -5,6 +5,7 @@ import profilesRoutes from './routes/profiles';
 import reelsRoutes from './routes/reels';
 import exploreRoutes from './routes/explore';
 import notificationsRoutes from './routes/notifications';
+import messagesRoutes from './routes/messages';
 import photosRoutes from './routes/photos';
 import storiesRoutes from './routes/stories';
 import filtersRoutes from './routes/filters';
@@ -45,6 +46,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(reelsRoutes, { prefix: '/reels' });
   await app.register(exploreRoutes, { prefix: '/explore' });
   await app.register(notificationsRoutes, { prefix: '/notifications' });
+  await app.register(messagesRoutes, { prefix: '/messages' });
   await app.register(photosRoutes, { prefix: '/photos' });
   await app.register(storiesRoutes, { prefix: '/stories' });
   await app.register(filtersRoutes, { prefix: '/filters' });
