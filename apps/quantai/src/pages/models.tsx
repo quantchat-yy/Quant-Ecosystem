@@ -91,7 +91,6 @@ export default function ModelsPage(): JSX.Element {
   const [benchmarks] = useState<BenchmarkCategory[]>(BENCHMARKS);
   const [showComparison, setShowComparison] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<'name' | 'cost' | 'latency' | 'context'>('name');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const sortedModels = useMemo(() => {
