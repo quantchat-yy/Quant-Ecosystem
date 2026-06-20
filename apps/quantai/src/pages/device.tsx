@@ -94,7 +94,7 @@ export default function DevicePage(): JSX.Element {
   const [voiceInput, setVoiceInput] = useState<string>('');
   const [voiceHistory, setVoiceHistory] = useState<VoiceCommand[]>([]);
   const [audioLevel, setAudioLevel] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const animationRef = useRef<number>(0);
