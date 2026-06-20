@@ -108,7 +108,7 @@ export default function PluginsPage(): JSX.Element {
   const [customDescription, setCustomDescription] = useState<string>('');
   const [customWebhook, setCustomWebhook] = useState<string>('');
   const [customTriggers, setCustomTriggers] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const filteredPlugins = useMemo(() => {
