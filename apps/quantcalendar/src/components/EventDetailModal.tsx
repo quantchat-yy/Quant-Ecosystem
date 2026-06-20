@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { spring } from '@quant/brand';
-import { Modal, Button, Badge, Avatar } from '@quant/shared-ui';
+import { Modal, Button, Avatar } from '@quant/shared-ui';
 import type { CalendarEvent } from '../hooks/useEvents';
 
 type RsvpStatus = 'yes' | 'no' | 'maybe' | null;
