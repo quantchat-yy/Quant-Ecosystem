@@ -3,7 +3,7 @@
 // Face shape, skin tone, hairstyle, eyes, nose, mouth, outfit, save/randomize
 // ============================================================================
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { logger } from '@quant/common';
 import { getAuthHeaders, getAuthHeadersWithContent } from '../lib/auth';
 
@@ -229,10 +229,6 @@ export const BitmojiPage: React.FC<BitmojiPageProps> = ({ userId }) => {
         : [...prev.accessories, acc],
     }));
   }, []);
-
-  const avatarPreview = useMemo(() => {
-    return { faceEmoji: '\u{1F9D1}', hairEmoji: config.hairStyle === 'bald' ? '' : '\u{1F487}' };
-  }, [config]);
 
   if (loading)
     return (
