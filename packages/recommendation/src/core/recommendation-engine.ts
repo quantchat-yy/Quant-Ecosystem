@@ -70,7 +70,7 @@ export class RecommendationEngine {
 
     const recommendations: ContentItem[] = [];
 
-    for (const [id, content] of this.contentItems) {
+    for (const content of this.contentItems.values()) {
       const score = this.calculateContentScore(profile, content);
       if (score > 0.5) {
         recommendations.push({ ...content, score });
@@ -160,7 +160,7 @@ export class RecommendationEngine {
     await this.updateUserProfile(userId, contentId, type);
   }
 
-  private async updateUserProfile(userId: string, contentId: string, type: InteractionType) {
+  private async updateUserProfile(userId: string, contentId: string, _type: InteractionType) {
     let profile = this.userProfiles.get(userId);
     if (!profile) {
       profile = { userId, interests: [], preferredCategories: [], lastUpdated: new Date() };

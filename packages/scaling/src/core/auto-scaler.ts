@@ -81,7 +81,6 @@ export class AutoScaler {
     const current = this.currentReplicas.get(service) || 1;
 
     if (targetReplicas !== current) {
-      console.log(`Scaling ${service} from ${current} to ${targetReplicas} replicas`);
       this.currentReplicas.set(service, targetReplicas);
     }
   }

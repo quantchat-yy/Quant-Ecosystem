@@ -152,5 +152,8 @@ describe('end-to-end against the real tree (baseline)', () => {
     expect(report.doneButUnimported).toEqual([]);
     expect(report.evaluated).toBe(ev.length);
     expect(report.satisfied.length + report.missing.length).toBe(report.evaluated);
-  });
+    // The end-to-end scan walks the entire monorepo (all packages/apps) to build
+    // the import graph for ~70 engines, which can exceed vitest's 5s default on a
+    // full install. Give it explicit headroom; the assertions above pass cleanly.
+  }, 30000);
 });

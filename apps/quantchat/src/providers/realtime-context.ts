@@ -36,7 +36,7 @@ export interface RealtimeEvent {
 }
 
 /** Handler function for channel events — accepts any event-like object */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export type ChannelHandler = (event: any) => void | Promise<void>;
 
 /**

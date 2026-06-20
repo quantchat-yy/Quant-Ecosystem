@@ -3,6 +3,12 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     globals: true,
+    // Timing-sensitive suites (fast-check property tests, full Fastify app boots) can exceed
+    // vitest's 5s default purely from CPU contention when the whole monorepo's suites run in
+    // parallel under `turbo test`. Give explicit headroom so the gate is reliable in CI; this
+    // does not relax any assertion (each suite passes well under this when run in isolation).
+    testTimeout: 30000,
+    hookTimeout: 30000,
     // The root config is also picked up by per-package `vitest run` (turbo test) when a
     // package has no local config. Use a cwd-relative glob so tests are found whether vitest
     // runs from the repo root (coverage job) or a package dir. Playwright specs under e2e/

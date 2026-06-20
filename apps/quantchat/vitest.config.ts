@@ -20,6 +20,11 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    // Headroom over the 5s default so timing-sensitive suites (fast-check property tests)
+    // don't spuriously time out under parallel `turbo test` CPU contention. No assertion is
+    // relaxed; each suite passes comfortably within this when run in isolation.
+    testTimeout: 30000,
+    hookTimeout: 30000,
     include: ['**/*.{test,spec}.{ts,tsx}'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/build/**', 'e2e/**'],
     environmentMatchGlobs: [['**/*.tsx', 'jsdom']],

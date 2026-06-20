@@ -69,14 +69,13 @@ function readVapidConfig(): VapidConfig | null {
  * types at compile time (graceful degradation).
  */
 async function loadWebPush(): Promise<{
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sendNotification: (sub: any, payload: string) => Promise<unknown>;
 } | null> {
   const vapid = readVapidConfig();
   if (!vapid) return null;
   try {
     const moduleName = 'web-push';
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const mod: any = await import(moduleName);
     const webpush = mod?.default ?? mod;
     if (!webpush || typeof webpush.sendNotification !== 'function') return null;
