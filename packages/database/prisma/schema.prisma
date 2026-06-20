@@ -74,6 +74,10 @@ model User {
   agentSessions  AgentSession[]
   agentOrgs      AgentOrg[]
 
+  // QuantMail relations
+  labels   Label[]
+  contacts Contact[]
+
   // Self-relations for followers
   following UserRelationship[] @relation("UserFollowing")
   followers UserRelationship[] @relation("UserFollower")
@@ -245,6 +249,7 @@ model AuthorizationCode {
   scopes              String[]
   codeChallenge       String?
   codeChallengeMethod String?
+  nonce               String?
   expiresAt           DateTime
   createdAt           DateTime @default(now())
 
@@ -462,6 +467,8 @@ model EmailThread {
   messageCount         Int       @default(0)
   isRead               Boolean   @default(false)
   isStarred            Boolean   @default(false)
+  isMuted              Boolean   @default(false)
+  snoozedUntil         DateTime?
   lastEmailAt          DateTime?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
@@ -1266,7 +1273,7 @@ model Repository {
   pullRequests      PullRequest[]
   issues            Issue[]
   branchProtections BranchProtection[]
-  ciRuns            CIRun[]
+  ciRuns            CiRun[]
   agentSessions     AgentSession[]
 
   @@unique([ownerId, name])
@@ -1394,7 +1401,7 @@ model BranchProtection {
   @@map("branch_protections")
 }
 
-model CIRun {
+model CiRun {
   id          String    @id @default(cuid())
   repoId      String
   prId        String?
@@ -1408,7 +1415,7 @@ model CIRun {
   updatedAt   DateTime  @updatedAt
 
   repository Repository @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  jobs       CIJob[]
+  jobs       CiJob[]
 
   @@index([repoId])
   @@index([status])
@@ -1416,7 +1423,7 @@ model CIRun {
   @@map("ci_runs")
 }
 
-model CIJob {
+model CiJob {
   id          String    @id @default(cuid())
   runId       String
   name        String
@@ -1428,11 +1435,50 @@ model CIJob {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  run CIRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  run CiRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@index([runId])
   @@index([status])
   @@map("ci_jobs")
+}
+
+// ==================== QUANTMAIL: LABELS & CONTACTS ====================
+// Additive, quantmail-owned models backing the email label manager
+// (backend/routes/labels.ts) and the contacts directory
+// (backend/services/contact.service.ts). Email-to-label association is stored
+// as a string-id array on Email.labels (Json); a Label row owns the label's
+// name/color metadata per user.
+
+model Label {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  color     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("labels")
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  email     String
+  avatar    String?
+  frequency Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, email])
+  @@index([userId])
+  @@map("contacts")
 }
 
 // ==================== AGENT RUNTIME (Pillar 3) ====================
