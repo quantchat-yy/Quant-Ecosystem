@@ -16,6 +16,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { quantSyncAPI } from '../services/api-client';
 import type { Post, FeedMode } from '../types';
+import { SpaceTabs } from '../components/SpaceTabs';
+import { canPost as canPostRule, type FeedSpace } from '../services/feed-space-rules';
 
 const FEED_MODES: { id: FeedMode; label: string }[] = [
   { id: 'for-you', label: 'For You' },
@@ -222,11 +224,28 @@ function FeedPostCard({ post }: { post: Post }) {
 
 export default function FeedPage() {
   const [activeMode, setActiveMode] = useState<FeedMode>('for-you');
+  const [space, setSpace] = useState<FeedSpace>('main');
   const [posts, setPosts] = useState<Post[]>([]);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Current session drives the verified-space compose gate (everyone can VIEW
+  // every space; only verified accounts can POST/REPLY in QuantSync Verified).
+  const { data: session } = useQuery({
+    queryKey: ['session'],
+    queryFn: async () => {
+      const response = await quantSyncAPI.getSession();
+      return response.success ? response.data : null;
+    },
+    staleTime: 60_000,
+  });
+  const viewer = {
+    id: (session as { id?: string } | null)?.id ?? 'guest',
+    isVerified: Boolean((session as { verified?: boolean } | null)?.verified),
+  };
+  const postGate = canPostRule(space, viewer);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['feed', activeMode],
@@ -293,12 +312,48 @@ export default function FeedPage() {
       <main className="max-w-2xl mx-auto px-4 py-6 min-h-screen bg-[var(--quant-background)] text-[var(--quant-foreground)]">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Feed</h1>
-          <a href="/compose">
-            <SpringButton className="min-h-[44px] px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg">
+          {postGate.allowed ? (
+            <a href={`/compose?space=${space}`}>
+              <SpringButton className="min-h-[44px] px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg">
+                Compose
+              </SpringButton>
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              title={postGate.reason}
+              aria-label={postGate.reason}
+              data-testid="compose-gated"
+              className="min-h-[44px] px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-sm font-medium rounded-lg cursor-not-allowed"
+            >
               Compose
-            </SpringButton>
-          </a>
+            </button>
+          )}
         </div>
+
+        <SpaceTabs active={space} onChange={setSpace} />
+
+        {space === 'verified' && (
+          <div className="mb-4 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300">
+            <span aria-hidden="true" className="font-bold text-blue-500">
+              &#x2713;
+            </span>
+            <span>
+              QuantSync Verified — everyone can read here, but only verified accounts can post or
+              reply.
+            </span>
+          </div>
+        )}
+
+        {space === 'anonymous' && (
+          <div className="mb-4 flex items-start gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-sm text-purple-800 dark:border-purple-900 dark:bg-purple-950/40 dark:text-purple-300">
+            <span aria-hidden="true">&#x1F3AD;</span>
+            <span>
+              Anonymous — posts are identity-hidden and moderated. Be kind; abuse is removed.
+            </span>
+          </div>
+        )}
 
         <div className="relative flex gap-1 mb-6 p-1 rounded-lg bg-[var(--quant-muted)]">
           {FEED_MODES.map((mode) => (
