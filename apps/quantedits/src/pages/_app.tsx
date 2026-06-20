@@ -1,6 +1,11 @@
 import './globals.css';
 import { useEffect } from 'react';
-import { CommandPaletteProvider, useCommandPalette } from '@quant/shared-ui';
+import {
+  CommandPaletteProvider,
+  useCommandPalette,
+  QuantSidekickProvider,
+  QuantSidekick,
+} from '@quant/shared-ui';
 import type { CommandPaletteItem } from '@quant/shared-ui';
 import { QueryProvider } from '../providers/query-provider';
 import { BrandProvider } from '../providers/brand-provider';
@@ -38,8 +43,11 @@ export default function App({ Component, pageProps }: AppProps) {
       <BrandProvider>
         <QueryProvider>
           <CommandPaletteProvider appName="QuantEdits">
-            <QuantEditsCommandRegistrar />
-            <Component {...pageProps} />
+            <QuantSidekickProvider>
+              <QuantEditsCommandRegistrar />
+              <Component {...pageProps} />
+              <QuantSidekick />
+            </QuantSidekickProvider>
           </CommandPaletteProvider>
         </QueryProvider>
       </BrandProvider>

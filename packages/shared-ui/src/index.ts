@@ -112,6 +112,22 @@ export type { AISuggestionProps } from './components/AI/AISuggestion';
 export { AIChat } from './components/AI/AIChat';
 export type { AIChatProps, AIChatMessage } from './components/AI/AIChat';
 
+// QuantAI universal presence — the animated "alien" assistant rendered in every
+// app via EcosystemShell, plus the provider/hook that lets any surface drive it.
+export { AlienAvatar } from './components/QuantSidekick/AlienAvatar';
+export type { AlienAvatarProps, QuantSidekickStatus } from './components/QuantSidekick/AlienAvatar';
+export {
+  QuantSidekick,
+  QuantSidekickProvider,
+  useQuantSidekick,
+} from './components/QuantSidekick/QuantSidekick';
+export type {
+  QuantSidekickProps,
+  QuantSidekickProviderProps,
+  QuantSidekickContextValue,
+  QuantSidekickSuggestion,
+} from './components/QuantSidekick/QuantSidekick';
+
 // Hooks
 export { useAuth } from './hooks/useAuth';
 export type { UseAuthReturn, AuthUser } from './hooks/useAuth';

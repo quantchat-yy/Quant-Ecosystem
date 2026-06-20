@@ -22,6 +22,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from '../ThemeProvider';
 import { CommandPaletteProvider } from '../CommandPaletteUI/CommandPaletteProvider';
 import { EcosystemProvider, type EcosystemProviderProps } from './EcosystemProvider';
+import { QuantSidekickProvider, QuantSidekick } from '../QuantSidekick/QuantSidekick';
 import { useBharatLocale, useWellbeingSummary } from './hooks';
 
 /**
@@ -46,6 +47,12 @@ export interface EcosystemShellProps extends EcosystemProviderProps {
   enableBackendSurfaces?: boolean;
   /** Default theme handed to the inner ThemeProvider. */
   defaultTheme?: 'light' | 'dark' | 'system';
+  /**
+   * Mount the universal QuantAI presence (the animated "alien" assistant +
+   * provider) so every app shows it consistently. Defaults to `true`; set
+   * `false` for embeds/tests that should not render the floating widget.
+   */
+  enableQuantSidekick?: boolean;
 }
 
 /**
@@ -61,6 +68,7 @@ export function EcosystemShell({
   queryClient,
   enableBackendSurfaces = true,
   defaultTheme = 'system',
+  enableQuantSidekick = true,
 }: EcosystemShellProps) {
   const client = useMemo(
     () => queryClient ?? new QueryClient({ defaultOptions: { queries: { retry: false } } }),
@@ -72,8 +80,11 @@ export function EcosystemShell({
       <ThemeProvider defaultTheme={defaultTheme}>
         <EcosystemProvider userId={userId} appName={appName} defaultLanguage={defaultLanguage}>
           <CommandPaletteProvider appName={appName}>
-            {children}
-            {enableBackendSurfaces ? <BackendBackedSurfaces /> : null}
+            <QuantSidekickProvider>
+              {children}
+              {enableQuantSidekick ? <QuantSidekick /> : null}
+              {enableBackendSurfaces ? <BackendBackedSurfaces /> : null}
+            </QuantSidekickProvider>
           </CommandPaletteProvider>
         </EcosystemProvider>
       </ThemeProvider>

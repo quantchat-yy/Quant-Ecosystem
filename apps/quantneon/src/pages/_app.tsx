@@ -2,7 +2,13 @@ import './globals.css';
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { AnimatePresence } from 'framer-motion';
-import { MotionProvider, CommandPaletteProvider, useCommandPalette } from '@quant/shared-ui';
+import {
+  MotionProvider,
+  CommandPaletteProvider,
+  useCommandPalette,
+  QuantSidekickProvider,
+  QuantSidekick,
+} from '@quant/shared-ui';
 import type { CommandPaletteItem } from '@quant/shared-ui';
 import { QueryProvider } from '../providers/query-provider';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -44,11 +50,14 @@ export default function App({ Component, pageProps }: AppProps) {
       <QueryProvider>
         <MotionProvider>
           <CommandPaletteProvider appName="QuantNeon">
-            <QuantNeonCommandRegistrar />
-            <VoiceCommandHost appId="quantneon" userId="guest" />
-            <AnimatePresence mode="wait">
-              <Component key={router.asPath} {...pageProps} />
-            </AnimatePresence>
+            <QuantSidekickProvider>
+              <QuantNeonCommandRegistrar />
+              <VoiceCommandHost appId="quantneon" userId="guest" />
+              <AnimatePresence mode="wait">
+                <Component key={router.asPath} {...pageProps} />
+              </AnimatePresence>
+              <QuantSidekick />
+            </QuantSidekickProvider>
           </CommandPaletteProvider>
         </MotionProvider>
       </QueryProvider>

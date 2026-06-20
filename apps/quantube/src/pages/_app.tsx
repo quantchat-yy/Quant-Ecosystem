@@ -2,7 +2,12 @@ import '../styles/globals.css';
 import { useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { spring } from '@quant/brand';
-import { CommandPaletteProvider, useCommandPalette } from '@quant/shared-ui';
+import {
+  CommandPaletteProvider,
+  useCommandPalette,
+  QuantSidekickProvider,
+  QuantSidekick,
+} from '@quant/shared-ui';
 import type { CommandPaletteItem } from '@quant/shared-ui';
 import { QueryProvider } from '../providers/query-provider';
 import { ThemeProvider } from '../providers/theme-provider';
@@ -54,18 +59,21 @@ export default function App({ Component, pageProps }: AppProps) {
       <QueryProvider>
         <ThemeProvider>
           <CommandPaletteProvider appName="QuantTube">
-            <QuantTubeCommandRegistrar />
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={Component.displayName || Component.name || 'page'}
-                variants={variants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-              >
-                <Component {...pageProps} />
-              </motion.div>
-            </AnimatePresence>
+            <QuantSidekickProvider>
+              <QuantTubeCommandRegistrar />
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={Component.displayName || Component.name || 'page'}
+                  variants={variants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                >
+                  <Component {...pageProps} />
+                </motion.div>
+              </AnimatePresence>
+              <QuantSidekick />
+            </QuantSidekickProvider>
           </CommandPaletteProvider>
         </ThemeProvider>
       </QueryProvider>
