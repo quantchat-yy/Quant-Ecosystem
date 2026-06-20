@@ -1,6 +1,6 @@
 'use client';
 
-import { Select, EmptyState, LoadingState, ErrorState } from '@quant/shared-ui';
+import { Select, EmptyState, ErrorState } from '@quant/shared-ui';
 import type { SelectOption } from '@quant/shared-ui';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
