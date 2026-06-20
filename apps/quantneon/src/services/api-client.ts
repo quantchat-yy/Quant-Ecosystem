@@ -2,7 +2,7 @@
 // QuantNeon - Frontend API Client
 // ============================================================================
 
-import type { Post, Reel, Story, Profile, Game, Product, ARFilter } from '../types';
+import type { Post, Reel, Story, Profile, Game, Product, ARFilter, Comment } from '../types';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -45,21 +45,49 @@ class QuantNeonApiClient {
 
   // Posts
   async createPost(data: any) {
-    return this.request('/api/posts', { method: 'POST', body: data });
+    return this.request<{ post: Post }>('/api/posts', { method: 'POST', body: data });
   }
   async getFeed(page?: number) {
-    return this.request<{ posts: Post[] }>('/api/posts/feed', {
+    return this.request<{
+      posts: Post[];
+      page: number;
+      pageSize: number;
+      total: number;
+      hasMore: boolean;
+    }>('/api/posts/feed', {
       params: page ? { page: String(page) } : undefined,
     });
   }
   async getPost(id: string) {
     return this.request<{ post: Post }>(`/api/posts/${id}`);
   }
+  async getUserPosts(userId: string, page?: number) {
+    return this.request<{ posts: Post[]; total: number; hasMore: boolean }>(
+      `/api/posts/user/${userId}`,
+      { params: page ? { page: String(page) } : undefined },
+    );
+  }
+  async getSavedPosts(page?: number) {
+    return this.request<{ posts: Post[]; total: number; hasMore: boolean }>('/api/posts/saved', {
+      params: page ? { page: String(page) } : undefined,
+    });
+  }
   async likePost(id: string) {
-    return this.request(`/api/posts/${id}/like`, { method: 'POST' });
+    return this.request<{ liked: boolean; likeCount: number }>(`/api/posts/${id}/like`, {
+      method: 'POST',
+    });
+  }
+  async savePost(id: string) {
+    return this.request<{ saved: boolean }>(`/api/posts/${id}/save`, { method: 'POST' });
   }
   async commentOnPost(id: string, text: string) {
-    return this.request(`/api/posts/${id}/comment`, { method: 'POST', body: { text } });
+    return this.request<{ comment: Comment }>(`/api/posts/${id}/comment`, {
+      method: 'POST',
+      body: { text },
+    });
+  }
+  async getPostComments(id: string) {
+    return this.request<{ comments: Comment[] }>(`/api/posts/${id}/comments`);
   }
 
   // Reels
@@ -67,10 +95,21 @@ class QuantNeonApiClient {
     return this.request<{ reels: Reel[] }>('/api/reels/feed');
   }
   async createReel(data: any) {
-    return this.request('/api/reels', { method: 'POST', body: data });
+    return this.request<{ reel: Reel }>('/api/reels', { method: 'POST', body: data });
   }
   async likeReel(id: string) {
-    return this.request(`/api/reels/${id}/like`, { method: 'POST' });
+    return this.request<{ liked: boolean; likeCount: number }>(`/api/reels/${id}/like`, {
+      method: 'POST',
+    });
+  }
+  async commentOnReel(id: string, text: string) {
+    return this.request<{ comment: Comment }>(`/api/reels/${id}/comment`, {
+      method: 'POST',
+      body: { text },
+    });
+  }
+  async getReelComments(id: string) {
+    return this.request<{ comments: Comment[] }>(`/api/reels/${id}/comments`);
   }
 
   // Stories
@@ -89,10 +128,59 @@ class QuantNeonApiClient {
     return this.request<{ profile: Profile }>(`/api/profiles/${id}`);
   }
   async follow(id: string) {
-    return this.request(`/api/profiles/${id}/follow`, { method: 'POST' });
+    return this.request<{ following: boolean }>(`/api/profiles/${id}/follow`, { method: 'POST' });
   }
   async unfollow(id: string) {
-    return this.request(`/api/profiles/${id}/follow`, { method: 'DELETE' });
+    return this.request<{ following: boolean }>(`/api/profiles/${id}/follow`, { method: 'DELETE' });
+  }
+  async updateProfile(data: {
+    bio?: string;
+    website?: string;
+    displayName?: string;
+    avatarUrl?: string;
+  }) {
+    return this.request<{ profile: Profile }>('/api/profiles/me', { method: 'PATCH', body: data });
+  }
+  async listCloseFriends() {
+    return this.request<{
+      friends: Array<{
+        id: string;
+        username: string;
+        displayName: string;
+        avatarUrl: string | null;
+      }>;
+    }>('/api/profiles/close-friends');
+  }
+  async toggleCloseFriend(id: string, add: boolean) {
+    return this.request<{ isCloseFriend: boolean }>(`/api/profiles/${id}/close-friend`, {
+      method: add ? 'POST' : 'DELETE',
+    });
+  }
+
+  // Notifications
+  async getNotifications(page?: number) {
+    return this.request<{
+      notifications: Array<{
+        id: string;
+        type: string;
+        fromUser: string;
+        fromAvatar: string | null;
+        title: string;
+        content: string;
+        read: boolean;
+        sourceEntityId: string | null;
+        createdAt: string;
+      }>;
+    }>('/api/notifications', { params: page ? { page: String(page) } : undefined });
+  }
+  async getUnreadCount() {
+    return this.request<{ count: number }>('/api/notifications/unread-count');
+  }
+  async markAllRead() {
+    return this.request<{ count: number }>('/api/notifications/read-all', { method: 'POST' });
+  }
+  async markNotificationRead(id: string) {
+    return this.request<{ count: number }>(`/api/notifications/${id}/read`, { method: 'POST' });
   }
 
   // Games
@@ -127,18 +215,32 @@ class QuantNeonApiClient {
 
   // Explore
   async getExploreFeed() {
-    return this.request('/api/explore');
+    return this.request<{ posts: Post[] }>('/api/explore');
   }
   async search(query: string) {
-    return this.request('/api/explore/search', { params: { q: query } });
+    return this.request<{
+      users: Array<{ id: string; username: string; displayName: string; avatarUrl: string | null }>;
+      posts: Post[];
+    }>('/api/explore/search', { params: { q: query } });
   }
 
   // AI
   async suggestHashtags(caption: string) {
-    return this.request('/api/ai/hashtags/suggest', { method: 'POST', body: { caption } });
+    return this.request<{ hashtags: string[] }>('/api/ai/hashtags/suggest', {
+      method: 'POST',
+      body: { caption },
+    });
   }
-  async generateCaption(mediaUrl: string) {
-    return this.request('/api/ai/caption/generate', { method: 'POST', body: { mediaUrl } });
+  async generateCaption(input: {
+    mediaUrl?: string;
+    description?: string;
+    mood?: 'aesthetic' | 'funny' | 'minimal' | 'poetic';
+    count?: number;
+  }) {
+    return this.request<{ captions: string[] }>('/api/ai/caption/generate', {
+      method: 'POST',
+      body: input,
+    });
   }
 }
 

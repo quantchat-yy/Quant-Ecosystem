@@ -1,25 +1,27 @@
 // ============================================================================
 // QuantNeon - Post Detail Page
 // Image carousel, action bar, caption with @mentions, comments, double-tap like
+// Wired to the real backend (like / save / comment).
 // ============================================================================
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { spring } from '@quant/brand';
 import { useRouter } from 'next/router';
 import { LoadingState, ErrorState, EmptyState, PageTransition } from '@quant/shared-ui';
 import { usePost } from '../../hooks/usePost';
-import type { Post } from '../../types';
+import { apiClient } from '../../services/api-client';
+import type { Post, PostComment } from '../../types';
 
-interface Comment {
-  id: string;
-  username: string;
-  avatarUrl: string;
-  text: string;
-  timeAgo: string;
-  likeCount: number;
-  isLiked: boolean;
-  replies: Comment[];
+function timeAgo(iso: string): string {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  return `${Math.floor(hrs / 24)}d`;
 }
 
 const PostDetailPage: React.FC = () => {
@@ -29,25 +31,36 @@ const PostDetailPage: React.FC = () => {
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [showHeartAnim, setShowHeartAnim] = useState(false);
   const [commentText, setCommentText] = useState('');
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [comments, setComments] = useState<PostComment[]>([]);
   const [expandCaption, setExpandCaption] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
 
   const lastTapRef = useRef<number>(0);
   const touchStartX = useRef<number>(0);
 
   const p = post as Post | undefined;
 
-  // Initialize like count from data
-  React.useEffect(() => {
+  useEffect(() => {
     if (p) {
       setLikeCount(p.likeCount || p.likes || 0);
       setIsLiked(p.isLiked || false);
+      setIsSaved(p.isSaved || false);
+      setComments(p.comments ?? []);
     }
   }, [post]);
+
+  const persistLike = useCallback(async () => {
+    if (!id) return;
+    const response = await apiClient.likePost(id);
+    if (response.success && response.data) {
+      setIsLiked(response.data.liked);
+      setLikeCount(response.data.likeCount);
+    }
+  }, [id]);
 
   const handleDoubleTap = useCallback(() => {
     const now = Date.now();
@@ -55,17 +68,27 @@ const PostDetailPage: React.FC = () => {
       if (!isLiked) {
         setIsLiked(true);
         setLikeCount((prev) => prev + 1);
+        void persistLike();
       }
       setShowHeartAnim(true);
       setTimeout(() => setShowHeartAnim(false), 1000);
     }
     lastTapRef.current = now;
-  }, [isLiked]);
+  }, [isLiked, persistLike]);
 
   const handleLike = useCallback(() => {
     setIsLiked((prev) => !prev);
     setLikeCount((prev) => (isLiked ? prev - 1 : prev + 1));
-  }, [isLiked]);
+    void persistLike();
+  }, [isLiked, persistLike]);
+
+  const handleSave = useCallback(async () => {
+    setIsSaved((prev) => !prev);
+    const response = await apiClient.savePost(id);
+    if (response.success && response.data) {
+      setIsSaved(response.data.saved);
+    }
+  }, [id]);
 
   const handleImageSwipe = useCallback(
     (e: React.TouchEvent) => {
@@ -84,21 +107,20 @@ const PostDetailPage: React.FC = () => {
     [currentImageIndex, p],
   );
 
-  const handleSubmitComment = useCallback(() => {
-    if (!commentText.trim()) return;
-    const newComment: Comment = {
-      id: `comment-${Date.now()}`,
-      username: 'you',
-      avatarUrl: '/avatars/me.jpg',
-      text: commentText,
-      timeAgo: 'just now',
-      likeCount: 0,
-      isLiked: false,
-      replies: [],
-    };
-    setComments((prev) => [newComment, ...prev]);
-    setCommentText('');
-  }, [commentText]);
+  const handleSubmitComment = useCallback(async () => {
+    const text = commentText.trim();
+    if (!text || isPosting) return;
+    setIsPosting(true);
+    try {
+      const response = await apiClient.commentOnPost(id, text);
+      if (response.success && response.data?.comment) {
+        setComments((prev) => [response.data!.comment as unknown as PostComment, ...prev]);
+        setCommentText('');
+      }
+    } finally {
+      setIsPosting(false);
+    }
+  }, [commentText, id, isPosting]);
 
   const renderCaption = useCallback((text: string) => {
     return text.split(/(@\w+)/g).map((part, i) => {
@@ -160,12 +182,6 @@ const PostDetailPage: React.FC = () => {
             <div className="flex items-center gap-1.5">
               <span className="font-semibold text-sm">{authorUsername}</span>
             </div>
-            <button
-              className="ml-auto text-gray-500 min-w-[44px] min-h-[44px] flex items-center justify-center"
-              aria-label="More options"
-            >
-              &#8943;
-            </button>
           </div>
 
           {/* Image Carousel */}
@@ -192,7 +208,6 @@ const PostDetailPage: React.FC = () => {
               />
             </AnimatePresence>
 
-            {/* Double-tap heart animation */}
             <AnimatePresence>
               {showHeartAnim && (
                 <motion.div
@@ -207,7 +222,6 @@ const PostDetailPage: React.FC = () => {
               )}
             </AnimatePresence>
 
-            {/* Dot Indicators */}
             {totalImages > 1 && (
               <div
                 className="absolute bottom-3 inset-x-0 flex justify-center gap-1.5"
@@ -264,12 +278,12 @@ const PostDetailPage: React.FC = () => {
               </button>
             </div>
             <button
-              className={`ml-auto min-w-[44px] min-h-[44px] flex items-center justify-center ${isBookmarked ? 'text-yellow-500' : ''}`}
-              onClick={() => setIsBookmarked(!isBookmarked)}
-              aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
-              aria-pressed={isBookmarked}
+              className={`ml-auto min-w-[44px] min-h-[44px] flex items-center justify-center ${isSaved ? 'text-yellow-500' : ''}`}
+              onClick={handleSave}
+              aria-label={isSaved ? 'Remove bookmark' : 'Bookmark'}
+              aria-pressed={isSaved}
             >
-              <span className="text-2xl">{isBookmarked ? '\u{1F516}' : '\u{1F3F7}'}</span>
+              <span className="text-2xl">{isSaved ? '\u{1F516}' : '\u{1F3F7}'}</span>
             </button>
           </div>
 
@@ -278,7 +292,7 @@ const PostDetailPage: React.FC = () => {
             <span className="font-semibold text-sm">{likeCount.toLocaleString()} likes</span>
           </div>
 
-          {/* Caption with @mentions */}
+          {/* Caption */}
           <div className="px-4 mb-3">
             <p className="text-sm">
               <strong className="mr-1">{authorUsername}</strong>
@@ -298,12 +312,6 @@ const PostDetailPage: React.FC = () => {
 
           {/* Comments Section */}
           <div className="px-4 border-t border-gray-100 dark:border-gray-800 pt-3">
-            {comments.length === 0 && p.commentCount > 0 && (
-              <button className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                View all {p.commentCount} comments
-              </button>
-            )}
-
             <div
               className="space-y-4 max-h-[40vh] overflow-y-auto"
               role="list"
@@ -313,7 +321,7 @@ const PostDetailPage: React.FC = () => {
                 <div key={comment.id} className="flex gap-2.5" role="listitem">
                   <img
                     className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                    src={comment.avatarUrl}
+                    src={comment.userAvatar ?? ''}
                     alt={comment.username}
                   />
                   <div className="flex-1 min-w-0">
@@ -322,33 +330,11 @@ const PostDetailPage: React.FC = () => {
                       {comment.text}
                     </p>
                     <div className="flex items-center gap-3 mt-1">
-                      <span className="text-xs text-gray-500">{comment.timeAgo}</span>
-                      <button className="text-xs text-gray-500 font-medium">
-                        {comment.likeCount > 0 ? `${comment.likeCount} likes` : 'Like'}
-                      </button>
-                      <button className="text-xs text-gray-500 font-medium">Reply</button>
+                      <span className="text-xs text-gray-500">{timeAgo(comment.createdAt)}</span>
+                      <span className="text-xs text-gray-500 font-medium">
+                        {comment.likes > 0 ? `${comment.likes} likes` : ''}
+                      </span>
                     </div>
-                    {/* Nested replies */}
-                    {comment.replies.length > 0 && (
-                      <div className="mt-3 space-y-3 pl-4 border-l border-gray-200 dark:border-gray-700">
-                        {comment.replies.map((reply) => (
-                          <div key={reply.id} className="flex gap-2">
-                            <img
-                              className="w-6 h-6 rounded-full object-cover"
-                              src={reply.avatarUrl}
-                              alt={reply.username}
-                            />
-                            <div>
-                              <p className="text-sm">
-                                <strong className="mr-1">{reply.username}</strong>
-                                {reply.text}
-                              </p>
-                              <span className="text-xs text-gray-500">{reply.timeAgo}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}
@@ -361,15 +347,16 @@ const PostDetailPage: React.FC = () => {
                 placeholder="Add a comment..."
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSubmitComment()}
+                onKeyDown={(e) => e.key === 'Enter' && void handleSubmitComment()}
                 aria-label="Add comment"
               />
               {commentText.trim() && (
                 <motion.button
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="text-sm font-semibold text-purple-500"
-                  onClick={handleSubmitComment}
+                  className="text-sm font-semibold text-purple-500 disabled:opacity-50"
+                  onClick={() => void handleSubmitComment()}
+                  disabled={isPosting}
                 >
                   Post
                 </motion.button>

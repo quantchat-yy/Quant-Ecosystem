@@ -3,21 +3,59 @@
 // Avatar with story ring, verified badge, bio, stats, follow/message, tabs, grid
 // ============================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/router';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { LoadingState, ErrorState, EmptyState, PageTransition } from '@quant/shared-ui';
 import { useProfile } from '../../hooks/useProfile';
-import type { Profile } from '../../types';
+import { useUserPosts } from '../../hooks/useUserPosts';
+import { apiClient } from '../../services/api-client';
 
 type ProfileTab = 'posts' | 'reels' | 'tagged';
 
 const ProfilePage: React.FC = () => {
   const router = useRouter();
   const id = (router.query.id as string) || '';
+  const queryClient = useQueryClient();
+
+  // All hooks are declared unconditionally, before any early return, to keep
+  // hook ordering stable across renders.
   const { data: profile, isLoading, error, refetch } = useProfile(id);
+  const { data: userPosts = [] } = useUserPosts(id);
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [isFollowing, setIsFollowing] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setIsFollowing(profile.isFollowing || false);
+    }
+  }, [profile]);
+
+  const followMutation = useMutation({
+    mutationFn: async (follow: boolean) => {
+      const response = follow ? await apiClient.follow(id) : await apiClient.unfollow(id);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to update follow state');
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['neon-profile', id] });
+    },
+  });
+
+  const handleToggleFollow = useCallback(() => {
+    const next = !isFollowing;
+    setIsFollowing(next);
+    followMutation.mutate(next);
+  }, [isFollowing, followMutation]);
+
+  const formatCount = (n: number): string => {
+    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+    if (n >= 10000) return `${(n / 1000).toFixed(1)}K`;
+    return n.toLocaleString();
+  };
 
   if (isLoading) {
     return (
@@ -47,29 +85,7 @@ const ProfilePage: React.FC = () => {
     );
   }
 
-  const p = profile as Profile | undefined;
-
-  React.useEffect(() => {
-    if (p) {
-      setIsFollowing(p.isFollowing || false);
-    }
-  }, [profile]);
-
-  if (!p) {
-    return (
-      <PageTransition>
-        <div className="min-h-screen bg-white dark:bg-[#0F0F14] flex items-center justify-center">
-          <EmptyState title="Profile not found" description="This user may not exist" />
-        </div>
-      </PageTransition>
-    );
-  }
-
-  const formatCount = (n: number): string => {
-    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-    if (n >= 10000) return `${(n / 1000).toFixed(1)}K`;
-    return n.toLocaleString();
-  };
+  const p = profile;
 
   return (
     <PageTransition>
@@ -78,7 +94,6 @@ const ProfilePage: React.FC = () => {
           {/* Profile Header */}
           <div className="px-4 py-6">
             <div className="flex items-center gap-6">
-              {/* Avatar with Story Ring */}
               <div className="relative">
                 <div className="p-[3px] rounded-full bg-transparent">
                   <img
@@ -89,7 +104,6 @@ const ProfilePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Stats */}
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-3">
                   <h1 className="text-lg font-semibold">{p.username}</h1>
@@ -119,7 +133,6 @@ const ProfilePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Display Name + Bio */}
             <div className="mt-4">
               {p.displayName && (
                 <span className="font-semibold text-sm block">{p.displayName}</span>
@@ -137,7 +150,6 @@ const ProfilePage: React.FC = () => {
               )}
             </div>
 
-            {/* Action Buttons */}
             <div className="flex gap-2 mt-4">
               <motion.button
                 whileTap={{ scale: 0.95 }}
@@ -146,7 +158,8 @@ const ProfilePage: React.FC = () => {
                     ? 'bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white'
                     : 'bg-purple-600 text-white'
                 }`}
-                onClick={() => setIsFollowing(!isFollowing)}
+                onClick={handleToggleFollow}
+                disabled={followMutation.isPending}
                 aria-label={isFollowing ? 'Unfollow' : 'Follow'}
                 aria-pressed={isFollowing}
               >
@@ -157,12 +170,6 @@ const ProfilePage: React.FC = () => {
                 aria-label="Send message"
               >
                 Message
-              </button>
-              <button
-                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white"
-                aria-label="More options"
-              >
-                &#9660;
               </button>
             </div>
           </div>
@@ -228,19 +235,41 @@ const ProfilePage: React.FC = () => {
               role="tabpanel"
               aria-label={`${activeTab} content`}
             >
-              {/* Placeholder grid items - populated by API in production */}
-              {Array.from({ length: 9 }).map((_, i) => (
-                <div
-                  key={`${activeTab}-${i}`}
-                  className="relative aspect-square bg-gray-100 dark:bg-gray-800 overflow-hidden"
-                >
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    {activeTab === 'reels' && <span className="text-lg">&#9654;</span>}
-                    {activeTab === 'tagged' && <span className="text-lg">&#128100;</span>}
-                    {activeTab === 'posts' && <span className="text-lg">&#128247;</span>}
-                  </div>
+              {activeTab === 'posts' && userPosts.length === 0 && (
+                <div className="col-span-3 py-12">
+                  <EmptyState title="No posts yet" description="Posts will appear here" />
                 </div>
-              ))}
+              )}
+              {activeTab === 'posts' &&
+                userPosts.map((post) => (
+                  <button
+                    key={post.id}
+                    className="relative aspect-square bg-gray-100 dark:bg-gray-800 overflow-hidden"
+                    onClick={() => router.push(`/post/${post.id}`)}
+                    aria-label="Open post"
+                  >
+                    {post.mediaUrls && post.mediaUrls[0] ? (
+                      <img
+                        src={post.mediaUrls[0]}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-lg">
+                        &#128247;
+                      </div>
+                    )}
+                  </button>
+                ))}
+              {activeTab !== 'posts' && (
+                <div className="col-span-3 py-12">
+                  <EmptyState
+                    title={activeTab === 'reels' ? 'No reels yet' : 'No tagged posts'}
+                    description="Content will appear here"
+                  />
+                </div>
+              )}
             </motion.div>
           </AnimatePresence>
         </div>

@@ -4,6 +4,15 @@ const nextConfig = {
   output: 'standalone',
   serverExternalPackages: ['nats'],
   webpack: (config, { isServer }) => {
+    // Resolve workspace TypeScript sources that use `.js` import specifiers
+    // (e.g. @quant/bharat-ai, @quant/onboarding pulled in via @quant/shared-ui)
+    // under Next's webpack pipeline.
+    config.resolve.extensionAlias = {
+      '.js': ['.ts', '.tsx', '.js', '.jsx'],
+      '.jsx': ['.tsx', '.jsx'],
+      '.mjs': ['.mts', '.mjs'],
+      '.cjs': ['.cts', '.cjs'],
+    };
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

@@ -66,6 +66,7 @@ interface ReelsActions {
   toggleMute: () => void;
   like: (reelId: string) => void;
   unlike: (reelId: string) => void;
+  comment: (reelId: string, text: string) => Promise<void>;
   save: (reelId: string) => void;
   unsave: (reelId: string) => void;
   share: (reelId: string) => void;
@@ -141,6 +142,19 @@ export function useReels(): [ReelsState, ReelsActions] {
 
   const reels: Reel[] = (reelsQuery.data ?? []) as unknown as Reel[];
 
+  // Seed the liked set from the per-viewer `isLiked` flags returned by the feed.
+  useEffect(() => {
+    if (reels.length > 0) {
+      setLiked((prev) => {
+        const next = new Set(prev);
+        for (const r of reels) {
+          if ((r as unknown as { isLiked?: boolean }).isLiked) next.add(r.id);
+        }
+        return next;
+      });
+    }
+  }, [reelsQuery.data]);
+
   useEffect(() => {
     if (isPlaying && reels.length > 0) {
       progressRef.current = setInterval(() => {
@@ -186,13 +200,38 @@ export function useReels(): [ReelsState, ReelsActions] {
     [likeMutation],
   );
 
-  const unlike = useCallback((reelId: string) => {
-    setLiked((prev) => {
-      const next = new Set(prev);
-      next.delete(reelId);
-      return next;
-    });
-  }, []);
+  const unlike = useCallback(
+    (reelId: string) => {
+      setLiked((prev) => {
+        const next = new Set(prev);
+        next.delete(reelId);
+        return next;
+      });
+      // Backend like is a toggle, so unliking issues the same mutation.
+      likeMutation.mutate(reelId);
+    },
+    [likeMutation],
+  );
+
+  const commentMutation = useMutation({
+    mutationFn: async ({ reelId, text }: { reelId: string; text: string }) => {
+      const response = await apiClient.commentOnReel(reelId, text);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to comment on reel');
+      }
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['neon-reels'] });
+    },
+  });
+
+  const comment = useCallback(
+    async (reelId: string, text: string) => {
+      await commentMutation.mutateAsync({ reelId, text });
+    },
+    [commentMutation],
+  );
 
   const save = useCallback((reelId: string) => {
     setSaved((prev) => new Set([...prev, reelId]));
@@ -279,6 +318,7 @@ export function useReels(): [ReelsState, ReelsActions] {
     toggleMute,
     like,
     unlike,
+    comment,
     save,
     unsave,
     share,

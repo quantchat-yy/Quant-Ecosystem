@@ -3,7 +3,7 @@
 // 100vh per reel, sound toggle, right sidebar actions, bottom overlay
 // ============================================================================
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { spring } from '@quant/brand';
 import {
@@ -14,15 +14,53 @@ import {
   PageTransition,
 } from '@quant/shared-ui';
 import { useReels } from '../hooks/useReels';
+import { apiClient } from '../services/api-client';
+
+interface ReelCommentItem {
+  id: string;
+  username: string;
+  userAvatar: string | null;
+  content: string;
+}
 
 const ReelsPage: React.FC = () => {
   const [state, actions] = useReels();
   const [showCaption, setShowCaption] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showSoundInfo, setShowSoundInfo] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [comments, setComments] = useState<ReelCommentItem[]>([]);
+  const [commentText, setCommentText] = useState('');
+  const [loadingComments, setLoadingComments] = useState(false);
 
   const touchStartY = useRef<number>(0);
   const currentReel = state.reels[state.currentIndex] || null;
+
+  const loadComments = useCallback(async (reelId: string) => {
+    setLoadingComments(true);
+    try {
+      const response = await apiClient.getReelComments(reelId);
+      if (response.success && response.data?.comments) {
+        setComments(response.data.comments as unknown as ReelCommentItem[]);
+      }
+    } finally {
+      setLoadingComments(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showComments && currentReel) {
+      void loadComments(currentReel.id);
+    }
+  }, [showComments, currentReel?.id]);
+
+  const submitComment = useCallback(async () => {
+    const text = commentText.trim();
+    if (!text || !currentReel) return;
+    await actions.comment(currentReel.id, text);
+    setCommentText('');
+    await loadComments(currentReel.id);
+  }, [commentText, currentReel, actions, loadComments]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
@@ -157,6 +195,7 @@ const ReelsPage: React.FC = () => {
                   className="min-w-[44px] min-h-[44px] flex flex-col items-center justify-center gap-1 text-white"
                   onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
+                    setShowComments(true);
                   }}
                   aria-label={`Comments, ${formatCount(currentReel.commentCount)}`}
                 >
@@ -295,6 +334,75 @@ const ReelsPage: React.FC = () => {
               <button className="mt-2 w-full text-[10px] font-medium bg-white/20 rounded-md py-1.5">
                 Use this sound
               </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* Comments Sheet */}
+        <AnimatePresence>
+          {showComments && currentReel && (
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', ...spring.snappy }}
+              className="absolute bottom-0 left-0 right-0 z-50 max-h-[70vh] rounded-t-2xl bg-[#1a1a1f] p-4 flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold">Comments</h2>
+                <button
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-white/70"
+                  onClick={() => setShowComments(false)}
+                  aria-label="Close comments"
+                >
+                  &#10005;
+                </button>
+              </div>
+
+              <div
+                className="flex-1 overflow-y-auto space-y-3"
+                role="list"
+                aria-label="Reel comments"
+              >
+                {loadingComments ? (
+                  <p className="text-xs text-white/50">Loading...</p>
+                ) : comments.length === 0 ? (
+                  <p className="text-xs text-white/50">No comments yet. Be the first!</p>
+                ) : (
+                  comments.map((c) => (
+                    <div key={c.id} className="flex gap-2.5" role="listitem">
+                      <img
+                        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                        src={c.userAvatar ?? ''}
+                        alt={c.username}
+                      />
+                      <p className="text-sm">
+                        <strong className="mr-1">{c.username}</strong>
+                        {c.content}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-3 mt-2 border-t border-white/10">
+                <input
+                  className="flex-1 text-sm bg-white/10 rounded-full px-4 py-2 placeholder-white/40 focus:outline-none"
+                  placeholder="Add a comment..."
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && void submitComment()}
+                  aria-label="Add reel comment"
+                />
+                {commentText.trim() && (
+                  <button
+                    className="text-sm font-semibold text-purple-400"
+                    onClick={() => void submitComment()}
+                  >
+                    Post
+                  </button>
+                )}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

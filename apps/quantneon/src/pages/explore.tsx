@@ -1,13 +1,15 @@
 // ============================================================================
 // QuantNeon - Explore/Discover Page
-// Category tabs, search with autocomplete, trending hashtags, masonry grid
+// Category tabs, search, trending hashtags, masonry grid (real backend data)
 // ============================================================================
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/router';
 import { spring } from '@quant/brand';
 import { PageTransition, ErrorState, EmptyState } from '@quant/shared-ui';
 import { useExplore } from '../hooks/useExplore';
+import type { Post } from '../types';
 
 type Category = 'For You' | 'Travel' | 'Food' | 'Art' | 'Fashion' | 'Sports' | 'Music';
 
@@ -25,28 +27,30 @@ const TRENDING_TAGS = [
   '#Minimal',
 ];
 
-const AUTOCOMPLETE_SUGGESTIONS = [
-  'sunset photography',
-  'travel vlog',
-  'street food',
-  'modern art',
-  'fashion week',
-  'workout routine',
-  'guitar covers',
-  'home decor',
-  'nature walks',
-  'portrait photography',
-  'cafe hopping',
-];
-
 interface ExplorePost {
   id: string;
-  thumbnailUrl?: string;
-  type?: string;
-  likeCount?: number;
-  username?: string;
-  category?: string;
-  span?: 'normal' | 'tall' | 'wide';
+  thumbnailUrl: string;
+  type: string;
+  likeCount: number;
+  username: string;
+  caption: string;
+  hashtags: string[];
+  span: 'normal' | 'tall' | 'wide';
+}
+
+function toExplorePost(post: Post, index: number): ExplorePost {
+  const urls = post.mediaUrls ?? [];
+  const spanOptions: ExplorePost['span'][] = ['normal', 'normal', 'normal', 'tall', 'wide'];
+  return {
+    id: post.id,
+    thumbnailUrl: urls[0] ?? '',
+    type: String(post.type).toUpperCase() === 'VIDEO' ? 'video' : 'image',
+    likeCount: post.likeCount ?? 0,
+    username: post.authorUsername ?? post.username ?? '',
+    caption: post.caption ?? '',
+    hashtags: post.hashtags ?? [],
+    span: spanOptions[index % spanOptions.length] ?? 'normal',
+  };
 }
 
 function ExploreSkeleton() {
@@ -69,55 +73,39 @@ function ExploreSkeleton() {
 }
 
 const ExplorePage: React.FC = () => {
+  const router = useRouter();
   const { data, isLoading, error, refetch } = useExplore();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<Category>('For You');
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [searchFocused, setSearchFocused] = useState(false);
 
-  const posts: ExplorePost[] = ((data ?? []) as unknown[]).map((item: unknown, index: number) => {
-    const p = item as Record<string, unknown>;
-    const spanOptions: ExplorePost['span'][] = ['normal', 'normal', 'normal', 'tall', 'wide'];
-    return {
-      id: (p.id as string) || `post-${index}`,
-      thumbnailUrl: (p.thumbnailUrl as string) || `https://cdn.quantneon.app/explore/${index}.jpg`,
-      type: (p.type as string) || (index % 4 === 0 ? 'video' : 'image'),
-      likeCount: (p.likeCount as number) || Math.floor(Math.random() * 10000),
-      username: (p.username as string) || `user_${index}`,
-      category: (p.category as string) || CATEGORIES[index % CATEGORIES.length],
-      span: spanOptions[index % spanOptions.length],
-    };
-  });
+  const posts: ExplorePost[] = useMemo(
+    () => (data ?? []).map((p, i) => toExplorePost(p, i)),
+    [data],
+  );
 
   const filteredByCategory = useMemo(() => {
     if (activeCategory === 'For You') return posts;
-    return posts.filter((p) => p.category === activeCategory);
+    const needle = activeCategory.toLowerCase();
+    return posts.filter(
+      (p) =>
+        p.caption.toLowerCase().includes(needle) ||
+        p.hashtags.some((h) => h.toLowerCase().includes(needle)),
+    );
   }, [posts, activeCategory]);
 
   const filtered = useMemo(() => {
     if (!searchQuery) return filteredByCategory;
+    const needle = searchQuery.toLowerCase();
     return filteredByCategory.filter(
       (p) =>
-        p.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.category?.toLowerCase().includes(searchQuery.toLowerCase()),
+        p.username.toLowerCase().includes(needle) ||
+        p.caption.toLowerCase().includes(needle) ||
+        p.hashtags.some((h) => h.toLowerCase().includes(needle)),
     );
   }, [filteredByCategory, searchQuery]);
 
-  const suggestions = useMemo(() => {
-    if (!searchQuery) return AUTOCOMPLETE_SUGGESTIONS.slice(0, 5);
-    return AUTOCOMPLETE_SUGGESTIONS.filter((s) =>
-      s.toLowerCase().includes(searchQuery.toLowerCase()),
-    ).slice(0, 5);
-  }, [searchQuery]);
-
   const handleTagClick = useCallback((tag: string) => {
     setSearchQuery(tag.replace('#', ''));
-    setShowSuggestions(false);
-  }, []);
-
-  const handleSuggestionClick = useCallback((suggestion: string) => {
-    setSearchQuery(suggestion);
-    setShowSuggestions(false);
   }, []);
 
   if (error) {
@@ -134,30 +122,14 @@ const ExplorePage: React.FC = () => {
     <PageTransition>
       <div className="min-h-screen bg-[var(--quant-background)] text-[var(--quant-foreground)]">
         <div className="px-4 max-w-7xl mx-auto py-4">
-          {/* Search Bar with Autocomplete */}
+          {/* Search Bar */}
           <div className="relative mb-4">
             <input
               className="h-11 w-full rounded-xl bg-[var(--quant-card)] border border-[var(--quant-border)] px-4 pl-10 text-sm text-[var(--quant-foreground)] placeholder-[var(--quant-muted-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] transition-shadow"
-              placeholder="Search people, tags, places..."
+              placeholder="Search people, tags, captions..."
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setShowSuggestions(true);
-              }}
-              onFocus={() => {
-                setSearchFocused(true);
-                setShowSuggestions(true);
-              }}
-              onBlur={() => {
-                setTimeout(() => {
-                  setSearchFocused(false);
-                  setShowSuggestions(false);
-                }, 200);
-              }}
+              onChange={(e) => setSearchQuery(e.target.value)}
               aria-label="Search explore"
-              role="combobox"
-              aria-expanded={showSuggestions}
-              aria-haspopup="listbox"
             />
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
               &#128269;
@@ -171,33 +143,6 @@ const ExplorePage: React.FC = () => {
                 &#10005;
               </button>
             )}
-
-            {/* Autocomplete Dropdown */}
-            <AnimatePresence>
-              {showSuggestions && searchFocused && suggestions.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ type: 'spring', ...spring.snappy }}
-                  className="absolute top-full left-0 right-0 mt-1 rounded-xl bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 z-50 overflow-hidden"
-                  role="listbox"
-                  aria-label="Search suggestions"
-                >
-                  {suggestions.map((suggestion, i) => (
-                    <button
-                      key={i}
-                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                      onClick={() => handleSuggestionClick(suggestion)}
-                      role="option"
-                    >
-                      <span className="text-gray-400">&#128269;</span>
-                      {suggestion}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
 
           {/* Category Tabs */}
@@ -238,7 +183,7 @@ const ExplorePage: React.FC = () => {
             ))}
           </div>
 
-          {/* Content Grid - Masonry Layout with stagger animation */}
+          {/* Content Grid */}
           {isLoading ? (
             <ExploreSkeleton />
           ) : filtered.length === 0 ? (
@@ -257,24 +202,30 @@ const ExplorePage: React.FC = () => {
               }}
             >
               {filtered.map((post) => (
-                <motion.div
+                <motion.button
                   key={post.id}
                   variants={{
                     hidden: { opacity: 0, y: 10 },
                     visible: { opacity: 1, y: 0, transition: { type: 'spring', ...spring.gentle } },
                   }}
-                  className={`relative overflow-hidden bg-[var(--quant-muted)] rounded-sm ${
+                  className={`relative overflow-hidden bg-[var(--quant-muted)] rounded-sm text-left ${
                     post.span === 'tall' ? 'row-span-2' : post.span === 'wide' ? 'col-span-2' : ''
                   }`}
-                  role="article"
+                  onClick={() => router.push(`/post/${post.id}`)}
                   aria-label={`Post by ${post.username}`}
                 >
-                  <img
-                    className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-300"
-                    src={post.thumbnailUrl}
-                    alt=""
-                    loading="lazy"
-                  />
+                  {post.thumbnailUrl ? (
+                    <img
+                      className="w-full h-full object-cover hover:scale-[1.03] transition-transform duration-300"
+                      src={post.thumbnailUrl}
+                      alt=""
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">
+                      &#128247;
+                    </div>
+                  )}
                   {post.type === 'video' && (
                     <span className="absolute top-2 right-2 text-white drop-shadow-lg text-sm">
                       &#9654;
@@ -283,10 +234,10 @@ const ExplorePage: React.FC = () => {
                   <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/50 to-transparent p-2 opacity-0 hover:opacity-100 transition-opacity">
                     <div className="flex items-center gap-1 text-white text-xs">
                       <span>&#10084;</span>
-                      <span>{(post.likeCount || 0).toLocaleString()}</span>
+                      <span>{post.likeCount.toLocaleString()}</span>
                     </div>
                   </div>
-                </motion.div>
+                </motion.button>
               ))}
             </motion.div>
           )}
