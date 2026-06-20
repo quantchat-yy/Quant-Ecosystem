@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ThemeProvider, CommandPaletteUI } from '@quant/shared-ui';
+import {
+  ThemeProvider,
+  CommandPaletteUI,
+  QuantSidekickProvider,
+  QuantSidekick,
+} from '@quant/shared-ui';
 import type { CommandPaletteItem } from '@quant/shared-ui';
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
@@ -67,12 +72,15 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeProvider defaultTheme="system">
-      {children}
-      <CommandPaletteUI
-        isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-        commands={commands}
-      />
+      <QuantSidekickProvider>
+        {children}
+        <CommandPaletteUI
+          isOpen={commandPaletteOpen}
+          onClose={() => setCommandPaletteOpen(false)}
+          commands={commands}
+        />
+        <QuantSidekick />
+      </QuantSidekickProvider>
     </ThemeProvider>
   );
 }

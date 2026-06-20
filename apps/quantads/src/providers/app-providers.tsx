@@ -1,7 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ThemeProvider, CommandPaletteUI } from '@quant/shared-ui';
+import {
+  ThemeProvider,
+  CommandPaletteUI,
+  QuantSidekickProvider,
+  QuantSidekick,
+} from '@quant/shared-ui';
 import type { CommandPaletteItem } from '@quant/shared-ui';
 
 const commands: CommandPaletteItem[] = [
@@ -28,12 +33,15 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeProvider defaultTheme="system">
-      {children}
-      <CommandPaletteUI
-        isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-        commands={commands}
-      />
+      <QuantSidekickProvider>
+        {children}
+        <CommandPaletteUI
+          isOpen={commandPaletteOpen}
+          onClose={() => setCommandPaletteOpen(false)}
+          commands={commands}
+        />
+        <QuantSidekick />
+      </QuantSidekickProvider>
     </ThemeProvider>
   );
 }

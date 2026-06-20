@@ -4,6 +4,7 @@ import './globals.css';
 import { QueryProvider } from '../providers/query-provider';
 import { AuthProvider } from '../providers/auth-provider';
 import { AdminLayout } from '../components/AdminLayout';
+import { QuantSidekickProvider, QuantSidekick } from '@quant/shared-ui';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -22,7 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <QueryProvider>
           <AuthProvider>
-            <AdminLayout>{children}</AdminLayout>
+            <QuantSidekickProvider>
+              <AdminLayout>{children}</AdminLayout>
+              <QuantSidekick />
+            </QuantSidekickProvider>
           </AuthProvider>
         </QueryProvider>
       </body>
