@@ -61,6 +61,41 @@ export default async function messagesRoutes(fastify: FastifyInstance) {
     return reply.status(201).send({ success: true, data: result });
   });
 
+  // POST /sessions/:id/messages/stream - Stream the reply token-by-token over SSE
+  // while persisting both the user message and the final assistant message.
+  fastify.post<{ Params: { id: string } }>('/:id/messages/stream', async (request, reply) => {
+    const parseResult = sendMessageSchema.safeParse(request.body);
+    if (!parseResult.success) {
+      throw parseResult.error;
+    }
+    // Auth + validation happen BEFORE hijacking so failures return normal JSON.
+    const userId = getUserId(request);
+    const { content } = parseResult.data;
+
+    reply.hijack();
+    const raw = reply.raw;
+    raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+
+    const write = (payload: unknown) => raw.write(`data: ${JSON.stringify(payload)}\n\n`);
+
+    try {
+      for await (const chunk of getService().streamMessage(request.params.id, userId, content)) {
+        if (chunk.content) write({ content: chunk.content });
+      }
+    } catch (err) {
+      const e = err as { statusCode?: number; code?: string; message?: string };
+      write({ error: e.message ?? 'Stream failed', code: e.code ?? 'STREAM_ERROR' });
+    } finally {
+      raw.write('data: [DONE]\n\n');
+      raw.end();
+    }
+  });
+
   // POST /sessions/:id/messages/:messageId/feedback
   fastify.post<{ Params: { id: string; messageId: string } }>(
     '/:id/messages/:messageId/feedback',

@@ -294,31 +294,68 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         setError(null);
 
         try {
-          const res = await fetch(`${API_BASE}/sessions/${convId}/messages`, {
+          const res = await fetch(`${API_BASE}/sessions/${convId}/messages/stream`, {
             method: 'POST',
             headers: authHeaders(true),
             body: JSON.stringify({ content: trimmed }),
             signal: controller.signal,
           });
 
-          if (!res.ok) throw new Error(`Server error: ${res.status}`);
+          if (!res.ok || !res.body) throw new Error(`Server error: ${res.status}`);
 
-          const json = (await res.json()) as {
-            data?: { message?: ServerMessage; usage?: { totalTokens?: number } };
+          // Consume the Server-Sent Events stream, accumulating tokens live.
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let accumulated = '';
+          let streamError: string | null = null;
+
+          const applyDelta = (text: string) => {
+            patchConversation(convId, (c) => ({
+              ...c,
+              messages: c.messages.map((m) =>
+                m.id === tempAssistantId ? { ...m, content: text, isStreaming: true } : m,
+              ),
+            }));
           };
-          const serverMsg = json.data?.message;
 
-          // Replace the thinking placeholder with the persisted assistant message.
-          patchConversation(convId, (c) => {
-            const msgs = c.messages.map((m) =>
-              m.id === tempAssistantId && serverMsg
-                ? { ...mapServerMessage(serverMsg), pending: false }
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
+            for (const line of lines) {
+              if (!line.startsWith('data:')) continue;
+              const data = line.slice(5).trim();
+              if (!data || data === '[DONE]') continue;
+              try {
+                const parsed = JSON.parse(data) as { content?: string; error?: string };
+                if (parsed.error) {
+                  streamError = parsed.error;
+                } else if (parsed.content) {
+                  accumulated += parsed.content;
+                  applyDelta(accumulated);
+                }
+              } catch {
+                // ignore non-JSON keepalive lines
+              }
+            }
+          }
+
+          if (streamError) throw new Error(streamError);
+
+          // Mark the optimistic pair as settled.
+          patchConversation(convId, (c) => ({
+            ...c,
+            messages: c.messages.map((m) =>
+              m.id === tempAssistantId
+                ? { ...m, isStreaming: false, pending: false }
                 : m.id === tempUserId
                   ? { ...m, pending: false }
                   : m,
-            );
-            return { ...c, messages: msgs };
-          });
+            ),
+          }));
 
           if (isFirstMessage) {
             const title = trimmed.slice(0, 60);
@@ -329,6 +366,10 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
               body: JSON.stringify({ title }),
             }).catch(() => undefined);
           }
+
+          // Reconcile with server truth so messages carry real ids (needed for
+          // feedback) and the persisted content/token counts.
+          await loadMessages(convId);
         } catch (err) {
           if (err instanceof Error && err.name === 'AbortError') return;
           setError(err instanceof Error ? err.message : 'Failed to get response');
@@ -354,6 +395,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
       createConversation,
       appendMessage,
       patchConversation,
+      loadMessages,
     ],
   );
 
