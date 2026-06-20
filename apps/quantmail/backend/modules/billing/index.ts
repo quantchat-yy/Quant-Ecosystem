@@ -79,6 +79,19 @@ export type {
 export { CreditWallet } from './services/credit-wallet.service';
 export { DEFAULT_DAILY_ALLOWANCE } from './services/credit-wallet.service';
 export { EARN_CREDIT_KINDS } from './services/credit-wallet.service';
+export {
+  OverageService,
+  OVERAGE_DISABLED,
+  overageDisabledPort,
+  createOveragePolicyPort,
+} from './services/overage-service';
+export type {
+  OveragePolicy,
+  OverageServiceOptions,
+  SetOverageArgs,
+  OveragePolicyPort,
+  OveragePolicyPortOptions,
+} from './services/overage-service';
 export type {
   CreditBucket,
   CreditKind,
