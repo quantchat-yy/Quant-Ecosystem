@@ -27,6 +27,14 @@ export interface Video {
   deletedAt: Date | null;
 }
 
+export interface VideoComment {
+  id: string;
+  videoId: string;
+  userId: string;
+  content: string;
+  createdAt: Date;
+}
+
 export interface PaginationOptions {
   page?: number;
   pageSize?: number;
@@ -223,7 +231,12 @@ export class VideoService {
     });
   }
 
-  async likeVideo(videoId: string, _userId: string): Promise<Video> {
+  /**
+   * Toggle the user's like on a video. Idempotent + backed by VideoLike
+   * (unique per user/video), so a user can never inflate the count by liking
+   * repeatedly. `likeCount` is recomputed from the real rows.
+   */
+  async likeVideo(videoId: string, userId: string): Promise<{ liked: boolean; likeCount: number }> {
     const video = await this.prisma.video.findUnique({
       where: { id: videoId },
     });
@@ -232,13 +245,44 @@ export class VideoService {
       throw createAppError('Video not found', 404, 'VIDEO_NOT_FOUND');
     }
 
-    return this.prisma.video.update({
-      where: { id: videoId },
-      data: { likeCount: { increment: 1 } },
+    const existing = await this.prisma.videoLike.findUnique({
+      where: { userId_videoId: { userId, videoId } },
     });
+
+    let liked: boolean;
+    if (existing) {
+      await this.prisma.videoLike.delete({
+        where: { userId_videoId: { userId, videoId } },
+      });
+      liked = false;
+    } else {
+      await this.prisma.videoLike.create({ data: { userId, videoId } });
+      liked = true;
+    }
+
+    const likeCount = await this.prisma.videoLike.count({ where: { videoId } });
+    await this.prisma.video.update({
+      where: { id: videoId },
+      data: { likeCount },
+    });
+
+    return { liked, likeCount };
   }
 
-  async addComment(videoId: string, _userId: string, _content: string): Promise<Video> {
+  /**
+   * Persist a real comment on a video. Previously the comment text was thrown
+   * away and only a counter was bumped — comments never existed. Now the
+   * content is stored (validated non-empty) and `commentCount` is kept in sync.
+   */
+  async addComment(videoId: string, userId: string, content: string): Promise<VideoComment> {
+    const trimmed = content.trim();
+    if (trimmed.length === 0) {
+      throw createAppError('Comment content is required', 400, 'INVALID_COMMENT');
+    }
+    if (trimmed.length > 10000) {
+      throw createAppError('Comment is too long', 400, 'COMMENT_TOO_LONG');
+    }
+
     const video = await this.prisma.video.findUnique({
       where: { id: videoId },
     });
@@ -247,10 +291,48 @@ export class VideoService {
       throw createAppError('Video not found', 404, 'VIDEO_NOT_FOUND');
     }
 
-    return this.prisma.video.update({
-      where: { id: videoId },
-      data: { commentCount: { increment: 1 } },
+    const comment = await this.prisma.videoComment.create({
+      data: { videoId, userId, content: trimmed },
     });
+
+    const commentCount = await this.prisma.videoComment.count({ where: { videoId } });
+    await this.prisma.video.update({
+      where: { id: videoId },
+      data: { commentCount },
+    });
+
+    return comment;
+  }
+
+  /** Paginated comments on a video, newest first. */
+  async listComments(
+    videoId: string,
+    options: PaginationOptions = {},
+  ): Promise<PaginatedResult<VideoComment>> {
+    const page = options.page ?? 1;
+    const pageSize = options.pageSize ?? 20;
+    const skip = (page - 1) * pageSize;
+
+    const [data, total] = await Promise.all([
+      this.prisma.videoComment.findMany({
+        where: { videoId },
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.videoComment.count({ where: { videoId } }),
+    ]);
+
+    const totalPages = Math.ceil(total / pageSize);
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
+    };
   }
 
   async search(query: string, options: PaginationOptions = {}): Promise<PaginatedResult<Video>> {

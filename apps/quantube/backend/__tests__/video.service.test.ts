@@ -10,6 +10,17 @@ function createMockPrisma() {
       count: vi.fn(),
       update: vi.fn(),
     },
+    videoLike: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
+    },
+    videoComment: {
+      create: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
+    },
   };
 }
 
@@ -270,6 +281,104 @@ describe('VideoService', () => {
       expect(result.totalPages).toBe(3);
       expect(result.hasNext).toBe(true);
       expect(result.hasPrev).toBe(true);
+    });
+  });
+
+  describe('likeVideo', () => {
+    it('toggles a like on/off and recomputes likeCount from real rows', async () => {
+      prisma.video.findUnique.mockResolvedValue({ id: 'v1', deletedAt: null });
+      prisma.videoLike.findUnique.mockResolvedValueOnce(null);
+      prisma.videoLike.create.mockResolvedValue({});
+      prisma.videoLike.count.mockResolvedValueOnce(1);
+      prisma.video.update.mockResolvedValue({});
+
+      const first = await service.likeVideo('v1', 'user-1');
+      expect(first).toEqual({ liked: true, likeCount: 1 });
+      expect(prisma.videoLike.create).toHaveBeenCalledWith({
+        data: { userId: 'user-1', videoId: 'v1' },
+      });
+
+      prisma.videoLike.findUnique.mockResolvedValueOnce({ id: 'l1' });
+      prisma.videoLike.count.mockResolvedValueOnce(0);
+      const second = await service.likeVideo('v1', 'user-1');
+      expect(second).toEqual({ liked: false, likeCount: 0 });
+      expect(prisma.videoLike.delete).toHaveBeenCalled();
+    });
+
+    it('counts likes from distinct users (no inflation)', async () => {
+      prisma.video.findUnique.mockResolvedValue({ id: 'v1', deletedAt: null });
+      prisma.videoLike.findUnique.mockResolvedValue(null);
+      prisma.videoLike.create.mockResolvedValue({});
+      prisma.videoLike.count.mockResolvedValueOnce(2);
+      prisma.video.update.mockResolvedValue({});
+
+      const r = await service.likeVideo('v1', 'user-2');
+      expect(r.likeCount).toBe(2);
+    });
+
+    it('throws for a missing/deleted video', async () => {
+      prisma.video.findUnique.mockResolvedValue(null);
+      await expect(service.likeVideo('missing', 'user-1')).rejects.toThrow('Video not found');
+    });
+  });
+
+  describe('addComment', () => {
+    it('persists the comment content and syncs commentCount', async () => {
+      prisma.video.findUnique.mockResolvedValue({ id: 'v1', deletedAt: null });
+      prisma.videoComment.create.mockResolvedValue({
+        id: 'c1',
+        videoId: 'v1',
+        userId: 'user-1',
+        content: 'great video',
+      });
+      prisma.videoComment.count.mockResolvedValue(1);
+      prisma.video.update.mockResolvedValue({});
+
+      const comment = await service.addComment('v1', 'user-1', '  great video  ');
+
+      expect(prisma.videoComment.create).toHaveBeenCalledWith({
+        data: { videoId: 'v1', userId: 'user-1', content: 'great video' },
+      });
+      expect(prisma.video.update).toHaveBeenCalledWith({
+        where: { id: 'v1' },
+        data: { commentCount: 1 },
+      });
+      expect(comment.content).toBe('great video');
+    });
+
+    it('rejects an empty/whitespace comment without touching the DB', async () => {
+      await expect(service.addComment('v1', 'user-1', '   ')).rejects.toThrow(
+        'Comment content is required',
+      );
+      expect(prisma.videoComment.create).not.toHaveBeenCalled();
+    });
+
+    it('throws for a missing/deleted video', async () => {
+      prisma.video.findUnique.mockResolvedValue(null);
+      await expect(service.addComment('missing', 'user-1', 'hi')).rejects.toThrow(
+        'Video not found',
+      );
+    });
+  });
+
+  describe('listComments', () => {
+    it('returns paginated comments newest first', async () => {
+      prisma.videoComment.findMany.mockResolvedValue([
+        { id: 'c2', content: 'b' },
+        { id: 'c1', content: 'a' },
+      ]);
+      prisma.videoComment.count.mockResolvedValue(2);
+
+      const result = await service.listComments('v1', { page: 1, pageSize: 20 });
+
+      expect(result.total).toBe(2);
+      expect(result.data).toHaveLength(2);
+      expect(prisma.videoComment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { videoId: 'v1' },
+          orderBy: { createdAt: 'desc' },
+        }),
+      );
     });
   });
 });

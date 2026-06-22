@@ -2817,3 +2817,28 @@ model UserSafetySetting {
 
   @@map("user_safety_settings")
 }
+
+// ==================== QuantTube Video Interactions (likes + comments) ====================
+
+model VideoLike {
+  id        String   @id @default(cuid())
+  userId    String
+  videoId   String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, videoId])
+  @@index([videoId])
+  @@map("video_likes")
+}
+
+model VideoComment {
+  id        String   @id @default(cuid())
+  videoId   String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([videoId])
+  @@index([userId])
+  @@map("video_comments")
+}
