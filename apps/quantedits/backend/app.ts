@@ -7,6 +7,7 @@ import exportsRoutes from './routes/exports';
 import templatesRoutes from './routes/templates';
 import effectsRoutes from './routes/effects';
 import brandKitsRoutes from './routes/brand-kits';
+import collaborationRoutes from './routes/collaboration';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -42,6 +43,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(templatesRoutes, { prefix: '/templates' });
   await app.register(effectsRoutes, { prefix: '/effects' });
   await app.register(brandKitsRoutes, { prefix: '/brand-kits' });
+  await app.register(collaborationRoutes, { prefix: '/collaboration' });
 
   return app;
 }
