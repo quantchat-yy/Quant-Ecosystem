@@ -41,6 +41,12 @@ export interface PrismaClient {
       data: Record<string, unknown>;
     }) => Promise<any>;
   };
+  shortVideoLike: {
+    findUnique: (args: { where: Record<string, unknown> }) => Promise<any>;
+    create: (args: { data: Record<string, unknown> }) => Promise<any>;
+    delete: (args: { where: Record<string, unknown> }) => Promise<any>;
+    count: (args: Record<string, unknown>) => Promise<number>;
+  };
   $queryRaw<T = unknown>(query: TemplateStringsArray, ...values: unknown[]): Promise<T>;
   $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>;
 }

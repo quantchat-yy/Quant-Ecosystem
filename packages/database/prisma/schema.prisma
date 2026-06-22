@@ -1077,6 +1077,17 @@ model ShortVideo {
   @@map("short_videos")
 }
 
+model ShortVideoLike {
+  id           String   @id @default(cuid())
+  userId       String
+  shortVideoId String
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, shortVideoId])
+  @@index([shortVideoId])
+  @@map("short_video_likes")
+}
+
 // ==================== AI (QuantAI) ====================
 
 model AISession {
