@@ -49,4 +49,15 @@ export interface PrismaClient {
     delete: (args: { where: Record<string, unknown> }) => Promise<any>;
     count: (args: Record<string, unknown>) => Promise<number>;
   };
+  videoLike: {
+    findUnique: (args: { where: Record<string, unknown> }) => Promise<any>;
+    create: (args: { data: Record<string, unknown> }) => Promise<any>;
+    delete: (args: { where: Record<string, unknown> }) => Promise<any>;
+    count: (args: Record<string, unknown>) => Promise<number>;
+  };
+  videoComment: {
+    create: (args: { data: Record<string, unknown> }) => Promise<any>;
+    findMany: (args: Record<string, unknown>) => Promise<any[]>;
+    count: (args: Record<string, unknown>) => Promise<number>;
+  };
 }
