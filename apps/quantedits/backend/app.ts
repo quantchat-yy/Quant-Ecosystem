@@ -2,6 +2,9 @@ import { createApp } from '@quant/server-core';
 import type { AppConfig } from '@quant/server-core';
 import projectsRoutes from './routes/projects';
 import aiRoutes from './routes/ai';
+import assetsRoutes from './routes/assets';
+import exportsRoutes from './routes/exports';
+import templatesRoutes from './routes/templates';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -31,6 +34,10 @@ export async function buildApp(config?: AppConfig) {
 
   await app.register(projectsRoutes, { prefix: '/projects' });
   await app.register(aiRoutes, { prefix: '/ai' });
+  // Previously-implemented but unregistered routes (their Next proxies were dead):
+  await app.register(assetsRoutes, { prefix: '/assets' });
+  await app.register(exportsRoutes, { prefix: '/export' });
+  await app.register(templatesRoutes, { prefix: '/templates' });
 
   return app;
 }
