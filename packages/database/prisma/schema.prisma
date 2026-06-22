@@ -2924,3 +2924,44 @@ model VideoChatSession {
   @@index([user2Id])
   @@map("video_chat_sessions")
 }
+
+
+
+// ==================== QuantMax Live Streaming ====================
+
+enum LiveStreamType {
+  SOLO
+  DATING_EVENT
+  SPEED_DATING
+  GROUP_VIDEO
+  PARTY
+}
+
+model LiveStream {
+  id              String         @id @default(cuid())
+  hostId          String
+  title           String
+  type            LiveStreamType @default(SOLO)
+  thumbnailUrl    String?
+  viewerCount     Int            @default(0)
+  maxParticipants Int            @default(0)
+  isLive          Boolean        @default(true)
+  tags            Json           @default("[]")
+  startedAt       DateTime       @default(now())
+  endedAt         DateTime?
+
+  @@index([isLive])
+  @@index([hostId])
+  @@map("live_streams")
+}
+
+model LiveStreamViewer {
+  id       String   @id @default(cuid())
+  streamId String
+  userId   String
+  joinedAt DateTime @default(now())
+
+  @@unique([streamId, userId])
+  @@index([streamId])
+  @@map("live_stream_viewers")
+}

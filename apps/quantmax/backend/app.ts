@@ -12,6 +12,7 @@ import economyRoutes, { createEconomyService } from './routes/economy';
 import videosRoutes from './routes/videos';
 import safetyRoutes from './routes/safety';
 import videochatRoutes from './routes/videochat';
+import liveRoutes from './routes/live';
 import { createFeedEngines } from './lib/feed-engines';
 
 export function getConfig(): AppConfig {
@@ -48,6 +49,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(videosRoutes, { prefix: '/videos' });
   await app.register(safetyRoutes, { prefix: '/safety' });
   await app.register(videochatRoutes, { prefix: '/videochat' });
+  await app.register(liveRoutes, { prefix: '/live' });
 
   // ==========================================================================
   // Task 14.2 — quantmax feed/recommendation engine wiring (per-app lane,
