@@ -9,6 +9,7 @@ import feedRoutes from './routes/feed';
 import paymentsRoutes, { paymentsWebhookRoutes, createPaymentsService } from './routes/payments';
 import commerceRoutes, { createCommerceService } from './routes/commerce';
 import economyRoutes, { createEconomyService } from './routes/economy';
+import videosRoutes from './routes/videos';
 import { createFeedEngines } from './lib/feed-engines';
 
 export function getConfig(): AppConfig {
@@ -42,6 +43,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(swipesRoutes, { prefix: '/swipes' });
   await app.register(randomChatRoutes, { prefix: '/random-chat' });
   await app.register(aiRoutes, { prefix: '/ai' });
+  await app.register(videosRoutes, { prefix: '/videos' });
 
   // ==========================================================================
   // Task 14.2 — quantmax feed/recommendation engine wiring (per-app lane,
