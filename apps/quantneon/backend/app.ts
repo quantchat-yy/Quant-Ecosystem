@@ -12,7 +12,9 @@ import aiRoutes from './routes/ai';
 import arLensesRoutes, { createArLensesService } from './routes/ar-lenses';
 import federationRoutes, { createFederationService } from './routes/federation';
 import feedRoutes from './routes/feed';
+import gamesRoutes from './routes/games';
 import { createFeedEngines } from './lib/feed-engines';
+import { NeonGamesService } from './services/neon-games.service';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -81,6 +83,12 @@ export async function buildApp(config?: AppConfig) {
   // mutating routes.
   app.decorate('feed', createFeedEngines());
   await app.register(feedRoutes, { prefix: '/feed' });
+
+  // in-feed games — per-app session host (in-memory singleton). Decorated once
+  // at boot; routes under `/games` sit behind the global auth hook. Cross-app
+  // shared sessions/leaderboards (@quant/cross-app-gaming) are a follow-up.
+  app.decorate('neonGames', new NeonGamesService());
+  await app.register(gamesRoutes, { prefix: '/games' });
 
   return app;
 }
