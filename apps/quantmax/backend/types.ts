@@ -47,6 +47,19 @@ export interface PrismaClient {
     delete: (args: { where: Record<string, unknown> }) => Promise<any>;
     count: (args: Record<string, unknown>) => Promise<number>;
   };
+  userReport: {
+    create: (args: { data: Record<string, unknown> }) => Promise<any>;
+    findMany: (args: Record<string, unknown>) => Promise<any[]>;
+    count: (args: Record<string, unknown>) => Promise<number>;
+  };
+  userSafetySetting: {
+    findUnique: (args: { where: Record<string, unknown> }) => Promise<any>;
+    upsert: (args: {
+      where: Record<string, unknown>;
+      create: Record<string, unknown>;
+      update: Record<string, unknown>;
+    }) => Promise<any>;
+  };
   $queryRaw<T = unknown>(query: TemplateStringsArray, ...values: unknown[]): Promise<T>;
   $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>;
 }
