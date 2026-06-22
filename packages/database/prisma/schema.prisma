@@ -2842,3 +2842,22 @@ model VideoComment {
   @@index([userId])
   @@map("video_comments")
 }
+
+
+
+// ==================== QuantEdits Brand Kits ====================
+
+model EditBrandKit {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  isDefault Boolean  @default(false)
+  colors    Json     @default("{}")
+  fonts     Json     @default("{}")
+  logos     Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("edit_brand_kits")
+}
