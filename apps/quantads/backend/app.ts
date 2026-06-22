@@ -2,6 +2,7 @@ import { createApp } from '@quant/server-core';
 import type { AppConfig } from '@quant/server-core';
 import campaignsRoutes from './routes/campaigns';
 import aiRoutes from './routes/ai';
+import biddingRoutes from './routes/bidding';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -31,6 +32,7 @@ export async function buildApp(config?: AppConfig) {
 
   await app.register(campaignsRoutes, { prefix: '/campaigns' });
   await app.register(aiRoutes, { prefix: '/ai' });
+  await app.register(biddingRoutes, { prefix: '/bidding' });
 
   return app;
 }
