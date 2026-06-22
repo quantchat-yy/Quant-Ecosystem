@@ -2898,3 +2898,29 @@ model EditComment {
   @@index([projectId])
   @@map("edit_comments")
 }
+
+
+
+// ==================== QuantMax Video Chat (Omegle-style) ====================
+
+enum VideoChatSessionStatus {
+  CONNECTED
+  ENDED
+  SKIPPED
+}
+
+model VideoChatSession {
+  id               String                 @id @default(cuid())
+  user1Id          String
+  user2Id          String
+  status           VideoChatSessionStatus @default(CONNECTED)
+  matchedInterests Json                   @default("[]")
+  hasTextFallback  Boolean                @default(false)
+  startedAt        DateTime               @default(now())
+  endedAt          DateTime?
+  durationSec      Int                    @default(0)
+
+  @@index([user1Id])
+  @@index([user2Id])
+  @@map("video_chat_sessions")
+}
