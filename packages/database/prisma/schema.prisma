@@ -2861,3 +2861,40 @@ model EditBrandKit {
   @@index([userId])
   @@map("edit_brand_kits")
 }
+
+
+
+// ==================== QuantEdits Collaboration ====================
+
+enum EditCollaboratorRole {
+  OWNER
+  EDITOR
+  VIEWER
+  COMMENTER
+}
+
+model EditCollaborator {
+  id        String               @id @default(cuid())
+  projectId String
+  userId    String
+  role      EditCollaboratorRole @default(VIEWER)
+  createdAt DateTime             @default(now())
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@map("edit_collaborators")
+}
+
+model EditComment {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  content   String
+  layerId   String?
+  position  Json?
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+  @@map("edit_comments")
+}
