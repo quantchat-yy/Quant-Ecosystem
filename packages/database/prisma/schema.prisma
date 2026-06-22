@@ -2760,3 +2760,60 @@ model VideoChannelSubscription {
   @@index([channelId])
   @@map("video_channel_subscriptions")
 }
+
+
+
+// ==================== QuantMax Safety (reports + safety settings) ====================
+
+enum ReportTargetType {
+  VIDEO
+  PROFILE
+  MESSAGE
+  CHAT_SESSION
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  NUDITY
+  VIOLENCE
+  HATE_SPEECH
+  SELF_HARM
+  MISINFORMATION
+  UNDERAGE
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWING
+  ACTIONED
+  DISMISSED
+}
+
+model UserReport {
+  id         String           @id @default(cuid())
+  reporterId String
+  targetType ReportTargetType
+  targetId   String
+  reason     ReportReason
+  details    String?
+  status     ReportStatus     @default(PENDING)
+  createdAt  DateTime         @default(now())
+
+  @@index([reporterId])
+  @@index([targetType, targetId])
+  @@index([status])
+  @@map("user_reports")
+}
+
+model UserSafetySetting {
+  userId               String   @id
+  hideSensitiveContent Boolean  @default(true)
+  allowRandomChat      Boolean  @default(true)
+  blockUnknownMessages Boolean  @default(false)
+  filteredKeywords     Json     @default("[]")
+  updatedAt            DateTime @updatedAt
+
+  @@map("user_safety_settings")
+}
