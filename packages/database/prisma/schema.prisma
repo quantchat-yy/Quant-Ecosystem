@@ -2744,3 +2744,19 @@ model MusicTrack {
   @@index([artistName])
   @@map("music_tracks")
 }
+
+
+
+// ==================== QuantTube Channel Subscriptions ====================
+
+model VideoChannelSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  channelId String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, channelId])
+  @@index([userId])
+  @@index([channelId])
+  @@map("video_channel_subscriptions")
+}

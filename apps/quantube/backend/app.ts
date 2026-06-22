@@ -12,6 +12,7 @@ import playlistRoutes, { createPlaylistService } from './routes/playlists';
 import paymentsRoutes, { paymentsWebhookRoutes, createPaymentsService } from './routes/payments';
 import payoutRoutes, { createPayoutService } from './routes/payouts';
 import musicRoutes from './routes/music';
+import subscriptionsRoutes from './routes/subscriptions';
 import { createFeedEngines } from './lib/feed-engines';
 
 export function getConfig(): AppConfig {
@@ -45,6 +46,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(historyRoutes, { prefix: '/history' });
   await app.register(aiRoutes, { prefix: '/ai' });
   await app.register(musicRoutes, { prefix: '/music' });
+  await app.register(subscriptionsRoutes, { prefix: '/subscriptions' });
 
   // playlists engine — quantube Library "Playlists" + "Watch Later" surfaces
   // and the playlist/[id] detail page (quantube-real-data-wiring, Task 3).
