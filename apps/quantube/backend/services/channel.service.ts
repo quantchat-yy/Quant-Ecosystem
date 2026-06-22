@@ -105,7 +105,13 @@ export class ChannelService {
     });
   }
 
-  async subscribe(channelId: string, _userId: string): Promise<VideoChannel> {
+  /**
+   * Subscribe the user to a channel. Idempotent: a user who is already
+   * subscribed stays subscribed (no double-counting). The channel's
+   * `subscriberCount` is recomputed from the real subscription rows so it can
+   * never drift from the actual number of distinct subscribers.
+   */
+  async subscribe(channelId: string, userId: string): Promise<VideoChannel> {
     const channel = await this.prisma.videoChannel.findUnique({
       where: { id: channelId },
     });
@@ -114,13 +120,31 @@ export class ChannelService {
       throw createAppError('Channel not found', 404, 'CHANNEL_NOT_FOUND');
     }
 
+    const existing = await this.prisma.videoChannelSubscription.findUnique({
+      where: { userId_channelId: { userId, channelId } },
+    });
+
+    if (!existing) {
+      await this.prisma.videoChannelSubscription.create({
+        data: { userId, channelId },
+      });
+    }
+
+    const subscriberCount = await this.prisma.videoChannelSubscription.count({
+      where: { channelId },
+    });
+
     return this.prisma.videoChannel.update({
       where: { id: channelId },
-      data: { subscriberCount: channel.subscriberCount + 1 },
+      data: { subscriberCount },
     });
   }
 
-  async unsubscribe(channelId: string, _userId: string): Promise<VideoChannel> {
+  /**
+   * Unsubscribe the user. Idempotent: unsubscribing when not subscribed is a
+   * no-op. `subscriberCount` is recomputed from the real subscription rows.
+   */
+  async unsubscribe(channelId: string, userId: string): Promise<VideoChannel> {
     const channel = await this.prisma.videoChannel.findUnique({
       where: { id: channelId },
     });
@@ -129,10 +153,32 @@ export class ChannelService {
       throw createAppError('Channel not found', 404, 'CHANNEL_NOT_FOUND');
     }
 
+    const existing = await this.prisma.videoChannelSubscription.findUnique({
+      where: { userId_channelId: { userId, channelId } },
+    });
+
+    if (existing) {
+      await this.prisma.videoChannelSubscription.delete({
+        where: { userId_channelId: { userId, channelId } },
+      });
+    }
+
+    const subscriberCount = await this.prisma.videoChannelSubscription.count({
+      where: { channelId },
+    });
+
     return this.prisma.videoChannel.update({
       where: { id: channelId },
-      data: { subscriberCount: Math.max(0, channel.subscriberCount - 1) },
+      data: { subscriberCount },
     });
+  }
+
+  /** Whether the given user is subscribed to the given channel. */
+  async isSubscribed(channelId: string, userId: string): Promise<boolean> {
+    const existing = await this.prisma.videoChannelSubscription.findUnique({
+      where: { userId_channelId: { userId, channelId } },
+    });
+    return Boolean(existing);
   }
 
   async getSubscribers(
@@ -150,6 +196,10 @@ export class ChannelService {
     return { channelId, subscriberCount: channel.subscriberCount };
   }
 
+  /**
+   * The channels the given user is actually subscribed to (real, user-scoped),
+   * newest subscription first. Subscription order is preserved.
+   */
   async getSubscriptions(
     userId: string,
     options: PaginationOptions = {},
@@ -158,19 +208,85 @@ export class ChannelService {
     const pageSize = options.pageSize ?? 20;
     const skip = (page - 1) * pageSize;
 
-    const [data, total] = await Promise.all([
-      this.prisma.videoChannel.findMany({
-        where: { subscriberCount: { gt: 0 } },
+    const [subs, total] = await Promise.all([
+      this.prisma.videoChannelSubscription.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: pageSize,
-        orderBy: { name: 'asc' },
       }),
-      this.prisma.videoChannel.count({
-        where: { subscriberCount: { gt: 0 } },
-      }),
+      this.prisma.videoChannelSubscription.count({ where: { userId } }),
     ]);
 
-    void userId;
+    const channelIds = subs.map((s: { channelId: string }) => s.channelId);
+    const channels: VideoChannel[] = channelIds.length
+      ? await this.prisma.videoChannel.findMany({ where: { id: { in: channelIds } } })
+      : [];
+
+    // Preserve the subscription order (findMany by id does not guarantee order).
+    const byId = new Map<string, VideoChannel>(channels.map((c) => [c.id, c]));
+    const data = channelIds
+      .map((id: string) => byId.get(id))
+      .filter((c: VideoChannel | undefined): c is VideoChannel => Boolean(c));
+
+    const totalPages = Math.ceil(total / pageSize);
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
+    };
+  }
+
+  /**
+   * The "Subscriptions" home feed: public, non-deleted videos from every
+   * channel the user is subscribed to, newest first. Empty when the user has
+   * no subscriptions.
+   */
+  async getSubscriptionFeed(
+    userId: string,
+    options: PaginationOptions = {},
+  ): Promise<PaginatedResult<unknown>> {
+    const page = options.page ?? 1;
+    const pageSize = options.pageSize ?? 20;
+    const skip = (page - 1) * pageSize;
+
+    const subs = await this.prisma.videoChannelSubscription.findMany({
+      where: { userId },
+    });
+    const channelIds = subs.map((s: { channelId: string }) => s.channelId);
+
+    if (channelIds.length === 0) {
+      return {
+        data: [],
+        total: 0,
+        page,
+        pageSize,
+        totalPages: 0,
+        hasNext: false,
+        hasPrev: false,
+      };
+    }
+
+    const where = {
+      channelId: { in: channelIds },
+      deletedAt: null,
+      visibility: 'PUBLIC',
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.video.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+      }),
+      this.prisma.video.count({ where }),
+    ]);
+
     const totalPages = Math.ceil(total / pageSize);
     return {
       data,
