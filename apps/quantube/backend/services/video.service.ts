@@ -258,24 +258,30 @@ export class VideoService {
     const pageSize = options.pageSize ?? 20;
     const skip = (page - 1) * pageSize;
 
+    const trimmed = query.trim();
+    if (trimmed.length === 0) {
+      return { data: [], total: 0, page, pageSize, totalPages: 0, hasNext: false, hasPrev: false };
+    }
+
+    // Match the query against title OR description, case-insensitively, over
+    // public, non-deleted videos. Ranked by view count (most-watched first).
+    const where = {
+      deletedAt: null,
+      visibility: 'PUBLIC',
+      OR: [
+        { title: { contains: trimmed, mode: 'insensitive' } },
+        { description: { contains: trimmed, mode: 'insensitive' } },
+      ],
+    };
+
     const [data, total] = await Promise.all([
       this.prisma.video.findMany({
-        where: {
-          deletedAt: null,
-          visibility: 'PUBLIC',
-          title: { contains: query },
-        },
+        where,
         skip,
         take: pageSize,
         orderBy: { viewCount: 'desc' },
       }),
-      this.prisma.video.count({
-        where: {
-          deletedAt: null,
-          visibility: 'PUBLIC',
-          title: { contains: query },
-        },
-      }),
+      this.prisma.video.count({ where }),
     ]);
 
     const totalPages = Math.ceil(total / pageSize);

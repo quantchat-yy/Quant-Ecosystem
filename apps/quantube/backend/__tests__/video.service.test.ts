@@ -208,4 +208,68 @@ describe('VideoService', () => {
       await expect(service.getVideo('missing')).rejects.toThrow('Video not found');
     });
   });
+
+  describe('search', () => {
+    it('matches title OR description (case-insensitive) over public, non-deleted videos', async () => {
+      prisma.video.findMany.mockResolvedValue([{ id: 'v1', title: 'Cooking Pasta' }]);
+      prisma.video.count.mockResolvedValue(1);
+
+      const result = await service.search('pasta', { page: 1, pageSize: 20 });
+
+      expect(result.total).toBe(1);
+      expect(result.data).toHaveLength(1);
+      expect(prisma.video.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            deletedAt: null,
+            visibility: 'PUBLIC',
+            OR: [
+              { title: { contains: 'pasta', mode: 'insensitive' } },
+              { description: { contains: 'pasta', mode: 'insensitive' } },
+            ],
+          }),
+          orderBy: { viewCount: 'desc' },
+        }),
+      );
+    });
+
+    it('trims the query before matching', async () => {
+      prisma.video.findMany.mockResolvedValue([]);
+      prisma.video.count.mockResolvedValue(0);
+
+      await service.search('  pasta  ');
+
+      expect(prisma.video.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [
+              { title: { contains: 'pasta', mode: 'insensitive' } },
+              { description: { contains: 'pasta', mode: 'insensitive' } },
+            ],
+          }),
+        }),
+      );
+    });
+
+    it('returns an empty page for a blank query without querying the DB', async () => {
+      const result = await service.search('   ');
+
+      expect(result.data).toHaveLength(0);
+      expect(result.total).toBe(0);
+      expect(prisma.video.findMany).not.toHaveBeenCalled();
+      expect(prisma.video.count).not.toHaveBeenCalled();
+    });
+
+    it('reports pagination metadata', async () => {
+      prisma.video.findMany.mockResolvedValue([{ id: 'v1' }]);
+      prisma.video.count.mockResolvedValue(45);
+
+      const result = await service.search('quant', { page: 2, pageSize: 20 });
+
+      expect(result.page).toBe(2);
+      expect(result.totalPages).toBe(3);
+      expect(result.hasNext).toBe(true);
+      expect(result.hasPrev).toBe(true);
+    });
+  });
 });
