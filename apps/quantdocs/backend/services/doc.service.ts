@@ -17,6 +17,14 @@ export interface PrismaClient {
     findUnique: (args: { where: Record<string, unknown> }) => Promise<unknown>;
     findMany: (args: Record<string, unknown>) => Promise<unknown[]>;
   };
+  documentCollaborator: {
+    findMany: (args: Record<string, unknown>) => Promise<unknown[]>;
+    upsert: (args: {
+      where: Record<string, unknown>;
+      create: Record<string, unknown>;
+      update: Record<string, unknown>;
+    }) => Promise<unknown>;
+  };
 }
 
 export interface CreateDocInput {
@@ -191,5 +199,92 @@ export class DocService {
       (version as unknown as DocVersion).content,
       (version as unknown as DocVersion).title,
     );
+  }
+
+  /** Full-text-ish search over the caller's own non-deleted documents. */
+  async searchDocs(
+    userId: string,
+    query: string,
+    options: PaginationOptions = {},
+  ): Promise<PaginatedResult<Doc>> {
+    const page = options.page ?? 1;
+    const pageSize = options.pageSize ?? 20;
+    const skip = (page - 1) * pageSize;
+    const q = query.trim();
+
+    if (q.length === 0) {
+      return { data: [], total: 0, page, pageSize, totalPages: 0, hasNext: false, hasPrev: false };
+    }
+
+    const where = {
+      userId,
+      isDeleted: false,
+      OR: [
+        { title: { contains: q, mode: 'insensitive' } },
+        { content: { contains: q, mode: 'insensitive' } },
+      ],
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.document.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { updatedAt: 'desc' },
+      }),
+      this.prisma.document.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(total / pageSize);
+    return {
+      data: data as unknown as Doc[],
+      total,
+      page,
+      pageSize,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
+    };
+  }
+
+  /**
+   * Share a document: optionally flip public visibility and/or grant a named
+   * collaborator a role. Owner-only.
+   */
+  async shareDoc(
+    docId: string,
+    userId: string,
+    input: { isPublic?: boolean; targetUserId?: string; role?: string },
+  ): Promise<{ document: Doc; collaborator?: unknown }> {
+    await this.getDoc(docId, userId); // owner + existence check
+
+    let document = await this.prisma.document.findUnique({ where: { id: docId } });
+    if (input.isPublic !== undefined) {
+      document = await this.prisma.document.update({
+        where: { id: docId },
+        data: { isPublic: input.isPublic, updatedAt: new Date() },
+      });
+    }
+
+    let collaborator: unknown;
+    if (input.targetUserId) {
+      const role = input.role ?? 'viewer';
+      collaborator = await this.prisma.documentCollaborator.upsert({
+        where: { docId_userId: { docId, userId: input.targetUserId } },
+        create: { docId, userId: input.targetUserId, role },
+        update: { role },
+      });
+    }
+
+    return { document: document as unknown as Doc, collaborator };
+  }
+
+  /** List a document's collaborators. Owner-only. */
+  async listCollaborators(docId: string, userId: string): Promise<unknown[]> {
+    await this.getDoc(docId, userId);
+    return this.prisma.documentCollaborator.findMany({
+      where: { docId },
+      orderBy: { createdAt: 'asc' },
+    });
   }
 }

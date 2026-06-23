@@ -1,6 +1,6 @@
 import { createApp } from '@quant/server-core';
 import type { AppConfig } from '@quant/server-core';
-import documentsRoutes from './routes/documents';
+import docsRoutes from './routes/docs';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -28,7 +28,7 @@ export async function buildApp(config?: AppConfig) {
   const appConfig = config ?? getConfig();
   const app = await createApp(appConfig);
 
-  await app.register(documentsRoutes, { prefix: '/documents' });
+  await app.register(docsRoutes, { prefix: '/docs' });
 
   return app;
 }

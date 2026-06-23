@@ -2991,3 +2991,89 @@ model PostBookmark {
   @@index([userId])
   @@map("post_bookmarks")
 }
+
+// ==================== QuantDocs (Google Docs killer) ====================
+
+model Document {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @default("")
+  userId    String
+  metadata  Json     @default("{}")
+  isPublic  Boolean  @default(false)
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions      DocumentVersion[]
+  comments      DocComment[]
+  suggestions   DocSuggestion[]
+  collaborators DocumentCollaborator[]
+
+  @@index([userId])
+  @@index([userId, isDeleted, updatedAt])
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id        String   @id @default(cuid())
+  docId     String
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+
+  document Document @relation(fields: [docId], references: [id], onDelete: Cascade)
+
+  @@index([docId])
+  @@map("document_versions")
+}
+
+model DocComment {
+  id        String   @id @default(cuid())
+  docId     String
+  userId    String
+  content   String
+  selection Json?
+  parentId  String?
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  document Document     @relation(fields: [docId], references: [id], onDelete: Cascade)
+  parent   DocComment?  @relation("DocCommentReplies", fields: [parentId], references: [id])
+  replies  DocComment[] @relation("DocCommentReplies")
+
+  @@index([docId])
+  @@index([parentId])
+  @@map("doc_comments")
+}
+
+model DocSuggestion {
+  id            String   @id @default(cuid())
+  docId         String
+  userId        String
+  originalText  String
+  suggestedText String
+  selection     Json
+  status        String   @default("pending")
+  createdAt     DateTime @default(now())
+
+  document Document @relation(fields: [docId], references: [id], onDelete: Cascade)
+
+  @@index([docId])
+  @@map("doc_suggestions")
+}
+
+model DocumentCollaborator {
+  id        String   @id @default(cuid())
+  docId     String
+  userId    String
+  role      String   @default("viewer")
+  createdAt DateTime @default(now())
+
+  document Document @relation(fields: [docId], references: [id], onDelete: Cascade)
+
+  @@unique([docId, userId])
+  @@index([docId])
+  @@map("document_collaborators")
+}

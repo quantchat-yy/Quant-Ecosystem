@@ -26,6 +26,19 @@ const restoreVersionSchema = z.object({
   versionId: z.string().min(1),
 });
 
+const searchSchema = z.object({
+  q: z.string().max(200).optional(),
+  query: z.string().max(200).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(100).optional(),
+});
+
+const shareSchema = z.object({
+  isPublic: z.boolean().optional(),
+  targetUserId: z.string().optional(),
+  role: z.enum(['viewer', 'commenter', 'editor', 'owner']).optional(),
+});
+
 const createCommentSchema = z.object({
   content: z.string().min(1).max(5000),
   selection: z
@@ -186,6 +199,25 @@ export default async function docsRoutes(fastify: FastifyInstance) {
     return reply.send({ success: true, data: doc });
   });
 
+  // GET /docs/search - Search documents (declared before /:id; Fastify prioritizes static)
+  fastify.get('/search', async (request, reply) => {
+    const parsed = searchSchema.safeParse(request.query);
+    if (!parsed.success) {
+      throw parsed.error;
+    }
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    const service = new DocService(prisma as never);
+    const result = await service.searchDocs(userId, parsed.data.q ?? parsed.data.query ?? '', {
+      page: parsed.data.page,
+      pageSize: parsed.data.pageSize,
+    });
+    return reply.send({ success: true, data: result });
+  });
+
   // GET /docs/:id/comments - List comments
   fastify.get<{ Params: { id: string } }>('/:id/comments', async (request, reply) => {
     const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
@@ -328,6 +360,49 @@ export default async function docsRoutes(fastify: FastifyInstance) {
       }
     }
   });
+
+  // POST /docs/:id/share - Share document (public flag and/or grant collaborator)
+  fastify.post<{ Params: { id: string } }>('/:id/share', async (request, reply) => {
+    const parseResult = shareSchema.safeParse(request.body);
+    if (!parseResult.success) {
+      throw parseResult.error;
+    }
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    const service = new DocService(prisma as never);
+    const result = await service.shareDoc(request.params.id, userId, parseResult.data);
+    return reply.send({ success: true, data: result });
+  });
+
+  // GET /docs/:id/collaborators - List collaborators
+  fastify.get<{ Params: { id: string } }>('/:id/collaborators', async (request, reply) => {
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    const service = new DocService(prisma as never);
+    const collaborators = await service.listCollaborators(request.params.id, userId);
+    return reply.send({ success: true, data: collaborators });
+  });
+
+  // POST /docs/:id/versions/:versionId/restore - Restore a version (path-param variant)
+  fastify.post<{ Params: { id: string; versionId: string } }>(
+    '/:id/versions/:versionId/restore',
+    async (request, reply) => {
+      const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+      if (!userId) {
+        throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+      }
+      const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+      const service = new DocService(prisma as never);
+      const doc = await service.restoreVersion(request.params.id, userId, request.params.versionId);
+      return reply.send({ success: true, data: doc });
+    },
+  );
 
   // GET /templates - List templates
   fastify.get('/templates', async (_request, reply) => {

@@ -15,6 +15,10 @@ function createMockPrisma() {
       findUnique: vi.fn(),
       findMany: vi.fn(),
     },
+    documentCollaborator: {
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+    },
   };
 }
 
@@ -276,6 +280,88 @@ describe('DocService', () => {
 
       await expect(service.restoreVersion('doc-1', 'user-1', 'v-missing')).rejects.toThrow(
         'Version not found',
+      );
+    });
+  });
+
+  describe('searchDocs', () => {
+    it('matches title/description over the caller\u2019s non-deleted docs', async () => {
+      prisma.document.findMany.mockResolvedValue([{ id: 'd1', title: 'Roadmap' }]);
+      prisma.document.count.mockResolvedValue(1);
+
+      const result = await service.searchDocs('user-1', 'road', { page: 1, pageSize: 20 });
+
+      expect(result.total).toBe(1);
+      expect(prisma.document.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId: 'user-1',
+            isDeleted: false,
+            OR: [
+              { title: { contains: 'road', mode: 'insensitive' } },
+              { content: { contains: 'road', mode: 'insensitive' } },
+            ],
+          }),
+        }),
+      );
+    });
+
+    it('short-circuits a blank query (no DB hit)', async () => {
+      const result = await service.searchDocs('user-1', '   ');
+      expect(result.data).toHaveLength(0);
+      expect(prisma.document.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('shareDoc', () => {
+    it('flips public visibility and upserts a collaborator (owner only)', async () => {
+      prisma.document.findUnique.mockResolvedValue({
+        id: 'doc-1',
+        userId: 'user-1',
+        isDeleted: false,
+      });
+      prisma.document.update.mockResolvedValue({ id: 'doc-1', isPublic: true });
+      prisma.documentCollaborator.upsert.mockResolvedValue({ userId: 'u2', role: 'editor' });
+
+      const result = await service.shareDoc('doc-1', 'user-1', {
+        isPublic: true,
+        targetUserId: 'u2',
+        role: 'editor',
+      });
+
+      expect(prisma.documentCollaborator.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { docId_userId: { docId: 'doc-1', userId: 'u2' } },
+          create: { docId: 'doc-1', userId: 'u2', role: 'editor' },
+          update: { role: 'editor' },
+        }),
+      );
+      expect(result.collaborator).toBeDefined();
+    });
+
+    it('rejects a non-owner', async () => {
+      prisma.document.findUnique.mockResolvedValue({
+        id: 'doc-1',
+        userId: 'owner',
+        isDeleted: false,
+      });
+      await expect(service.shareDoc('doc-1', 'intruder', { isPublic: true })).rejects.toThrow();
+    });
+  });
+
+  describe('listCollaborators', () => {
+    it('returns the document collaborators for the owner', async () => {
+      prisma.document.findUnique.mockResolvedValue({
+        id: 'doc-1',
+        userId: 'user-1',
+        isDeleted: false,
+      });
+      prisma.documentCollaborator.findMany.mockResolvedValue([{ userId: 'u2', role: 'viewer' }]);
+
+      const result = await service.listCollaborators('doc-1', 'user-1');
+      expect(result).toHaveLength(1);
+      expect(prisma.documentCollaborator.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { docId: 'doc-1' } }),
       );
     });
   });
