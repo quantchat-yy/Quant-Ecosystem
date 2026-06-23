@@ -3077,3 +3077,97 @@ model DocumentCollaborator {
   @@index([docId])
   @@map("document_collaborators")
 }
+
+
+
+// ==================== QuantDrive (Google Drive killer) ====================
+
+model File {
+  id                String    @id @default(cuid())
+  name              String
+  mimeType          String
+  size              Int       @default(0)
+  encryptedContent  String
+  encryptionIV      String
+  encryptionAuthTag String
+  encryptionKey     String
+  contentHash       String
+  userId            String
+  folderId          String?
+  isDeleted         Boolean   @default(false)
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId, isDeleted])
+  @@index([folderId])
+  @@map("drive_files")
+}
+
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String
+  parentId  String?
+  path      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([parentId])
+  @@map("drive_folders")
+}
+
+model Share {
+  id               String   @id @default(cuid())
+  fileId           String?
+  folderId         String?
+  ownerUserId      String
+  sharedWithUserId String
+  encryptedFileKey String
+  permission       String   @default("read")
+  status           String   @default("pending")
+  createdAt        DateTime @default(now())
+
+  @@index([ownerUserId])
+  @@index([sharedWithUserId])
+  @@index([fileId])
+  @@map("drive_shares")
+}
+
+model FileVersion {
+  id                String   @id @default(cuid())
+  fileId            String
+  versionNumber     Int      @default(0)
+  encryptedContent  String
+  encryptionIV      String
+  encryptionAuthTag String
+  encryptionKey     String
+  size              Int      @default(0)
+  createdAt         DateTime @default(now())
+
+  @@index([fileId])
+  @@map("drive_file_versions")
+}
+
+model FileIndex {
+  id        String   @id @default(cuid())
+  fileId    String
+  userId    String
+  content   String
+  mimeType  String
+  indexedAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([fileId])
+  @@map("drive_file_indexes")
+}
+
+model UserSubscription {
+  userId    String   @id
+  tier      String   @default("FREE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("drive_user_subscriptions")
+}

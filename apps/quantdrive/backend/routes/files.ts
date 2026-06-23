@@ -64,6 +64,22 @@ export default async function filesRoutes(fastify: FastifyInstance) {
     return reply.status(201).send({ success: true, data: file });
   });
 
+  // GET / - List files (optionally by folder)
+  fastify.get('/', async (request, reply) => {
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+    const query = request.query as { folderId?: string; limit?: string; offset?: string };
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    const service = new FileService(prisma as never);
+    const files = await service.listFiles(userId, query.folderId, {
+      limit: query.limit ? Number(query.limit) : undefined,
+      offset: query.offset ? Number(query.offset) : undefined,
+    });
+    return reply.send({ success: true, data: files });
+  });
+
   // GET /:id - Download file
   fastify.get<{ Params: { id: string } }>('/:id', async (request, reply) => {
     const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
