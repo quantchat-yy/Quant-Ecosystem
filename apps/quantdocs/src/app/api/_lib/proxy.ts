@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.QUANTDOCS_BACKEND_URL || 'http://localhost:3040';
+const BACKEND_URL = process.env.QUANTDOCS_BACKEND_URL || 'http://localhost:3009';
 
 export async function proxyToBackend(
   request: NextRequest,

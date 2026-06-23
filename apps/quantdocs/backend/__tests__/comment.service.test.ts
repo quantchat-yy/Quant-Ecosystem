@@ -3,13 +3,13 @@ import { CommentService } from '../services/comment.service';
 
 function createMockPrisma() {
   return {
-    comment: {
+    docComment: {
       create: vi.fn(),
       findUnique: vi.fn(),
       findMany: vi.fn(),
       update: vi.fn(),
     },
-    suggestion: {
+    docSuggestion: {
       create: vi.fn(),
     },
   };
@@ -36,7 +36,7 @@ describe('CommentService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      prisma.comment.create.mockResolvedValue(mockComment);
+      prisma.docComment.create.mockResolvedValue(mockComment);
 
       const result = await service.createComment({
         docId: 'doc-1',
@@ -45,7 +45,7 @@ describe('CommentService', () => {
       });
 
       expect(result).toEqual(mockComment);
-      expect(prisma.comment.create).toHaveBeenCalledWith({
+      expect(prisma.docComment.create).toHaveBeenCalledWith({
         data: {
           docId: 'doc-1',
           userId: 'user-1',
@@ -68,7 +68,7 @@ describe('CommentService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      prisma.comment.create.mockResolvedValue(mockComment);
+      prisma.docComment.create.mockResolvedValue(mockComment);
 
       const result = await service.createComment({
         docId: 'doc-1',
@@ -89,7 +89,7 @@ describe('CommentService', () => {
         userId: 'user-1',
         content: 'Original comment',
       };
-      prisma.comment.findUnique.mockResolvedValue(parentComment);
+      prisma.docComment.findUnique.mockResolvedValue(parentComment);
 
       const mockReply = {
         id: 'comment-2',
@@ -101,13 +101,13 @@ describe('CommentService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-      prisma.comment.create.mockResolvedValue(mockReply);
+      prisma.docComment.create.mockResolvedValue(mockReply);
 
       const result = await service.replyToComment('comment-1', 'user-2', 'This is a reply');
 
       expect(result.parentId).toBe('comment-1');
       expect(result.content).toBe('This is a reply');
-      expect(prisma.comment.create).toHaveBeenCalledWith({
+      expect(prisma.docComment.create).toHaveBeenCalledWith({
         data: {
           docId: 'doc-1',
           userId: 'user-2',
@@ -119,7 +119,7 @@ describe('CommentService', () => {
     });
 
     it('throws when parent comment not found', async () => {
-      prisma.comment.findUnique.mockResolvedValue(null);
+      prisma.docComment.findUnique.mockResolvedValue(null);
 
       await expect(service.replyToComment('nonexistent', 'user-2', 'Reply')).rejects.toThrow(
         'Comment not found',
@@ -136,22 +136,22 @@ describe('CommentService', () => {
         content: 'To resolve',
         resolved: false,
       };
-      prisma.comment.findUnique.mockResolvedValue(mockComment);
+      prisma.docComment.findUnique.mockResolvedValue(mockComment);
 
       const resolvedComment = { ...mockComment, resolved: true };
-      prisma.comment.update.mockResolvedValue(resolvedComment);
+      prisma.docComment.update.mockResolvedValue(resolvedComment);
 
       const result = await service.resolveComment('comment-1', 'user-1');
 
       expect(result.resolved).toBe(true);
-      expect(prisma.comment.update).toHaveBeenCalledWith({
+      expect(prisma.docComment.update).toHaveBeenCalledWith({
         where: { id: 'comment-1' },
         data: { resolved: true, updatedAt: expect.any(Date) },
       });
     });
 
     it('throws unauthorized when different user tries to resolve', async () => {
-      prisma.comment.findUnique.mockResolvedValue({
+      prisma.docComment.findUnique.mockResolvedValue({
         id: 'comment-1',
         userId: 'user-1',
       });
@@ -162,7 +162,7 @@ describe('CommentService', () => {
     });
 
     it('throws when comment not found', async () => {
-      prisma.comment.findUnique.mockResolvedValue(null);
+      prisma.docComment.findUnique.mockResolvedValue(null);
 
       await expect(service.resolveComment('nonexistent', 'user-1')).rejects.toThrow(
         'Comment not found',
@@ -176,12 +176,12 @@ describe('CommentService', () => {
         { id: 'c-1', docId: 'doc-1', content: 'Comment 1' },
         { id: 'c-2', docId: 'doc-1', content: 'Comment 2' },
       ];
-      prisma.comment.findMany.mockResolvedValue(comments);
+      prisma.docComment.findMany.mockResolvedValue(comments);
 
       const result = await service.getComments('doc-1');
 
       expect(result).toEqual(comments);
-      expect(prisma.comment.findMany).toHaveBeenCalledWith({
+      expect(prisma.docComment.findMany).toHaveBeenCalledWith({
         where: { docId: 'doc-1' },
         orderBy: { createdAt: 'asc' },
       });
@@ -200,7 +200,7 @@ describe('CommentService', () => {
         status: 'pending',
         createdAt: new Date(),
       };
-      prisma.suggestion.create.mockResolvedValue(mockSuggestion);
+      prisma.docSuggestion.create.mockResolvedValue(mockSuggestion);
 
       const result = await service.createSuggestion({
         docId: 'doc-1',
