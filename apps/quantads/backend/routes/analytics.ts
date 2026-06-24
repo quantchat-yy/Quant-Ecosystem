@@ -51,4 +51,21 @@ export default async function analyticsRoutes(fastify: FastifyInstance) {
       return reply.send({ success: true, data: roi });
     },
   );
+
+  // Advertiser-level aggregate report (matches the POST /analytics/reports proxy)
+  fastify.post('/reports', async (request, reply) => {
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const { date } = (request.body ?? {}) as { date?: string };
+    const reportDate = date ?? new Date().toISOString().split('T')[0]!;
+
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    const service = new AnalyticsService(prisma as never);
+    const report = await service.getDailyReport(userId, reportDate);
+
+    return reply.send({ success: true, data: report });
+  });
 }
