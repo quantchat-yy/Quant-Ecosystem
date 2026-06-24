@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bulkUpdateApps,
   createTeamMember,
   getCreditConfig,
   listApps,
@@ -76,6 +77,20 @@ describe('QuantTrinity owner store', () => {
     expect(toggled?.sidekickEnabled).toBe(false);
     // restore
     updateApp(app.id, { status: 'live', sidekickEnabled: true });
+  });
+
+  it('bulk-updates the whole app registry', () => {
+    const affected = bulkUpdateApps({ modelId: 'local-quant-8b', status: 'maintenance' });
+    expect(affected.length).toBe(listApps().length);
+    expect(listApps().every((a) => a.modelId === 'local-quant-8b')).toBe(true);
+    expect(listApps().every((a) => a.status === 'maintenance')).toBe(true);
+    // subset + restore
+    const first = listApps()[0]!;
+    const subset = bulkUpdateApps({ status: 'live' }, [first.id]);
+    expect(subset.length).toBe(1);
+    expect(listApps().find((a) => a.id === first.id)?.status).toBe('live');
+    // restore all
+    bulkUpdateApps({ status: 'live', modelId: 'or-claude-sonnet', sidekickEnabled: true });
   });
 
   it('updates the credit config', () => {

@@ -294,6 +294,24 @@ export function updateApp(
   return a;
 }
 
+/**
+ * Apply a control patch across the whole app registry (or a subset of ids).
+ * Powers the owner's ecosystem-wide actions (e.g. "switch every app to the
+ * local model" or "put everything in maintenance"). Returns the affected apps.
+ */
+export function bulkUpdateApps(
+  patch: Partial<Pick<EcosystemApp, 'status' | 'modelId' | 'sidekickEnabled'>>,
+  onlyIds?: string[],
+): EcosystemApp[] {
+  const targets = state().apps.filter((a) => !onlyIds || onlyIds.includes(a.id));
+  for (const a of targets) {
+    if (patch.status) a.status = patch.status;
+    if (patch.modelId) a.modelId = patch.modelId;
+    if (typeof patch.sidekickEnabled === 'boolean') a.sidekickEnabled = patch.sidekickEnabled;
+  }
+  return targets;
+}
+
 // ---------------------------------------------------------------------------
 // Economy: credits, models, payouts, revenue
 // ---------------------------------------------------------------------------
