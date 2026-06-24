@@ -232,6 +232,10 @@ export function listTeam(sector?: Sector): TeamMember[] {
   return sector ? team.filter((m) => m.sector === sector) : team;
 }
 
+export function getTeamMember(id: string): TeamMember | null {
+  return state().team.find((m) => m.id === id) ?? null;
+}
+
 export interface CreateTeamMemberInput {
   kind: PrincipalKind;
   name: string;
