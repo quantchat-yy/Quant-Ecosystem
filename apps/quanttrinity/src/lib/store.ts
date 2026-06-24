@@ -9,6 +9,7 @@
 // Mirrors the pattern used by admin's feature-flags `_store`.
 
 import {
+  type AuditEntry,
   type CreditConfig,
   type EcosystemApp,
   type ModelRegistryEntry,
@@ -30,6 +31,7 @@ interface TrinityState {
   payouts: PayoutRequest[];
   revenue: RevenueStream[];
   reports: OwnerReport[];
+  audit: AuditEntry[];
 }
 
 const globalForTrinity = globalThis as unknown as { __trinity?: TrinityState };
@@ -147,6 +149,24 @@ function seed(): TrinityState {
         status: 'resolved',
         handledByAi: true,
         createdAt: nowIso(60 * 8),
+      },
+    ],
+    audit: [
+      {
+        id: 'au-001',
+        at: nowIso(60 * 2),
+        actor: 'owner@quant.dev',
+        action: 'economy.payout.approved',
+        target: 'po-003',
+        detail: 'editsbyriya · 430 cr · stripe',
+      },
+      {
+        id: 'au-002',
+        at: nowIso(60 * 5),
+        actor: 'QuantAI · Report Triage',
+        action: 'report.resolved',
+        target: 'rp-004',
+        detail: 'Phishing link auto-resolved by AI employee',
       },
     ],
   };
@@ -323,4 +343,32 @@ export function updateReport(id: string, status: OwnerReport['status']): OwnerRe
   if (!r) return null;
   r.status = status;
   return r;
+}
+
+// ---------------------------------------------------------------------------
+// Owner audit trail
+// ---------------------------------------------------------------------------
+
+export function recordAudit(entry: {
+  actor?: string;
+  action: string;
+  target: string;
+  detail?: string;
+}): AuditEntry {
+  const audit: AuditEntry = {
+    id: nextId('au'),
+    at: new Date().toISOString(),
+    actor: entry.actor ?? 'owner@quant.dev',
+    action: entry.action,
+    target: entry.target,
+    detail: entry.detail,
+  };
+  state().audit.unshift(audit);
+  // keep the trail bounded
+  if (state().audit.length > 500) state().audit.length = 500;
+  return audit;
+}
+
+export function listAudit(limit = 100): AuditEntry[] {
+  return state().audit.slice(0, limit);
 }

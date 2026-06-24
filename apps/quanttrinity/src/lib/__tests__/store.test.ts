@@ -3,8 +3,10 @@ import {
   createTeamMember,
   getCreditConfig,
   listApps,
+  listAudit,
   listPayouts,
   listTeam,
+  recordAudit,
   updateApp,
   updateCreditConfig,
   updatePayout,
@@ -92,5 +94,17 @@ describe('QuantTrinity owner store', () => {
       expect(updatePayout(payout.id, 'paid')?.status).toBe('paid');
     }
     expect(updatePayout('missing', 'paid')).toBeNull();
+  });
+
+  it('records and lists owner audit entries (newest first)', () => {
+    const before = listAudit().length;
+    const entry = recordAudit({ action: 'test.action', target: 'x-1', detail: 'unit test' });
+    expect(entry.id).toMatch(/^au-/);
+    expect(entry.actor).toBe('owner@quant.dev');
+    const after = listAudit();
+    expect(after.length).toBe(before + 1);
+    expect(after[0]?.id).toBe(entry.id);
+    expect(recordAudit({ actor: 'QuantAI', action: 'a', target: 't' }).actor).toBe('QuantAI');
+    expect(listAudit(1).length).toBe(1);
   });
 });
