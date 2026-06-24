@@ -40,6 +40,7 @@ import browserAgentRoutes from './routes/browser-agent';
 import codeAgentRoutes from './routes/code-agent';
 import userOwnedAiRoutes from './routes/user-owned-ai';
 import promptTemplateRoutes from './routes/prompt-templates';
+import askRoutes from './routes/ask';
 import { AIEngine } from './services/ai-engine';
 import { Orchestrator } from '@quant/agent-runtime';
 import { SwarmOrchestrator } from '@quant/agent-swarm';
@@ -115,6 +116,7 @@ export async function buildApp(config?: AppConfig) {
   app.decorate('userOwnedAi', new ModelRegistry());
 
   await app.register(chatRoutes, { prefix: '/chat' });
+  await app.register(askRoutes);
   await app.register(agentsRoutes, { prefix: '/agents' });
   await app.register(agentRuntimeRoutes, { prefix: '/agents' });
   await app.register(agentSwarmRoutes, { prefix: '/agents/swarm' });
