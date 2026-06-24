@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.QUANTCALENDAR_BACKEND_URL || 'http://localhost:3104';
+const BACKEND_URL = process.env.QUANTCALENDAR_BACKEND_URL || 'http://localhost:3011';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;

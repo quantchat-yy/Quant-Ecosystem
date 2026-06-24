@@ -3171,3 +3171,58 @@ model UserSubscription {
 
   @@map("drive_user_subscriptions")
 }
+
+
+
+// ==================== QuantCalendar (Google Calendar killer) ====================
+
+model Event {
+  id             String   @id @default(cuid())
+  title          String
+  description    String   @default("")
+  startTime      DateTime
+  endTime        DateTime
+  allDay         Boolean  @default(false)
+  location       String   @default("")
+  userId         String
+  attendees      String   @default("[]")
+  recurrenceRule String?
+  status         String   @default("confirmed")
+  reminders      String   @default("[]")
+  createdAt      DateTime
+  updatedAt      DateTime
+
+  @@index([userId, startTime])
+  @@map("calendar_events")
+}
+
+model BookingLink {
+  id            String   @id @default(cuid())
+  userId        String
+  slug          String   @unique
+  title         String
+  description   String   @default("")
+  duration      Int
+  availableDays String   @default("[1,2,3,4,5]")
+  startHour     Int      @default(9)
+  endHour       Int      @default(17)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime
+  updatedAt     DateTime
+
+  @@index([userId])
+  @@map("booking_links")
+}
+
+model Calendar {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  color     String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("calendars")
+}
