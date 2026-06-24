@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.QUANTMEET_BACKEND_URL || 'http://localhost:3107';
+const BACKEND_URL = process.env.QUANTMEET_BACKEND_URL || 'http://localhost:3006';
 
 export async function proxyToBackend(
   request: NextRequest,
