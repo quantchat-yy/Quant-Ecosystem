@@ -12,6 +12,7 @@ interface NavLink {
 
 const navLinks: NavLink[] = [
   { label: 'Command Center', href: '/', icon: '🛰️' },
+  { label: 'Insights', href: '/insights', icon: '📊' },
   { label: 'App Control', href: '/apps', icon: '🚀' },
   { label: 'Teams & AI Staff', href: '/teams', icon: '🧑\u200d🚀' },
   { label: 'AI Scheduler', href: '/scheduler', icon: '⏱️' },
