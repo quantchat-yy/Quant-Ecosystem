@@ -1,50 +1,84 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
+import { EventService, type Attendee } from '../services/event.service';
 
 const createEventSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
   startTime: z.string(),
   endTime: z.string(),
+  allDay: z.boolean().optional(),
   location: z.string().optional(),
   attendees: z.array(z.string()).optional(),
+  recurrenceRule: z.string().optional(),
 });
 
+const listSchema = z.object({
+  start: z.string().optional(),
+  end: z.string().optional(),
+});
+
+function toAttendees(emails?: string[]): Attendee[] {
+  return (emails ?? []).map((email) => ({
+    userId: '',
+    email,
+    name: email,
+    status: 'pending' as const,
+  }));
+}
+
 export default async function eventsRoutes(fastify: FastifyInstance) {
-  const prisma = (fastify as any).prisma;
+  function service(): EventService {
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    return new EventService(prisma as never);
+  }
 
+  // POST /events - create
   fastify.post('/', async (request, reply) => {
-    const parseResult = createEventSchema.safeParse(request.body);
-    if (!parseResult.success) {
-      throw parseResult.error;
+    const parsed = createEventSchema.safeParse(request.body);
+    if (!parsed.success) {
+      throw parsed.error;
     }
-
     const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
     if (!userId) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const event = await prisma.event.create({
-      data: {
-        ...parseResult.data,
-        createdBy: userId,
-      },
+    const event = await service().createEvent({
+      title: parsed.data.title,
+      description: parsed.data.description,
+      startTime: new Date(parsed.data.startTime),
+      endTime: new Date(parsed.data.endTime),
+      allDay: parsed.data.allDay,
+      location: parsed.data.location,
+      userId,
+      attendees: toAttendees(parsed.data.attendees),
+      recurrenceRule: parsed.data.recurrenceRule,
     });
 
-    return reply.send(event);
+    return reply.status(201).send({ success: true, data: event });
   });
 
+  // GET /events?start=&end= - list within a window (defaults to +/- 1 year)
   fastify.get('/', async (request, reply) => {
     const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
     if (!userId) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
+    const parsed = listSchema.safeParse(request.query);
+    if (!parsed.success) {
+      throw parsed.error;
+    }
+    const now = Date.now();
+    const start = parsed.data.start
+      ? new Date(parsed.data.start)
+      : new Date(now - 365 * 24 * 60 * 60 * 1000);
+    const end = parsed.data.end
+      ? new Date(parsed.data.end)
+      : new Date(now + 365 * 24 * 60 * 60 * 1000);
 
-    const events = await prisma.event.findMany({
-      where: { createdBy: userId },
-    });
-
-    return reply.send(events);
+    const events = await service().listEventsInRange(userId, start, end);
+    return reply.send({ success: true, data: events });
   });
 }
