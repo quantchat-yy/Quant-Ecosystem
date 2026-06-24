@@ -12,7 +12,7 @@ export default async function uploadRoutes(fastify: FastifyInstance) {
 
   const storage = new StorageService();
 
-  fastify.post('/upload', async (request, reply) => {
+  fastify.post('/', async (request, reply) => {
     const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
     if (!userId) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');

@@ -5,6 +5,7 @@ import foldersRoutes from './routes/folders';
 import sharingRoutes from './routes/sharing';
 import aiRoutes from './routes/ai';
 import uploadRoutes from './routes/upload';
+import storageRoutes from './routes/storage';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -37,6 +38,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(foldersRoutes, { prefix: '/folders' });
   await app.register(sharingRoutes, { prefix: '/sharing' });
   await app.register(aiRoutes, { prefix: '/ai' });
+  await app.register(storageRoutes, { prefix: '/storage' });
 
   return app;
 }
