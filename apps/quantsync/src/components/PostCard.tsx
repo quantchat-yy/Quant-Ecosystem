@@ -128,13 +128,14 @@ const PostCard: React.FC<PostCardProps> = ({
   }, [localBookmarked, id, onBookmark]);
 
   const handleVote = useCallback(
-    async (optionId: string) => {
+    async (optionId: string, optionIndex: number) => {
       if (selectedPollOption) return;
       setSelectedPollOption(optionId);
       await fetch(`/api/posts/${id}/poll/vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ optionId }),
+        // Backend `pollVoteSchema` expects the numeric option index, not the id.
+        body: JSON.stringify({ optionIndex }),
       });
     },
     [selectedPollOption, id],
@@ -323,7 +324,7 @@ const PostCard: React.FC<PostCardProps> = ({
 
           {poll && (
             <div className="border dark:border-gray-700 rounded-xl p-3 mb-2">
-              {poll.options.map((opt) => {
+              {poll.options.map((opt, optionIndex) => {
                 const pct =
                   poll.totalVotes > 0 ? Math.round((opt.votes / poll.totalVotes) * 100) : 0;
                 const isSelected = selectedPollOption === opt.id;
@@ -331,7 +332,7 @@ const PostCard: React.FC<PostCardProps> = ({
                 return (
                   <button
                     key={opt.id}
-                    onClick={() => handleVote(opt.id)}
+                    onClick={() => handleVote(opt.id, optionIndex)}
                     disabled={!!selectedPollOption}
                     className="w-full mb-2 last:mb-0"
                   >
