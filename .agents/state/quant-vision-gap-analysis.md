@@ -1,55 +1,121 @@
-# Quant Ecosystem — Vision Gap Analysis (2026-06-24)
+# Quant Ecosystem — Vision Gap Analysis & Build Roadmap
 
-> Built from a 6-agent deep audit of the live tree (HEAD `dded0918`, 67 commits past the prior base)
-> against `.agents/state/quant-product-vision.md`. Legend: ✅ done · 🟡 partial · ❌ missing/broken.
-> This is the execution backlog. Waves are ordered by leverage; each wave ships as a verified commit.
+> Generated 2026-06-24 from a deep code-vs-vision audit (6 parallel agents) against
+> `.agents/state/quant-product-vision.md`, on `main @ dded0918` (after #271–#366).
+> Legend: ✅ real / 🟡 partial / ❌ missing-or-broken. "Real" = DB-backed, no in-memory/stub.
 
-## Headline verdict
+## Executive summary
 
-The ecosystem is FAR more real than the older audits imply. Crypto is real (jose HS256/RS256, real PKCE,
-`crypto.randomBytes` — no toy hashes, no `Math.random` in auth). OAuth2/OIDC SSO root is real. QuantDrive (S3),
-QuantMeet (LiveKit), QuantDocs (Yjs CRDT) are real. Most apps are Next.js + Fastify + Prisma with test suites.
-The remaining work is **finishing flagship flows, closing broken wirings, de-duplicating, and the big net-new
-vision pieces** (device control, OpenRouter, real-world game, unified credits).
+The ecosystem is far more real than the older audits suggest. Core auth (OAuth2/OIDC, PKCE S256,
+jose HS256/RS256, JWKS, refresh rotation) is genuinely production-grade. QuantDrive (S3+Prisma),
+QuantMeet (real LiveKit), QuantDocs (real Yjs CRDT), QuantSync engagement, QuantMax short-video/dating,
+QuantTube video/channels, QuantEdits collaboration, QuantAds second-price auction, and the AI engine
+(Vercel AI SDK multi-provider) are real. The gaps are concentrated in: (a) cross-app wiring + a few
+bypassable authz checks, (b) in-memory persistence islands that lose data on restart, (c) the
+"super-app glue" (QuantAI device control, QuantCode agent loop, segment-skip playback), (d) a unified
+credits ledger, and (e) entirely-greenfield items (Godot real-world game, OpenRouter, channels/bots).
 
-## Per-app status (summary)
+## Highest-priority defects (fix first — security/correctness)
 
-| App                     | Real today                                                                                                                                                                                                   | Top gaps                                                                                                                                                                                                                                                                                         |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| QuantMail               | ✅ OAuth2/OIDC SSO, repos/PR/issues (Prisma), agent runtime (plan→PR, human-gated), QuantDrive/Docs/Meet real                                                                                                | 🟡 super-hub embedding of Drive/Calendar mis-wired (proxy→:3010 which lacks /drive,/events); Docs/Meet not embedded; ❌ calendar call-style alarms; 🟡 AI assistant is email-sidebar (not alien avatar opening QuantCode); CI runner = noop by default; git transport = metadata-only by default |
-| QuantChat               | ✅ streaks, reels, feeds, groups, in-chat games (3 playable), AI auto-reply, phone-OTP, calls (LiveKit), push                                                                                                | 🟡 avatars=procedural SVG (not Bitmoji/glTF), lenses/AR in-memory, E2EE=custom HMAC X3DH (NOT Signal); ❌ Google-Maps map, channels, Telegram-style bots, AI voice notes                                                                                                                         |
-| QuantNeon               | ✅ reels, feed, stories(24h TTL), bookmarks, notifications, in-feed Tic-Tac-Toe                                                                                                                              | 🟡 close-friends frontend in-memory, photo-map in-memory (no map render); ❌ functional DMs (no backend), cross-app shared game ranks, cross-app game publishing                                                                                                                                 |
-| QuantMax                | ✅ TikTok shorts, Tinder dating, feed, live (start/list/join/end), safety                                                                                                                                    | 🟡 Omegle random-chat (in-memory + **`randomChat` Prisma model MISSING → @ts-expect-error**), rooms (frontend, no backend route); ❌ squad groups, party games, posts, real proximity/spatial voice; orphaned LiveKit matchmaking service not wired                                              |
-| Quant Games             | 🟡 `@quant/cross-app-gaming` exists (sessions, leaderboards) but in-memory & not a dep of any app                                                                                                            | ❌ Uno/Ludo/Monopoly, in-game goods marketplace tied to games, user-made games posted cross-app                                                                                                                                                                                                  |
-| Real-World Game (Godot) | ❌ entirely absent (0 `godot` hits)                                                                                                                                                                          | ❌ everything: Godot project, GTA-V world, AI NPCs, BYO-API characters, proximity voice                                                                                                                                                                                                          |
-| QuantSync               | ✅ posts/replies CRUD, votes/shares/comments, anonymous space (HMAC alias, fail-closed mod), SSO                                                                                                             | 🟡 verified space enforced **client-side only (backend bypassable)**, threads shallow, feed unranked; ❌ follows (no route/model), polls (proxy→missing backend `/poll/vote`), reels-in-feed; dual bookmark impl (Prisma + stale in-memory Map)                                                  |
-| QuantAI                 | ✅ multi-provider AI (OpenAI/Anthropic/Google, circuit breaker, cache, safety, cost), agent loop (plan/permission/execute/reflect), alien avatar mounted in 15 apps, phone/telephony device control (Twilio) | ❌ OpenRouter, laptop/OS control (tier2-os simulated), "open QuantCode build task-by-task" (TaskExecutor unwired), 🟡 conversation/prompt stores in-memory                                                                                                                                       |
-| QuantTube               | ✅ upload/feed/likes/comments, channels/subs, search, music catalog, cross-publish, Stripe payouts                                                                                                           | 🟡 playlists/history/watch-later in-memory, music no real stream/transcode, live streaming frontend-only (no backend); ❌ AI segment-skipping playback ("teach me X")                                                                                                                            |
-| QuantEdits              | ✅ timeline, effects, templates, brand kits, collaboration (Prisma)                                                                                                                                          | 🟡 exports in-memory & never render, project in-memory; ❌ daily auto-edit automation, credits-based runs                                                                                                                                                                                        |
-| QuantAds                | ✅ second-price auction + serving (Prisma), AI ad-copy, analytics                                                                                                                                            | 🟡 serve-path no targeting, buy-coins uses MOCK payment adapter; ❌ in-game banner + OpenAD connector, click-fraud backend (frontend calls missing `/api/fraud/*`), autonomous AI ad-wiring                                                                                                      |
-| Credits/Billing         | 🟡 Stripe/Razorpay/UPI real SDKs; tiers + daily allowance                                                                                                                                                    | ❌ NO unified "Quant Credits" ledger (4+ fragmented in-memory wallets), PayPal/crypto gateways, daily payout scheduler, overage opt-in default-OFF gate; ❌ OpenRouter + per-user model-swap                                                                                                     |
-| QuantTrinity            | 🟡 owner UI, team-by-sector (in-memory), AI-employee data model, owner /api gate                                                                                                                             | ❌ in-memory seed not wired to real app/AI/payment runtime; overlaps with admin; control-plane is aspirational                                                                                                                                                                                   |
-| admin                   | ✅ real Prisma users/audit/compliance/flags console                                                                                                                                                          | overlaps QuantTrinity (clarify layering)                                                                                                                                                                                                                                                         |
-| quanttube (dup)         | ❌ dead duplicate of quantube; strands QuantTube voice subscriber; hardcoded dev JWT                                                                                                                         | DELETE after migrating `voice-registration.ts`                                                                                                                                                                                                                                                   |
+1. **QuantSync Verified is bypassable** — posting rule enforced only client-side; backend `posts.ts`
+   has no verified/space check. A direct API call posts to Verified as a non-verified user. (security)
+2. **QuantSync poll voting is a dead path** — frontend → proxy → backend `/posts/:id/poll/vote` which
+   doesn't exist; no Poll model. (broken feature)
+3. **QuantMail embedded Drive/Calendar mis-wired** — Next proxies forward to QuantMail backend (:3010)
+   which has no `/drive` or `/events` routes (those live in quantdrive/quantcalendar). 404s. (broken)
+4. **quantmax randomChat** writes to a Prisma model that doesn't exist (`@ts-expect-error`). (broken)
+5. **QuantSync bookmarks** have two implementations — real Prisma + a stale in-memory `Map` still used
+   by `feed.service`/`post.service.likePost`. (data-loss + duplication)
+6. **apps/quanttube** is a dead duplicate of apps/quantube (hardcoded dev JWT, strands the QuantTube
+   voice subscriber). Migrate voice-registration → quantube, delete quanttube. (tech debt)
+7. **JWT/OIDC dev fallbacks** — several `app.ts` use `'dev-secret-change-in-production'` and OIDC uses
+   an ephemeral keypair when env unset (prod-gated but multi-instance-unsafe). (ops)
 
-## Cross-cutting issues
+## In-memory persistence islands (replace with Prisma/Redis)
 
-- **Port chaos:** ≥3 disagreeing port registries (app `PORT` vs Next `*_BACKEND_URL` vs admin/trinity registries). Local dev + embeds break. Need one source of truth.
-- **In-memory persistence** in many services (playlists, history, exports, projects, bookmarks, wallets, games) — data lost on restart; violates production rule.
-- **Deployability:** ~5 Dockerfiles for ~23 deployables; most apps not in Helm; staging not provisioned.
-- **Coverage** ~30%, not enforced in CI; auth/payments/security need 80%.
-- **E2E** advisory only.
+quantube playlist/history/watch-later · quantedits project/export · quantai conversation-history/prompt-library ·
+quantsync feed bookmarks Map · cross-app-gaming all state · all 4+ credits/wallet services · QuantTrinity store.
 
-## Execution waves (autonomous, each = verified commit/PR)
+## Per-app gap tables
 
-- **Wave 1 — QuantSync completion (self-contained, security-relevant):** follows (model+routes+feed filter), polls (Poll model + `/poll/vote` backend + integrity), verified-space backend enforcement, remove stale in-memory bookmark, fix proxy port. ← STARTING HERE
-- **Wave 2 — QuantMax realness:** add `randomChat` (+ `room`, group) Prisma models, remove @ts-expect-error, wire rooms backend; posts; (proximity voice = later).
-- **Wave 3 — Kill duplicates & fix wirings:** migrate `quanttube` voice → `quantube`, delete `quanttube`; fix QuantMail Drive/Calendar embed proxy targets; QuantAds fraud backend route.
-- **Wave 4 — Unified Quant Credits ledger:** one Prisma-backed wallet (1 credit≈$1), overage opt-in default-OFF, consolidate the 4 in-memory wallets behind it.
-- **Wave 5 — QuantAI reach:** OpenRouter provider adapter + per-user model-swap; wire QuantCode TaskExecutor (plan→edit→PR) end-to-end behind approval.
-- **Wave 6 — Persistence hardening:** move in-memory stores (playlists/history/exports/projects/games leaderboards) to Prisma.
-- **Wave 7 — Flagship polish:** QuantTube AI segment-skip, QuantEdits export render + daily automation, QuantNeon DMs + cross-app game ranks, QuantChat Signal-grade E2EE + Maps.
-- **Wave 8 — Net-new big rocks:** real-world Godot game, laptop/OS device control, deployability (Dockerfiles/Helm/staging), coverage→50%, real E2E.
+### QuantMail (super-hub) — auth ✅, super-app glue 🟡
 
-> Waves 1–6 are achievable in-repo and verifiable now. Wave 7 mixes in-repo + external infra. Wave 8 is
-> multi-month / needs external services (Godot, native bridges, cloud, GPU). Honest scoping, not hand-waving.
+| Feature                                                           | Status                                                             |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------ |
+| OAuth2/OIDC SSO root (authorize/token/jwks/PKCE/refresh-rotation) | ✅                                                                 |
+| QuantDrive (S3+Prisma upload/share/version/folder)                | ✅                                                                 |
+| QuantMeet (real LiveKit rooms/egress/tokens)                      | ✅                                                                 |
+| QuantDocs (real Yjs CRDT + S3 snapshots + awareness)              | ✅                                                                 |
+| GitHub-like: repos/PR/issues/reviews/branch-protection (Prisma)   | 🟡 metadata real; git transport + CI exec are seams (noop runners) |
+| QuantCode coding agent (plan→edit→PR→CI loop, human-gated)        | 🟡 runtime exists; not wired to a UI; never deploys                |
+| Drive/Calendar embedded in QuantMail                              | 🟡 UI shells exist, proxy mis-wired; Docs/Meet not embedded        |
+| Calendar routine planner + call-style ringing alarms              | ❌                                                                 |
+| QuantAI alien avatar that opens QuantCode + device control        | 🟡 email-only sidebar; not the avatar/agent                        |
+| QuantChat phone-number requirement via QuantMail identity         | ❌ not enforced                                                    |
+
+### QuantChat — Snapchat+WhatsApp+Telegram
+
+✅ streaks, reels, feeds, groups, in-chat games (3 playable), AI auto-reply, phone OTP, calls (LiveKit), push.
+🟡 avatars (procedural SVG not Bitmoji), lenses/AR (in-memory), stories (no dedicated TTL service), E2EE (custom HMAC — vision/steering mandates Signal Protocol).
+❌ Google-Maps integration, channels, Telegram-style bots, AI voice notes.
+
+### QuantNeon — Instagram
+
+✅ reels, feed, stories (24h TTL), bookmarks, notifications, in-feed Tic-Tac-Toe.
+🟡 close friends (backend real, frontend in-memory), map (logic real, no render/Maps).
+❌ functional DMs (UI exists, no backend), cross-app shared game ranks, cross-app game publishing.
+
+### QuantMax — TikTok+Omegle+Tinder+party
+
+✅ short videos, dating/swipes, feed, live streaming (go/list/join/end), safety.
+🟡 Omegle random chat (in-memory queue; orphaned LiveKit matchmaking service not wired; **randomChat model missing**), rooms (frontend, no backend route).
+❌ squad groups, party games, posts, real proximity/spatial voice.
+
+### Quant Games + Real-World (Godot)
+
+🟡 cross-app-gaming package real but in-memory and imported by no app; Tic-Tac-Toe only.
+❌ Uno/Ludo/Monopoly, shared cross-app ranks wired, in-game marketplace tied to credits, user-published games.
+❌ Godot GTA-V-like real-world game with AI NPCs + BYO-API-key + proximity voice (entirely greenfield).
+
+### QuantSync — X/Threads
+
+✅ posts CRUD, votes/shares/comments, bookmarks (Prisma path), communities, anonymous section (HMAC alias + fail-closed moderation), SSO via QuantMail.
+🟡 threads (replyTo only), feed (no ranking), trending (count sort), verified (UI/logic only — **backend not enforced**), anonymous moderation (3-regex denylist not @quant/moderation).
+❌ follows/following-graph, polls end-to-end, reels-in-feed, anonymous reels.
+
+### QuantAI — hub
+
+✅ multi-provider inference (OpenAI/Anthropic/Google via Vercel AI SDK + circuit breaker/cache/cost), long-horizon agent loop + tool registry, alien avatar mounted in 15 apps.
+🟡 MCP (in quant-tools, no external device bridge), phone device control (Twilio real; breadth varies), conversation persistence (in-memory).
+❌ OpenRouter routing, laptop/OS control (simulated), "open QuantCode build task-by-task + deploy", segment-skip video control.
+
+### QuantTube — YouTube+music
+
+✅ upload/feed/likes/comments, channels/subscriptions, search.
+🟡 playlists/library/watch-later/history (in-memory), music (catalog only, no real streaming/transcode), live streaming (frontend only, no backend).
+❌ AI segment-skipping playback ("teach me X").
+
+### QuantEdits — CapCut/AE killer
+
+✅ timeline UI, effects catalog, templates, collaboration (Prisma).
+🟡 brand kits, exports (in-memory, never renders).
+❌ AI daily auto-edit→post automation, credits-based runs.
+
+### QuantAds + Credits + QuantTrinity
+
+✅ second-price auction + serving, ad-copy AI, analytics (aggregate), real Stripe/Razorpay/UPI SDKs.
+🟡 targeting (basic), serve-path targeting missing, privacy-ads (mock candidate pool).
+❌ in-game banner ads + OpenAD connector, click-fraud backend (UI calls missing routes), unified Quant Credits ledger (4+ fragmented in-memory wallets), daily payout scheduler, AI-overage opt-in default-OFF gate, OpenRouter + per-user model swap, in-game goods marketplace wired to credits.
+QuantTrinity: 🟡 owner UI + team CRUD + AI-employee data model (all in-memory `globalThis` store; only user-count reads Prisma); ❌ real control-plane propagation to apps/AI/payments. Overlaps with `admin` (which is DB-backed).
+
+## Build roadmap (waves, sequenced so each is verifiable)
+
+- **Wave 1 (this session): security + broken-path fixes.** QuantSync Verified backend enforcement + spaces;
+  QuantSync poll model + vote endpoint; QuantSync follows + following feed; remove stale bookmark Map;
+  fix QuantMail Drive/Calendar embedded proxy; add quantmax `randomChat` model; delete `apps/quanttube` dup
+  (migrate voice). Each with tests + green typecheck/test for touched packages.
+- **Wave 2: persistence islands → Prisma/Redis** (quantube playlist/history, quantedits export render, quantai conversations).
+- **Wave 3: unified Quant Credits ledger** (one Prisma-backed wallet; migrate the 4 services; overage opt-in default-OFF; daily payout job).
+- **Wave 4: cross-app glue** (cross-app-gaming wired + shared ranks; QuantNeon DMs; QuantAI segment-skip + QuantCode loop UI; OpenRouter provider).
+- **Wave 5: greenfield** (channels/bots, Snap-Map/Google-Maps, Signal-Protocol E2EE, Godot real-world game).
+- **Wave 6: infra** (per-deployable Dockerfiles/Helm, port unification, coverage→50%, staging, CI coverage gate).

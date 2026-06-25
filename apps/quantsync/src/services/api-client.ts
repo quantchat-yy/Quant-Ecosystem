@@ -100,8 +100,8 @@ class QuantSyncAPI {
   async getUserPosts(userId: string) {
     return this.request<Post[]>('GET', `/posts/user/${userId}`);
   }
-  async votePoll(postId: string, optionIds: string[]) {
-    return this.request<any>('POST', `/posts/${postId}/poll/vote`, { optionIds });
+  async votePoll(postId: string, optionIndex: number) {
+    return this.request<unknown>('POST', `/posts/${postId}/poll/vote`, { optionIndex });
   }
 
   // --- Feed ---
