@@ -16,6 +16,7 @@ const createPostSchema = z.object({
   replyToId: z.string().optional(),
   communityId: z.string().optional(),
   visibility: z.enum(['PUBLIC', 'FOLLOWERS_ONLY', 'PRIVATE', 'COMMUNITY_ONLY']).optional(),
+  space: z.enum(['main', 'verified', 'anonymous']).optional(),
 });
 
 const updatePostSchema = z.object({

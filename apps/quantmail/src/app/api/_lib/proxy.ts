@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.QUANTMAIL_BACKEND_URL || 'http://localhost:3010';
-
 export async function proxyToBackend(
   request: NextRequest,
   backendPath: string,
   options?: { method?: string; body?: unknown },
+  backendUrl?: string,
 ) {
+  const base = backendUrl || process.env.QUANTMAIL_BACKEND_URL || 'http://localhost:3010';
   const method = options?.method || request.method;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -14,7 +14,7 @@ export async function proxyToBackend(
   const authHeader = request.headers.get('Authorization');
   if (authHeader) headers['Authorization'] = authHeader;
 
-  const url = new URL(backendPath, BACKEND_URL);
+  const url = new URL(backendPath, base);
   // Forward search params for GET requests
   if (method === 'GET') {
     request.nextUrl.searchParams.forEach((value, key) => {

@@ -40,4 +40,23 @@ export default async function feedRoutes(fastify: FastifyInstance) {
 
     return reply.send(posts);
   });
+
+  // QuantSync Verified feed — everyone can VIEW (read-public); only verified
+  // accounts can post here (enforced server-side in PostService.createPost).
+  fastify.get('/verified', async (request, reply) => {
+    const parseResult = paginationSchema.safeParse(request.query);
+    if (!parseResult.success) {
+      throw parseResult.error;
+    }
+
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const { page = 1, pageSize = 20 } = parseResult.data;
+    const posts = await feedService.getFeed(userId, page, pageSize, 'verified');
+
+    return reply.send(posts);
+  });
 }

@@ -10,6 +10,9 @@ function createMockPrisma() {
       count: vi.fn(),
       update: vi.fn(),
     },
+    user: {
+      findUnique: vi.fn(),
+    },
   };
 }
 
@@ -66,6 +69,7 @@ describe('PostService', () => {
           replyToId: null,
           communityId: null,
           visibility: 'PUBLIC',
+          space: 'main',
           likeCount: 0,
           commentCount: 0,
           repostCount: 0,
@@ -97,6 +101,53 @@ describe('PostService', () => {
           visibility: 'COMMUNITY_ONLY',
           hashtags: ['photo', 'nature'],
         }),
+      });
+    });
+  });
+
+  describe('createPost — Verified-space enforcement', () => {
+    it('rejects a non-verified author posting to the Verified space', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'user-1', isVerified: false });
+
+      await expect(
+        service.createPost({ userId: 'user-1', content: 'gov post', space: 'verified' }),
+      ).rejects.toMatchObject({ code: 'NOT_VERIFIED' });
+      expect(prisma.post.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects when the author does not exist', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.createPost({ userId: 'ghost', content: 'x', space: 'verified' }),
+      ).rejects.toMatchObject({ code: 'USER_NOT_FOUND' });
+      expect(prisma.post.create).not.toHaveBeenCalled();
+    });
+
+    it('allows a verified author to post to the Verified space', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'user-1', isVerified: true });
+      prisma.post.create.mockResolvedValue({ id: 'post-v', space: 'verified' });
+
+      const result = await service.createPost({
+        userId: 'user-1',
+        content: 'official announcement',
+        space: 'verified',
+      });
+
+      expect(result).toEqual({ id: 'post-v', space: 'verified' });
+      expect(prisma.post.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ space: 'verified', userId: 'user-1' }),
+      });
+    });
+
+    it('does not gate posts to the main space (no verification lookup)', async () => {
+      prisma.post.create.mockResolvedValue({ id: 'post-m', space: 'main' });
+
+      await service.createPost({ userId: 'user-1', content: 'hi' });
+
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+      expect(prisma.post.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ space: 'main' }),
       });
     });
   });

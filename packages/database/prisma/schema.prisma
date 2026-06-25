@@ -24,6 +24,7 @@ model User {
   status              UserStatus @default(PENDING_VERIFICATION)
   emailVerified       Boolean    @default(false)
   phoneVerified       Boolean    @default(false)
+  isVerified          Boolean    @default(false)
   twoFactorEnabled    Boolean    @default(false)
   twoFactorSecret     String?
   bio                 String?
@@ -539,6 +540,7 @@ model Post {
   isPinned         Boolean          @default(false)
   isAnonymous      Boolean          @default(false)
   anonymousAlias   String?
+  space            String           @default("main")
   moderationStatus ModerationStatus @default(APPROVED)
   publishedAt      DateTime?
   createdAt        DateTime         @default(now())
@@ -558,6 +560,7 @@ model Post {
   @@index([publishedAt])
   @@index([visibility])
   @@index([isAnonymous])
+  @@index([space])
   @@map("posts")
 }
 

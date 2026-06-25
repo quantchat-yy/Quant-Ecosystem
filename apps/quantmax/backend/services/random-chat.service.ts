@@ -23,12 +23,14 @@ export class RandomChatService {
   }
 
   async endChat(userId: string, partnerId: string) {
-    // Record chat session
-    // @ts-expect-error randomChat model not yet defined in Prisma schema
-    await this.prisma.randomChat.create({
+    // Record the ended random-chat session against the real VideoChatSession
+    // table (Omegle-style sessions). Persisted so history/safety/abuse tooling
+    // can inspect it — no in-memory-only record.
+    await this.prisma.videoChatSession.create({
       data: {
         user1Id: userId,
         user2Id: partnerId,
+        status: 'ENDED',
         endedAt: new Date(),
       },
     });

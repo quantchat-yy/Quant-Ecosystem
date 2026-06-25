@@ -7,11 +7,17 @@ export class FeedService {
     this.prisma = prisma;
   }
 
-  async getFeed(userId: string, page: number = 1, pageSize: number = 20) {
+  async getFeed(
+    userId: string,
+    page: number = 1,
+    pageSize: number = 20,
+    space?: 'main' | 'verified' | 'anonymous',
+  ) {
     const posts = await this.prisma.post.findMany({
       where: {
         visibility: 'PUBLIC',
         deletedAt: null,
+        ...(space ? { space } : {}),
       },
       include: {
         user: {
