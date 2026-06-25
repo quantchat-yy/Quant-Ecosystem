@@ -79,6 +79,7 @@ class QuantSyncAPI {
     poll?: any;
     communityId?: string;
     hashtags?: string[];
+    space?: 'main' | 'verified' | 'anonymous';
   }) {
     return this.request<Post>('POST', '/posts', data);
   }

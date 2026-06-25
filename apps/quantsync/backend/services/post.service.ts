@@ -41,6 +41,8 @@ export interface PaginatedResult<T> {
   hasPrev: boolean;
 }
 
+export type FeedSpace = 'main' | 'verified' | 'anonymous';
+
 export interface CreatePostInput {
   userId: string;
   type?: string;
@@ -51,6 +53,8 @@ export interface CreatePostInput {
   replyToId?: string;
   communityId?: string;
   visibility?: string;
+  /** Which feed space the post targets. Defaults to 'main'. */
+  space?: FeedSpace;
 }
 
 export interface UpdatePostInput {
@@ -65,6 +69,25 @@ export class PostService {
   constructor(private readonly prisma: PrismaClient) {}
 
   async createPost(input: CreatePostInput): Promise<Post> {
+    const space: FeedSpace = input.space ?? 'main';
+
+    // Verified-space enforcement (server-side authoritative gate). The
+    // frontend gates the composer too, but a direct API call MUST NOT be able
+    // to post into the Verified space without a verified account.
+    if (space === 'verified') {
+      const author = await this.prisma.user.findUnique({ where: { id: input.userId } });
+      if (!author) {
+        throw createAppError('Author not found', 404, 'USER_NOT_FOUND');
+      }
+      if (!author.isVerified) {
+        throw createAppError(
+          'Only verified accounts can post in QuantSync Verified',
+          403,
+          'NOT_VERIFIED',
+        );
+      }
+    }
+
     const post = await this.prisma.post.create({
       data: {
         userId: input.userId,
@@ -76,6 +99,7 @@ export class PostService {
         replyToId: input.replyToId ?? null,
         communityId: input.communityId ?? null,
         visibility: input.visibility ?? 'PUBLIC',
+        space,
         likeCount: 0,
         commentCount: 0,
         repostCount: 0,
