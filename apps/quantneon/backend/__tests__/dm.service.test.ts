@@ -17,7 +17,11 @@ function createMockPrisma() {
     message: {
       create: vi.fn(),
       findMany: vi.fn(),
+      findFirst: vi.fn().mockResolvedValue(null),
       count: vi.fn(),
+    },
+    user: {
+      findMany: vi.fn().mockResolvedValue([]),
     },
   };
 }

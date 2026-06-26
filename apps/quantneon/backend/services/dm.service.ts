@@ -33,8 +33,19 @@ export interface DmPrisma {
   message: {
     create: (args: { data: Record<string, unknown> }) => Promise<any>;
     findMany: (args: Record<string, unknown>) => Promise<any[]>;
+    findFirst: (args: Record<string, unknown>) => Promise<any>;
     count: (args: Record<string, unknown>) => Promise<number>;
   };
+  user: {
+    findMany: (args: Record<string, unknown>) => Promise<any[]>;
+  };
+}
+
+export interface DmParticipant {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
 }
 
 export interface ConversationSummary {
@@ -43,6 +54,8 @@ export interface ConversationSummary {
   name: string | null;
   isGroup: boolean;
   memberIds: string[];
+  participants: DmParticipant[];
+  lastMessage: DmMessage | null;
   lastMessageAt: string | null;
   unreadCount: number;
 }
@@ -96,7 +109,7 @@ export class DmService {
           where: { id: m.conversationId },
         });
         if (conv && conv.type === 'DIRECT' && !conv.deletedAt) {
-          return this.toSummary(conv, [userId, otherUserId], 0);
+          return this.buildSummary(conv, [userId, otherUserId], 0);
         }
       }
     }
@@ -110,7 +123,7 @@ export class DmService {
     await this.prisma.conversationMember.create({
       data: { conversationId: conv.id, userId: otherUserId, role: 'MEMBER' },
     });
-    return this.toSummary(conv, [userId, otherUserId], 0);
+    return this.buildSummary(conv, [userId, otherUserId], 0);
   }
 
   /** The caller's conversations, newest activity first, with unread counts. */
@@ -140,7 +153,7 @@ export class DmService {
         },
       });
 
-      summaries.push(this.toSummary(conv, memberIds, unreadCount));
+      summaries.push(await this.buildSummary(conv, memberIds, unreadCount));
     }
 
     summaries.sort((a, b) => (b.lastMessageAt ?? '').localeCompare(a.lastMessageAt ?? ''));
@@ -198,11 +211,19 @@ export class DmService {
     return { lastReadAt: now.toISOString() };
   }
 
-  private toSummary(
+  /**
+   * Build a conversation summary, enriching it with member profiles and the
+   * latest message so the inbox UI can render avatars/names + a preview.
+   */
+  private async buildSummary(
     conv: Record<string, unknown>,
     memberIds: string[],
     unreadCount: number,
-  ): ConversationSummary {
+  ): Promise<ConversationSummary> {
+    const [participants, lastMessage] = await Promise.all([
+      this.fetchParticipants(memberIds),
+      this.fetchLastMessage(String(conv['id'])),
+    ]);
     const type = String(conv['type'] ?? 'DIRECT');
     const lastMessageAt = conv['lastMessageAt'] as Date | string | null | undefined;
     return {
@@ -211,13 +232,36 @@ export class DmService {
       name: (conv['name'] as string | null) ?? null,
       isGroup: type === 'GROUP',
       memberIds,
+      participants,
+      lastMessage,
       lastMessageAt: lastMessageAt
         ? lastMessageAt instanceof Date
           ? lastMessageAt.toISOString()
           : String(lastMessageAt)
-        : null,
+        : (lastMessage?.createdAt ?? null),
       unreadCount,
     };
+  }
+
+  /** Resolve basic public profiles for a set of member ids. */
+  private async fetchParticipants(memberIds: string[]): Promise<DmParticipant[]> {
+    if (memberIds.length === 0) return [];
+    const users = await this.prisma.user.findMany({ where: { id: { in: memberIds } } });
+    return users.map((u) => ({
+      id: String(u['id']),
+      username: String(u['username'] ?? ''),
+      displayName: (u['displayName'] as string | null) ?? null,
+      avatarUrl: (u['avatarUrl'] as string | null) ?? null,
+    }));
+  }
+
+  /** The most recent non-deleted message in a conversation, if any. */
+  private async fetchLastMessage(conversationId: string): Promise<DmMessage | null> {
+    const row = await this.prisma.message.findFirst({
+      where: { conversationId, isDeleted: false },
+      orderBy: { createdAt: 'desc' },
+    });
+    return row ? this.toMessage(row) : null;
   }
 
   private toMessage(m: Record<string, unknown>): DmMessage {
