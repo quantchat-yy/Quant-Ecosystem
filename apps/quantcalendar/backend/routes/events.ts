@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
 import { EventService, type Attendee } from '../services/event.service';
+import { AlarmService } from '../services/alarm.service';
 
 const createEventSchema = z.object({
   title: z.string().min(1).max(200),
@@ -12,6 +13,14 @@ const createEventSchema = z.object({
   location: z.string().optional(),
   attendees: z.array(z.string()).optional(),
   recurrenceRule: z.string().optional(),
+  reminders: z
+    .array(
+      z.object({
+        type: z.enum(['email', 'push', 'sms', 'call']),
+        minutesBefore: z.number().int().min(0).max(40320),
+      }),
+    )
+    .optional(),
 });
 
 const listSchema = z.object({
@@ -55,6 +64,7 @@ export default async function eventsRoutes(fastify: FastifyInstance) {
       userId,
       attendees: toAttendees(parsed.data.attendees),
       recurrenceRule: parsed.data.recurrenceRule,
+      reminders: parsed.data.reminders,
     });
 
     return reply.status(201).send({ success: true, data: event });
@@ -80,5 +90,20 @@ export default async function eventsRoutes(fastify: FastifyInstance) {
 
     const events = await service().listEventsInRange(userId, start, end);
     return reply.send({ success: true, data: events });
+  });
+
+  // GET /events/alarms/due — the call-style alarms firing right now for the
+  // caller. The client polls this and rings (like an incoming call) for each.
+  fastify.get('/alarms/due', async (request, reply) => {
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+    const alarms = new AlarmService();
+    const now = new Date();
+    const { start, end } = alarms.fetchWindow(now);
+    const events = await service().listEventsInRange(userId, start, end);
+    const due = alarms.getDueCallAlarms(events, now);
+    return reply.send({ success: true, data: due });
   });
 }

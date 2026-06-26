@@ -8,7 +8,7 @@ export interface Attendee {
 }
 
 export interface Reminder {
-  type: 'email' | 'push' | 'sms';
+  type: 'email' | 'push' | 'sms' | 'call';
   minutesBefore: number;
 }
 
