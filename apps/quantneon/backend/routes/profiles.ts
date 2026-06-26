@@ -24,6 +24,14 @@ function getService(fastify: FastifyInstance): ProfileService {
 }
 
 export default async function profilesRoutes(fastify: FastifyInstance) {
+  // The caller's own profile (id + public fields) — used by clients to resolve
+  // "me" (e.g. DM message ownership).
+  fastify.get('/me', async (request, reply) => {
+    const userId = getUserId(request);
+    const profile = await getService(fastify).getProfile(userId, userId);
+    return reply.send({ success: true, data: { profile } });
+  });
+
   // Edit the caller's own profile.
   fastify.patch('/me', async (request, reply) => {
     const userId = getUserId(request);

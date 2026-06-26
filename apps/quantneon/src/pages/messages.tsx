@@ -1,213 +1,60 @@
 // ============================================================================
 // QuantNeon - Direct Messages
-// DMs inbox with conversations, group chats, message requests, read receipts
+// Real DM inbox wired to the /dm backend (conversations, messages, unread,
+// read receipts). "me" is resolved via /profiles/me so message ownership and
+// the "other participant" of a 1:1 render correctly.
 // ============================================================================
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PageTransition } from '@quant/shared-ui';
-
-interface Conversation {
-  id: string;
-  participants: Participant[];
-  lastMessage: Message;
-  unreadCount: number;
-  isGroup: boolean;
-  groupName: string | null;
-  groupAvatar: string | null;
-  isMuted: boolean;
-  isPinned: boolean;
-}
-
-interface Participant {
-  id: string;
-  username: string;
-  avatar: string;
-  isOnline: boolean;
-}
-
-interface Message {
-  id: string;
-  senderId: string;
-  text: string;
-  timestamp: string;
-  isRead: boolean;
-  type: 'text' | 'image' | 'voice' | 'post_share' | 'reel_share';
-  mediaUrl: string | null;
-}
-
-interface MessageRequest {
-  id: string;
-  from: Participant;
-  preview: string;
-  timestamp: string;
-}
+import {
+  apiClient,
+  type DmConversationSummary,
+  type DmMessage,
+  type DmParticipant,
+} from '../services/api-client';
 
 interface MessagesPageState {
-  conversations: Conversation[];
-  activeConversation: Conversation | null;
-  messages: Message[];
-  messageRequests: MessageRequest[];
+  myId: string | null;
+  conversations: DmConversationSummary[];
+  activeConversation: DmConversationSummary | null;
+  messages: DmMessage[];
   inputText: string;
   loading: boolean;
   error: string | null;
-  showRequests: boolean;
   searchQuery: string;
-  disappearingMode: boolean;
   sending: boolean;
 }
 
-const MOCK_CONVERSATIONS: Conversation[] = [
-  {
-    id: 'conv1',
-    participants: [
-      { id: 'u1', username: 'alex_photo', avatar: '/avatars/alex.jpg', isOnline: true },
-    ],
-    lastMessage: {
-      id: 'm1',
-      senderId: 'u1',
-      text: 'That sunset shot was incredible!',
-      timestamp: '2024-01-15T19:30:00Z',
-      isRead: false,
-      type: 'text',
-      mediaUrl: null,
-    },
-    unreadCount: 3,
-    isGroup: false,
-    groupName: null,
-    groupAvatar: null,
-    isMuted: false,
-    isPinned: true,
-  },
-  {
-    id: 'conv2',
-    participants: [
-      { id: 'u2', username: 'travel_emma', avatar: '/avatars/emma.jpg', isOnline: true },
-      { id: 'u3', username: 'foodie_mark', avatar: '/avatars/mark.jpg', isOnline: false },
-    ],
-    lastMessage: {
-      id: 'm2',
-      senderId: 'u2',
-      text: 'When are we meeting for the collab?',
-      timestamp: '2024-01-15T18:00:00Z',
-      isRead: true,
-      type: 'text',
-      mediaUrl: null,
-    },
-    unreadCount: 0,
-    isGroup: true,
-    groupName: 'Collab Squad',
-    groupAvatar: null,
-    isMuted: false,
-    isPinned: false,
-  },
-  {
-    id: 'conv3',
-    participants: [
-      { id: 'u4', username: 'design_sara', avatar: '/avatars/sara.jpg', isOnline: false },
-    ],
-    lastMessage: {
-      id: 'm3',
-      senderId: 'me',
-      text: 'Check out this reel!',
-      timestamp: '2024-01-15T16:00:00Z',
-      isRead: true,
-      type: 'reel_share',
-      mediaUrl: null,
-    },
-    unreadCount: 0,
-    isGroup: false,
-    groupName: null,
-    groupAvatar: null,
-    isMuted: true,
-    isPinned: false,
-  },
-  {
-    id: 'conv4',
-    participants: [{ id: 'u5', username: 'music_jay', avatar: '/avatars/jay.jpg', isOnline: true }],
-    lastMessage: {
-      id: 'm4',
-      senderId: 'u5',
-      text: 'Voice message',
-      timestamp: '2024-01-15T14:00:00Z',
-      isRead: false,
-      type: 'voice',
-      mediaUrl: '/audio/voice1.mp3',
-    },
-    unreadCount: 1,
-    isGroup: false,
-    groupName: null,
-    groupAvatar: null,
-    isMuted: false,
-    isPinned: false,
-  },
-];
+/** The display participant for a conversation: the other member of a 1:1, else the first. */
+function otherParticipant(conv: DmConversationSummary, myId: string | null): DmParticipant | null {
+  const others = conv.participants.filter((p) => p.id !== myId);
+  return others[0] ?? conv.participants[0] ?? null;
+}
 
-const MOCK_MESSAGES: Message[] = [
-  {
-    id: 'msg1',
-    senderId: 'u1',
-    text: 'Hey! Did you see my latest post?',
-    timestamp: '2024-01-15T19:00:00Z',
-    isRead: true,
-    type: 'text',
-    mediaUrl: null,
-  },
-  {
-    id: 'msg2',
-    senderId: 'me',
-    text: 'Yes! The lighting was perfect',
-    timestamp: '2024-01-15T19:10:00Z',
-    isRead: true,
-    type: 'text',
-    mediaUrl: null,
-  },
-  {
-    id: 'msg3',
-    senderId: 'u1',
-    text: 'Thanks! Golden hour magic',
-    timestamp: '2024-01-15T19:15:00Z',
-    isRead: true,
-    type: 'text',
-    mediaUrl: null,
-  },
-  {
-    id: 'msg4',
-    senderId: 'u1',
-    text: 'That sunset shot was incredible!',
-    timestamp: '2024-01-15T19:30:00Z',
-    isRead: false,
-    type: 'text',
-    mediaUrl: null,
-  },
-];
+function titleFor(conv: DmConversationSummary, myId: string | null): string {
+  if (conv.isGroup) return conv.name ?? 'Group';
+  const other = otherParticipant(conv, myId);
+  return other?.displayName || other?.username || 'Conversation';
+}
 
-const MOCK_REQUESTS: MessageRequest[] = [
-  {
-    id: 'req1',
-    from: { id: 'u10', username: 'new_follower', avatar: '/avatars/nf.jpg', isOnline: false },
-    preview: 'Hi! Love your content...',
-    timestamp: '2024-01-15T12:00:00Z',
-  },
-  {
-    id: 'req2',
-    from: { id: 'u11', username: 'brand_collab', avatar: '/avatars/brand.jpg', isOnline: true },
-    preview: 'We would love to work with you on...',
-    timestamp: '2024-01-14T10:00:00Z',
-  },
-];
+function timeLabel(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 
 const MessagesPage: React.FC = () => {
   const [state, setState] = useState<MessagesPageState>({
+    myId: null,
     conversations: [],
     activeConversation: null,
     messages: [],
-    messageRequests: [],
     inputText: '',
     loading: true,
     error: null,
-    showRequests: false,
     searchQuery: '',
-    disappearingMode: false,
     sending: false,
   });
 
@@ -216,61 +63,60 @@ const MessagesPage: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        setState((prev) => ({ ...prev, loading: true }));
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        setState((prev) => ({ ...prev, loading: true, error: null }));
+        const [meRes, convRes] = await Promise.all([
+          apiClient.getMe(),
+          apiClient.listConversations(),
+        ]);
         setState((prev) => ({
           ...prev,
-          conversations: MOCK_CONVERSATIONS,
-          messageRequests: MOCK_REQUESTS,
+          myId: meRes.success ? (meRes.data?.profile.id ?? null) : null,
+          conversations: convRes.success ? (convRes.data ?? []) : [],
           loading: false,
+          error: convRes.success ? null : (convRes.error?.message ?? 'Failed to load messages'),
         }));
       } catch {
         setState((prev) => ({ ...prev, error: 'Failed to load messages', loading: false }));
       }
     };
-    load();
+    void load();
   }, []);
 
   useEffect(() => {
     if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
   }, [state.messages]);
 
-  const selectConversation = useCallback((conv: Conversation) => {
-    setState((prev) => ({ ...prev, activeConversation: conv, messages: MOCK_MESSAGES }));
+  const selectConversation = useCallback(async (conv: DmConversationSummary) => {
+    setState((prev) => ({ ...prev, activeConversation: conv, messages: [] }));
+    const res = await apiClient.getDmMessages(conv.id);
+    setState((prev) => ({
+      ...prev,
+      messages: res.success ? (res.data ?? []) : [],
+      // Optimistically clear the unread badge for the opened conversation.
+      conversations: prev.conversations.map((c) =>
+        c.id === conv.id ? { ...c, unreadCount: 0 } : c,
+      ),
+    }));
+    void apiClient.markDmRead(conv.id);
   }, []);
 
   const sendMessage = useCallback(async () => {
-    if (!state.inputText.trim()) return;
-    const newMsg: Message = {
-      id: `msg_${Date.now()}`,
-      senderId: 'me',
-      text: state.inputText,
-      timestamp: new Date().toISOString(),
-      isRead: false,
-      type: 'text',
-      mediaUrl: null,
-    };
+    const text = state.inputText.trim();
+    const conv = state.activeConversation;
+    if (!text || !conv || state.sending) return;
+    setState((prev) => ({ ...prev, sending: true, inputText: '' }));
+    const res = await apiClient.sendDmMessage(conv.id, text);
     setState((prev) => ({
       ...prev,
-      messages: [...prev.messages, newMsg],
-      inputText: '',
       sending: false,
+      messages: res.success && res.data ? [...prev.messages, res.data] : prev.messages,
     }));
-  }, [state.inputText]);
+  }, [state.inputText, state.activeConversation, state.sending]);
 
-  const acceptRequest = useCallback((requestId: string) => {
-    setState((prev) => ({
-      ...prev,
-      messageRequests: prev.messageRequests.filter((r) => r.id !== requestId),
-    }));
-  }, []);
-
-  const declineRequest = useCallback((requestId: string) => {
-    setState((prev) => ({
-      ...prev,
-      messageRequests: prev.messageRequests.filter((r) => r.id !== requestId),
-    }));
-  }, []);
+  const visibleConversations = state.conversations.filter((c) => {
+    if (!state.searchQuery.trim()) return true;
+    return titleFor(c, state.myId).toLowerCase().includes(state.searchQuery.toLowerCase());
+  });
 
   if (state.loading) {
     return (
@@ -306,12 +152,7 @@ const MessagesPage: React.FC = () => {
         {/* Conversations List */}
         <div className="w-80 border-r border-gray-800 flex flex-col">
           <div className="p-4 border-b border-gray-800">
-            <div className="flex items-center justify-between mb-3">
-              <h1 className="text-xl font-bold">Messages</h1>
-              <button className="min-w-[44px] min-h-[44px] flex items-center justify-center text-white hover:bg-gray-800 rounded">
-                ✏
-              </button>
-            </div>
+            <h1 className="text-xl font-bold mb-3">Messages</h1>
             <input
               type="text"
               value={state.searchQuery}
@@ -320,97 +161,50 @@ const MessagesPage: React.FC = () => {
               className="w-full h-11 bg-gray-900 dark:bg-gray-800 text-white rounded-xl px-4 text-sm outline-none focus:ring-2 focus:ring-pink-500"
             />
           </div>
-          <div className="flex border-b border-gray-800">
-            <button
-              onClick={() => setState((prev) => ({ ...prev, showRequests: false }))}
-              className={`flex-1 min-h-[44px] py-2 text-sm font-medium ${!state.showRequests ? 'text-white border-b-2 border-white' : 'text-gray-500'}`}
-            >
-              Primary
-            </button>
-            <button
-              onClick={() => setState((prev) => ({ ...prev, showRequests: true }))}
-              className={`flex-1 min-h-[44px] py-2 text-sm font-medium relative ${state.showRequests ? 'text-white border-b-2 border-white' : 'text-gray-500'}`}
-            >
-              Requests
-              {state.messageRequests.length > 0 && (
-                <span className="absolute -top-1 right-4 w-4 h-4 bg-red-500 rounded-full text-xs flex items-center justify-center">
-                  {state.messageRequests.length}
-                </span>
-              )}
-            </button>
-          </div>
           <div className="flex-1 overflow-y-auto">
-            {!state.showRequests
-              ? state.conversations.map((conv) => (
-                  <div
-                    key={conv.id}
-                    onClick={() => selectConversation(conv)}
-                    className={`flex items-center space-x-3 px-4 py-3 cursor-pointer hover:bg-gray-900 dark:hover:bg-gray-800 ${state.activeConversation?.id === conv.id ? 'bg-gray-900 dark:bg-gray-800' : ''}`}
-                  >
-                    <div className="relative">
-                      <div className="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
-                        <img
-                          src={conv.participants[0].avatar}
-                          alt=""
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      {conv.participants[0].isOnline && (
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-black" />
+            {visibleConversations.length === 0 && (
+              <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                No conversations yet
+              </div>
+            )}
+            {visibleConversations.map((conv) => {
+              const other = otherParticipant(conv, state.myId);
+              return (
+                <div
+                  key={conv.id}
+                  onClick={() => void selectConversation(conv)}
+                  className={`flex items-center space-x-3 px-4 py-3 cursor-pointer hover:bg-gray-900 dark:hover:bg-gray-800 ${state.activeConversation?.id === conv.id ? 'bg-gray-900 dark:bg-gray-800' : ''}`}
+                >
+                  <div className="w-12 h-12 rounded-full bg-gray-700 overflow-hidden flex items-center justify-center text-sm font-semibold">
+                    {other?.avatarUrl ? (
+                      <img src={other.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      (titleFor(conv, state.myId)[0] ?? '?').toUpperCase()
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold truncate">
+                        {titleFor(conv, state.myId)}
+                      </span>
+                      <span className="text-xs text-gray-500">{timeLabel(conv.lastMessageAt)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={`text-xs truncate ${conv.unreadCount > 0 ? 'text-white font-medium' : 'text-gray-500'}`}
+                      >
+                        {conv.lastMessage?.content ?? 'No messages yet'}
+                      </span>
+                      {conv.unreadCount > 0 && (
+                        <span className="w-5 h-5 bg-pink-600 rounded-full text-xs flex items-center justify-center flex-shrink-0">
+                          {conv.unreadCount}
+                        </span>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold truncate">
-                          {conv.isGroup ? conv.groupName : conv.participants[0].username}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {new Date(conv.lastMessage.timestamp).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span
-                          className={`text-xs truncate ${conv.unreadCount > 0 ? 'text-white font-medium' : 'text-gray-500'}`}
-                        >
-                          {conv.lastMessage.text}
-                        </span>
-                        {conv.unreadCount > 0 && (
-                          <span className="w-5 h-5 bg-pink-600 rounded-full text-xs flex items-center justify-center flex-shrink-0">
-                            {conv.unreadCount}
-                          </span>
-                        )}
-                      </div>
-                    </div>
                   </div>
-                ))
-              : state.messageRequests.map((req) => (
-                  <div key={req.id} className="flex items-center space-x-3 px-4 py-3">
-                    <div className="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
-                      <img src={req.from.avatar} alt="" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold">{req.from.username}</p>
-                      <p className="text-xs text-gray-500 truncate">{req.preview}</p>
-                    </div>
-                    <div className="flex space-x-1">
-                      <button
-                        onClick={() => acceptRequest(req.id)}
-                        className="min-h-[44px] px-2 py-1 bg-pink-600 text-white rounded text-xs"
-                      >
-                        Accept
-                      </button>
-                      <button
-                        onClick={() => declineRequest(req.id)}
-                        className="min-h-[44px] px-2 py-1 bg-gray-700 text-white rounded text-xs"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -418,76 +212,42 @@ const MessagesPage: React.FC = () => {
         <div className="flex-1 flex flex-col">
           {state.activeConversation ? (
             <>
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-700 overflow-hidden">
-                    <img
-                      src={state.activeConversation.participants[0].avatar}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">
-                      {state.activeConversation.isGroup
-                        ? state.activeConversation.groupName
-                        : state.activeConversation.participants[0].username}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {state.activeConversation.participants[0].isOnline ? 'Active now' : 'Offline'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <button className="min-w-[44px] min-h-[44px] flex items-center justify-center text-white hover:bg-gray-800 rounded-full">
-                    📞
-                  </button>
-                  <button className="min-w-[44px] min-h-[44px] flex items-center justify-center text-white hover:bg-gray-800 rounded-full">
-                    📹
-                  </button>
-                  <button className="min-w-[44px] min-h-[44px] flex items-center justify-center text-white hover:bg-gray-800 rounded-full">
-                    ℹ
-                  </button>
-                </div>
+              <div className="flex items-center px-4 py-3 border-b border-gray-800">
+                <p className="text-sm font-semibold">
+                  {titleFor(state.activeConversation, state.myId)}
+                </p>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {state.messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.senderId === 'me' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`max-w-xs px-4 py-2 rounded-2xl ${msg.senderId === 'me' ? 'bg-pink-600 text-white' : 'bg-gray-800 text-white'}`}
-                    >
-                      <p className="text-sm">{msg.text}</p>
-                      <p className="text-xs opacity-60 mt-1">
-                        {new Date(msg.timestamp).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </p>
+                {state.messages.map((msg) => {
+                  const mine = msg.senderId === state.myId;
+                  return (
+                    <div key={msg.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                      <div
+                        className={`max-w-xs px-4 py-2 rounded-2xl ${mine ? 'bg-pink-600 text-white' : 'bg-gray-800 text-white'}`}
+                      >
+                        <p className="text-sm">{msg.content}</p>
+                        <p className="text-xs opacity-60 mt-1">{timeLabel(msg.createdAt)}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <div ref={messagesEndRef} />
               </div>
               <div className="px-4 py-3 border-t border-gray-800 flex items-center space-x-3">
-                <button className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-white">
-                  📷
-                </button>
                 <input
                   type="text"
                   value={state.inputText}
                   onChange={(e) => setState((prev) => ({ ...prev, inputText: e.target.value }))}
-                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                  onKeyDown={(e) => e.key === 'Enter' && void sendMessage()}
                   placeholder="Message..."
                   className="flex-1 h-11 bg-gray-900 dark:bg-gray-800 text-white rounded-full px-4 text-sm outline-none focus:ring-2 focus:ring-pink-500"
                 />
-                <button className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-white">
-                  🎤
-                </button>
                 {state.inputText.trim() && (
-                  <button onClick={sendMessage} className="text-pink-500 font-semibold text-sm">
+                  <button
+                    onClick={() => void sendMessage()}
+                    disabled={state.sending}
+                    className="text-pink-500 font-semibold text-sm disabled:opacity-50"
+                  >
                     Send
                   </button>
                 )}
