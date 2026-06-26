@@ -13,6 +13,7 @@ import arLensesRoutes, { createArLensesService } from './routes/ar-lenses';
 import federationRoutes, { createFederationService } from './routes/federation';
 import feedRoutes from './routes/feed';
 import gamesRoutes from './routes/games';
+import dmRoutes from './routes/dm';
 import { createFeedEngines } from './lib/feed-engines';
 import { NeonGamesService } from './services/neon-games.service';
 
@@ -89,6 +90,11 @@ export async function buildApp(config?: AppConfig) {
   // shared sessions/leaderboards (@quant/cross-app-gaming) are a follow-up.
   app.decorate('neonGames', new NeonGamesService());
   await app.register(gamesRoutes, { prefix: '/games' });
+
+  // Direct Messages — persistent 1:1 + group DMs over the shared Conversation/
+  // Message Prisma models (membership-gated). Routes under `/dm` sit behind the
+  // global auth hook.
+  await app.register(dmRoutes, { prefix: '/dm' });
 
   return app;
 }
