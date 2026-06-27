@@ -386,6 +386,31 @@ export class CreditWallet {
   }
 
   /**
+   * List the owner's ledger entries (newest first), authz-gated like
+   * {@link getBalance}. Lets thin adapters derive analytics (lifetime totals,
+   * usage history) from the authoritative ledger instead of a parallel store.
+   *
+   * @throws 403 FORBIDDEN  when the caller is neither owner nor tenant admin.
+   */
+  async listEntries(caller: OwnershipPrincipal, ownerRef: OwnerRef): Promise<CreditLedgerEntry[]> {
+    if (!nonEmpty(ownerRef?.ownerId)) {
+      throw createAppError('ownerRef.ownerId is required', 400, 'OWNER_REF_REQUIRED');
+    }
+    assertOwnership(this.authz, caller, {
+      ownerId: ownerRef.ownerId,
+      tenantId: ownerRef.tenantId,
+      kind: 'wallet',
+      resourceId: ownerRef.ownerId,
+    });
+    const entries = await this.prisma.creditLedgerEntry.findMany({
+      where: { ownerRef: ownerRef.ownerId },
+    });
+    return [...entries].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  }
+
+  /**
    * Append ONE positive credit entry, increasing the balance by EXACTLY
    * `amount` (Req 16.5).
    *

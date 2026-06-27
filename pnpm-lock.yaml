@@ -2755,6 +2755,9 @@ importers:
       '@quant/common':
         specifier: workspace:*
         version: link:../common
+      '@quant/credits':
+        specifier: workspace:*
+        version: link:../credits
       pino:
         specifier: ^9.6.0
         version: 9.14.0
