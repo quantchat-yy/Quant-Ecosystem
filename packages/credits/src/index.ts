@@ -159,3 +159,21 @@ export type {
   WebhookResult,
   BillingServiceOptions,
 } from './billing-service';
+
+// ----------------------------------------------------------------------------
+// PayoutService — creator/owner withdrawals of EARNED credits to a payout rail
+// (UPI / crypto / bank). No overdraw, purchased-only debit, daily limit,
+// compliance hold, refund-on-failure.
+// ----------------------------------------------------------------------------
+export { PayoutService, FakePayoutRail } from './payout-service';
+export type {
+  PayoutMethod,
+  PayoutStatus,
+  PayoutRecord,
+  PayoutRail,
+  PayoutDispatchInput,
+  PayoutDispatchResult,
+  FakePayoutRailOptions,
+  PayoutPrisma,
+  PayoutServiceOptions,
+} from './payout-service';

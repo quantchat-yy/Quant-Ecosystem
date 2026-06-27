@@ -14,6 +14,7 @@ export type {
   PaymentRecord,
   PlanSubscription,
   OverageSetting,
+  Payout,
   GameScore,
 } from '@prisma/client';
 

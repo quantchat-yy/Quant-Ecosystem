@@ -195,6 +195,15 @@ export interface DebitOptions {
   sourceRef?: string;
   /** Human-readable audit note. */
   reason?: string;
+  /**
+   * Override the bucket consumption order for this debit. Defaults to
+   * {@link CONSUMPTION_ORDER} (DAILY -> MONTHLY -> PURCHASED). A payout passes
+   * `['PURCHASED']` so a withdrawal draws ONLY against earned/purchased credits
+   * and never burns the free DAILY allowance or plan-included MONTHLY credits.
+   * Any bucket omitted from the order is not consumed (so a debit that cannot be
+   * satisfied from the listed buckets fails closed with OUT_OF_CREDITS).
+   */
+  consumptionOrder?: readonly CreditBucket[];
 }
 
 /**
@@ -586,18 +595,36 @@ export class CreditWallet {
     }
 
     // PRECONDITION (FAIL CLOSED, Req 18.3 / 16.2): never let the balance go
-    // negative — if the owner cannot fund the debit, append NOTHING.
+    // negative — if the owner cannot fund the debit FROM THE ELIGIBLE BUCKETS,
+    // append NOTHING. For a default debit the eligible buckets are all three;
+    // for a payout (`consumptionOrder: ['PURCHASED']`) only the earned/purchased
+    // balance is eligible, so the check must use that subset — not the grand
+    // total — or the plan could sum to less than `amount`.
+    const order = options.consumptionOrder ?? CONSUMPTION_ORDER;
     const balance = await this.bucketBalances(ownerRef.ownerId);
-    if (balance.total < amount) {
+    const eligible = order.reduce((sum, bucket) => {
+      switch (bucket) {
+        case 'DAILY':
+          return sum + Math.max(0, balance.daily);
+        case 'MONTHLY':
+          return sum + Math.max(0, balance.monthly);
+        case 'PURCHASED':
+          return sum + Math.max(0, balance.purchased);
+        default:
+          return sum;
+      }
+    }, 0);
+    if (eligible < amount) {
       throw createAppError(
-        `Insufficient credits: debit needs ${amount} but only ${balance.total} available`,
+        `Insufficient credits: debit needs ${amount} but only ${eligible} available`,
         402,
         'OUT_OF_CREDITS',
       );
     }
 
-    // CONSUMPTION ORDER (Req 18.2): daily allowance -> monthly -> purchased.
-    const plan = this.planConsumption(balance, amount);
+    // CONSUMPTION ORDER (Req 18.2): daily allowance -> monthly -> purchased (or
+    // the caller-supplied order, e.g. PURCHASED-only for payouts).
+    const plan = this.planConsumption(balance, amount, order);
 
     // APPEND one negative debit entry per consumed bucket, in order. The
     // magnitudes sum to exactly `amount` (the plan is built to total `amount`).
@@ -645,6 +672,7 @@ export class CreditWallet {
   private planConsumption(
     balance: CreditBalance,
     amount: Credits,
+    order: readonly CreditBucket[] = CONSUMPTION_ORDER,
   ): Array<{ bucket: CreditBucket; amount: number }> {
     const available: Record<CreditBucket, number> = {
       DAILY: Math.max(0, balance.daily),
@@ -653,7 +681,7 @@ export class CreditWallet {
     };
     const plan: Array<{ bucket: CreditBucket; amount: number }> = [];
     let remaining = amount;
-    for (const bucket of CONSUMPTION_ORDER) {
+    for (const bucket of order) {
       if (remaining <= 0) break;
       const take = Math.min(available[bucket], remaining);
       if (take > 0) {

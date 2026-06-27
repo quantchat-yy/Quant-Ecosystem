@@ -2129,7 +2129,33 @@ model OverageSetting {
   @@map("overage_settings")
 }
 
-// ==================== FEATURE FLAGS ====================
+// ---------------------------------------------------------------------------
+// Payout — a creator/owner withdrawal of EARNED credits to an external rail
+// (UPI / crypto / bank). Withdrawals never overdraw: requestWithdrawal debits
+// the ledger (actionKey "payout:{id}") inside the same transaction that creates
+// the pending row, and a terminal rail failure appends a compensating credit.
+// The set of non-failed payouts for an owner, summed, is the amount already
+// withdrawn; earned-balance minus that is what remains withdrawable. Amounts
+// above a configurable compliance threshold are held ("pending_review").
+// ---------------------------------------------------------------------------
+model Payout {
+  id            String    @id @default(cuid())
+  ownerRef      String // OWNER — the user/org id the payout is paid out to
+  ownerType     String    @default("user") // "user" | "org"
+  tenantId      String? // ownership/isolation boundary for authz
+  amountCredits Int // whole-credit amount requested (1 credit ≈ 1 USD)
+  method        String // upi | crypto | bank
+  destination   String? // masked rail destination (UPI vpa / wallet addr / acct) — no secrets
+  status        String    @default("pending") // pending | pending_review | processing | completed | failed
+  providerRef   String? // external rail reference (set once dispatched)
+  reason        String? // human-readable note (e.g. failure cause, hold reason)
+  requestedAt   DateTime  @default(now())
+  settledAt     DateTime? // set when completed or failed (terminal)
+
+  @@index([ownerRef, status])
+  @@index([tenantId])
+  @@map("payouts")
+}
 
 model FeatureFlag {
   id          String   @id @default(cuid())
