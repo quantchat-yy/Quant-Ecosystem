@@ -212,3 +212,26 @@ export type {
   PayoutPrisma,
   PayoutServiceOptions,
 } from './payout-service';
+
+// ----------------------------------------------------------------------------
+// PlatformConfigService — owner-controlled, persisted credit/economy config
+// (QuantTrinity central control): usdPerCredit, dailyFreeCredits, commissionRate,
+// overage default. Engines read it through the adapter factories.
+// ----------------------------------------------------------------------------
+export {
+  PlatformConfigService,
+  DEFAULT_PLATFORM_CONFIG,
+  PlatformConfigPatchSchema,
+  createConfigDailyAllowanceProvider,
+  resolveCommissionRate,
+  resolveUsdPerCredit,
+} from './platform-config.service';
+export type {
+  PlatformCreditConfig,
+  PlatformConfigPatch,
+  ConfigPrincipal,
+  ConfigWriteAuthz,
+  PlatformConfigPrisma,
+  PlatformConfigRow,
+  PlatformConfigServiceOptions,
+} from './platform-config.service';

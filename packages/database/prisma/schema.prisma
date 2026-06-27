@@ -2157,6 +2157,29 @@ model Payout {
   @@map("payouts")
 }
 
+// ---------------------------------------------------------------------------
+// PlatformConfig — the owner-controlled credit/economy configuration, persisted
+// so PricingEngine / PlanService / OverageService read durable values instead
+// of in-memory constants. QuantTrinity is the single writer (owner-only). One
+// row per scope ("global" by default; a tenant id enables per-tenant overrides
+// later). usdPerCredit sets credit<->USD value, dailyFreeCredits the free
+// allowance, commissionRate the marketplace/creator commission (0..1), and
+// overageEnabledDefault the DEFAULT overage stance for new owners (OFF).
+// ---------------------------------------------------------------------------
+model PlatformConfig {
+  id                    String   @id @default(cuid())
+  scope                 String   @unique @default("global") // "global" | tenant id
+  usdPerCredit          Float    @default(1) // USD value of one credit
+  dailyFreeCredits      Int      @default(100) // free daily allowance (whole credits)
+  commissionRate        Float    @default(0.2) // platform commission on earnings (0..1)
+  overageEnabledDefault Boolean  @default(false) // default overage stance (OFF)
+  updatedBy             String? // owner/admin principal id that last wrote it
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("platform_config")
+}
+
 model FeatureFlag {
   id          String   @id @default(cuid())
   name        String   @unique
