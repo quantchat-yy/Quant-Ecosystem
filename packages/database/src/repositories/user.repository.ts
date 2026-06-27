@@ -29,6 +29,8 @@ export const userPublicSelect = {
   // Public-facing gamification stats.
   xpPoints: true,
   level: true,
+  // Public verified-badge flag (QuantSync verified space — migration 0024).
+  isVerified: true,
   createdAt: true,
   updatedAt: true,
   deletedAt: true,
