@@ -42,7 +42,7 @@ export class TaxDocumentService {
     const docType: TaxDocumentType = '1099-NEC';
 
     const doc: TaxDocument = {
-      id: `taxdoc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `taxdoc_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       creatorId: validated.creatorId,
       year: validated.year,
       type: docType,

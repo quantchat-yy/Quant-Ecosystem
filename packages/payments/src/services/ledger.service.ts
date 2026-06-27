@@ -47,7 +47,7 @@ export class LedgerService {
       : currentBalance - validated.amount;
 
     const entry: LedgerEntry = {
-      id: `led_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `led_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       accountId: validated.accountId,
       type: validated.type,
       amount: validated.amount,

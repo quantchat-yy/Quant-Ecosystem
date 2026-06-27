@@ -64,7 +64,7 @@ export class StorefrontService {
     const validated = CreateProductSchema.parse(params);
 
     const product: StorefrontProduct = {
-      id: `prod_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `prod_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       creatorId: validated.creatorId,
       name: validated.name,
       description: validated.description,
@@ -118,7 +118,7 @@ export class StorefrontService {
     const platformShareCents = priceCents - creatorShareCents;
 
     const purchase: ProductPurchase = {
-      id: `purchase_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `purchase_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       userId: validated.userId,
       productId: validated.productId,
       creatorId: product.creatorId,

@@ -75,7 +75,7 @@ export class UPIPaymentService {
   ): Promise<UPIPayment> {
     GenerateUPIPaymentLinkSchema.parse({ amount, upiId });
 
-    const transactionRef = `upi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const transactionRef = `upi_${Date.now()}_${globalThis.crypto.randomUUID()}`;
     const desc = description ?? 'Payment';
 
     if (this.liveMode && this.razorpayClient) {
@@ -89,7 +89,7 @@ export class UPIPaymentService {
       const paymentLink = `upi://pay?pa=${this.merchantVPA}&pn=Quant&am=${amount}&cu=INR&tn=${desc}&tr=${transactionRef}`;
 
       const payment: UPIPayment = {
-        id: `upay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `upay_${Date.now()}_${globalThis.crypto.randomUUID()}`,
         upiId,
         amount,
         currency: 'INR' as CurrencyCode,
@@ -105,7 +105,7 @@ export class UPIPaymentService {
 
     // Fallback: in-memory simulation
     const payment: UPIPayment = {
-      id: `upay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `upay_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       upiId,
       amount,
       currency: 'INR' as CurrencyCode,

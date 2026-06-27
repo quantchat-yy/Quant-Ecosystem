@@ -113,7 +113,7 @@ export class RazorpayGateway {
 
     // Fallback: in-memory simulation
     const order: RazorpayOrder = {
-      id: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `order_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       amount: validated.amount,
       currency: currency,
       status: 'created',
@@ -183,7 +183,7 @@ export class RazorpayGateway {
     // Payouts require RazorpayX which has different endpoints.
     // In live mode, we log that it would trigger RazorpayX but still simulate locally.
     const payout: RazorpayPayout = {
-      id: `pout_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `pout_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       accountId,
       amount,
       status: 'processing',

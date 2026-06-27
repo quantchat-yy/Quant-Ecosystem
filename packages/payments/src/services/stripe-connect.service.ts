@@ -74,7 +74,7 @@ export class StripeConnectService {
     });
 
     const creatorAccount: CreatorAccount = {
-      id: `ca_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `ca_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       creatorId: validated.creatorId,
       stripeAccountId: account.id,
       status: 'pending',

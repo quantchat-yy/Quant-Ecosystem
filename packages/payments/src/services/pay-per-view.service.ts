@@ -63,7 +63,7 @@ export class PayPerViewService {
     }
 
     const paywall: PayPerViewPaywall = {
-      id: `ppv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `ppv_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       creatorId: validated.creatorId,
       contentId: validated.contentId,
       price: validated.price,
@@ -103,7 +103,7 @@ export class PayPerViewService {
     const creatorRevenueCents = Math.round(priceCents * CREATOR_SHARE);
 
     const access: PayPerViewAccess = {
-      id: `ppva_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `ppva_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       userId: validated.userId,
       paywallId: paywall.id,
       contentId: validated.contentId,

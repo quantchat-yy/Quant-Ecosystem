@@ -77,7 +77,7 @@ export class SubscriptionService {
     const trialEnd = trialDays > 0 ? now + trialDays * 86400000 : undefined;
 
     const subscription: Subscription = {
-      id: `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `sub_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       customerId: params.customerId,
       planId: params.planId,
       status: trialDays > 0 ? 'trialing' : 'active',

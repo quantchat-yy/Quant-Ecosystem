@@ -207,7 +207,7 @@ export class AgentSpendingLimitService {
     }
 
     const approval: AgentSpendApproval = {
-      id: `appr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `appr_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       agentId,
       userId: budget.userId,
       amount,
