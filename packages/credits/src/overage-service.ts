@@ -23,13 +23,13 @@
 //   Infrastructure module. Reuses the shared Ownership_Authz rule (the caller
 //   must own the wallet or be a tenant admin), never another module's services.
 
-import { createAppError } from '@quant/server-core';
+import { createAppError } from './errors';
 import {
   ownerOnlyAuthz,
   assertOwnership,
   type OwnershipAuthzPort,
   type OwnershipPrincipal,
-} from '../../../shared/ownership-authz';
+} from './ownership-authz';
 import type { OwnerRef } from './credit-wallet.service';
 
 /** A persisted overage-policy row (mirrors the Prisma `OverageSetting` model). */

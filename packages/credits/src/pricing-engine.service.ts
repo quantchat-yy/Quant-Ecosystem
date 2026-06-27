@@ -201,7 +201,10 @@ export function createModelRouterCostEstimator(
  */
 export const fallbackAiCostEstimator: AiCostEstimator = {
   estimateUsd(usage) {
-    return nonNegative(usage.input) * FALLBACK_INPUT_RATE + nonNegative(usage.output) * FALLBACK_OUTPUT_RATE;
+    return (
+      nonNegative(usage.input) * FALLBACK_INPUT_RATE +
+      nonNegative(usage.output) * FALLBACK_OUTPUT_RATE
+    );
   },
   usdPer1kTokens() {
     return (FALLBACK_INPUT_RATE + FALLBACK_OUTPUT_RATE) * 0.5 * 1000;
@@ -217,7 +220,12 @@ export const DEFAULT_CREDITS_PER_USD = 1000;
 
 /** Default static rules for the non-AI cost drivers (Phase-7 will tune these). */
 const DEFAULT_RULES: PricingRule[] = [
-  { actionKind: 'ai_inference', unit: 'per_1k_tokens', creditsPerUnit: 1, source: 'quant_ai_cost_tracker' },
+  {
+    actionKind: 'ai_inference',
+    unit: 'per_1k_tokens',
+    creditsPerUnit: 1,
+    source: 'quant_ai_cost_tracker',
+  },
   { actionKind: 'email_send', unit: 'per_message', creditsPerUnit: 1, source: 'static' },
   { actionKind: 'rag_query', unit: 'per_query', creditsPerUnit: 5, source: 'static' },
   { actionKind: 'ci_minute', unit: 'per_minute', creditsPerUnit: 2, source: 'static' },
@@ -305,7 +313,9 @@ export class PricingEngine {
   deriveAiInferenceRule(modelId?: string, modelClass?: string): PricingRule {
     const base = this.getRule('ai_inference', modelClass);
     const markup = base.creditsPerUnit > 0 ? base.creditsPerUnit : 1;
-    const creditsPer1k = toCredits(this.aiCost.usdPer1kTokens(modelId, modelClass) * this.creditsPerUsd * markup);
+    const creditsPer1k = toCredits(
+      this.aiCost.usdPer1kTokens(modelId, modelClass) * this.creditsPerUsd * markup,
+    );
     return {
       actionKind: 'ai_inference',
       unit: 'per_1k_tokens',

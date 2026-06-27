@@ -6,6 +6,17 @@
 export { prisma, PrismaClient } from './client';
 export type { Prisma } from './client';
 
+// Prisma-generated model row types (re-exported so dependent packages consume
+// them through the single database package rather than resolving their own
+// @prisma/client variant).
+export type {
+  CreditLedgerEntry,
+  PaymentRecord,
+  PlanSubscription,
+  OverageSetting,
+  GameScore,
+} from '@prisma/client';
+
 // Transaction Helper
 export { withTx } from './transaction';
 export type { TransactionClient } from './transaction';

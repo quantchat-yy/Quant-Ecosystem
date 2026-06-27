@@ -43,19 +43,16 @@
 //   domain or QuantChat. It reuses the cross-cutting ownership rule via the
 //   shared `ownership-authz` helper for the owner-scoped `changePlan`.
 
-import type { PrismaClient } from '@prisma/client';
-import { createAppError } from '@quant/server-core';
+import type { PrismaClient } from '@quant/database';
+import { createAppError } from './errors';
 import {
   assertOwnership,
   ownerOnlyAuthz,
   type OwnershipAuthzPort,
   type OwnershipPrincipal,
-} from '../../../shared/ownership-authz';
+} from './ownership-authz';
 import type { ActionKind, Credits } from './pricing-engine.service';
-import type {
-  DailyAllowanceProvider,
-  OwnerRef as WalletOwnerRef,
-} from './credit-wallet.service';
+import type { DailyAllowanceProvider, OwnerRef as WalletOwnerRef } from './credit-wallet.service';
 import type { EntitlementPort } from './usage-gate.service';
 
 // ---------------------------------------------------------------------------
@@ -66,12 +63,7 @@ import type { EntitlementPort } from './usage-gate.service';
 export type PlanTier = 'free' | 'pro' | 'team' | 'enterprise';
 
 /** Subscription lifecycle states (design `Subscription.status`). */
-export type SubscriptionStatus =
-  | 'active'
-  | 'trialing'
-  | 'canceled'
-  | 'expired'
-  | 'past_due';
+export type SubscriptionStatus = 'active' | 'trialing' | 'canceled' | 'expired' | 'past_due';
 
 /** A subscription that grants entitlements: only these tiers are "active". */
 const ACTIVE_STATUSES: readonly SubscriptionStatus[] = ['active', 'trialing'];
@@ -458,11 +450,8 @@ export class PlanService {
     if (limit != null) {
       const now = this.clock();
       const minuteKey =
-        limit.perMinute != null
-          ? `${ownerId}:${kind}:m:${minuteBucket(now)}`
-          : null;
-      const dayKey =
-        limit.perDay != null ? `${ownerId}:${kind}:d:${dayBucket(now)}` : null;
+        limit.perMinute != null ? `${ownerId}:${kind}:m:${minuteBucket(now)}` : null;
+      const dayKey = limit.perDay != null ? `${ownerId}:${kind}:d:${dayBucket(now)}` : null;
 
       if (minuteKey != null && limit.perMinute != null) {
         const used = await this.rateCounter.current(minuteKey);
@@ -598,9 +587,7 @@ export class PlanService {
   }
 
   /** Find the owner's single active/trialing subscription, if any (Req 19.4). */
-  private async findActiveSubscription(
-    ownerId: string,
-  ): Promise<PlanSubscriptionRecord | null> {
+  private async findActiveSubscription(ownerId: string): Promise<PlanSubscriptionRecord | null> {
     const row = await this.prisma.planSubscription.findFirst({
       where: { ownerRef: ownerId, status: { in: [...ACTIVE_STATUSES] } },
       orderBy: { createdAt: 'desc' },
@@ -649,10 +636,7 @@ export class PlanService {
    * Build an in-memory FREE subscription record for an owner with no persisted
    * row (the default plan needs no DB entry — Req 19.1).
    */
-  private syntheticFreeSubscription(
-    ownerRef: PlanOwnerRef,
-    now: Date,
-  ): PlanSubscriptionRecord {
+  private syntheticFreeSubscription(ownerRef: PlanOwnerRef, now: Date): PlanSubscriptionRecord {
     return {
       id: `free:${ownerRef.ownerId}`,
       ownerRef: ownerRef.ownerId,
@@ -715,9 +699,7 @@ export function createPlanEntitlementPort(
  * const wallet = new CreditWallet(prisma, { dailyAllowanceProvider });
  * ```
  */
-export function createPlanDailyAllowanceProvider(
-  planService: PlanService,
-): DailyAllowanceProvider {
+export function createPlanDailyAllowanceProvider(planService: PlanService): DailyAllowanceProvider {
   return async (ownerRef: WalletOwnerRef): Promise<number> => {
     const ent = await planService.entitlements({
       ownerId: ownerRef.ownerId,

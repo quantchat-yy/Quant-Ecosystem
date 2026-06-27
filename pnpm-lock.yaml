@@ -874,6 +874,9 @@ importers:
       '@quant/common':
         specifier: workspace:*
         version: link:../../packages/common
+      '@quant/credits':
+        specifier: workspace:*
+        version: link:../../packages/credits
       '@quant/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -2053,6 +2056,31 @@ importers:
         version: 5.5.4
       vitest:
         specifier: ^4.1.0
+        version: 4.1.0(@opentelemetry/api@1.9.1)(@types/node@22.19.19)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.19.19)(esbuild@0.28.1)(jiti@2.6.1)(tsx@4.22.3)(yaml@2.9.0))
+
+  packages/credits:
+    dependencies:
+      '@quant/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@quant/database':
+        specifier: workspace:*
+        version: link:../database
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
+      fast-check:
+        specifier: ^3.23.2
+        version: 3.23.2
+      typescript:
+        specifier: ~5.5.0
+        version: 5.5.4
+      vitest:
+        specifier: ^4
         version: 4.1.0(@opentelemetry/api@1.9.1)(@types/node@22.19.19)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.19.19)(esbuild@0.28.1)(jiti@2.6.1)(tsx@4.22.3)(yaml@2.9.0))
 
   packages/cross-app-gaming:
