@@ -47,7 +47,7 @@ export class CashoutService {
     }
 
     const cashout: CashoutRequest = {
-      id: `cashout_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `cashout_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       creatorId: validated.creatorId,
       amount: validated.amount,
       method: validated.method,

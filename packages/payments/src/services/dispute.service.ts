@@ -43,7 +43,7 @@ export class DisputeService {
     const now = Date.now();
 
     const dispute: Dispute = {
-      id: `disp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `disp_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       transactionId: validated.transactionId,
       customerId: validated.customerId,
       amount: validated.amount,
@@ -78,7 +78,7 @@ export class DisputeService {
     }
 
     const evidenceRecord: DisputeEvidence = {
-      id: `evid_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `evid_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       disputeId,
       submittedBy: evidence.submittedBy,
       type: evidence.type,

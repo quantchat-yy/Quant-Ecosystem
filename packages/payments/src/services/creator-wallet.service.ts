@@ -93,7 +93,7 @@ export class CreatorWalletService {
     const wallet = this.getWalletOrThrow(validated.creatorId);
 
     const txn: WalletTransaction = {
-      id: `wtxn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `wtxn_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       creatorId: validated.creatorId,
       type: 'credit',
       amount: validated.amount,
@@ -123,7 +123,7 @@ export class CreatorWalletService {
     }
 
     const txn: WalletTransaction = {
-      id: `wtxn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `wtxn_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       creatorId: validated.creatorId,
       type: 'debit',
       amount: validated.amount,

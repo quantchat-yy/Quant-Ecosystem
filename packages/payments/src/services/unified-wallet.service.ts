@@ -147,7 +147,7 @@ export class UnifiedWalletService {
     this.runningTotals.set(userId, totals);
 
     const record: CashoutRecord = {
-      id: `cashout_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `cashout_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       userId,
       amount,
       method: 'stripe_connect',
@@ -171,7 +171,7 @@ export class UnifiedWalletService {
     this.runningTotals.set(userId, totals);
 
     const record: CashoutRecord = {
-      id: `cashout_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `cashout_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       userId,
       amount,
       method: 'razorpay_payout',

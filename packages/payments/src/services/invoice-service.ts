@@ -3,13 +3,7 @@
 // Full invoice generation with line items, tax, and discounts
 // ============================================================================
 
-import type {
-  Invoice,
-  InvoiceItem,
-  InvoiceStatus,
-  CurrencyCode,
-  DiscountInfo,
-} from '../types';
+import type { Invoice, InvoiceItem, InvoiceStatus, CurrencyCode, DiscountInfo } from '../types';
 
 interface InvoiceServiceConfig {
   defaultCurrency: CurrencyCode;
@@ -81,7 +75,7 @@ export class InvoiceService {
     const taxAmount = lineItems.reduce((sum, item) => sum + item.taxAmount, 0);
 
     const invoice: Invoice = {
-      id: `inv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `inv_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       customerId: params.customerId,
       subscriptionId: params.subscriptionId,
       status: 'draft',
@@ -92,7 +86,7 @@ export class InvoiceService {
       discountAmount: 0,
       total: subtotal + taxAmount,
       currency: params.currency || this.config.defaultCurrency,
-      dueDate: now + (dueInDays * 86400000),
+      dueDate: now + dueInDays * 86400000,
       notes: params.notes || '',
       metadata: params.metadata || {},
       createdAt: now,
@@ -186,7 +180,9 @@ export class InvoiceService {
   }
 
   /** Calculate total for an invoice with all adjustments */
-  async calculateTotal(invoiceId: string): Promise<{ subtotal: number; tax: number; discount: number; total: number }> {
+  async calculateTotal(
+    invoiceId: string,
+  ): Promise<{ subtotal: number; tax: number; discount: number; total: number }> {
     const invoice = this.getInvoiceOrThrow(invoiceId);
     return {
       subtotal: invoice.subtotal,
@@ -197,7 +193,17 @@ export class InvoiceService {
   }
 
   /** Add a line item to a draft invoice */
-  async addLineItem(invoiceId: string, item: { description: string; quantity: number; unitPrice: number; taxRate?: number; periodStart?: number; periodEnd?: number }): Promise<Invoice> {
+  async addLineItem(
+    invoiceId: string,
+    item: {
+      description: string;
+      quantity: number;
+      unitPrice: number;
+      taxRate?: number;
+      periodStart?: number;
+      periodEnd?: number;
+    },
+  ): Promise<Invoice> {
     const invoice = this.getInvoiceOrThrow(invoiceId);
     if (invoice.status !== 'draft') {
       throw new Error('Can only add line items to draft invoices');
@@ -252,12 +258,15 @@ export class InvoiceService {
   }
 
   /** Get invoice history for a customer */
-  async getHistory(customerId: string, options?: { status?: InvoiceStatus; limit?: number; offset?: number }): Promise<{ invoices: Invoice[]; total: number }> {
+  async getHistory(
+    customerId: string,
+    options?: { status?: InvoiceStatus; limit?: number; offset?: number },
+  ): Promise<{ invoices: Invoice[]; total: number }> {
     const invoiceIds = this.customerInvoices.get(customerId) || [];
-    let invoices = invoiceIds.map(id => this.invoices.get(id)!).filter(Boolean);
+    let invoices = invoiceIds.map((id) => this.invoices.get(id)!).filter(Boolean);
 
     if (options?.status) {
-      invoices = invoices.filter(inv => inv.status === options.status);
+      invoices = invoices.filter((inv) => inv.status === options.status);
     }
 
     const total = invoices.length;

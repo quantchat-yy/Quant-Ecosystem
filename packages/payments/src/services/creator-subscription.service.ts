@@ -48,7 +48,7 @@ export class CreatorSubscriptionService {
     const validated = CreateTierSchema.parse(params);
 
     const tier: CreatorSubscriptionTier = {
-      id: `tier_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `tier_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       creatorId: validated.creatorId,
       name: validated.name,
       priceMonthly: validated.priceMonthly,
@@ -114,7 +114,7 @@ export class CreatorSubscriptionService {
     }
 
     const subscription: CreatorSubscription = {
-      id: `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `sub_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       fanId: validated.fanId,
       creatorId: validated.creatorId,
       tierId: validated.tierId,

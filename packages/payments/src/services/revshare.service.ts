@@ -46,7 +46,7 @@ export class RevShareService {
     const platformShare = Math.round((validated.grossAmount - creatorShare) * 100) / 100;
 
     const entry: RevShareEntry = {
-      id: `rs_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `rs_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       type: 'ad_revenue',
       creatorId: validated.creatorId,
       grossAmount: validated.grossAmount,
@@ -70,7 +70,7 @@ export class RevShareService {
     const platformShare = Math.round((validated.grossAmount - creatorShare) * 100) / 100;
 
     const entry: RevShareEntry = {
-      id: `rs_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `rs_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       type: 'tip',
       creatorId: validated.creatorId,
       grossAmount: validated.grossAmount,

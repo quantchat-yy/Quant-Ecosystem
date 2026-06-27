@@ -46,7 +46,7 @@ export class TipService {
     const platformShare = Math.round((validated.amount - creatorShare) * 100) / 100;
 
     const tip: TipRecord = {
-      id: `tip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `tip_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       fromUserId: validated.fromUserId,
       toCreatorId: validated.toCreatorId,
       amount: validated.amount,

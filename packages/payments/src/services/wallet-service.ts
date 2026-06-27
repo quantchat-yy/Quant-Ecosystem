@@ -49,7 +49,7 @@ export class WalletService {
     }
 
     const wallet: Wallet = {
-      id: `wal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `wal_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       userId,
       balance: 0,
       currency: currency || this.config.defaultCurrency,
@@ -376,7 +376,7 @@ export class WalletService {
     referenceId?: string,
   ): WalletTransaction {
     const txn: WalletTransaction = {
-      id: `wtxn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `wtxn_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       walletId: wallet.id,
       type,
       amount,

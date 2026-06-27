@@ -85,7 +85,7 @@ export class RevenueSharing {
     }
 
     const share: RevenueShare = {
-      id: `rs_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `rs_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       creatorId,
       platformSharePercent: platformShare,
       creatorSharePercent: creatorShare,
@@ -122,7 +122,7 @@ export class RevenueSharing {
     const creatorEarning = Math.round((amount - platformFee) * 100) / 100;
 
     const record: EarningRecord = {
-      id: `earn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `earn_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       creatorId,
       amount,
       platformFee,
@@ -176,7 +176,7 @@ export class RevenueSharing {
       }
 
       const payout: Payout = {
-        id: `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `pay_${Date.now()}_${globalThis.crypto.randomUUID()}`,
         creatorId,
         amount: available,
         currency: share.currency,

@@ -46,7 +46,7 @@ export class AdBillingService {
     const validated = CreateCampaignSchema.parse(params);
 
     const campaign: AdCampaign = {
-      id: `camp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `camp_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       advertiserId: validated.advertiserId,
       name: validated.name,
       budget: validated.budget,
@@ -94,7 +94,7 @@ export class AdBillingService {
     campaign.dailySpent += cost;
 
     const record: AdBillingRecord = {
-      id: `adbill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `adbill_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       campaignId,
       type: 'impression',
       cost,
@@ -131,7 +131,7 @@ export class AdBillingService {
     campaign.dailySpent += cost;
 
     const record: AdBillingRecord = {
-      id: `adbill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `adbill_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       campaignId,
       type: 'click',
       cost,
@@ -168,7 +168,7 @@ export class AdBillingService {
     campaign.dailySpent += cost;
 
     const record: AdBillingRecord = {
-      id: `adbill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `adbill_${Date.now()}_${globalThis.crypto.randomUUID()}`,
       campaignId,
       type: 'conversion',
       cost,
