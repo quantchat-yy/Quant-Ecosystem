@@ -235,3 +235,16 @@ export type {
   PlatformConfigRow,
   PlatformConfigServiceOptions,
 } from './platform-config.service';
+
+// ----------------------------------------------------------------------------
+// CreatorEarningsService — the single app-facing entry point that posts a
+// creator's earnings (any app + QuantAds revenue share) into the one shared
+// ledger as EARNED, withdrawable credits. Idempotent by earningId.
+// ----------------------------------------------------------------------------
+export { CreatorEarningsService } from './creator-earnings.service';
+export type {
+  EarningApp,
+  EarningSource,
+  RecordEarningInput,
+  CreatorEarningsServiceOptions,
+} from './creator-earnings.service';
