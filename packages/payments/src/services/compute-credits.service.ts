@@ -2,8 +2,19 @@
 // Payments - Compute Credits Service
 // Quant Compute Credits for pay-per-AI-action billing
 // ============================================================================
+//
+// MIGRATION (unified credits economy, Task 5.1)
+//   This service no longer keeps its own in-memory `Map<>` balances or a
+//   `Math.random()` usage id (both forbidden on a money path). It now DELEGATES
+//   to the shared, durable append-only ledger via `@quant/credits` CreditWallet:
+//     • purchaseCredits -> wallet.credit (PURCHASED bucket)
+//     • deductCredits   -> wallet.debit  (idempotency key = crypto id)
+//     • getBalance / lifetime totals / usage history are DERIVED from the
+//       authoritative ledger (wallet.listEntries), not a parallel store.
+//   The AI action -> credit cost table is unchanged.
 
 import { z } from 'zod';
+import { CreditWallet, type OwnerRef, type OwnershipPrincipal } from '@quant/credits';
 import type { ComputeCredits, CreditUsage, AIActionType } from '../types';
 
 /** Credit costs per AI action type */
@@ -36,101 +47,138 @@ export const DeductCreditsSchema = z.object({
   description: z.string().optional(),
 });
 
+/** Provenance prefix that tags a compute-action debit in the shared ledger. */
+const COMPUTE_SOURCE_PREFIX = 'compute';
+
 /**
- * ComputeCreditsService - Quant Compute Credits for AI actions
+ * ComputeCreditsService - Quant Compute Credits for AI actions, backed by the
+ * shared durable credit ledger.
  *
- * Users purchase credits and spend them on AI-powered actions.
- * Each action type has a fixed credit cost.
+ * Users purchase credits and spend them on AI-powered actions; each action type
+ * has a fixed credit cost. Balances and history are derived from the ledger.
  */
 export class ComputeCreditsService {
-  private readonly balances: Map<string, ComputeCredits> = new Map();
-  private readonly usageHistory: Map<string, CreditUsage[]> = new Map();
+  constructor(private readonly wallet: CreditWallet) {}
 
-  /**
-   * Purchase credits for a user
-   */
-  purchaseCredits(params: { userId: string; amount: number }): ComputeCredits {
-    const validated = PurchaseCreditsSchema.parse(params);
-
-    let credits = this.balances.get(validated.userId);
-    if (!credits) {
-      credits = {
-        userId: validated.userId,
-        balance: 0,
-        totalPurchased: 0,
-        totalUsed: 0,
-      };
-      this.balances.set(validated.userId, credits);
-    }
-
-    credits.balance += validated.amount;
-    credits.totalPurchased += validated.amount;
-    credits.lastPurchaseAt = Date.now();
-
-    return { ...credits };
+  private owner(userId: string): OwnerRef {
+    return { ownerId: userId, ownerType: 'user' };
   }
 
-  /**
-   * Deduct credits for an AI action
-   */
-  deductCredits(params: {
+  private principal(userId: string): OwnershipPrincipal {
+    // The user reads/spends their own compute-credit wallet.
+    return { principalId: userId };
+  }
+
+  /** Purchase credits for a user (credited to the PURCHASED bucket). */
+  async purchaseCredits(params: { userId: string; amount: number }): Promise<ComputeCredits> {
+    const validated = PurchaseCreditsSchema.parse(params);
+    await this.wallet.credit(this.owner(validated.userId), {
+      amount: validated.amount,
+      kind: 'purchase',
+      reason: 'compute credits purchase',
+    });
+    return this.getBalance(validated.userId);
+  }
+
+  /** Deduct credits for an AI action (fixed cost per action type). */
+  async deductCredits(params: {
     userId: string;
     actionType: AIActionType;
     description?: string;
-  }): CreditUsage {
+  }): Promise<CreditUsage> {
     const validated = DeductCreditsSchema.parse(params);
+    const cost = AI_ACTION_COSTS[validated.actionType];
 
-    const credits = this.balances.get(validated.userId);
-    if (!credits) {
+    // Preserve the legacy "never purchased" signal: a user with no ledger
+    // history has no balance to spend.
+    const entries = await this.wallet.listEntries(
+      this.principal(validated.userId),
+      this.owner(validated.userId),
+    );
+    if (entries.length === 0) {
       throw new Error('No credit balance found for user');
     }
 
-    const cost = AI_ACTION_COSTS[validated.actionType];
-    if (credits.balance < cost) {
-      throw new Error(`Insufficient credits: need ${cost}, have ${credits.balance}`);
+    const description = validated.description || `${validated.actionType} action`;
+    try {
+      // Idempotency key is a fresh crypto id per action (no Math.random).
+      await this.wallet.debit(
+        this.owner(validated.userId),
+        cost,
+        `${COMPUTE_SOURCE_PREFIX}:${globalThis.crypto.randomUUID()}`,
+        { sourceRef: `${COMPUTE_SOURCE_PREFIX}:${validated.actionType}`, reason: description },
+      );
+    } catch (err) {
+      // Map the ledger's fail-closed OUT_OF_CREDITS to the legacy message.
+      const code = (err as { code?: string })?.code;
+      if (code === 'OUT_OF_CREDITS') {
+        throw new Error(
+          `Insufficient credits: need ${cost}, have ${(await this.getBalance(validated.userId)).balance}`,
+        );
+      }
+      throw err;
     }
 
-    credits.balance -= cost;
-    credits.totalUsed += cost;
-    credits.lastUsageAt = Date.now();
-
-    const usage: CreditUsage = {
-      id: `usage_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    return {
+      id: globalThis.crypto.randomUUID(),
       userId: validated.userId,
       actionType: validated.actionType,
       creditsUsed: cost,
-      description: validated.description || `${validated.actionType} action`,
+      description,
       timestamp: Date.now(),
     };
-
-    if (!this.usageHistory.has(validated.userId)) {
-      this.usageHistory.set(validated.userId, []);
-    }
-    this.usageHistory.get(validated.userId)!.push(usage);
-
-    return usage;
   }
 
-  /**
-   * Get current credit balance for a user
-   */
-  getBalance(userId: string): ComputeCredits {
-    const credits = this.balances.get(userId);
-    if (!credits) {
-      return {
+  /** Current credit balance + lifetime totals, derived from the ledger. */
+  async getBalance(userId: string): Promise<ComputeCredits> {
+    const entries = await this.wallet.listEntries(this.principal(userId), this.owner(userId));
+    let balance = 0;
+    let totalPurchased = 0;
+    let totalUsed = 0;
+    let lastPurchaseAt: number | undefined;
+    let lastUsageAt: number | undefined;
+    for (const e of entries) {
+      const amount = Number.isFinite(e.amount) ? e.amount : 0;
+      balance += amount;
+      const ts = new Date(e.createdAt).getTime();
+      if (e.entryType === 'purchase') {
+        totalPurchased += amount;
+        lastPurchaseAt = lastPurchaseAt == null ? ts : Math.max(lastPurchaseAt, ts);
+      } else if (e.entryType === 'debit') {
+        totalUsed += Math.abs(amount);
+        lastUsageAt = lastUsageAt == null ? ts : Math.max(lastUsageAt, ts);
+      }
+    }
+    const result: ComputeCredits = {
+      userId,
+      balance: Math.max(0, balance),
+      totalPurchased,
+      totalUsed,
+    };
+    if (lastPurchaseAt != null) result.lastPurchaseAt = lastPurchaseAt;
+    if (lastUsageAt != null) result.lastUsageAt = lastUsageAt;
+    return result;
+  }
+
+  /** Usage history (newest first), derived from the ledger's compute debits. */
+  async getUsageHistory(userId: string): Promise<CreditUsage[]> {
+    const entries = await this.wallet.listEntries(this.principal(userId), this.owner(userId));
+    const usages: CreditUsage[] = [];
+    for (const e of entries) {
+      if (e.entryType !== 'debit') continue;
+      const src = typeof e.sourceRef === 'string' ? e.sourceRef : '';
+      if (!src.startsWith(`${COMPUTE_SOURCE_PREFIX}:`)) continue;
+      const actionType = src.slice(COMPUTE_SOURCE_PREFIX.length + 1) as AIActionType;
+      usages.push({
+        id: e.id,
         userId,
-        balance: 0,
-        totalPurchased: 0,
-        totalUsed: 0,
-      };
+        actionType,
+        creditsUsed: Math.abs(Number.isFinite(e.amount) ? e.amount : 0),
+        description: e.reason ?? `${actionType} action`,
+        timestamp: new Date(e.createdAt).getTime(),
+      });
     }
-    return { ...credits };
-  }
-
-  /**
-   * Get usage history for a user
-   */
-  getUsageHistory(userId: string): CreditUsage[] {
-    return (this.usageHistory.get(userId) || []).sort((a, b) => b.timestamp - a.timestamp);
+    // listEntries is already newest-first.
+    return usages;
   }
 }

@@ -180,7 +180,7 @@ export class FakePaymentProvider implements PaymentProvider {
     this.generateId = options.generateId ?? (() => globalThis.crypto.randomUUID());
   }
 
-  createCheckoutSession(input: CheckoutSessionInput): CheckoutHandle {
+  createCheckoutSession(_input: CheckoutSessionInput): CheckoutHandle {
     const sessionId = `cs_${this.generateId()}`;
     return {
       sessionId,
