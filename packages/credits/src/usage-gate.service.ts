@@ -29,7 +29,7 @@
 //     • {@link ReservationStore}   — records holds keyed by `actionKey` for
 //       idempotency. The default is in-memory; Phase 7 persists it.
 
-import { createAppError } from '@quant/server-core';
+import { createAppError } from './errors';
 import {
   PricingEngine,
   type Credits,
@@ -76,12 +76,19 @@ export interface BalanceProviderPort {
   /** Total credits currently available to the owner (before open holds). */
   getBalance(ownerRef: string): number | Promise<number>;
   /** Apply the final, settled debit. Optional (in-memory default deducts). */
-  recordSettlement?(ownerRef: string, actualCost: Credits, reservation: Reservation): void | Promise<void>;
+  recordSettlement?(
+    ownerRef: string,
+    actualCost: Credits,
+    reservation: Reservation,
+  ): void | Promise<void>;
 }
 
 /** Stores reservations keyed by `(ownerRef, actionKey)` for idempotent debits. */
 export interface ReservationStore {
-  get(ownerRef: string, actionKey: string): Reservation | undefined | Promise<Reservation | undefined>;
+  get(
+    ownerRef: string,
+    actionKey: string,
+  ): Reservation | undefined | Promise<Reservation | undefined>;
   put(reservation: Reservation): void | Promise<void>;
   update(reservation: Reservation): void | Promise<void>;
   /** All as-yet-unsettled reservations for an owner (their held credits). */
@@ -269,11 +276,7 @@ export class UsageGate {
     // PRECONDITION: the plan must permit this cost driver.
     const permitted = await this.entitlements.permits(ownerRef, action.kind);
     if (!permitted) {
-      throw createAppError(
-        `Your plan does not permit '${action.kind}'`,
-        402,
-        'UPGRADE_REQUIRED',
-      );
+      throw createAppError(`Your plan does not permit '${action.kind}'`, 402, 'UPGRADE_REQUIRED');
     }
 
     // PRECONDITION (FAIL CLOSED): available balance must cover the estimate.
@@ -314,10 +317,7 @@ export class UsageGate {
     // by checkAndReserve before it can be settled. We do not trust the passed
     // object — settlement reconciles only an actually-stored reservation, so a
     // metered action can never settle (and thus debit) without a prior hold.
-    const current = await this.reservations.get(
-      reservation.ownerRef,
-      reservation.actionKey,
-    );
+    const current = await this.reservations.get(reservation.ownerRef, reservation.actionKey);
 
     if (!current || current.id == null) {
       throw createAppError('Reservation not found', 404, 'RESERVATION_NOT_FOUND');

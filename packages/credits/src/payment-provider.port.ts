@@ -88,11 +88,7 @@ export type PaymentEventType =
   | 'subscription_resumed';
 
 /** A subscription lifecycle action carried by a `subscription_*` event. */
-export type SubscriptionAction =
-  | 'upgrade'
-  | 'downgrade'
-  | 'cancel'
-  | 'resume';
+export type SubscriptionAction = 'upgrade' | 'downgrade' | 'cancel' | 'resume';
 
 /**
  * A vendor-neutral payment event (design `PaymentEvent`). `providerEventId` is
@@ -199,7 +195,11 @@ export class FakePaymentProvider implements PaymentProvider {
   }
 
   verifyWebhookSignature(payload: string, signature: string, secret: string): boolean {
-    if (typeof payload !== 'string' || typeof signature !== 'string' || typeof secret !== 'string') {
+    if (
+      typeof payload !== 'string' ||
+      typeof signature !== 'string' ||
+      typeof secret !== 'string'
+    ) {
       return false;
     }
     if (signature.length === 0 || secret.length === 0) return false;

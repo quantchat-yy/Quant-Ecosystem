@@ -35,18 +35,11 @@
 //   domain or QuantChat. It depends only on the sibling billing services
 //   (CreditWallet, PlanService), the PaymentProvider port, and shared types.
 
-import type { PrismaClient, PaymentRecord } from '@prisma/client';
-import { createAppError } from '@quant/server-core';
+import type { PrismaClient, PaymentRecord } from '@quant/database';
+import { createAppError } from './errors';
 import type { Credits } from './pricing-engine.service';
-import {
-  CreditWallet,
-  type OwnerRef as WalletOwnerRef,
-} from './credit-wallet.service';
-import {
-  PlanService,
-  type PlanTier,
-  type PlanOwnerRef,
-} from './plan-service';
+import { CreditWallet, type OwnerRef as WalletOwnerRef } from './credit-wallet.service';
+import { PlanService, type PlanTier, type PlanOwnerRef } from './plan-service';
 import type {
   CheckoutHandle,
   PaymentEvent,
@@ -136,11 +129,7 @@ function isPositiveWholeCredits(value: unknown): value is number {
 
 /** True for a Prisma unique-constraint violation (a lost idempotency race). */
 function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === 'object' &&
-    err !== null &&
-    (err as { code?: unknown }).code === 'P2002'
-  );
+  return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 'P2002';
 }
 
 // ---------------------------------------------------------------------------
@@ -168,7 +157,8 @@ export class BillingService {
     }
     this.webhookSecret = options.webhookSecret;
     this.generateId = options.generateId ?? (() => globalThis.crypto.randomUUID());
-    this.resolveOwner = options.resolveOwner ?? ((ref: string): BillingOwnerRef => ({ ownerId: ref }));
+    this.resolveOwner =
+      options.resolveOwner ?? ((ref: string): BillingOwnerRef => ({ ownerId: ref }));
   }
 
   /**
@@ -232,8 +222,8 @@ export class BillingService {
         providerSubId: null,
         kind: input.kind,
         status: 'pending',
-        amountCredits: input.kind === 'topup' ? input.credits ?? null : null,
-        planTier: input.kind === 'subscription' ? input.planTier ?? null : null,
+        amountCredits: input.kind === 'topup' ? (input.credits ?? null) : null,
+        planTier: input.kind === 'subscription' ? (input.planTier ?? null) : null,
       },
     });
 
@@ -282,7 +272,11 @@ export class BillingService {
       );
     }
     if (!nonEmpty(event.providerEventId)) {
-      throw createAppError('webhook event is missing providerEventId', 400, 'INVALID_WEBHOOK_PAYLOAD');
+      throw createAppError(
+        'webhook event is missing providerEventId',
+        400,
+        'INVALID_WEBHOOK_PAYLOAD',
+      );
     }
 
     // STEP 3 (Req 20.3, AT MOST ONCE): a previously-applied event id is a no-op.
@@ -501,11 +495,7 @@ export class BillingService {
       // Lost the race on @unique(providerEventId): another worker is applying /
       // has applied this exact event. Surface it as a duplicate no-op signal.
       if (isUniqueViolation(err)) {
-        throw createAppError(
-          'webhook event already being applied',
-          409,
-          'WEBHOOK_EVENT_DUPLICATE',
-        );
+        throw createAppError('webhook event already being applied', 409, 'WEBHOOK_EVENT_DUPLICATE');
       }
       throw err;
     }

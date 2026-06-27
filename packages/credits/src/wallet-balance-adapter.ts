@@ -27,7 +27,7 @@
 
 import type { BalanceProviderPort, Reservation } from './usage-gate.service';
 import type { CreditWallet, OwnerRef } from './credit-wallet.service';
-import type { OwnershipPrincipal } from '../../../shared/ownership-authz';
+import type { OwnershipPrincipal } from './ownership-authz';
 import type { Credits } from './pricing-engine.service';
 
 export interface WalletBalanceProviderOptions {

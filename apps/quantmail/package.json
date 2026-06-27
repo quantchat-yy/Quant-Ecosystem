@@ -23,6 +23,7 @@
     "@quant/auth": "workspace:*",
     "@quant/brand": "workspace:*",
     "@quant/common": "workspace:*",
+    "@quant/credits": "workspace:*",
     "@quant/database": "workspace:*",
     "@quant/encryption": "workspace:*",
     "@quant/federation": "workspace:*",

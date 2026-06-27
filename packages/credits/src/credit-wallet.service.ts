@@ -32,14 +32,14 @@
 //   the mail domain or QuantChat. It consumes the cross-cutting authz rule via
 //   the shared `ownership-authz` helper, never another module's services.
 
-import type { PrismaClient, CreditLedgerEntry } from '@prisma/client';
-import { createAppError } from '@quant/server-core';
+import type { PrismaClient, CreditLedgerEntry } from '@quant/database';
+import { createAppError } from './errors';
 import {
   ownerOnlyAuthz,
   assertOwnership,
   type OwnershipAuthzPort,
   type OwnershipPrincipal,
-} from '../../../shared/ownership-authz';
+} from './ownership-authz';
 import type { Credits } from './pricing-engine.service';
 
 // ---------------------------------------------------------------------------

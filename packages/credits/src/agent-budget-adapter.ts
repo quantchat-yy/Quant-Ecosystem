@@ -67,9 +67,7 @@ function isPositiveFinite(value: number): boolean {
  * `startTask` rejects with `BUDGET_REQUIRED` — while keeping the full wallet
  * implementation (Phase 7) behind the gate's seams.
  */
-export function createUsageGateBudgetPort(
-  options: UsageGateBudgetPortOptions,
-): BudgetCheckPort {
+export function createUsageGateBudgetPort(options: UsageGateBudgetPortOptions): BudgetCheckPort {
   return {
     async hasAvailableBudget(userId, budget) {
       if (!isPositiveFinite(budget.maxIterations) || !isPositiveFinite(budget.costBudget)) {
