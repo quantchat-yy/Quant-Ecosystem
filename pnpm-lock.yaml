@@ -1387,6 +1387,9 @@ importers:
       '@quant/common':
         specifier: workspace:*
         version: link:../../packages/common
+      '@quant/credits':
+        specifier: workspace:*
+        version: link:../../packages/credits
       '@quant/database':
         specifier: workspace:*
         version: link:../../packages/database

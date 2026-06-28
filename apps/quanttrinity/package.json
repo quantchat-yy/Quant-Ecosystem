@@ -17,6 +17,7 @@
     "@quant/agent-runtime": "workspace:*",
     "@quant/brand": "workspace:*",
     "@quant/common": "workspace:*",
+    "@quant/credits": "workspace:*",
     "@quant/database": "workspace:*",
     "@quant/shared-ui": "workspace:*",
     "@tanstack/react-query": "^5.60.0",

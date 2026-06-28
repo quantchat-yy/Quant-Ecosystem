@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { PlatformConfigService, DEFAULT_PLATFORM_CONFIG } from '@quant/credits';
 import { prisma } from '../../../lib/prisma';
-import { listApps, listRevenue, listTeam, getCreditConfig } from '../../../lib/store';
+import { listApps, listRevenue, listTeam } from '../../../lib/store';
 
 /**
  * Owner command-center aggregate: ecosystem-wide user totals (from Prisma, with
@@ -25,7 +26,14 @@ export async function GET() {
   const apps = listApps();
   const revenue = listRevenue();
   const team = listTeam();
-  const credit = getCreditConfig();
+  // Durable credit/economy config (falls back to defaults if the DB is down,
+  // mirroring the user-count graceful fallback above).
+  let credit = DEFAULT_PLATFORM_CONFIG;
+  try {
+    credit = await new PlatformConfigService(prisma as never).getConfig();
+  } catch {
+    credit = DEFAULT_PLATFORM_CONFIG;
+  }
 
   const monthlyRevenueUsd = revenue.reduce((sum, r) => sum + r.monthlyUsd, 0);
   const aiStaff = team.filter((m) => m.kind === 'ai').length;
