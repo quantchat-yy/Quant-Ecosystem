@@ -1,24 +1,10 @@
--- CreateTable: Snapchat-style messaging streaks between two users (canonical
--- order userAId < userBId). count increments at most once per 24h window when
--- both users have messaged each other within the last 24h; it breaks when the
--- mutual exchange lapses past expiresAt.
-CREATE TABLE "streaks" (
-    "id" TEXT NOT NULL,
-    "userAId" TEXT NOT NULL,
-    "userBId" TEXT NOT NULL,
-    "count" INTEGER NOT NULL DEFAULT 0,
-    "lastFromA" TIMESTAMP(3),
-    "lastFromB" TIMESTAMP(3),
-    "lastIncrementAt" TIMESTAMP(3),
-    "startedAt" TIMESTAMP(3),
-    "expiresAt" TIMESTAMP(3),
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "streaks_pkey" PRIMARY KEY ("id")
-);
-
--- CreateIndex
-CREATE UNIQUE INDEX "streaks_userAId_userBId_key" ON "streaks"("userAId", "userBId");
-
--- CreateIndex
-CREATE INDEX "streaks_expiresAt_idx" ON "streaks"("expiresAt");
+-- The "streaks" table already exists (migration 0002_quantchat_mega_upgrade).
+-- The Snapchat-style StreakService engine needs per-side interaction timestamps
+-- and an increment marker, and treats lastActivityAt / expiresAt as optional
+-- (the engine derives expiry from the per-side timestamps). Extend in place.
+ALTER TABLE "streaks" ADD COLUMN IF NOT EXISTS "lastFromA" TIMESTAMP(3);
+ALTER TABLE "streaks" ADD COLUMN IF NOT EXISTS "lastFromB" TIMESTAMP(3);
+ALTER TABLE "streaks" ADD COLUMN IF NOT EXISTS "lastIncrementAt" TIMESTAMP(3);
+ALTER TABLE "streaks" ADD COLUMN IF NOT EXISTS "startedAt" TIMESTAMP(3);
+ALTER TABLE "streaks" ALTER COLUMN "lastActivityAt" DROP NOT NULL;
+ALTER TABLE "streaks" ALTER COLUMN "expiresAt" DROP NOT NULL;
