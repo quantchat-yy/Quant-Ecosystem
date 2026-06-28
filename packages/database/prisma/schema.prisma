@@ -950,6 +950,7 @@ model Story {
   thumbnailUrl String?
   duration     Int       @default(15)
   viewCount    Int       @default(0)
+  audience     String    @default("ALL") // ALL | CLOSE_FRIENDS
   expiresAt    DateTime
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt

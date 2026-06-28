@@ -17,7 +17,7 @@ function createMockPrisma() {
     },
     userRelationship: { findMany: vi.fn() },
     user: { findMany: vi.fn() },
-    closeFriend: { findMany: vi.fn() },
+    closeFriend: { findMany: vi.fn(), findFirst: vi.fn() },
   };
 }
 
@@ -143,6 +143,62 @@ describe('StoryService — distinct viewer tracking', () => {
       await expect(service.getViewers('s1', 'mallory')).rejects.toMatchObject({
         code: 'NOT_STORY_OWNER',
       });
+    });
+  });
+
+  describe('close-friends audience', () => {
+    it('blocks a non-close-friend from viewing a CLOSE_FRIENDS story', async () => {
+      prisma.story.findUnique.mockResolvedValue({
+        id: 's1',
+        userId: 'owner',
+        audience: 'CLOSE_FRIENDS',
+        expiresAt: future(),
+        viewCount: 0,
+      });
+      prisma.closeFriend.findFirst.mockResolvedValue(null);
+      await expect(service.viewStory('s1', 'stranger')).rejects.toMatchObject({
+        code: 'STORY_NOT_VISIBLE',
+      });
+      expect(prisma.storyView.upsert).not.toHaveBeenCalled();
+    });
+
+    it('allows a close friend to view a CLOSE_FRIENDS story', async () => {
+      prisma.story.findUnique.mockResolvedValue({
+        id: 's1',
+        userId: 'owner',
+        audience: 'CLOSE_FRIENDS',
+        expiresAt: future(),
+        viewCount: 0,
+      });
+      prisma.closeFriend.findFirst.mockResolvedValue({ id: 'cf1' });
+      prisma.storyView.upsert.mockResolvedValue({});
+      prisma.storyView.count.mockResolvedValue(1);
+      prisma.story.update.mockImplementation(async ({ data }: any) => ({
+        id: 's1',
+        viewCount: data.viewCount,
+      }));
+      const result = await service.viewStory('s1', 'bestie');
+      expect(result.viewCount).toBe(1);
+    });
+
+    it('hides CLOSE_FRIENDS stories from a non-close-friend in getActiveStories', async () => {
+      prisma.story.findMany.mockResolvedValue([
+        { id: 'a', userId: 'owner', audience: 'ALL', expiresAt: future() },
+        { id: 'b', userId: 'owner', audience: 'CLOSE_FRIENDS', expiresAt: future() },
+      ]);
+      prisma.closeFriend.findFirst.mockResolvedValue(null);
+      const result = await service.getActiveStories('owner', 'stranger');
+      expect(result.map((s) => s.id)).toEqual(['a']);
+    });
+
+    it('shows all stories to the owner (no viewer filter)', async () => {
+      prisma.story.findMany.mockResolvedValue([
+        { id: 'a', userId: 'owner', audience: 'ALL', expiresAt: future() },
+        { id: 'b', userId: 'owner', audience: 'CLOSE_FRIENDS', expiresAt: future() },
+      ]);
+      const result = await service.getActiveStories('owner');
+      expect(result.map((s) => s.id)).toEqual(['a', 'b']);
+      expect(prisma.closeFriend.findFirst).not.toHaveBeenCalled();
     });
   });
 });

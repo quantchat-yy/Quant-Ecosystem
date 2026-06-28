@@ -8,6 +8,7 @@ const createStorySchema = z.object({
   mediaUrl: z.string().url().optional(),
   thumbnailUrl: z.string().url().optional(),
   duration: z.number().positive().optional(),
+  audience: z.enum(['ALL', 'CLOSE_FRIENDS']).optional(),
 });
 
 export default async function storiesRoutes(fastify: FastifyInstance) {
@@ -44,10 +45,11 @@ export default async function storiesRoutes(fastify: FastifyInstance) {
 
   fastify.get('/user/:userId', async (request, reply) => {
     const { userId } = request.params as { userId: string };
+    const viewerId = (request as unknown as { auth?: { userId?: string } }).auth?.userId;
 
     const prisma = (fastify as unknown as { prisma: unknown }).prisma;
     const service = new StoryService(prisma as never);
-    const stories = await service.getActiveStories(userId);
+    const stories = await service.getActiveStories(userId, viewerId);
 
     return reply.send({ success: true, data: stories });
   });
