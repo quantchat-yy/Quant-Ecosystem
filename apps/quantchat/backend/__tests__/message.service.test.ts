@@ -413,4 +413,46 @@ describe('MessageService', () => {
       expect(result.hasPrev).toBe(true);
     });
   });
+
+  describe('sendMessage — streak wiring', () => {
+    function setupSend(memberIds: string[]) {
+      prisma.conversationMember.findFirst.mockResolvedValue({ id: 'member-1', leftAt: null });
+      prisma.conversationMember.findMany.mockResolvedValue(memberIds.map((userId) => ({ userId })));
+      prisma.message.create.mockResolvedValue({ id: 'msg-1', createdAt: new Date() });
+      prisma.conversation.update.mockResolvedValue({});
+    }
+
+    it('updates the streak for a 1:1 conversation (one recipient)', async () => {
+      const streaks = { recordMessage: vi.fn().mockResolvedValue({ count: 1 }) };
+      const svc = new MessageService(prisma as never, undefined, streaks as never);
+      setupSend(['user-1', 'user-2']);
+
+      await svc.sendMessage({ conversationId: 'conv-1', senderId: 'user-1', content: 'hi' });
+
+      expect(streaks.recordMessage).toHaveBeenCalledWith('user-1', 'user-2');
+    });
+
+    it('does NOT update a streak for a group conversation (multiple recipients)', async () => {
+      const streaks = { recordMessage: vi.fn().mockResolvedValue({ count: 0 }) };
+      const svc = new MessageService(prisma as never, undefined, streaks as never);
+      setupSend(['user-1', 'user-2', 'user-3']);
+
+      await svc.sendMessage({ conversationId: 'conv-1', senderId: 'user-1', content: 'hi all' });
+
+      expect(streaks.recordMessage).not.toHaveBeenCalled();
+    });
+
+    it('still delivers the message when the streak update throws (best-effort)', async () => {
+      const streaks = { recordMessage: vi.fn().mockRejectedValue(new Error('streak db down')) };
+      const svc = new MessageService(prisma as never, undefined, streaks as never);
+      setupSend(['user-1', 'user-2']);
+
+      const msg = await svc.sendMessage({
+        conversationId: 'conv-1',
+        senderId: 'user-1',
+        content: 'hi',
+      });
+      expect(msg).toMatchObject({ id: 'msg-1' });
+    });
+  });
 });

@@ -3,6 +3,7 @@ import { Prisma, MessageType } from '@prisma/client';
 import * as crypto from 'node:crypto';
 import { createAppError } from '@quant/server-core';
 import { PrismaOutboxService, type OutboxService } from './outbox.service';
+import { StreakService } from './streak.service';
 
 /**
  * Map the public (lowercase) message-type string accepted by the API/clients to
@@ -74,6 +75,7 @@ export interface SendMessageInput {
 
 export class MessageService {
   private readonly outbox: OutboxService;
+  private readonly streaks: StreakService;
 
   /**
    * @param prisma  Prisma client used for all persistence.
@@ -81,12 +83,17 @@ export class MessageService {
    *   {@link PrismaOutboxService} bound to the same Prisma client so existing
    *   callers (`new MessageService(prisma)`) keep working unchanged while the
    *   delivery intent is written in the same transaction as the message.
+   * @param streaks Streak engine used to update the 1:1 messaging streak after a
+   *   message commits (best-effort; never blocks delivery). Defaults to one bound
+   *   to the same Prisma client.
    */
   constructor(
     private readonly prisma: PrismaClient,
     outbox?: OutboxService,
+    streaks?: StreakService,
   ) {
     this.outbox = outbox ?? new PrismaOutboxService(prisma);
+    this.streaks = streaks ?? new StreakService(prisma as never);
   }
 
   /**
@@ -223,6 +230,17 @@ export class MessageService {
 
       return created;
     });
+
+    // STREAK (Snapchat-style): a 1:1 conversation has exactly one recipient.
+    // Update the pair's streak AFTER commit, best-effort — a streak failure must
+    // never fail message delivery, and it runs outside the message transaction.
+    if (recipientIds.length === 1) {
+      try {
+        await this.streaks.recordMessage(senderId, recipientIds[0] as string);
+      } catch {
+        // Non-critical: the streak will reconcile on the next message.
+      }
+    }
 
     return message;
   }
