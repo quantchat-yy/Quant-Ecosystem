@@ -3068,6 +3068,29 @@ model PostBookmark {
   @@map("post_bookmarks")
 }
 
+// ==================== QuantChat Streaks (Snapchat-style) ====================
+/// A messaging streak between two users (canonical order: userAId < userBId).
+/// The streak count increments at most once per 24h window when BOTH users have
+/// messaged each other within the last 24h; it breaks (count resets) when either
+/// user lets 24h pass without the mutual exchange continuing. Relation-free +
+/// additive (no User back-relations) so it is safe for the shared schema.
+model Streak {
+  id              String    @id @default(cuid())
+  userAId         String
+  userBId         String
+  count           Int       @default(0)
+  lastFromA       DateTime? // last time A messaged B
+  lastFromB       DateTime? // last time B messaged A
+  lastIncrementAt DateTime? // when count last incremented (one increment per 24h)
+  startedAt       DateTime? // when the current streak began
+  expiresAt       DateTime? // deadline to keep the streak alive
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userAId, userBId])
+  @@index([expiresAt])
+  @@map("streaks")
+}
+
 // ==================== QuantDocs (Google Docs killer) ====================
 
 model Document {
