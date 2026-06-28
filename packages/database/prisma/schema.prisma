@@ -2422,12 +2422,19 @@ enum AlienStyle {
 }
 
 model Streak {
-  id             String   @id @default(cuid())
-  userAId        String
-  userBId        String
-  count          Int      @default(0)
-  lastActivityAt DateTime
-  expiresAt      DateTime // midnight + 24h from last activity
+  id              String    @id @default(cuid())
+  userAId         String
+  userBId         String
+  count           Int       @default(0)
+  // Original field (kept, now optional): some flows set a single activity time.
+  lastActivityAt  DateTime?
+  // Per-side last-interaction times used by the StreakService engine to decide
+  // mutual-activity windows and increments.
+  lastFromA       DateTime?
+  lastFromB       DateTime?
+  lastIncrementAt DateTime?
+  startedAt       DateTime?
+  expiresAt       DateTime? // deadline to keep the streak alive
 
   userA User @relation("streakUserA", fields: [userAId], references: [id], onDelete: Cascade)
   userB User @relation("streakUserB", fields: [userBId], references: [id], onDelete: Cascade)
@@ -3081,29 +3088,6 @@ model PostBookmark {
   @@unique([userId, postId])
   @@index([userId])
   @@map("post_bookmarks")
-}
-
-// ==================== QuantChat Streaks (Snapchat-style) ====================
-/// A messaging streak between two users (canonical order: userAId < userBId).
-/// The streak count increments at most once per 24h window when BOTH users have
-/// messaged each other within the last 24h; it breaks (count resets) when either
-/// user lets 24h pass without the mutual exchange continuing. Relation-free +
-/// additive (no User back-relations) so it is safe for the shared schema.
-model Streak {
-  id              String    @id @default(cuid())
-  userAId         String
-  userBId         String
-  count           Int       @default(0)
-  lastFromA       DateTime? // last time A messaged B
-  lastFromB       DateTime? // last time B messaged A
-  lastIncrementAt DateTime? // when count last incremented (one increment per 24h)
-  startedAt       DateTime? // when the current streak began
-  expiresAt       DateTime? // deadline to keep the streak alive
-  updatedAt       DateTime  @updatedAt
-
-  @@unique([userAId, userBId])
-  @@index([expiresAt])
-  @@map("streaks")
 }
 
 // ==================== QuantDocs (Google Docs killer) ====================
