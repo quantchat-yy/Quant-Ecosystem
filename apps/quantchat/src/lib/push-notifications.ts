@@ -34,11 +34,15 @@ export function isPushSupported(): boolean {
  * Converts a base64url-encoded VAPID public key into the Uint8Array that
  * PushManager.subscribe() expects for `applicationServerKey`.
  */
-export function urlBase64ToUint8Array(base64String: string): Uint8Array {
+export function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
+  // Back the view with an explicit ArrayBuffer so the result is a
+  // Uint8Array<ArrayBuffer> (a valid BufferSource for PushManager.subscribe),
+  // not the wider Uint8Array<ArrayBufferLike> the no-arg constructor infers.
+  const buffer = new ArrayBuffer(rawData.length);
+  const outputArray = new Uint8Array(buffer);
   for (let i = 0; i < rawData.length; i += 1) {
     outputArray[i] = rawData.charCodeAt(i);
   }
