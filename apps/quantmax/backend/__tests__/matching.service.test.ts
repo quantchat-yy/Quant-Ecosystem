@@ -13,14 +13,16 @@ function createMockPrisma() {
       findMany: vi.fn(),
     },
     swipe: {
-      findMany: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
       findFirst: vi.fn(),
       create: vi.fn(),
+      upsert: vi.fn().mockResolvedValue({ id: 'swipe-1' }),
     },
     match: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
       create: vi.fn(),
+      upsert: vi.fn(),
     },
     $queryRaw: vi.fn().mockResolvedValue([]),
     $queryRawUnsafe: vi.fn().mockResolvedValue([]),
@@ -66,15 +68,17 @@ describe('MatchingService', () => {
         { id: 'user-2', datingProfile: { id: 'dp-2', displayName: 'Jane' } },
         { id: 'user-3', datingProfile: { id: 'dp-3', displayName: 'Alice' } },
       ];
+      prisma.swipe.findMany.mockResolvedValue([{ targetId: 'user-9' }]);
       prisma.user.findMany.mockResolvedValue(otherUsers);
 
       const result = await service.findMatches('user-1', 10);
 
       expect(result).toHaveLength(2);
       expect(result).toEqual(otherUsers);
+      // Excludes self AND already-swiped targets.
       expect(prisma.user.findMany).toHaveBeenCalledWith({
         where: {
-          id: { not: 'user-1' },
+          id: { notIn: ['user-1', 'user-9'] },
           datingProfile: { isNot: null },
         },
         include: { datingProfile: true },
@@ -97,18 +101,17 @@ describe('MatchingService', () => {
 
   describe('recordSwipe', () => {
     it('creates a swipe and returns no match for LEFT', async () => {
-      prisma.swipe.create.mockResolvedValue({ id: 'swipe-1' });
-
       const result = await service.recordSwipe('user-1', 'user-2', 'LEFT');
 
       expect(result).toEqual({ matched: false });
-      expect(prisma.swipe.create).toHaveBeenCalledWith({
-        data: { swiperId: 'user-1', targetId: 'user-2', direction: 'LEFT' },
+      expect(prisma.swipe.upsert).toHaveBeenCalledWith({
+        where: { swiperId_targetId: { swiperId: 'user-1', targetId: 'user-2' } },
+        create: { swiperId: 'user-1', targetId: 'user-2', direction: 'LEFT' },
+        update: { direction: 'LEFT' },
       });
     });
 
     it('creates a swipe and returns no match for RIGHT when no mutual interest', async () => {
-      prisma.swipe.create.mockResolvedValue({ id: 'swipe-1' });
       prisma.swipe.findFirst.mockResolvedValue(null);
 
       const result = await service.recordSwipe('user-1', 'user-2', 'RIGHT');
@@ -124,14 +127,13 @@ describe('MatchingService', () => {
     });
 
     it('creates a match when mutual RIGHT swipe exists', async () => {
-      prisma.swipe.create.mockResolvedValue({ id: 'swipe-1' });
       prisma.swipe.findFirst.mockResolvedValue({
         id: 'swipe-prev',
         swiperId: 'user-2',
         targetId: 'user-1',
         direction: 'RIGHT',
       });
-      prisma.match.create.mockResolvedValue({
+      prisma.match.upsert.mockResolvedValue({
         id: 'match-1',
         user1Id: 'user-1',
         user2Id: 'user-2',
@@ -143,20 +145,21 @@ describe('MatchingService', () => {
         matched: true,
         match: { id: 'match-1', user1Id: 'user-1', user2Id: 'user-2' },
       });
-      expect(prisma.match.create).toHaveBeenCalledWith({
-        data: { user1Id: 'user-1', user2Id: 'user-2' },
+      expect(prisma.match.upsert).toHaveBeenCalledWith({
+        where: { user1Id_user2Id: { user1Id: 'user-1', user2Id: 'user-2' } },
+        create: { user1Id: 'user-1', user2Id: 'user-2' },
+        update: {},
       });
     });
 
     it('creates a match when mutual SUPER_LIKE swipe exists', async () => {
-      prisma.swipe.create.mockResolvedValue({ id: 'swipe-1' });
       prisma.swipe.findFirst.mockResolvedValue({
         id: 'swipe-prev',
         swiperId: 'user-2',
         targetId: 'user-1',
         direction: 'SUPER_LIKE',
       });
-      prisma.match.create.mockResolvedValue({
+      prisma.match.upsert.mockResolvedValue({
         id: 'match-1',
         user1Id: 'user-1',
         user2Id: 'user-2',
@@ -168,20 +171,17 @@ describe('MatchingService', () => {
         matched: true,
         match: { id: 'match-1', user1Id: 'user-1', user2Id: 'user-2' },
       });
-      expect(prisma.match.create).toHaveBeenCalledWith({
-        data: { user1Id: 'user-1', user2Id: 'user-2' },
-      });
+      expect(prisma.match.upsert).toHaveBeenCalled();
     });
 
     it('orders user1Id/user2Id deterministically when creating a match', async () => {
-      prisma.swipe.create.mockResolvedValue({ id: 'swipe-1' });
       prisma.swipe.findFirst.mockResolvedValue({
         id: 'swipe-prev',
         swiperId: 'user-2',
         targetId: 'user-1',
         direction: 'RIGHT',
       });
-      prisma.match.create.mockResolvedValue({
+      prisma.match.upsert.mockResolvedValue({
         id: 'match-1',
         user1Id: 'user-1',
         user2Id: 'user-2',
@@ -193,9 +193,20 @@ describe('MatchingService', () => {
         matched: true,
         match: { id: 'match-1', user1Id: 'user-1', user2Id: 'user-2' },
       });
-      expect(prisma.match.create).toHaveBeenCalledWith({
-        data: { user1Id: 'user-1', user2Id: 'user-2' },
+      expect(prisma.match.upsert).toHaveBeenCalledWith({
+        where: { user1Id_user2Id: { user1Id: 'user-1', user2Id: 'user-2' } },
+        create: { user1Id: 'user-1', user2Id: 'user-2' },
+        update: {},
       });
+    });
+
+    it('is idempotent: re-swiping the same target does not throw (upsert)', async () => {
+      prisma.swipe.findFirst.mockResolvedValue(null);
+      const first = await service.recordSwipe('user-1', 'user-2', 'LEFT');
+      const second = await service.recordSwipe('user-1', 'user-2', 'RIGHT');
+      expect(first).toEqual({ matched: false });
+      expect(second).toEqual({ matched: false });
+      expect(prisma.swipe.upsert).toHaveBeenCalledTimes(2);
     });
   });
 });
