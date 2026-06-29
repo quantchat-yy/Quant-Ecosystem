@@ -845,6 +845,24 @@ model Video {
   @@map("videos")
 }
 
+/// AI/creator-defined content segments of a video, used to compute a skip-plan
+/// so playback can show only the useful parts (skip intros, sponsors, recaps,
+/// outros, filler). Relation-free + additive (no Video back-relation) so it is
+/// safe for the shared schema.
+model VideoSegment {
+  id        String   @id @default(cuid())
+  videoId   String
+  kind      String // intro | content | sponsor | recap | outro | filler
+  label     String?
+  startSec  Float
+  endSec    Float
+  source    String   @default("ai") // ai | creator | community
+  createdAt DateTime @default(now())
+
+  @@index([videoId])
+  @@map("video_segments")
+}
+
 enum VideoVisibility {
   PUBLIC
   UNLISTED
@@ -3088,6 +3106,25 @@ model PostBookmark {
   @@unique([userId, postId])
   @@index([userId])
   @@map("post_bookmarks")
+}
+
+// ==================== QuantTube AI segment-skip ====================
+/// A labeled time-range within a video. AI (or the creator/community) classifies
+/// regions as intro/sponsor/recap/outro/filler/content; playback uses these to
+/// build a "skip plan" that plays only the useful (content) parts. Relation-free
+/// + additive (no Video back-relation) so it is safe for the shared schema.
+model VideoSegment {
+  id        String   @id @default(cuid())
+  videoId   String
+  kind      String   // intro | content | sponsor | recap | outro | filler
+  label     String?
+  startSec  Float
+  endSec    Float
+  source    String   @default("ai") // ai | creator | community
+  createdAt DateTime @default(now())
+
+  @@index([videoId])
+  @@map("video_segments")
 }
 
 // ==================== QuantDocs (Google Docs killer) ====================

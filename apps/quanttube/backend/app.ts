@@ -3,6 +3,7 @@ import type { AppConfig } from '@quant/server-core';
 import uploadRoutes from './routes/upload';
 import streamRoutes from './routes/stream';
 import thumbnailsRoutes from './routes/thumbnails';
+import segmentsRoutes from './routes/segments';
 import { registerQuanttubeVoice } from './voice-registration';
 
 registerQuanttubeVoice();
@@ -36,6 +37,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(uploadRoutes, { prefix: '/upload' });
   await app.register(streamRoutes, { prefix: '/stream' });
   await app.register(thumbnailsRoutes, { prefix: '/thumbnails' });
+  await app.register(segmentsRoutes, { prefix: '/segments' });
 
   return app;
 }
