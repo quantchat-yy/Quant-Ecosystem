@@ -25,7 +25,7 @@ function getUserId(request: unknown): string {
 }
 
 function getService(fastify: FastifyInstance): NeonGamesService {
-  return (fastify as unknown as { neonGames: NeonGamesService }).neonGames;
+  return new NeonGamesService((fastify as unknown as { prisma: unknown }).prisma as never);
 }
 
 const actionSchema = z.object({ cell: z.coerce.number().int().min(0).max(8) });
@@ -41,9 +41,9 @@ const ERROR_STATUS: Record<GameError['code'], number> = {
   INVALID_MOVE: 422,
 };
 
-function handle<T>(fn: () => T): T {
+async function handle<T>(fn: () => Promise<T>): Promise<T> {
   try {
-    return fn();
+    return await fn();
   } catch (err) {
     if (err instanceof GameError) {
       throw createAppError(err.message, ERROR_STATUS[err.code], err.code);
@@ -59,25 +59,27 @@ export default async function gamesRoutes(fastify: FastifyInstance) {
     const gameId = (request.query as { gameId?: string } | undefined)?.gameId;
     return reply.send({
       success: true,
-      data: { games: svc.listGames(), activeSessions: svc.listActiveSessions(gameId) },
+      data: { games: svc.listGames(), activeSessions: await svc.listActiveSessions(gameId) },
     });
   });
 
   fastify.get<{ Params: { id: string } }>('/sessions/:id', async (request, reply) => {
     getUserId(request);
-    const session = handle(() => getService(fastify).getSession(request.params.id));
+    const session = await handle(() => getService(fastify).getSession(request.params.id));
     return reply.send({ success: true, data: { session } });
   });
 
   fastify.post<{ Params: { gameId: string } }>('/:gameId/start', async (request, reply) => {
     const userId = getUserId(request);
-    const session = handle(() => getService(fastify).startGame(request.params.gameId, userId));
+    const session = await handle(() =>
+      getService(fastify).startGame(request.params.gameId, userId),
+    );
     return reply.status(201).send({ success: true, data: { session } });
   });
 
   fastify.post<{ Params: { id: string } }>('/:id/join', async (request, reply) => {
     const userId = getUserId(request);
-    const session = handle(() => getService(fastify).joinGame(request.params.id, userId));
+    const session = await handle(() => getService(fastify).joinGame(request.params.id, userId));
     return reply.send({ success: true, data: { session } });
   });
 
@@ -85,7 +87,7 @@ export default async function gamesRoutes(fastify: FastifyInstance) {
     const userId = getUserId(request);
     const parsed = actionSchema.safeParse(request.body);
     if (!parsed.success) throw parsed.error;
-    const session = handle(() =>
+    const session = await handle(() =>
       getService(fastify).submitMove(request.params.id, userId, parsed.data),
     );
     return reply.send({ success: true, data: { session } });

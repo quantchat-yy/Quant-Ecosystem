@@ -1,18 +1,94 @@
+// ============================================================================
+// Unit tests — ActionItemsService (durable meeting action items, Prisma-backed)
+//
+// ActionItemsService persists extracted action items to the Prisma
+// `MeetingActionItem` model so action items survive restarts and are shared
+// across backend instances. A live PostgreSQL is not available in the sandbox,
+// so — mirroring the repo's fake-prisma approach (see recording.service.test.ts)
+// — these tests drive the REAL ActionItemsService against a faithful in-memory
+// model of the exact `meetingActionItem` delegate operations it issues:
+//
+//   prisma.meetingActionItem.create / findMany (orderBy) / update
+//
+// The AI (transcript → action items) is a stub. `extractActionItems` stays a
+// pure compute (no persistence); `extractFromRoomId` persists. getActionItems
+// and completeActionItem are now async; extractFromRoomId awaits the now-async
+// transcript read.
+// ============================================================================
+
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ActionItemsService } from '../services/action-items.service';
+import type { ActionItemsPrisma, MeetingActionItemRow } from '../services/action-items.service';
 import type { TranscriptSegment } from '../services/transcript.service';
 
-function createMockAI() {
+// ---------------------------------------------------------------------------
+// In-memory fake of the Prisma `meetingActionItem` delegate.
+// ---------------------------------------------------------------------------
+function createFakeActionItemsPrisma(): ActionItemsPrisma & { __items: MeetingActionItemRow[] } {
+  const items: MeetingActionItemRow[] = [];
+  let seq = 0;
+  let clock = 1_700_000_000_000;
+  const tick = (): Date => new Date((clock += 1000));
+
+  const matches = (row: MeetingActionItemRow, where?: Record<string, unknown>): boolean => {
+    if (!where) return true;
+    return Object.entries(where).every(([key, value]) => {
+      return (row as unknown as Record<string, unknown>)[key] === value;
+    });
+  };
+
   return {
-    generateText: vi.fn(),
+    meetingActionItem: {
+      async create({ data }) {
+        seq += 1;
+        const row: MeetingActionItemRow = {
+          id: (data['id'] as string) ?? `ai_${seq}`,
+          roomId: String(data['roomId']),
+          title: String(data['title'] ?? ''),
+          description: String(data['description'] ?? ''),
+          assignee: (data['assignee'] as string | null) ?? null,
+          dueDate: (data['dueDate'] as string | null) ?? null,
+          priority: (data['priority'] as string) ?? 'medium',
+          status: (data['status'] as string) ?? 'pending',
+          createdAt: tick(),
+        };
+        items.push(row);
+        return { ...row };
+      },
+      async findMany({ where, orderBy }) {
+        let result = items.filter((r) => matches(r, where)).map((r) => ({ ...r }));
+        if (orderBy && !Array.isArray(orderBy) && orderBy['createdAt'] === 'asc') {
+          result = result.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+        }
+        return result;
+      },
+      async update({ where, data }) {
+        const row = items.find((r) => r.id === where.id);
+        if (!row) {
+          throw new Error(`No MeetingActionItem row with id ${where.id}`);
+        }
+        Object.assign(row, data);
+        return { ...row };
+      },
+    },
+    __items: items,
   };
 }
 
-function createMockTranscriptService(segments: TranscriptSegment[]) {
+function createFakeTranscriptService(segments: TranscriptSegment[]) {
   return {
-    getTranscript: vi.fn().mockReturnValue(segments),
+    getTranscript: vi.fn().mockResolvedValue(segments),
+    getFullTranscript: vi.fn(),
     processAudioChunk: vi.fn(),
     clearTranscript: vi.fn(),
+    addSegment: vi.fn(),
+    startTranscription: vi.fn(),
+  };
+}
+
+function createStubAI() {
+  return {
+    generateText: vi.fn(),
   };
 }
 
@@ -29,18 +105,20 @@ function makeSegment(overrides: Partial<TranscriptSegment> = {}): TranscriptSegm
   };
 }
 
-describe('ActionItemsService', () => {
+describe('ActionItemsService — durable meeting action items', () => {
+  let prisma: ReturnType<typeof createFakeActionItemsPrisma>;
+  let ai: ReturnType<typeof createStubAI>;
   let service: ActionItemsService;
-  let mockAI: ReturnType<typeof createMockAI>;
 
   beforeEach(() => {
-    mockAI = createMockAI();
-    service = new ActionItemsService(mockAI);
+    prisma = createFakeActionItemsPrisma();
+    ai = createStubAI();
+    service = new ActionItemsService(prisma, ai);
   });
 
   describe('extractActionItems', () => {
-    it('takes transcript segments and returns ActionItem array with proper fields', async () => {
-      mockAI.generateText.mockResolvedValue(
+    it('takes transcript segments and returns ActionItem array with proper fields (no persistence)', async () => {
+      ai.generateText.mockResolvedValue(
         'Review the PR by tomorrow\nUpdate the documentation\nDeploy to staging',
       );
 
@@ -58,10 +136,12 @@ describe('ActionItemsService', () => {
       expect(items[0]!.status).toBe('pending');
       expect(items[0]!.assignee).toBeNull();
       expect(items[0]!.dueDate).toBeNull();
+      // Pure compute — nothing persisted.
+      expect(prisma.__items).toHaveLength(0);
     });
 
     it('returns empty array when AI returns no actionable content', async () => {
-      mockAI.generateText.mockResolvedValue('');
+      ai.generateText.mockResolvedValue('');
 
       const segments = [makeSegment({ text: 'Just chatting about weather' })];
 
@@ -75,19 +155,19 @@ describe('ActionItemsService', () => {
     });
 
     it('calls AI with a prompt containing transcript text', async () => {
-      mockAI.generateText.mockResolvedValue('Do something');
+      ai.generateText.mockResolvedValue('Do something');
 
       const segments = [makeSegment({ text: 'Fix the bug', participantId: 'dev-1' })];
       await service.extractActionItems(segments);
 
-      expect(mockAI.generateText).toHaveBeenCalledTimes(1);
-      const prompt = mockAI.generateText.mock.calls[0]![0] as string;
+      expect(ai.generateText).toHaveBeenCalledTimes(1);
+      const prompt = ai.generateText.mock.calls[0]![0] as string;
       expect(prompt).toContain('[dev-1]: Fix the bug');
       expect(prompt).toContain('Extract action items');
     });
 
     it('generates unique ids for each action item', async () => {
-      mockAI.generateText.mockResolvedValue('Task 1\nTask 2\nTask 3');
+      ai.generateText.mockResolvedValue('Task 1\nTask 2\nTask 3');
 
       const segments = [makeSegment()];
       const items = await service.extractActionItems(segments);
@@ -99,27 +179,30 @@ describe('ActionItemsService', () => {
   });
 
   describe('extractFromRoomId', () => {
-    it('fetches transcript from service then extracts items', async () => {
+    it('fetches transcript from service then extracts and persists items', async () => {
       const segments = [
         makeSegment({ text: 'Alice should do the review' }),
         makeSegment({ participantId: 'p-2', text: 'Bob will deploy' }),
       ];
-      const mockTranscriptService = createMockTranscriptService(segments);
-      mockAI.generateText.mockResolvedValue('Review code\nDeploy app');
+      const transcriptService = createFakeTranscriptService(segments);
+      ai.generateText.mockResolvedValue('Review code\nDeploy app');
 
-      const items = await service.extractFromRoomId('room-1', mockTranscriptService as never);
+      const items = await service.extractFromRoomId('room-1', transcriptService as never);
 
-      expect(mockTranscriptService.getTranscript).toHaveBeenCalledWith('room-1');
+      expect(transcriptService.getTranscript).toHaveBeenCalledWith('room-1');
       expect(items).toHaveLength(2);
       expect(items[0]!.title).toBe('Review code');
       expect(items[1]!.title).toBe('Deploy app');
+      // Persisted and tagged with roomId.
+      expect(prisma.__items).toHaveLength(2);
+      expect(prisma.__items.every((r) => r.roomId === 'room-1')).toBe(true);
     });
 
     it('throws TRANSCRIPT_NOT_FOUND when room has no transcript', async () => {
-      const mockTranscriptService = createMockTranscriptService([]);
+      const transcriptService = createFakeTranscriptService([]);
 
       await expect(
-        service.extractFromRoomId('room-empty', mockTranscriptService as never),
+        service.extractFromRoomId('room-empty', transcriptService as never),
       ).rejects.toThrow('No transcript found for room');
     });
 
@@ -129,12 +212,12 @@ describe('ActionItemsService', () => {
         makeSegment({ text: 'Task B' }),
         makeSegment({ text: 'Task C' }),
       ];
-      const mockTranscriptService = createMockTranscriptService(segments);
-      mockAI.generateText.mockResolvedValue('Item 1');
+      const transcriptService = createFakeTranscriptService(segments);
+      ai.generateText.mockResolvedValue('Item 1');
 
-      await service.extractFromRoomId('room-1', mockTranscriptService as never);
+      await service.extractFromRoomId('room-1', transcriptService as never);
 
-      const prompt = mockAI.generateText.mock.calls[0]![0] as string;
+      const prompt = ai.generateText.mock.calls[0]![0] as string;
       expect(prompt).toContain('Task A');
       expect(prompt).toContain('Task B');
       expect(prompt).toContain('Task C');
@@ -142,41 +225,60 @@ describe('ActionItemsService', () => {
   });
 
   describe('getActionItems', () => {
-    it('returns empty array when no items extracted for room', () => {
-      const items = service.getActionItems('room-nonexistent');
+    it('returns empty array when no items extracted for room', async () => {
+      const items = await service.getActionItems('room-nonexistent');
       expect(items).toEqual([]);
     });
 
-    it('returns items after extractFromRoomId', async () => {
+    it('returns persisted items after extractFromRoomId', async () => {
       const segments = [makeSegment({ text: 'Do something' })];
-      const mockTranscriptService = createMockTranscriptService(segments);
-      mockAI.generateText.mockResolvedValue('Task 1\nTask 2');
+      const transcriptService = createFakeTranscriptService(segments);
+      ai.generateText.mockResolvedValue('Task 1\nTask 2');
 
-      await service.extractFromRoomId('room-1', mockTranscriptService as never);
+      await service.extractFromRoomId('room-1', transcriptService as never);
 
-      const items = service.getActionItems('room-1');
+      const items = await service.getActionItems('room-1');
       expect(items).toHaveLength(2);
       expect(items[0]!.title).toBe('Task 1');
+    });
+
+    it('is room-scoped (does not return items from other rooms)', async () => {
+      ai.generateText.mockResolvedValue('Task A');
+      await service.extractFromRoomId(
+        'room-1',
+        createFakeTranscriptService([makeSegment()]) as never,
+      );
+      await service.extractFromRoomId(
+        'room-2',
+        createFakeTranscriptService([makeSegment()]) as never,
+      );
+
+      const items = await service.getActionItems('room-1');
+      expect(items).toHaveLength(1);
     });
   });
 
   describe('completeActionItem', () => {
-    it('marks an action item as completed', async () => {
+    it('marks a persisted action item as completed', async () => {
       const segments = [makeSegment({ text: 'Fix the bug' })];
-      const mockTranscriptService = createMockTranscriptService(segments);
-      mockAI.generateText.mockResolvedValue('Fix the bug');
+      const transcriptService = createFakeTranscriptService(segments);
+      ai.generateText.mockResolvedValue('Fix the bug');
 
-      const items = await service.extractFromRoomId('room-1', mockTranscriptService as never);
+      const items = await service.extractFromRoomId('room-1', transcriptService as never);
       const itemId = items[0]!.id;
 
-      const completed = service.completeActionItem(itemId, 'user-1');
+      const completed = await service.completeActionItem(itemId, 'user-1');
 
       expect(completed.status).toBe('completed');
       expect(completed.id).toBe(itemId);
+
+      // Persisted update is reflected on subsequent reads.
+      const reloaded = await service.getActionItems('room-1');
+      expect(reloaded[0]!.status).toBe('completed');
     });
 
-    it('throws ACTION_ITEM_NOT_FOUND for unknown id', () => {
-      expect(() => service.completeActionItem('unknown-id', 'user-1')).toThrow(
+    it('throws ACTION_ITEM_NOT_FOUND for unknown id', async () => {
+      await expect(service.completeActionItem('unknown-id', 'user-1')).rejects.toThrow(
         'Action item not found',
       );
     });
