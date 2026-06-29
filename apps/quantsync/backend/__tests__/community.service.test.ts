@@ -12,6 +12,10 @@ function createMockPrisma() {
     communityMember: {
       create: vi.fn(),
       findUnique: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
     },
   };
 }
@@ -179,6 +183,128 @@ describe('CommunityService', () => {
       expect(prisma.community.findMany).toHaveBeenCalledWith({
         orderBy: { memberCount: 'desc' },
         take: 5,
+      });
+    });
+  });
+
+  describe('moderator tools', () => {
+    const member = (role: string, userId: string) => ({ communityId: 'c1', userId, role });
+
+    describe('leaveCommunity', () => {
+      it('lets a member leave and decrements the count', async () => {
+        prisma.communityMember.findUnique.mockResolvedValue(member('MEMBER', 'u2'));
+        prisma.communityMember.delete.mockResolvedValue({});
+        prisma.community.update.mockResolvedValue({});
+        const res = await service.leaveCommunity('u2', 'c1');
+        expect(res.success).toBe(true);
+        expect(prisma.community.update).toHaveBeenCalledWith({
+          where: { id: 'c1' },
+          data: { memberCount: { decrement: 1 } },
+        });
+      });
+
+      it('blocks the owner from leaving', async () => {
+        prisma.communityMember.findUnique.mockResolvedValue(member('OWNER', 'u1'));
+        await expect(service.leaveCommunity('u1', 'c1')).rejects.toMatchObject({
+          code: 'OWNER_CANNOT_LEAVE',
+        });
+      });
+
+      it('rejects a non-member', async () => {
+        prisma.communityMember.findUnique.mockResolvedValue(null);
+        await expect(service.leaveCommunity('ghost', 'c1')).rejects.toMatchObject({
+          code: 'NOT_A_MEMBER',
+        });
+      });
+    });
+
+    describe('setMemberRole', () => {
+      it('lets the owner promote a member to moderator', async () => {
+        prisma.communityMember.findUnique
+          .mockResolvedValueOnce(member('OWNER', 'owner')) // actor
+          .mockResolvedValueOnce(member('MEMBER', 'u2')); // target
+        prisma.communityMember.update.mockResolvedValue({ ...member('MODERATOR', 'u2') });
+        const res = await service.setMemberRole('owner', 'c1', 'u2', 'MODERATOR');
+        expect(res.role).toBe('MODERATOR');
+      });
+
+      it('forbids an admin from minting another admin (role at/above own)', async () => {
+        prisma.communityMember.findUnique
+          .mockResolvedValueOnce(member('ADMIN', 'admin'))
+          .mockResolvedValueOnce(member('MEMBER', 'u2'));
+        await expect(service.setMemberRole('admin', 'c1', 'u2', 'ADMIN')).rejects.toMatchObject({
+          code: 'FORBIDDEN',
+        });
+      });
+
+      it('forbids a moderator from managing roles', async () => {
+        prisma.communityMember.findUnique.mockResolvedValueOnce(member('MODERATOR', 'mod'));
+        await expect(service.setMemberRole('mod', 'c1', 'u2', 'MEMBER')).rejects.toMatchObject({
+          code: 'FORBIDDEN',
+        });
+      });
+
+      it("refuses to change the owner's role", async () => {
+        prisma.communityMember.findUnique
+          .mockResolvedValueOnce(member('ADMIN', 'admin'))
+          .mockResolvedValueOnce(member('OWNER', 'owner'));
+        await expect(service.setMemberRole('admin', 'c1', 'owner', 'MEMBER')).rejects.toMatchObject(
+          {
+            code: 'FORBIDDEN',
+          },
+        );
+      });
+
+      it('rejects granting OWNER', async () => {
+        await expect(
+          service.setMemberRole('owner', 'c1', 'u2', 'OWNER' as never),
+        ).rejects.toMatchObject({
+          code: 'INVALID_ROLE',
+        });
+      });
+    });
+
+    describe('removeMember', () => {
+      it('lets a moderator kick a member and decrements the count', async () => {
+        prisma.communityMember.findUnique
+          .mockResolvedValueOnce(member('MODERATOR', 'mod'))
+          .mockResolvedValueOnce(member('MEMBER', 'u2'));
+        prisma.communityMember.delete.mockResolvedValue({});
+        prisma.community.update.mockResolvedValue({});
+        const res = await service.removeMember('mod', 'c1', 'u2');
+        expect(res.success).toBe(true);
+        expect(prisma.community.update).toHaveBeenCalledWith({
+          where: { id: 'c1' },
+          data: { memberCount: { decrement: 1 } },
+        });
+      });
+
+      it('never removes the owner', async () => {
+        prisma.communityMember.findUnique
+          .mockResolvedValueOnce(member('ADMIN', 'admin'))
+          .mockResolvedValueOnce(member('OWNER', 'owner'));
+        await expect(service.removeMember('admin', 'c1', 'owner')).rejects.toMatchObject({
+          code: 'FORBIDDEN',
+        });
+      });
+
+      it('forbids kicking an equal/higher rank', async () => {
+        prisma.communityMember.findUnique
+          .mockResolvedValueOnce(member('MODERATOR', 'mod1'))
+          .mockResolvedValueOnce(member('MODERATOR', 'mod2'));
+        await expect(service.removeMember('mod1', 'c1', 'mod2')).rejects.toMatchObject({
+          code: 'FORBIDDEN',
+        });
+      });
+    });
+
+    describe('listMembers', () => {
+      it('returns a paginated member list', async () => {
+        prisma.communityMember.findMany.mockResolvedValue([member('OWNER', 'u1')]);
+        prisma.communityMember.count.mockResolvedValue(1);
+        const res = await service.listMembers('c1', { page: 1, pageSize: 50 });
+        expect(res.total).toBe(1);
+        expect(res.data).toHaveLength(1);
       });
     });
   });
