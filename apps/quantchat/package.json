@@ -21,6 +21,7 @@
     "@quant/auth": "workspace:*",
     "@quant/ai": "workspace:*",
     "@quant/common": "workspace:*",
+    "@quant/cross-app-gaming": "workspace:*",
     "@quant/database": "workspace:*",
     "@prisma/client": "^6.19.3",
     "@quant/ar-lenses": "workspace:*",
