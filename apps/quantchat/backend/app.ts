@@ -21,6 +21,7 @@ import notificationsRoutes from './routes/notifications';
 import themesRoutes from './routes/themes';
 import ephemeralRoutes from './routes/ephemeral';
 import gamesRoutes from './routes/games';
+import mapRoutes from './routes/map';
 import { websocketRoutes } from './routes/websocket';
 import { InMemoryE2EERelay } from './lib/e2ee-relay';
 import { AutoReplyManager } from './lib/auto-reply-manager';
@@ -159,6 +160,16 @@ export async function buildApp(config?: AppConfig) {
   // createApp(), so they register after the cross-cutting plugins are wired.
   await app.register(memoriesRoutes, { prefix: '/memories' });
   await app.register(spotlightRoutes, { prefix: '/spotlight' });
+
+  // Snap Map — friend-location sharing (wires the previously-unused Prisma
+  // `FriendLocation` model). POST /map/location publishes the caller's current
+  // location (opt-in share, Zod-validated bounds), DELETE /map/location stops
+  // sharing (idempotent), and GET /map/friends returns the caller's CLOSE
+  // FRIENDS who are actively sharing, shaped for the map. Privacy: only the
+  // caller's close friends with a live location row are ever exposed. Uses the
+  // shared `fastify.prisma` decorator and the global auth hook from createApp().
+  // The `/map` prefix does not collide with any existing registration.
+  await app.register(mapRoutes, { prefix: '/map' });
 
   // Push notifications — subscription storage + dispatch (Task 10.2, Req 9).
   // Subscriptions persist to the Prisma `PushSubscription` model when available
