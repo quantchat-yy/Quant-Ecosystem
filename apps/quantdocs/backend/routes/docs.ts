@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
 import { DocService } from '../services/doc.service';
 import { CommentService } from '../services/comment.service';
+import { SuggestionService } from '../services/suggestion.service';
 import { ExportService } from '../services/export.service';
 import { TemplateService } from '../services/template.service';
 
@@ -52,6 +53,21 @@ const createCommentSchema = z.object({
 
 const replyCommentSchema = z.object({
   content: z.string().min(1).max(5000),
+});
+
+const createSuggestionSchema = z.object({
+  originalText: z.string().max(10000),
+  suggestedText: z.string().max(10000),
+  selection: z.object({
+    startOffset: z.number().int().min(0),
+    endOffset: z.number().int().min(0),
+    selectedText: z.string(),
+  }),
+});
+
+const listSuggestionsSchema = z.object({
+  status: z.enum(['pending', 'accepted', 'rejected']).optional(),
+  order: z.enum(['asc', 'desc']).optional(),
 });
 
 const exportSchema = z.object({
@@ -291,6 +307,81 @@ export default async function docsRoutes(fastify: FastifyInstance) {
     const comment = await service.resolveComment(request.params.id, userId);
 
     return reply.send({ success: true, data: comment });
+  });
+
+  // GET /docs/:id/suggestions - List suggestions for a document (owner-only)
+  fastify.get<{ Params: { id: string } }>('/:id/suggestions', async (request, reply) => {
+    const queryResult = listSuggestionsSchema.safeParse(request.query);
+    if (!queryResult.success) {
+      throw queryResult.error;
+    }
+
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    const service = new SuggestionService(prisma as never);
+    const suggestions = await service.listSuggestions(request.params.id, userId, {
+      status: queryResult.data.status,
+      order: queryResult.data.order,
+    });
+
+    return reply.send({ success: true, data: suggestions });
+  });
+
+  // POST /docs/:id/suggestions - Create a suggestion
+  fastify.post<{ Params: { id: string } }>('/:id/suggestions', async (request, reply) => {
+    const parseResult = createSuggestionSchema.safeParse(request.body);
+    if (!parseResult.success) {
+      throw parseResult.error;
+    }
+
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    const service = new CommentService(prisma as never);
+    const suggestion = await service.createSuggestion({
+      docId: request.params.id,
+      userId,
+      originalText: parseResult.data.originalText,
+      suggestedText: parseResult.data.suggestedText,
+      selection: parseResult.data.selection,
+    });
+
+    return reply.status(201).send({ success: true, data: suggestion });
+  });
+
+  // POST /docs/suggestions/:id/accept - Accept a suggestion (owner-only)
+  fastify.post<{ Params: { id: string } }>('/suggestions/:id/accept', async (request, reply) => {
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    const service = new SuggestionService(prisma as never);
+    const suggestion = await service.acceptSuggestion(request.params.id, userId);
+
+    return reply.send({ success: true, data: suggestion });
+  });
+
+  // POST /docs/suggestions/:id/reject - Reject a suggestion (owner-only)
+  fastify.post<{ Params: { id: string } }>('/suggestions/:id/reject', async (request, reply) => {
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    const service = new SuggestionService(prisma as never);
+    const suggestion = await service.rejectSuggestion(request.params.id, userId);
+
+    return reply.send({ success: true, data: suggestion });
   });
 
   // POST /docs/:id/export - Export document
