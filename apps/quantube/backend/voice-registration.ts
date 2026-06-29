@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { AppController, getGlobalCommandBus } from '@quant/agentic';
 import type { VoiceCommand, CommandResult } from '@quant/agentic';
 
@@ -82,10 +83,10 @@ export function dispatchCommand(
 }
 
 function generateCommandId(): string {
-  return `cmd_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+  return `cmd_${randomUUID()}`;
 }
 
-export const QUANTTUBE_VOICE_ACTIONS: Record<string, VoiceAction> = {
+export const QUANTUBE_VOICE_ACTIONS: Record<string, VoiceAction> = {
   navigate: ({ params }) => ({
     success: true,
     message: `Navigating QuantTube to ${String(params.target ?? 'home')}`,
@@ -107,6 +108,6 @@ export const QUANTTUBE_VOICE_ACTIONS: Record<string, VoiceAction> = {
   }),
 };
 
-export function registerQuanttubeVoice(): () => void {
-  return registerVoiceApp('quanttube', QUANTTUBE_VOICE_ACTIONS);
+export function registerQuantubeVoice(): () => void {
+  return registerVoiceApp('quantube', QUANTUBE_VOICE_ACTIONS);
 }
