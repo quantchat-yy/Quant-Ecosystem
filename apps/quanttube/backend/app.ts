@@ -4,6 +4,7 @@ import uploadRoutes from './routes/upload';
 import streamRoutes from './routes/stream';
 import thumbnailsRoutes from './routes/thumbnails';
 import segmentsRoutes from './routes/segments';
+import subscriptionsRoutes from './routes/subscriptions';
 import { registerQuanttubeVoice } from './voice-registration';
 
 registerQuanttubeVoice();
@@ -38,6 +39,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(streamRoutes, { prefix: '/stream' });
   await app.register(thumbnailsRoutes, { prefix: '/thumbnails' });
   await app.register(segmentsRoutes, { prefix: '/segments' });
+  await app.register(subscriptionsRoutes, { prefix: '/subscriptions' });
 
   return app;
 }
