@@ -8,6 +8,7 @@ function createMockPrisma() {
     userRelationship: {
       count: vi.fn(),
       findFirst: vi.fn(),
+      findMany: vi.fn(),
       upsert: vi.fn(),
       deleteMany: vi.fn(),
     },
@@ -88,25 +89,46 @@ describe('ProfileService', () => {
     });
   });
 
-  describe('close friends', () => {
-    it('lists close friends joined to users', async () => {
-      prisma.closeFriend.findMany.mockResolvedValue([{ friendId: 'f1' }, { friendId: 'f2' }]);
+  describe('listFollowers / listFollowing', () => {
+    it('lists followers in edge order and flags which the viewer follows', async () => {
+      // Two follower edges (newest first), follower ids f1, f2.
+      prisma.userRelationship.findMany
+        .mockResolvedValueOnce([{ followerId: 'f1' }, { followerId: 'f2' }])
+        // viewer follows f2 only.
+        .mockResolvedValueOnce([{ followingId: 'f2' }]);
       prisma.user.findMany.mockResolvedValue([
-        { id: 'f1', username: 'one', displayName: 'One', avatarUrl: null },
-        { id: 'f2', username: 'two', displayName: 'Two', avatarUrl: null },
+        { id: 'f1', username: 'one', displayName: 'One', avatarUrl: null, emailVerified: true },
+        { id: 'f2', username: 'two', displayName: 'Two', avatarUrl: null, emailVerified: false },
       ]);
 
-      const friends = await service.listCloseFriends('me');
+      const users = await service.listFollowers('target', 'viewer');
 
-      expect(friends.map((f) => f.id)).toEqual(['f1', 'f2']);
+      expect(users.map((u) => u.id)).toEqual(['f1', 'f2']);
+      expect(users.find((u) => u.id === 'f1')!.isFollowing).toBe(false);
+      expect(users.find((u) => u.id === 'f2')!.isFollowing).toBe(true);
+      expect(users.find((u) => u.id === 'f1')!.isVerified).toBe(true);
     });
 
-    it('adds and removes a close friend', async () => {
-      prisma.closeFriend.upsert.mockResolvedValue({ id: 'cf1' });
-      prisma.closeFriend.deleteMany.mockResolvedValue({ count: 1 });
+    it('returns following users without a viewer-follow query when there are none', async () => {
+      prisma.userRelationship.findMany.mockResolvedValueOnce([]);
+      const users = await service.listFollowing('target', 'viewer');
+      expect(users).toEqual([]);
+      // No second findMany (viewer follow set) and no user fetch.
+      expect(prisma.userRelationship.findMany).toHaveBeenCalledTimes(1);
+      expect(prisma.user.findMany).not.toHaveBeenCalled();
+    });
 
-      expect(await service.addCloseFriend('me', 'f1')).toEqual({ isCloseFriend: true });
-      expect(await service.removeCloseFriend('me', 'f1')).toEqual({ isCloseFriend: false });
+    it('omits the viewer-follow query for an anonymous viewer', async () => {
+      prisma.userRelationship.findMany.mockResolvedValueOnce([{ followingId: 'a1' }]);
+      prisma.user.findMany.mockResolvedValue([
+        { id: 'a1', username: 'a', displayName: 'A', avatarUrl: null, emailVerified: false },
+      ]);
+
+      const users = await service.listFollowing('target', '');
+
+      expect(users[0]!.isFollowing).toBe(false);
+      // Only the edge query ran (no follow-set query for an empty viewer).
+      expect(prisma.userRelationship.findMany).toHaveBeenCalledTimes(1);
     });
   });
 });
