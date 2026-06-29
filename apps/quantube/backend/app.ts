@@ -15,7 +15,14 @@ import musicRoutes from './routes/music';
 import subscriptionsRoutes from './routes/subscriptions';
 import searchRoutes from './routes/search';
 import interactionsRoutes from './routes/interactions';
+import segmentsRoutes from './routes/segments';
 import { createFeedEngines } from './lib/feed-engines';
+import { registerQuantubeVoice } from './voice-registration';
+
+// Register QuantTube's QuantAI voice subscriber once at module load so the
+// ecosystem voice/agent bus can route "tube" commands (navigate/create/search/
+// summarize) to this app. Canonical appId is `quantube`.
+registerQuantubeVoice();
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -51,6 +58,12 @@ export async function buildApp(config?: AppConfig) {
   await app.register(subscriptionsRoutes, { prefix: '/subscriptions' });
   await app.register(searchRoutes, { prefix: '/search' });
   await app.register(interactionsRoutes, { prefix: '/interactions' });
+
+  // AI segment-skip playback — labels a video's timeline (intro/sponsor/recap/
+  // outro/filler vs content) and serves a deterministic skip-plan so the player
+  // can "play only the useful parts" (the vision's "teach me X" fast path).
+  // Routes use absolute /videos/:id/... paths, so registered without a prefix.
+  await app.register(segmentsRoutes);
 
   // playlists engine — quantube Library "Playlists" + "Watch Later" surfaces
   // and the playlist/[id] detail page (quantube-real-data-wiring, Task 3).

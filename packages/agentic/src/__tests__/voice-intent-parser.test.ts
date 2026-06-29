@@ -38,9 +38,9 @@ describe('VoiceIntentParser', () => {
     expect(intent.confidence).toBeGreaterThan(0.8);
   });
 
-  it('parses "search gaming videos in quant tube" → app: quanttube, action: search.query', () => {
+  it('parses "search gaming videos in quant tube" → app: quantube, action: search.query', () => {
     const intent = parser.parse('search gaming videos in quant tube');
-    expect(intent.app).toBe('quanttube');
+    expect(intent.app).toBe('quantube');
     expect(intent.action).toBe('search.query');
     expect(intent.params).toHaveProperty('query');
     expect(intent.confidence).toBeGreaterThan(0.8);

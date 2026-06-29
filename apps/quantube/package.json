@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@quant/api-client": "workspace:*",
+    "@quant/agentic": "workspace:*",
     "@quant/auth": "workspace:*",
     "@quant/ai": "workspace:*",
     "@quant/brand": "workspace:*",
