@@ -13,8 +13,13 @@ interface TranscriptInput {
 
 export default async function aiRoutes(fastify: FastifyInstance) {
   const adapter = new AIEngineAdapter();
-  const summaryService = new SummaryService(adapter);
-  const actionItemsService = new ActionItemsService(adapter);
+  // SummaryService and ActionItemsService are now Prisma-backed (durable AI
+  // summaries + action items). Build them with the shared `fastify.prisma`
+  // decorator exactly as the other Prisma-backed routes across the ecosystem
+  // do, passing prisma FIRST then the existing AI collaborator.
+  const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+  const summaryService = new SummaryService(prisma as never, adapter);
+  const actionItemsService = new ActionItemsService(prisma as never, adapter);
 
   fastify.post('/summary', async (request, reply) => {
     const body = request.body as { transcript?: TranscriptInput[] };

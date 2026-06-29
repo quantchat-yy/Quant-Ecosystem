@@ -85,10 +85,16 @@ export async function buildApp(config?: AppConfig) {
   app.decorate('feed', createFeedEngines());
   await app.register(feedRoutes, { prefix: '/feed' });
 
-  // in-feed games — per-app session host (in-memory singleton). Decorated once
-  // at boot; routes under `/games` sit behind the global auth hook. Cross-app
-  // shared sessions/leaderboards (@quant/cross-app-gaming) are a follow-up.
-  app.decorate('neonGames', new NeonGamesService());
+  // in-feed games — per-app session host. Sessions are now DURABLE, persisted
+  // to the Prisma `NeonGameSession` model (see services/neon-games.service.ts),
+  // so they survive restart/redeploy and are shared across backend instances.
+  // The service is constructed with the shared prisma decorator; routes under
+  // `/games` self-construct it the same way and sit behind the global auth hook.
+  // Cross-app shared leaderboards (@quant/cross-app-gaming) are a follow-up.
+  app.decorate(
+    'neonGames',
+    new NeonGamesService((app as unknown as { prisma: unknown }).prisma as never),
+  );
   await app.register(gamesRoutes, { prefix: '/games' });
 
   // Direct Messages — persistent 1:1 + group DMs over the shared Conversation/

@@ -2550,6 +2550,67 @@ model Recording {
   @@map("recordings")
 }
 
+// QuantMeet durable meeting transcript segments, AI summaries, and action items
+// (previously in-memory Maps, lost on restart). roomId is a logical room ref.
+model MeetingTranscriptSegment {
+  id            String   @id @default(cuid())
+  roomId        String
+  participantId String
+  text          String
+  duration      Float    @default(0)
+  confidence    Float    @default(0)
+  timestamp     DateTime @default(now())
+
+  @@index([roomId])
+  @@map("meeting_transcript_segments")
+}
+
+model MeetingSummary {
+  id          String   @id @default(cuid())
+  roomId      String   @unique
+  summary     String
+  keyPoints   Json     @default("[]")
+  decisions   Json     @default("[]")
+  generatedAt DateTime @default(now())
+
+  @@map("meeting_summaries")
+}
+
+model MeetingActionItem {
+  id          String   @id @default(cuid())
+  roomId      String
+  title       String
+  description String   @default("")
+  assignee    String?
+  dueDate     String?
+  priority    String   @default("medium") // low | medium | high | urgent
+  status      String   @default("pending") // pending | in_progress | completed
+  createdAt   DateTime @default(now())
+
+  @@index([roomId])
+  @@map("meeting_action_items")
+}
+
+// QuantNeon durable in-feed game sessions (previously in-memory). board/players
+// stored as JSON; status lifecycle waiting -> active -> finished | abandoned.
+model NeonGameSession {
+  id        String   @id @default(cuid())
+  gameId    String
+  host      String
+  players   Json     @default("[]")
+  state     String   @default("waiting")
+  turn      String?
+  board     Json     @default("[]")
+  winner    String?
+  isDraw    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([gameId])
+  @@index([state])
+  @@map("neon_game_sessions")
+}
+
 // Cross-app game leaderboard. Scores from EVERY Quant app (quantneon, quantchat,
 // quantmax, ...) land in this one table, tagged with the originating `app`, so a
 // user's game ranks are shared/aggregated across the whole ecosystem (the
