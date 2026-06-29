@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
 import { CallService } from '../services/call.service';
+import { CallRecordService, type CallRecordPrisma } from '../services/call-record.service';
 
 const initiate1v1Schema = z.object({
   calleeId: z.string().min(1),
@@ -20,6 +21,21 @@ const createCallSchema = z.object({
 const endCallSchema = z.object({
   roomId: z.string().min(1),
 });
+
+const historyQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+});
+
+/**
+ * Build the durable call-history service from the shared `fastify.prisma`
+ * decorator. Returns null when Prisma is unavailable (e.g. a minimal test
+ * harness) so call persistence is skipped without breaking live signaling.
+ */
+function getCallRecordService(fastify: FastifyInstance): CallRecordService | null {
+  const prisma = (fastify as unknown as { prisma?: CallRecordPrisma }).prisma;
+  return prisma && prisma.call ? new CallRecordService(prisma) : null;
+}
 
 function getCallService(): CallService {
   return new CallService({
@@ -60,6 +76,52 @@ function generateRoomId(): string {
 
 export default async function callsRoutes(fastify: FastifyInstance) {
   const callService = getCallService();
+  const callRecord = getCallRecordService(fastify);
+
+  /**
+   * Best-effort durable persistence of a call's start. Never fails the live
+   * call: a history-write error is logged and swallowed so signaling proceeds.
+   */
+  async function persistStarted(input: {
+    conversationId: string;
+    initiatorId: string;
+    roomId: string;
+    participants: string[];
+  }): Promise<void> {
+    if (!callRecord) {
+      return;
+    }
+    try {
+      await callRecord.recordStarted({
+        conversationId: input.conversationId,
+        initiatorId: input.initiatorId,
+        roomId: input.roomId,
+        participants: input.participants,
+      });
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to persist call-started record');
+    }
+  }
+
+  /**
+   * Best-effort durable persistence of a call's end, keyed by roomId. Logged
+   * and swallowed on failure so ending a call always succeeds for the client.
+   */
+  async function persistEnded(roomId: string): Promise<void> {
+    if (!callRecord) {
+      return;
+    }
+    try {
+      const existing = await (
+        fastify as unknown as { prisma: CallRecordPrisma }
+      ).prisma.call.findFirst({ where: { roomId } });
+      if (existing) {
+        await callRecord.recordEnded(existing.id);
+      }
+    } catch (err) {
+      fastify.log.error({ err }, 'Failed to persist call-ended record');
+    }
+  }
 
   // POST /calls/create — Creates a LiveKit room and generates participant tokens
   fastify.post('/create', async (request, reply) => {
@@ -73,7 +135,7 @@ export default async function callsRoutes(fastify: FastifyInstance) {
       throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const { participantIds, maxParticipants } = parseResult.data;
+    const { conversationId, participantIds, maxParticipants } = parseResult.data;
     const allParticipants = [userId, ...participantIds.filter((id) => id !== userId)];
     const roomId = generateRoomId();
 
@@ -83,6 +145,12 @@ export default async function callsRoutes(fastify: FastifyInstance) {
       for (const pid of allParticipants) {
         tokens[pid] = generateMockToken(roomId, pid);
       }
+      await persistStarted({
+        conversationId,
+        initiatorId: userId,
+        roomId,
+        participants: allParticipants,
+      });
       return reply.status(201).send({ success: true, data: { roomId, tokens } });
     }
 
@@ -95,6 +163,13 @@ export default async function callsRoutes(fastify: FastifyInstance) {
       for (const pid of allParticipants) {
         tokens[pid] = await callService.generateCallToken(call.callId, pid);
       }
+
+      await persistStarted({
+        conversationId,
+        initiatorId: userId,
+        roomId: call.callId,
+        participants: allParticipants,
+      });
 
       return reply.status(201).send({
         success: true,
@@ -125,19 +200,47 @@ export default async function callsRoutes(fastify: FastifyInstance) {
 
     // If LiveKit is not configured, just acknowledge (dev mode)
     if (!hasLiveKitConfig()) {
+      await persistEnded(roomId);
       return reply.send({ success: true, data: { message: 'Call ended (mock)' } });
     }
 
     try {
       await callService.endCall(roomId);
+      await persistEnded(roomId);
       return reply.send({ success: true, data: { message: 'Call ended' } });
     } catch (err) {
       // If call not found, it may have already ended
       if ((err as { statusCode?: number }).statusCode === 404) {
+        await persistEnded(roomId);
         return reply.send({ success: true, data: { message: 'Call already ended' } });
       }
       throw err;
     }
+  });
+
+  // GET /calls/history — Durable, user-scoped call history (newest-first)
+  fastify.get('/history', async (request, reply) => {
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const parseResult = historyQuerySchema.safeParse(request.query);
+    if (!parseResult.success) {
+      throw parseResult.error;
+    }
+
+    if (!callRecord) {
+      // Persistence not available (e.g. dev/test without Prisma): empty history.
+      const { page, pageSize } = parseResult.data;
+      return reply.send({
+        success: true,
+        data: { calls: [], page, pageSize, total: 0 },
+      });
+    }
+
+    const history = await callRecord.listHistory(userId, parseResult.data);
+    return reply.send({ success: true, data: history });
   });
 
   // POST /calls/initiate - Initiate a 1:1 call
