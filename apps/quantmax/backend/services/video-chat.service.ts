@@ -170,6 +170,7 @@ export class VideoChatService {
         status: 'CONNECTED',
         matchedInterests,
         hasTextFallback,
+        startedAt: new Date(session.startedAt),
       },
     });
     return session;

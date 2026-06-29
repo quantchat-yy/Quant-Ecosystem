@@ -40,6 +40,24 @@ describe('VideoChatService', () => {
     expect(prisma.videoChatSession.create).toHaveBeenCalledTimes(1);
   });
 
+  it('persists a durable session row on start with the full payload', async () => {
+    await service.join('alice', { interests: ['Music', 'Gaming'] });
+    await service.join('bob', { interests: ['gaming'] });
+
+    expect(prisma.videoChatSession.create).toHaveBeenCalledTimes(1);
+    expect(prisma.videoChatSession.create).toHaveBeenCalledWith({
+      data: {
+        id: 'sess-1',
+        user1Id: 'alice',
+        user2Id: 'bob',
+        status: 'CONNECTED',
+        matchedInterests: ['gaming'],
+        hasTextFallback: false,
+        startedAt: new Date(now),
+      },
+    });
+  });
+
   it('matches via the General bucket when one side has no interests', async () => {
     await service.join('alice', {});
     const r = await service.join('bob', { interests: ['cooking'] });
@@ -73,11 +91,10 @@ describe('VideoChatService', () => {
 
     const res = await service.end('alice');
     expect(res).toEqual({ ended: true });
-    expect(prisma.videoChatSession.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ status: 'ENDED', durationSec: 5 }),
-      }),
-    );
+    expect(prisma.videoChatSession.update).toHaveBeenCalledWith({
+      where: { id: 'sess-1' },
+      data: { status: 'ENDED', endedAt: new Date(now), durationSec: 5 },
+    });
     // Both users are now free; alice has no active session.
     expect(service.getActiveSession('alice')).toBeNull();
     expect(service.getActiveSession('bob')).toBeNull();
@@ -87,6 +104,26 @@ describe('VideoChatService', () => {
     const res = await service.end('nobody');
     expect(res).toEqual({ ended: false });
     expect(prisma.videoChatSession.update).not.toHaveBeenCalled();
+  });
+
+  it('lets either participant end the session (ownership), persisting once', async () => {
+    await service.join('alice', { interests: ['x'] });
+    await service.join('bob', { interests: ['x'] }); // alice+bob matched
+
+    // user2 (bob) ends the shared session.
+    const res = await service.end('bob');
+    expect(res).toEqual({ ended: true });
+    expect(prisma.videoChatSession.update).toHaveBeenCalledTimes(1);
+    expect(prisma.videoChatSession.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'sess-1' },
+        data: expect.objectContaining({ status: 'ENDED' }),
+      }),
+    );
+    // A second end by the other participant is now a no-op (no extra row write).
+    const again = await service.end('alice');
+    expect(again).toEqual({ ended: false });
+    expect(prisma.videoChatSession.update).toHaveBeenCalledTimes(1);
   });
 
   it('skip ends the current session and re-queues the caller', async () => {
