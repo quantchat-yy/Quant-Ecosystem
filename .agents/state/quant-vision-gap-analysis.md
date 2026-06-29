@@ -119,3 +119,55 @@ QuantTrinity: 🟡 owner UI + team CRUD + AI-employee data model (all in-memory 
 - **Wave 4: cross-app glue** (cross-app-gaming wired + shared ranks; QuantNeon DMs; QuantAI segment-skip + QuantCode loop UI; OpenRouter provider).
 - **Wave 5: greenfield** (channels/bots, Snap-Map/Google-Maps, Signal-Protocol E2EE, Godot real-world game).
 - **Wave 6: infra** (per-deployable Dockerfiles/Helm, port unification, coverage→50%, staging, CI coverage gate).
+
+---
+
+## 2026-06-29 RE-VERIFICATION (deep code check) — several gaps already closed
+
+A fresh file-by-file pass found the 2026-06-24 table is materially **stale**; multiple
+items marked ❌/🟡 are now real and DB-backed. Verified against `main` + this session's PRs.
+
+**Corrections to the tables above:**
+
+- **QuantTube duplicate (`apps/quanttube`)** — RESOLVED in PR #404. Root cause was a
+  split-brain app-id: `@quant/quant-tools` + ecosystem registry use `quantube`, but
+  `@quant/agentic`'s voice-intent-parser routed "tube" → `quanttube` (the dead 41-file dup).
+  Canonicalized on `quantube`; ported the dup's two unique pieces — **AI segment-skip**
+  (segment.service + `/videos/:id/segments`, `/videos/:id/skip-plan`) and the **QuantAI voice
+  subscriber** (appId `quantube`, crypto.randomUUID ids) — into the canonical app; deleted
+  `apps/quanttube`. So "AI segment-skipping playback" (was ❌) now has a real backend.
+
+- **QuantTube channel subscriptions** — already real in canonical `apps/quantube`
+  (`ChannelService.subscribe/unsubscribe` recompute subscriberCount from real rows, plus
+  `isSubscribed`, `getSubscribers`, `getSubscriptions`, and a **subscription feed**).
+
+- **QuantSync poll voting (was ❌ "dead path / no Poll model")** — RESOLVED. `posts.ts` wires
+  a real `PollService`: `POST /posts/:id/poll` (author-only attach), `GET /posts/:id/poll`
+  (results, caller selections annotated), `POST /posts/:id/poll/vote` (cast/toggle).
+
+- **QuantSync follows / following-graph (was ❌)** — ADDED in PR #405. Durable Prisma-backed
+  `FollowService` on `UserRelationship` (FOLLOW): idempotent follow/unfollow, followers/
+  following lists with viewer follow-state, and a **Following feed**. Routes under `/follow`.
+
+- **QuantSync comment counts** — PR #402: `CommentService` now maintains `Post.commentCount` /
+  `Comment.replyCount`, idempotent owner-only soft-delete, parent validation, reads hide deleted.
+
+- **QuantNeon followers/following listing (was implied gap)** — ADDED in PR #403
+  (`ProfileService.listFollowers/listFollowing` + routes).
+
+- **QuantNeon DMs (was ❌ "UI exists, no backend")** — now has `dm.service.ts` + `routes/dm.ts`
+  - `dm.service.test.ts`. Needs a deeper verification pass but the backend is no longer absent.
+
+- **QuantAI conversation history / usage (was 🟡 "in-memory")** — NOT in-memory. `chat.service.ts`
+  persists `aISession` + `aIMessage` via Prisma; `usage.service.ts` derives usage/billing/stats
+  from persisted sessions. The only `new Map` in usage is a local per-method chart-bucket builder.
+
+**Still genuinely open (re-confirmed):** quantube playlist/history/watch-later in-memory (a
+_deliberate, spec'd_ first-slice — `quantube-real-data-wiring` — guarded by property tests, so
+migrating is a scoped project, not a quick fix); quantedits export render; cross-app-gaming
+wiring + shared ranks; QuantMail embedded Drive/Calendar proxy + ringing-alarm planner;
+OpenRouter + per-user model swap; Signal-Protocol E2EE; channels/bots; Maps; Godot real-world game.
+
+**Lesson:** trust code over the audit doc. Re-verify a claimed gap before "fixing" it — several
+were already done, and one (#401) duplicated existing functionality into a dead app before this
+was caught.
