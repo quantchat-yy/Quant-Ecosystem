@@ -9,10 +9,13 @@ function createMockPrisma() {
       count: vi.fn(),
       create: vi.fn(),
       upsert: vi.fn(),
+      delete: vi.fn(),
     },
     editComment: {
       findMany: vi.fn(),
+      findFirst: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
     },
   };
 }
@@ -123,6 +126,82 @@ describe('CollaborationService', () => {
       await expect(service.addComment('proj-1', 'owner-1', { content: '   ' })).rejects.toThrow(
         'content is required',
       );
+    });
+  });
+
+  describe('removeCollaborator', () => {
+    it('lets an owner remove a non-owner collaborator', async () => {
+      // requester resolves as OWNER
+      prisma.editCollaborator.findFirst
+        .mockResolvedValueOnce({ userId: 'owner-1', role: 'OWNER' }) // resolveRole(requester)
+        .mockResolvedValueOnce({ userId: 'editor-1', role: 'EDITOR' }); // target lookup
+      prisma.editCollaborator.delete.mockResolvedValue({});
+      const res = await service.removeCollaborator('proj-1', 'owner-1', 'editor-1');
+      expect(res).toEqual({ success: true });
+      expect(prisma.editCollaborator.delete).toHaveBeenCalledWith({
+        where: { projectId_userId: { projectId: 'proj-1', userId: 'editor-1' } },
+      });
+    });
+
+    it('forbids a non-owner from removing', async () => {
+      prisma.editCollaborator.findFirst.mockResolvedValueOnce({ userId: 'ed', role: 'EDITOR' });
+      await expect(service.removeCollaborator('proj-1', 'ed', 'someone')).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      });
+    });
+
+    it('never removes an owner', async () => {
+      prisma.editCollaborator.findFirst
+        .mockResolvedValueOnce({ userId: 'owner-1', role: 'OWNER' })
+        .mockResolvedValueOnce({ userId: 'owner-2', role: 'OWNER' });
+      await expect(
+        service.removeCollaborator('proj-1', 'owner-1', 'owner-2'),
+      ).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      });
+    });
+
+    it('404s removing a non-collaborator', async () => {
+      prisma.editCollaborator.findFirst
+        .mockResolvedValueOnce({ userId: 'owner-1', role: 'OWNER' })
+        .mockResolvedValueOnce(null);
+      await expect(service.removeCollaborator('proj-1', 'owner-1', 'ghost')).rejects.toMatchObject({
+        code: 'NOT_A_COLLABORATOR',
+      });
+    });
+  });
+
+  describe('resolveComment', () => {
+    it('lets an editor resolve a comment in the project', async () => {
+      prisma.editCollaborator.findFirst.mockResolvedValueOnce({ userId: 'ed', role: 'EDITOR' });
+      prisma.editComment.findFirst.mockResolvedValue({ id: 'cmt-1', projectId: 'proj-1' });
+      prisma.editComment.update.mockResolvedValue({
+        id: 'cmt-1',
+        projectId: 'proj-1',
+        userId: 'u',
+        content: 'x',
+        resolved: true,
+        createdAt: new Date(),
+      });
+      const res = await service.resolveComment('proj-1', 'ed', 'cmt-1', true);
+      expect(res.resolved).toBe(true);
+    });
+
+    it('forbids a viewer from resolving', async () => {
+      prisma.editCollaborator.findFirst.mockResolvedValueOnce({ userId: 'v', role: 'VIEWER' });
+      await expect(service.resolveComment('proj-1', 'v', 'cmt-1', true)).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      });
+    });
+
+    it('404s an unknown comment', async () => {
+      prisma.editCollaborator.findFirst.mockResolvedValueOnce({ userId: 'owner-1', role: 'OWNER' });
+      prisma.editComment.findFirst.mockResolvedValue(null);
+      await expect(
+        service.resolveComment('proj-1', 'owner-1', 'ghost', true),
+      ).rejects.toMatchObject({
+        code: 'COMMENT_NOT_FOUND',
+      });
     });
   });
 });

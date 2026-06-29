@@ -49,10 +49,16 @@ export interface CollaborationPrisma {
       create: Record<string, unknown>;
       update: Record<string, unknown>;
     }) => Promise<any>;
+    delete: (args: { where: Record<string, unknown> }) => Promise<any>;
   };
   editComment: {
     findMany: (args: Record<string, unknown>) => Promise<any[]>;
+    findFirst: (args: Record<string, unknown>) => Promise<any>;
     create: (args: { data: Record<string, unknown> }) => Promise<any>;
+    update: (args: {
+      where: Record<string, unknown>;
+      data: Record<string, unknown>;
+    }) => Promise<any>;
   };
 }
 
@@ -163,6 +169,62 @@ export class CollaborationService {
       orderBy: { createdAt: 'asc' },
     });
     return rows.map((r) => this.toComment(r));
+  }
+
+  /**
+   * Remove a collaborator from a project. Only an OWNER may remove members, and
+   * an OWNER can never be removed (prevents orphaning / owner-wars — transfer is
+   * a separate flow). Removing a non-member is a 404.
+   */
+  async removeCollaborator(
+    projectId: string,
+    requesterId: string,
+    targetUserId: string,
+  ): Promise<{ success: true }> {
+    const requesterRole = await this.resolveRole(projectId, requesterId);
+    if (requesterRole !== 'OWNER') {
+      throw createAppError('Only an owner can remove collaborators', 403, 'FORBIDDEN');
+    }
+    const target = await this.prisma.editCollaborator.findFirst({
+      where: { projectId, userId: targetUserId },
+    });
+    if (!target) {
+      throw createAppError('Collaborator not found', 404, 'NOT_A_COLLABORATOR');
+    }
+    if ((target.role as CollaboratorRoleDb) === 'OWNER') {
+      throw createAppError('An owner cannot be removed', 403, 'FORBIDDEN');
+    }
+    await this.prisma.editCollaborator.delete({
+      where: { projectId_userId: { projectId, userId: targetUserId } },
+    });
+    return { success: true };
+  }
+
+  /**
+   * Mark a comment resolved/unresolved. Only OWNER/EDITOR may resolve threads.
+   * The comment must belong to the project.
+   */
+  async resolveComment(
+    projectId: string,
+    requesterId: string,
+    commentId: string,
+    resolved: boolean,
+  ): Promise<CommentView> {
+    const role = await this.resolveRole(projectId, requesterId);
+    if (role !== 'OWNER' && role !== 'EDITOR') {
+      throw createAppError('Only owners or editors can resolve comments', 403, 'FORBIDDEN');
+    }
+    const comment = await this.prisma.editComment.findFirst({
+      where: { id: commentId, projectId },
+    });
+    if (!comment) {
+      throw createAppError('Comment not found', 404, 'COMMENT_NOT_FOUND');
+    }
+    const updated = await this.prisma.editComment.update({
+      where: { id: commentId },
+      data: { resolved },
+    });
+    return this.toComment(updated);
   }
 
   private toCollaborator(row: Record<string, unknown>): CollaboratorView {
