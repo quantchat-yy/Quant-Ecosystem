@@ -73,6 +73,26 @@ export default async function profilesRoutes(fastify: FastifyInstance) {
     return reply.send({ success: true, data: result });
   });
 
+  fastify.get<{ Params: { id: string }; Querystring: { limit?: string } }>(
+    '/:id/followers',
+    async (request, reply) => {
+      const viewerId = (request as { auth?: { userId?: string } }).auth?.userId ?? '';
+      const limit = Math.min(Math.max(Number(request.query.limit ?? 50) || 50, 1), 100);
+      const users = await getService(fastify).listFollowers(request.params.id, viewerId, limit);
+      return reply.send({ success: true, data: { users } });
+    },
+  );
+
+  fastify.get<{ Params: { id: string }; Querystring: { limit?: string } }>(
+    '/:id/following',
+    async (request, reply) => {
+      const viewerId = (request as { auth?: { userId?: string } }).auth?.userId ?? '';
+      const limit = Math.min(Math.max(Number(request.query.limit ?? 50) || 50, 1), 100);
+      const users = await getService(fastify).listFollowing(request.params.id, viewerId, limit);
+      return reply.send({ success: true, data: { users } });
+    },
+  );
+
   fastify.get<{ Params: { id: string } }>('/:id', async (request, reply) => {
     const viewerId = (request as { auth?: { userId?: string } }).auth?.userId ?? '';
     const profile = await getService(fastify).getProfile(request.params.id, viewerId);

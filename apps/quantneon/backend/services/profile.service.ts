@@ -23,6 +23,16 @@ export interface CloseFriendEntry {
   avatarUrl: string | null;
 }
 
+export interface FollowUserEntry {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  isVerified: boolean;
+  /** Whether the viewer (caller) follows this user — drives the Follow button. */
+  isFollowing: boolean;
+}
+
 export interface UpdateProfileInput {
   bio?: string;
   website?: string;
@@ -104,6 +114,71 @@ export class ProfileService {
       where: { followerId, followingId, type: 'FOLLOW' },
     });
     return { following: false };
+  }
+
+  /**
+   * Compute which of `userIds` the viewer currently follows, as a Set, in a
+   * single query. Empty viewer or empty list short-circuits to an empty Set.
+   */
+  private async followingSet(viewerId: string, userIds: string[]): Promise<Set<string>> {
+    if (!viewerId || userIds.length === 0) return new Set();
+    const edges = await this.prisma.userRelationship.findMany({
+      where: { followerId: viewerId, followingId: { in: userIds }, type: 'FOLLOW' },
+    });
+    return new Set(edges.map((e: any) => e.followingId as string));
+  }
+
+  private shapeUsers(
+    orderedIds: string[],
+    users: any[],
+    followingIds: Set<string>,
+  ): FollowUserEntry[] {
+    const byId = new Map(users.map((u: any) => [u.id, u]));
+    return orderedIds
+      .map((id) => byId.get(id))
+      .filter((u): u is any => Boolean(u) && !u.deletedAt)
+      .map((u: any) => ({
+        id: u.id,
+        username: u.username,
+        displayName: u.displayName ?? u.username,
+        avatarUrl: u.avatarUrl ?? null,
+        isVerified: u.emailVerified ?? false,
+        isFollowing: followingIds.has(u.id),
+      }));
+  }
+
+  /** Users who follow `targetId` (newest first), annotated with the viewer's follow state. */
+  async listFollowers(targetId: string, viewerId: string, limit = 50): Promise<FollowUserEntry[]> {
+    const edges = await this.prisma.userRelationship.findMany({
+      where: { followingId: targetId, type: 'FOLLOW' },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+    const ids = edges.map((e: any) => e.followerId as string);
+    if (ids.length === 0) return [];
+
+    const [users, followingIds] = await Promise.all([
+      this.prisma.user.findMany({ where: { id: { in: ids } } }),
+      this.followingSet(viewerId, ids),
+    ]);
+    return this.shapeUsers(ids, users, followingIds);
+  }
+
+  /** Users that `targetId` follows (newest first), annotated with the viewer's follow state. */
+  async listFollowing(targetId: string, viewerId: string, limit = 50): Promise<FollowUserEntry[]> {
+    const edges = await this.prisma.userRelationship.findMany({
+      where: { followerId: targetId, type: 'FOLLOW' },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+    const ids = edges.map((e: any) => e.followingId as string);
+    if (ids.length === 0) return [];
+
+    const [users, followingIds] = await Promise.all([
+      this.prisma.user.findMany({ where: { id: { in: ids } } }),
+      this.followingSet(viewerId, ids),
+    ]);
+    return this.shapeUsers(ids, users, followingIds);
   }
 
   async updateMe(userId: string, input: UpdateProfileInput): Promise<ShapedProfile> {
