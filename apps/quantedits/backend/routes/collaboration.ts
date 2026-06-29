@@ -64,4 +64,36 @@ export default async function collaborationRoutes(fastify: FastifyInstance) {
     const comment = await service.addComment(request.params.id, userId, parsed.data);
     return reply.status(201).send({ success: true, data: comment });
   });
+
+  // Remove (revoke) a collaborator — owner only.
+  fastify.delete<{ Params: { id: string; userId: string } }>(
+    '/:id/members/:userId',
+    async (request, reply) => {
+      const requesterId = requireUserId(request);
+      const result = await service.removeCollaborator(
+        request.params.id,
+        requesterId,
+        request.params.userId,
+      );
+      return reply.send({ success: true, data: result });
+    },
+  );
+
+  // Resolve / unresolve a comment thread — owner/editor only.
+  const resolveSchema = z.object({ resolved: z.boolean() });
+  fastify.patch<{ Params: { id: string; commentId: string } }>(
+    '/:id/comments/:commentId/resolve',
+    async (request, reply) => {
+      const userId = requireUserId(request);
+      const parsed = resolveSchema.safeParse(request.body);
+      if (!parsed.success) throw parsed.error;
+      const comment = await service.resolveComment(
+        request.params.id,
+        userId,
+        request.params.commentId,
+        parsed.data.resolved,
+      );
+      return reply.send({ success: true, data: comment });
+    },
+  );
 }
