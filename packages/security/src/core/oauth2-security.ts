@@ -327,51 +327,13 @@ export class OAuth2Security {
     return { valid: true, binding: { clientId: binding.clientId, scopes: binding.scopes } };
   }
 
-  /** Compute S256 challenge from verifier */
+  /**
+   * Compute the RFC 7636 PKCE S256 challenge from a verifier:
+   * code_challenge = BASE64URL-ENCODE(SHA256(ASCII(code_verifier)))
+   * Uses Node's built-in crypto for a real SHA-256 and unpadded base64url output.
+   */
   private computeS256Challenge(verifier: string): string {
-    // SHA-256 simulation then base64url encode
-    const hash = this.sha256(verifier);
-    return this.base64UrlEncode(hash);
-  }
-
-  /** SHA-256 hash simulation */
-  private sha256(input: string): string {
-    let h0 = 0x6a09e667,
-      h1 = 0xbb67ae85,
-      h2 = 0x3c6ef372,
-      h3 = 0xa54ff53a;
-    let h4 = 0x510e527f,
-      h5 = 0x9b05688c,
-      h6 = 0x1f83d9ab,
-      h7 = 0x5be0cd19;
-
-    for (let i = 0; i < input.length; i++) {
-      const c = input.charCodeAt(i);
-      h0 = Math.imul(h0 ^ c, 0x01000193) >>> 0;
-      h1 = Math.imul(h1 ^ (c + 1), 0x5bd1e995) >>> 0;
-      h2 = Math.imul(h2 ^ (c + 2), 0x1b873593) >>> 0;
-      h3 = Math.imul(h3 ^ (c + 3), 0xcc9e2d51) >>> 0;
-      h4 = Math.imul(h4 ^ (c + 4), 0x85ebca6b) >>> 0;
-      h5 = Math.imul(h5 ^ (c + 5), 0xc2b2ae35) >>> 0;
-      h6 = Math.imul(h6 ^ (c + 6), 0x27d4eb2f) >>> 0;
-      h7 = Math.imul(h7 ^ (c + 7), 0x165667b1) >>> 0;
-    }
-
-    return [h0, h1, h2, h3, h4, h5, h6, h7]
-      .map((h) => (h >>> 0).toString(16).padStart(8, '0'))
-      .join('');
-  }
-
-  /** Base64URL encode a hex string */
-  private base64UrlEncode(hex: string): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-    let result = '';
-    for (let i = 0; i < hex.length; i += 3) {
-      const chunk = parseInt(hex.substring(i, i + 3), 16);
-      result += chars[chunk % 64];
-      result += chars[Math.floor(chunk / 64) % 64];
-    }
-    return result;
+    return crypto.createHash('sha256').update(verifier).digest('base64url');
   }
 
   /** Normalize URI for comparison */

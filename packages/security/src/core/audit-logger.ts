@@ -269,38 +269,11 @@ export class AuditLogger {
     }
   }
 
-  /** Compute hash for tamper detection */
+  /** Compute hash for tamper detection (real SHA-256 over the canonical input).
+   * The chained previous-entry hash is included by callers in the input string,
+   * preserving the tamper-evident hash-chain structure. */
   private computeHash(input: string): string {
-    let h0 = 0x6a09e667,
-      h1 = 0xbb67ae85,
-      h2 = 0x3c6ef372,
-      h3 = 0xa54ff53a;
-    let h4 = 0x510e527f,
-      h5 = 0x9b05688c,
-      h6 = 0x1f83d9ab,
-      h7 = 0x5be0cd19;
-
-    for (let round = 0; round < 3; round++) {
-      for (let i = 0; i < input.length; i++) {
-        const c = input.charCodeAt(i);
-        h0 = Math.imul(h0 ^ c, 0x01000193) >>> 0;
-        h1 = Math.imul(h1 ^ (c + round), 0x5bd1e995) >>> 0;
-        h2 = Math.imul(h2 ^ (c * (i + 1)), 0x1b873593) >>> 0;
-        h3 = Math.imul(h3 ^ (c ^ round), 0xcc9e2d51) >>> 0;
-        h4 = Math.imul(h4 ^ (c + i), 0x85ebca6b) >>> 0;
-        h5 = Math.imul(h5 ^ (c * round + 1), 0xc2b2ae35) >>> 0;
-        h6 = Math.imul(h6 ^ (c + 7 + i), 0x27d4eb2f) >>> 0;
-        h7 = Math.imul(h7 ^ (c ^ i ^ round), 0x165667b1) >>> 0;
-      }
-      h0 ^= h4 >>> 13;
-      h1 ^= h5 >>> 7;
-      h2 ^= h6 >>> 17;
-      h3 ^= h7 >>> 11;
-    }
-
-    return [h0, h1, h2, h3, h4, h5, h6, h7]
-      .map((h) => (h >>> 0).toString(16).padStart(8, '0'))
-      .join('');
+    return crypto.createHash('sha256').update(input).digest('hex');
   }
 
   /** Generate unique ID */
