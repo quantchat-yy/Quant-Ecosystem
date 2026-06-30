@@ -29,7 +29,7 @@ export type {
   LudoRollResult,
   LudoPublicToken,
   LudoPublicState,
-  CreateGameOptions,
+  CreateGameOptions as LudoCreateGameOptions,
 } from './services/ludo-engine.service.js';
 export { CrossAppHostService } from './services/cross-app-host.service.js';
 export { IdentityBridgeService } from './services/identity-bridge.service.js';
