@@ -18,9 +18,21 @@ export function middleware(request: NextRequest) {
     );
   }
 
-  // Verify token format (in production this would validate JWT with admin role)
-  // For now, require a non-empty token as the auth gate
-  const adminSecret = process.env.ADMIN_SECRET || 'admin-secret-key';
+  // Verify token against the configured admin secret. Fail closed: never fall
+  // back to a hardcoded default — a missing ADMIN_SECRET must DENY access.
+  const adminSecret = process.env.ADMIN_SECRET;
+  if (!adminSecret) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: { message: 'Admin authentication is not configured', code: 'SERVICE_UNAVAILABLE' },
+      },
+      { status: 503 },
+    );
+  }
+  // NOTE: the `eyJ` (JWT-shaped) acceptance is a follow-up — it should validate
+  // the JWT signature/admin-role against the issuer's JWKS rather than trusting
+  // its shape. Tracked separately; this change removes the hardcoded fallback.
   if (token !== adminSecret && !token.startsWith('eyJ')) {
     return NextResponse.json(
       { success: false, error: { message: 'Invalid admin credentials', code: 'FORBIDDEN' } },
