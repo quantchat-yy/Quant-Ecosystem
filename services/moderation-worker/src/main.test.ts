@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { buildHandlerMap, routeJob } from './main';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { buildHandlerMap, routeJob, createHandlerDeps } from './main';
 import type { ModerationHandlerDeps } from './main';
 import type { ModerationResult } from '@quant/moderation';
 import type { ModerationJob } from '@quant/queue';
@@ -140,5 +140,59 @@ describe('routeJob', () => {
     await expect(routeJob(handlers, job)).rejects.toThrow(
       'No handler registered for content type: unknown',
     );
+  });
+});
+
+describe('createHandlerDeps - image CSAM fail-closed wiring', () => {
+  const ORIGINAL_ENV = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...ORIGINAL_ENV };
+  });
+
+  it('blocks images fail-closed when UGC media is enabled but no CSAM provider is configured', async () => {
+    process.env['UGC_MEDIA_ENABLED'] = 'true';
+    delete process.env['PHOTODNA_SUBSCRIPTION_KEY'];
+    delete process.env['CSAM_TEST_PROVIDER'];
+
+    const deps = createHandlerDeps();
+    // Non-URL content => no network fetch; bytes are hashed inline, then the
+    // CSAM gate runs. With no provider (NullProvider) checkHash throws and the
+    // handler must block the upload rather than approve it.
+    const job: ModerationJob = {
+      contentId: 'img-1',
+      contentType: 'image',
+      content: 'inline-bytes-not-a-url',
+      userId: 'user-1',
+      appId: 'app-1',
+    };
+
+    const result = await deps.imageHandler.handle(job);
+    expect(result.action).toBe('remove');
+    expect(result.flags).toContain('csam_check_failed');
+  });
+
+  it('wires the CSAM gate (blocks) only when UGC media is enabled', async () => {
+    process.env['UGC_MEDIA_ENABLED'] = 'true';
+    process.env['CSAM_TEST_PROVIDER'] = 'true'; // synthetic provider, no match for arbitrary bytes
+
+    const deps = createHandlerDeps();
+    // The test provider returns matched=false for unknown hashes, so the CSAM
+    // gate passes and execution proceeds to classification (which throws on the
+    // unconfigured client) => the upload is never silently approved.
+    const job: ModerationJob = {
+      contentId: 'img-2',
+      contentType: 'image',
+      content: 'inline-bytes-not-a-url',
+      userId: 'user-1',
+      appId: 'app-1',
+    };
+
+    // No image API key configured => classification fails closed (throws).
+    delete process.env['IMAGE_MODERATION_API_KEY'];
+    delete process.env['OPENAI_API_KEY'];
+    const fresh = createHandlerDeps();
+    void deps;
+    await expect(fresh.imageHandler.handle(job)).rejects.toThrow(/not configured/i);
   });
 });

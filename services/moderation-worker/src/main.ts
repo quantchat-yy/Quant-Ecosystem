@@ -11,6 +11,7 @@ import type {
   ModerationResult,
   ModerationAPIClient,
   ImageModerationAPIClient,
+  CSAMHashProvider,
 } from '@quant/moderation';
 import {
   TextClassifier,
@@ -23,12 +24,17 @@ import {
   FailClosedFrameExtractorBackend,
   AudioTranscriber,
   createWhisperProviderFromEnv,
+  CSAMMatchService,
+  NullProvider,
+  PhotoDNAProvider,
+  TestHashProvider,
 } from '@quant/moderation';
 import type { FrameExtractorBackend } from '@quant/moderation';
 import { ModerationJobSchema, type ModerationJob } from '@quant/queue';
 
 import { TextModerationHandler } from './handlers/text-handler';
 import { ImageModerationHandler } from './handlers/image-handler';
+import type { ContentFetcher } from './handlers/image-handler';
 import { VideoModerationHandler } from './handlers/video-handler';
 import { AudioModerationHandler } from './handlers/audio-handler';
 import { ActionExecutor } from './action-executor';
@@ -82,6 +88,129 @@ function createUnconfiguredTextClient(): ModerationAPIClient {
       );
     },
   };
+}
+
+/**
+ * Create a real HTTP image moderation client backed by OpenAI's
+ * omni-moderation model, which accepts image URLs and returns category scores.
+ * Maps the OpenAI categories onto the ImageModerationResponse shape.
+ */
+function createHttpImageClient(apiKey: string): ImageModerationAPIClient {
+  return {
+    moderateImage: async (input) => {
+      const imageUrl = input.url ?? (input.base64 ? `data:image/*;base64,${input.base64}` : null);
+      if (!imageUrl) {
+        throw new Error('Image moderation requires a url or base64 input');
+      }
+
+      const response = await fetch('https://api.openai.com/v1/moderations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'omni-moderation-latest',
+          input: [{ type: 'image_url', image_url: { url: imageUrl } }],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Image moderation API returned ${response.status}: ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as {
+        results: Array<{
+          category_scores: Record<string, number>;
+          categories: Record<string, boolean>;
+        }>;
+      };
+      const r = data.results[0]!;
+      const score = (k: string): number => r.category_scores[k] ?? 0;
+      const flag = (k: string): boolean => r.categories[k] ?? false;
+
+      // OpenAI sexual + sexual/minors -> nsfw; hate -> hateSymbols; etc.
+      const sexualScore = Math.max(score('sexual'), score('sexual/minors'));
+      const sexualFlag = flag('sexual') || flag('sexual/minors');
+      const violenceScore = Math.max(score('violence'), score('violence/graphic'));
+      const violenceFlag = flag('violence') || flag('violence/graphic');
+      const selfHarmScore = Math.max(
+        score('self-harm'),
+        score('self-harm/intent'),
+        score('self-harm/instructions'),
+      );
+      const selfHarmFlag =
+        flag('self-harm') || flag('self-harm/intent') || flag('self-harm/instructions');
+
+      return {
+        nsfw: { flagged: sexualFlag, score: sexualScore },
+        violence: { flagged: violenceFlag, score: violenceScore },
+        hateSymbols: { flagged: flag('hate'), score: score('hate') },
+        selfHarm: { flagged: selfHarmFlag, score: selfHarmScore },
+      };
+    },
+  };
+}
+
+/**
+ * HTTP content fetcher: downloads the actual image bytes for perceptual hashing
+ * and CSAM hash matching. Hashing the URL string (instead of the bytes) would
+ * make hash matching useless, so the worker must fetch real bytes.
+ */
+function createContentFetcher(): ContentFetcher {
+  return {
+    async fetch(url: string): Promise<Buffer> {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image content: ${response.status} ${response.statusText}`);
+      }
+      return Buffer.from(await response.arrayBuffer());
+    },
+  };
+}
+
+/**
+ * Resolve the CSAM hash provider from env. Fail-closed by default:
+ *   - PHOTODNA_SUBSCRIPTION_KEY set        -> Microsoft PhotoDNA (real)
+ *   - CSAM_TEST_PROVIDER=true              -> NCMEC synthetic test hashes (dev/CI)
+ *   - otherwise                            -> NullProvider (throws -> upload BLOCKED)
+ */
+function resolveCsamProvider(): CSAMHashProvider {
+  const photoDnaKey = process.env['PHOTODNA_SUBSCRIPTION_KEY'];
+  if (photoDnaKey) {
+    return new PhotoDNAProvider({
+      subscriptionKey: photoDnaKey,
+      ...(process.env['PHOTODNA_API_ENDPOINT']
+        ? { apiEndpoint: process.env['PHOTODNA_API_ENDPOINT'] }
+        : {}),
+    });
+  }
+  if (process.env['CSAM_TEST_PROVIDER'] === 'true') {
+    logger.warn('CSAM_TEST_PROVIDER=true - using synthetic NCMEC test hashes (dev/CI only)');
+    return new TestHashProvider();
+  }
+  logger.warn(
+    'No CSAM hash provider configured (PHOTODNA_SUBSCRIPTION_KEY unset) - image uploads will FAIL CLOSED',
+  );
+  return new NullProvider();
+}
+
+/**
+ * Build the CSAM match service when media uploads are enabled. With no real
+ * provider configured this wraps NullProvider, whose checkHash throws, so the
+ * image handler blocks the upload (fail-closed) rather than approving it.
+ * Returns undefined when UGC media is disabled (images should not be uploaded).
+ */
+function resolveCsamMatchService(): CSAMMatchService | undefined {
+  if (process.env['UGC_MEDIA_ENABLED'] !== 'true') {
+    return undefined;
+  }
+  return new CSAMMatchService({
+    provider: resolveCsamProvider(),
+    ...(process.env['CSAM_PAGING_WEBHOOK_URL']
+      ? { pagingWebhookUrl: process.env['CSAM_PAGING_WEBHOOK_URL'] }
+      : {}),
+  });
 }
 
 /**
@@ -171,11 +300,13 @@ export function createHandlerDeps(): ModerationHandlerDeps {
     ? createHttpTextClient(textApiKey)
     : createUnconfiguredTextClient();
 
-  // Resolve image API client: use real client if API key is present
-  const imageApiKey = process.env['IMAGE_MODERATION_API_KEY'] ?? undefined;
+  // Resolve image API client: use the real omni-moderation client when an
+  // image moderation key is configured; otherwise an unconfigured client that
+  // throws (classification fails -> upload BLOCKED, never silently approved).
+  const imageApiKey =
+    process.env['IMAGE_MODERATION_API_KEY'] ?? process.env['OPENAI_API_KEY'] ?? undefined;
   const imageApiClient = imageApiKey
-    ? // Swap with real image moderation SDK client when provider is onboarded
-      createUnconfiguredImageClient()
+    ? createHttpImageClient(imageApiKey)
     : createUnconfiguredImageClient();
 
   const textClassifier = new TextClassifier(textApiClient);
@@ -196,11 +327,17 @@ export function createHandlerDeps(): ModerationHandlerDeps {
     actionExecutor,
   });
 
+  // The image handler must (1) fetch real bytes for hashing and (2) run the
+  // CSAM hash check before classification. Both were previously omitted, so the
+  // CSAM gate never ran and hashes were computed over the URL string.
+  const csamMatchService = resolveCsamMatchService();
   const imageHandler = new ImageModerationHandler({
     classifier: imageClassifier,
     hasher,
     policyEngine,
     actionExecutor,
+    contentFetcher: createContentFetcher(),
+    ...(csamMatchService ? { csamMatchService } : {}),
   });
 
   const videoHandler = new VideoModerationHandler({
