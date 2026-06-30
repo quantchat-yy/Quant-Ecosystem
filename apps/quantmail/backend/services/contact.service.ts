@@ -128,6 +128,54 @@ export class ContactService {
     });
   }
 
+  /**
+   * Record an interaction with a contact (e.g. when an email is sent to them).
+   * Upserts the contact keyed by the (userId, email) unique constraint:
+   *  - on create: frequency starts at 1 (and name is stored if provided)
+   *  - on update: frequency is incremented by 1 (and name refreshed if provided)
+   *
+   * This is the write path that finally makes the previously-dead `frequency`
+   * field meaningful, powering "frequently contacted" ordering.
+   */
+  async recordInteraction(userId: string, email: string, name?: string): Promise<Contact> {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) {
+      throw createAppError('Email is required', 400, 'INVALID_EMAIL');
+    }
+
+    const trimmedName = name?.trim();
+    const contactModel = (this.prisma as unknown as { contact: ContactModel }).contact;
+
+    return contactModel.upsert({
+      where: { userId_email: { userId, email: normalizedEmail } },
+      create: {
+        userId,
+        email: normalizedEmail,
+        name: trimmedName && trimmedName.length > 0 ? trimmedName : normalizedEmail,
+        frequency: 1,
+      },
+      update: {
+        frequency: { increment: 1 },
+        ...(trimmedName && trimmedName.length > 0 ? { name: trimmedName } : {}),
+      },
+    });
+  }
+
+  /**
+   * Return the user's most-frequently-contacted contacts, highest frequency
+   * first, tie-broken by most recently updated then name for determinism.
+   */
+  async getFrequentContacts(userId: string, limit = 10): Promise<Contact[]> {
+    const take = Math.min(Math.max(Math.trunc(limit), 1), 100);
+    const contactModel = (this.prisma as unknown as { contact: ContactModel }).contact;
+
+    return contactModel.findMany({
+      where: { userId },
+      orderBy: [{ frequency: 'desc' }, { updatedAt: 'desc' }, { name: 'asc' }],
+      take,
+    });
+  }
+
   async deleteContact(contactId: string, userId: string): Promise<Contact> {
     const contactModel = (this.prisma as unknown as { contact: ContactModel }).contact;
 
@@ -153,5 +201,6 @@ interface ContactModel {
   count(args: unknown): Promise<number>;
   create(args: unknown): Promise<Contact>;
   update(args: unknown): Promise<Contact>;
+  upsert(args: unknown): Promise<Contact>;
   delete(args: unknown): Promise<Contact>;
 }

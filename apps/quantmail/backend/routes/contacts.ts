@@ -24,6 +24,10 @@ const searchSchema = z.object({
   q: z.string().min(1),
 });
 
+const frequentQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
 export default async function contactsRoutes(fastify: FastifyInstance) {
   // POST /contacts
   fastify.post('/', async (request, reply) => {
@@ -78,6 +82,25 @@ export default async function contactsRoutes(fastify: FastifyInstance) {
     const prisma = (fastify as unknown as { prisma: unknown }).prisma;
     const service = new ContactService(prisma as never);
     const contacts = await service.searchContacts(userId, queryResult.data.q);
+
+    return reply.send({ success: true, data: contacts });
+  });
+
+  // GET /contacts/frequent
+  fastify.get('/frequent', async (request, reply) => {
+    const queryResult = frequentQuerySchema.safeParse(request.query);
+    if (!queryResult.success) {
+      throw queryResult.error;
+    }
+
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    const service = new ContactService(prisma as never);
+    const contacts = await service.getFrequentContacts(userId, queryResult.data.limit ?? 10);
 
     return reply.send({ success: true, data: contacts });
   });
