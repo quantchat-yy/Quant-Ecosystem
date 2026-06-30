@@ -10,6 +10,8 @@ export interface PrismaClient {
       where: Record<string, unknown>;
       data: Record<string, unknown>;
     }) => Promise<unknown>;
+    delete: (args: { where: Record<string, unknown> }) => Promise<unknown>;
+    deleteMany: (args: { where: Record<string, unknown> }) => Promise<{ count: number }>;
   };
   docSuggestion: {
     create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
@@ -118,6 +120,32 @@ export class CommentService {
     });
 
     return resolved as unknown as Comment;
+  }
+
+  async deleteComment(commentId: string, userId: string): Promise<Comment> {
+    const comment = await this.prisma.docComment.findUnique({
+      where: { id: commentId },
+    });
+
+    if (!comment) {
+      throw createAppError('Comment not found', 404, 'COMMENT_NOT_FOUND');
+    }
+
+    if ((comment as unknown as Comment).userId !== userId) {
+      throw createAppError('Not authorized to delete this comment', 403, 'UNAUTHORIZED');
+    }
+
+    // The DocComment self-relation does not cascade replies, so remove any
+    // threaded replies explicitly before deleting the parent comment.
+    await this.prisma.docComment.deleteMany({
+      where: { parentId: commentId },
+    });
+
+    const deleted = await this.prisma.docComment.delete({
+      where: { id: commentId },
+    });
+
+    return deleted as unknown as Comment;
   }
 
   async getComments(docId: string): Promise<Comment[]> {
