@@ -7,6 +7,7 @@ import aiRoutes from './routes/ai';
 import uploadRoutes from './routes/upload';
 import storageRoutes from './routes/storage';
 import trashRoutes from './routes/trash';
+import versionsRoutes from './routes/versions';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -41,6 +42,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(aiRoutes, { prefix: '/ai' });
   await app.register(storageRoutes, { prefix: '/storage' });
   await app.register(trashRoutes, { prefix: '/trash' });
+  await app.register(versionsRoutes, { prefix: '/versions' });
 
   return app;
 }
