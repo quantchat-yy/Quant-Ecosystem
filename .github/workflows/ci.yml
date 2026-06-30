@@ -45,8 +45,10 @@ jobs:
             echo "filter=...[HEAD~1]" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Typecheck, lint, test changed packages
-        run: npx turbo typecheck lint test --concurrency=3 --continue --filter='${{ steps.base.outputs.filter }}'
+      - name: Typecheck, lint, test, build changed packages
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npx turbo typecheck lint test build --concurrency=2 --continue --filter='${{ steps.base.outputs.filter }}'
 
   # Hard gate: QuantChat must meet the >=50% coverage threshold (Requirement 18.1).
   # Thresholds live in apps/quantchat/vitest.config.ts; `vitest run --coverage` exits
@@ -93,5 +95,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Full typecheck + lint + test
-        run: npx turbo typecheck lint test --concurrency=3 --continue
+      - name: Full typecheck + lint + test + build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npx turbo typecheck lint test build --concurrency=2 --continue
