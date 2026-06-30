@@ -21,9 +21,22 @@ export interface PrismaClient {
     findMany: (args: Record<string, unknown>) => Promise<any[]>;
   };
   adSet: {
+    create: (args: { data: Record<string, unknown> }) => Promise<any>;
     findUnique: (args: { where: Record<string, unknown> }) => Promise<any>;
+    findMany: (args: Record<string, unknown>) => Promise<any[]>;
+    update: (args: {
+      where: Record<string, unknown>;
+      data: Record<string, unknown>;
+    }) => Promise<any>;
   };
   adCreative: {
+    create: (args: { data: Record<string, unknown> }) => Promise<any>;
     findUnique: (args: { where: Record<string, unknown> }) => Promise<any>;
+    findMany: (args: Record<string, unknown>) => Promise<any[]>;
+    update: (args: {
+      where: Record<string, unknown>;
+      data: Record<string, unknown>;
+    }) => Promise<any>;
+    delete: (args: { where: Record<string, unknown> }) => Promise<any>;
   };
 }
