@@ -7,7 +7,15 @@
 // doing the work (human vs AI), what kind of actions dominate, the revenue mix,
 // payout throughput, and the moderation backlog.
 
-import { listAudit, listPayouts, listReports, listRevenue, listTeam } from './store';
+import {
+  listAudit,
+  listPayouts,
+  listReports,
+  listRevenue,
+  listTeam,
+  type TrinityPrisma,
+} from './store';
+import { prisma } from './prisma';
 
 export type ActorClass = 'human' | 'ai' | 'system';
 
@@ -50,12 +58,16 @@ export interface Insights {
   };
 }
 
-export function computeInsights(): Insights {
-  const audit = listAudit(500);
-  const revenue = listRevenue();
-  const payouts = listPayouts();
-  const reports = listReports();
-  const team = listTeam();
+export async function computeInsights(
+  db: TrinityPrisma = prisma as unknown as TrinityPrisma,
+): Promise<Insights> {
+  const [audit, revenue, payouts, reports, team] = await Promise.all([
+    listAudit(500, db),
+    listRevenue(db),
+    listPayouts(db),
+    listReports(undefined, db),
+    listTeam(undefined, db),
+  ]);
 
   // --- actions ---
   const byActorClass: Record<ActorClass, number> = { human: 0, ai: 0, system: 0 };

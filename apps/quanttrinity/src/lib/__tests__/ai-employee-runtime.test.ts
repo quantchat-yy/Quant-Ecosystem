@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { runShift, getOrCreateRuntime, getRuntimeSnapshot } from '../ai-employee-runtime';
 import type { TeamMember } from '../domain';
+import { makeFakeTrinityDb } from './_fake-trinity-db';
 
 function aiEmployee(overrides: Partial<TeamMember> = {}): TeamMember {
   return {
@@ -22,7 +23,8 @@ function aiEmployee(overrides: Partial<TeamMember> = {}): TeamMember {
 }
 
 describe('AI employee runtime', () => {
-  it('rejects running a non-AI member', () => {
+  it('rejects running a non-AI member', async () => {
+    const db = makeFakeTrinityDb();
     const human: TeamMember = {
       id: 'h1',
       kind: 'human',
@@ -33,13 +35,14 @@ describe('AI employee runtime', () => {
       status: 'active',
       createdAt: new Date().toISOString(),
     };
-    expect(() => runShift(human)).toThrow();
+    await expect(runShift(human, db)).rejects.toThrow();
   });
 
-  it('autonomous reporting employee processes the queue and earns trust', () => {
+  it('autonomous reporting employee processes the queue and earns trust', async () => {
+    const db = makeFakeTrinityDb();
     const emp = aiEmployee();
     const before = getOrCreateRuntime(emp).trust.getScore();
-    const result = runShift(emp);
+    const result = await runShift(emp, db);
     expect(result.paused).toBe(false);
     expect(result.processed).toBeGreaterThanOrEqual(0);
     // autonomy 'autonomous' seeds ACT_HIGH-level permission
@@ -50,23 +53,25 @@ describe('AI employee runtime', () => {
     }
   });
 
-  it('enforces the daily credit budget', () => {
+  it('enforces the daily credit budget', async () => {
+    const db = makeFakeTrinityDb();
     const emp = aiEmployee({
       ai: { modelId: 'm', autonomy: 'autonomous', dailyCreditBudget: 2, mandate: 'x' },
     });
-    const result = runShift(emp);
+    const result = await runShift(emp, db);
     // cannot spend more than its budget (1 credit / item)
     expect(result.processed).toBeLessThanOrEqual(2);
     expect(result.dailyRemaining).toBeLessThanOrEqual(2);
     expect(result.dailyRemaining).toBeGreaterThanOrEqual(0);
   });
 
-  it('suggest-only employees never resolve (lower permission)', () => {
+  it('suggest-only employees never resolve (lower permission)', async () => {
+    const db = makeFakeTrinityDb();
     const emp = aiEmployee({
       sector: 'reporting',
       ai: { modelId: 'm', autonomy: 'suggest', dailyCreditBudget: 50, mandate: 'x' },
     });
-    const result = runShift(emp);
+    const result = await runShift(emp, db);
     expect(['OBSERVE', 'SUGGEST']).toContain(result.permissionLevel);
     for (const a of result.actions) {
       expect(a.kind).toBe('suggested');

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { listApps, updateApp, recordAudit } from '../../../lib/store';
 
 export async function GET() {
-  return NextResponse.json({ success: true, data: listApps() });
+  return NextResponse.json({ success: true, data: await listApps() });
 }
 
 const patchSchema = z.object({
@@ -39,13 +39,13 @@ export async function PATCH(request: NextRequest) {
   }
 
   const { id, ...patch } = parsed.data;
-  const app = updateApp(id, patch);
+  const app = await updateApp(id, patch);
   if (!app) {
     return NextResponse.json(
       { success: false, error: { message: 'App not found', code: 'NOT_FOUND' } },
       { status: 404 },
     );
   }
-  recordAudit({ action: 'app.control.updated', target: id, detail: JSON.stringify(patch) });
+  await recordAudit({ action: 'app.control.updated', target: id, detail: JSON.stringify(patch) });
   return NextResponse.json({ success: true, data: app });
 }

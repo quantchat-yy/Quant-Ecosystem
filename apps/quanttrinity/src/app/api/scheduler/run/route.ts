@@ -7,6 +7,6 @@ import { runDueShifts } from '../../../../lib/scheduler';
  */
 export async function POST(request: NextRequest) {
   const force = request.nextUrl.searchParams.get('force') === '1';
-  const result = runDueShifts(Date.now(), force);
+  const result = await runDueShifts(Date.now(), force);
   return NextResponse.json({ success: true, data: result });
 }

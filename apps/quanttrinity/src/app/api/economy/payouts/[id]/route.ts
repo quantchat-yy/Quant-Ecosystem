@@ -26,14 +26,14 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     );
   }
 
-  const payout = updatePayout(id, parsed.data.status);
+  const payout = await updatePayout(id, parsed.data.status);
   if (!payout) {
     return NextResponse.json(
       { success: false, error: { message: 'Payout not found', code: 'NOT_FOUND' } },
       { status: 404 },
     );
   }
-  recordAudit({
+  await recordAudit({
     action: `economy.payout.${parsed.data.status}`,
     target: id,
     detail: `${payout.creatorName} · ${payout.credits} cr · ${payout.method}`,

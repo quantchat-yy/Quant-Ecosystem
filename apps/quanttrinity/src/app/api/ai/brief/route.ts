@@ -7,11 +7,11 @@ import { listApps, listPayouts, listReports, listRevenue, listTeam } from '../..
  * of summary the owner's AI surfaces each morning across the whole ecosystem.
  */
 export async function GET() {
-  const apps = listApps();
-  const reports = listReports();
-  const payouts = listPayouts();
-  const revenue = listRevenue();
-  const team = listTeam();
+  const apps = await listApps();
+  const reports = await listReports();
+  const payouts = await listPayouts();
+  const revenue = await listRevenue();
+  const team = await listTeam();
 
   const criticalReports = reports.filter(
     (r) => r.severity === 'critical' && r.status !== 'resolved',

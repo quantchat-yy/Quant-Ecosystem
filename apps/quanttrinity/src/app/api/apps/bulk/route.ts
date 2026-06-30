@@ -41,15 +41,15 @@ export async function POST(request: NextRequest) {
   const { onlyIds, ...patch } = parsed.data;
 
   // Reject unknown model ids to avoid pointing apps at a model that isn't registered.
-  if (patch.modelId && !listModels().some((m) => m.id === patch.modelId)) {
+  if (patch.modelId && !(await listModels()).some((m) => m.id === patch.modelId)) {
     return NextResponse.json(
       { success: false, error: { message: 'Unknown modelId', code: 'VALIDATION' } },
       { status: 422 },
     );
   }
 
-  const affected = bulkUpdateApps(patch, onlyIds);
-  recordAudit({
+  const affected = await bulkUpdateApps(patch, onlyIds);
+  await recordAudit({
     action: 'app.control.bulk_updated',
     target: `${affected.length} app(s)`,
     detail: JSON.stringify(patch),
