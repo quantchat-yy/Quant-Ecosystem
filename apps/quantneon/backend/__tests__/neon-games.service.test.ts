@@ -107,6 +107,7 @@ describe('NeonGamesService — durable in-feed game sessions', () => {
       expect(games.find((g) => g.id === 'uno')?.status).toBe('playable');
       expect(games.find((g) => g.id === 'ludo')?.status).toBe('playable');
       expect(games.find((g) => g.id === 'monopoly')?.status).toBe('playable');
+      expect(games.find((g) => g.id === 'connect-four')?.status).toBe('playable');
     });
 
     it('getGame returns the catalog entry or undefined', () => {
@@ -407,5 +408,36 @@ describe('NeonGamesService — engine games', () => {
     await expect(svc.submitMove(s.id, 'alice', { type: 'uno_draw' })).rejects.toMatchObject({
       code: 'SESSION_NOT_ACTIVE',
     });
+  });
+
+  it('auto-starts a Connect Four session with the host (R) on turn', async () => {
+    const s = await svc.startGame('connect-four', 'alice');
+    const sess = await svc.joinGame(s.id, 'bob');
+    expect(sess.state).toBe('active');
+    expect(sess.turn).toBe('alice');
+    expect(sess.engineState).toBeDefined();
+  });
+
+  it('rejects a Connect Four drop from the wrong player', async () => {
+    const s = await svc.startGame('connect-four', 'alice');
+    await svc.joinGame(s.id, 'bob');
+    await expect(
+      svc.submitMove(s.id, 'bob', { type: 'connect_four_drop', column: 0 }),
+    ).rejects.toMatchObject({ code: 'NOT_YOUR_TURN' });
+  });
+
+  it('plays Connect Four to a vertical win for the host', async () => {
+    const s = await svc.startGame('connect-four', 'alice');
+    let sess = await svc.joinGame(s.id, 'bob');
+    // alice stacks column 0; bob plays column 1 between.
+    sess = await svc.submitMove(s.id, 'alice', { type: 'connect_four_drop', column: 0 });
+    sess = await svc.submitMove(s.id, 'bob', { type: 'connect_four_drop', column: 1 });
+    sess = await svc.submitMove(s.id, 'alice', { type: 'connect_four_drop', column: 0 });
+    sess = await svc.submitMove(s.id, 'bob', { type: 'connect_four_drop', column: 1 });
+    sess = await svc.submitMove(s.id, 'alice', { type: 'connect_four_drop', column: 0 });
+    sess = await svc.submitMove(s.id, 'bob', { type: 'connect_four_drop', column: 1 });
+    sess = await svc.submitMove(s.id, 'alice', { type: 'connect_four_drop', column: 0 });
+    expect(sess.state).toBe('finished');
+    expect(sess.winner).toBe('alice');
   });
 });

@@ -46,12 +46,15 @@ import {
   LudoError,
   MonopolyEngine,
   MonopolyError,
+  ConnectFourEngine,
+  ConnectFourError,
 } from '@quant/cross-app-gaming';
 import type {
   UnoColor,
   UnoGameState,
   LudoGameState,
   MonopolyGameState,
+  ConnectFourGameState,
 } from '@quant/cross-app-gaming';
 
 export type GameStatus = 'playable' | 'coming_soon';
@@ -122,7 +125,8 @@ export type NeonGameMove =
   | { type: 'monopoly_build'; index: number }
   | { type: 'monopoly_end' }
   | { type: 'monopoly_jail_fine' }
-  | { type: 'monopoly_jail_card' };
+  | { type: 'monopoly_jail_card' }
+  | { type: 'connect_four_drop'; column: number };
 
 // ---------------------------------------------------------------------------
 // Persisted row shape (the subset of columns this service reads/writes).
@@ -202,6 +206,15 @@ const CATALOG: GameCatalogEntry[] = [
     turnBased: true,
     status: 'playable',
   },
+  {
+    id: 'connect-four',
+    name: 'Connect Four',
+    description: 'Drop discs and line up four in a row to win.',
+    minPlayers: 2,
+    maxPlayers: 2,
+    turnBased: true,
+    status: 'playable',
+  },
 ];
 
 const WIN_LINES = [
@@ -219,15 +232,22 @@ export class NeonGamesService {
   private readonly unoEngine: UnoEngine;
   private readonly ludoEngine: LudoEngine;
   private readonly monopolyEngine: MonopolyEngine;
+  private readonly connectFourEngine: ConnectFourEngine;
 
   constructor(
     private readonly prisma: NeonGamePrisma,
     private readonly now: () => Date = () => new Date(),
-    engines: { uno?: UnoEngine; ludo?: LudoEngine; monopoly?: MonopolyEngine } = {},
+    engines: {
+      uno?: UnoEngine;
+      ludo?: LudoEngine;
+      monopoly?: MonopolyEngine;
+      connectFour?: ConnectFourEngine;
+    } = {},
   ) {
     this.unoEngine = engines.uno ?? new UnoEngine();
     this.ludoEngine = engines.ludo ?? new LudoEngine();
     this.monopolyEngine = engines.monopoly ?? new MonopolyEngine();
+    this.connectFourEngine = engines.connectFour ?? new ConnectFourEngine();
   }
 
   // --- Static catalog (in-memory / sync) ----------------------------------
@@ -404,6 +424,13 @@ export class NeonGamesService {
           action,
         );
         this.syncFromEngine(session, next);
+      } else if (session.gameId === 'connect-four') {
+        const state = session.engineState as ConnectFourGameState;
+        if (action.type !== 'connect_four_drop') {
+          throw new GameError('Unsupported Connect Four move', 'INVALID_MOVE');
+        }
+        const next = this.connectFourEngine.dropDisc(state, userId, action.column);
+        this.syncFromEngine(session, next);
       } else {
         throw new GameError(`${session.gameId} is not playable yet`, 'GAME_NOT_PLAYABLE');
       }
@@ -519,6 +546,9 @@ export class NeonGamesService {
       case 'monopoly':
         session.engineState = this.monopolyEngine.createGame(session.players);
         break;
+      case 'connect-four':
+        session.engineState = this.connectFourEngine.createGame(session.players);
+        break;
       default:
         throw new GameError(`${session.gameId} is not playable yet`, 'GAME_NOT_PLAYABLE');
     }
@@ -535,6 +565,9 @@ export class NeonGamesService {
       session.state = 'finished';
       session.winner = next.winner ?? null;
       session.turn = null;
+      // Some engines (e.g. Connect Four) expose a draw flag on the state.
+      const draw = (next as { isDraw?: boolean }).isDraw;
+      if (typeof draw === 'boolean') session.isDraw = draw;
     } else {
       session.turn = this.engineTurn(session.gameId, next);
     }
@@ -552,7 +585,12 @@ export class NeonGamesService {
   /** Map an engine error (Uno/Ludo/Monopoly) to a GameError; rethrow others. */
   private rethrowEngineError(err: unknown): never {
     if (err instanceof GameError) throw err;
-    if (err instanceof UnoError || err instanceof LudoError || err instanceof MonopolyError) {
+    if (
+      err instanceof UnoError ||
+      err instanceof LudoError ||
+      err instanceof MonopolyError ||
+      err instanceof ConnectFourError
+    ) {
       if (err.code === 'NOT_YOUR_TURN') throw new GameError(err.message, 'NOT_YOUR_TURN');
       if (err.code === 'GAME_OVER') throw new GameError(err.message, 'SESSION_NOT_ACTIVE');
       throw new GameError(err.message, 'INVALID_MOVE');
