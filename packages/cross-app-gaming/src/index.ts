@@ -17,6 +17,20 @@ export type {
   GameBadgePrisma,
   AwardBadgeResult,
 } from './services/badge-award.service.js';
+export { LudoEngine, LudoError } from './services/ludo-engine.service.js';
+export type {
+  LudoErrorCode,
+  LudoColor,
+  LudoTokenLocation,
+  LudoPlayer,
+  LudoToken,
+  LudoGameState,
+  LudoLegalMove,
+  LudoRollResult,
+  LudoPublicToken,
+  LudoPublicState,
+  CreateGameOptions as LudoCreateGameOptions,
+} from './services/ludo-engine.service.js';
 export { CrossAppHostService } from './services/cross-app-host.service.js';
 export { IdentityBridgeService } from './services/identity-bridge.service.js';
 export { MinorSafetyService } from './services/minor-safety.service.js';
