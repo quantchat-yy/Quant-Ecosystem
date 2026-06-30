@@ -86,6 +86,47 @@ export class ReelService {
     return this.shapeReel(row, false);
   }
 
+  async getReel(reelId: string, viewerId?: string): Promise<ShapedReel> {
+    const row = await this.prisma.reel.findUnique({
+      where: { id: reelId },
+      include: { creator: true },
+    });
+    if (!row) {
+      throw createAppError('Reel not found', 404, 'REEL_NOT_FOUND');
+    }
+
+    let isLiked = false;
+    if (viewerId) {
+      const like = await this.prisma.reelLike.findUnique({
+        where: { reelId_userId: { reelId, userId: viewerId } },
+      });
+      isLiked = Boolean(like);
+    }
+
+    return this.shapeReel(row, isLiked);
+  }
+
+  async deleteReel(reelId: string, userId: string): Promise<{ deleted: boolean }> {
+    const reel = await this.prisma.reel.findUnique({ where: { id: reelId } });
+    if (!reel) {
+      throw createAppError('Reel not found', 404, 'REEL_NOT_FOUND');
+    }
+    if (reel.creatorId !== userId) {
+      throw createAppError('Not allowed to delete this reel', 403, 'FORBIDDEN');
+    }
+
+    // Reel has no `deletedAt` column, so this is a hard delete. The reelLike /
+    // reelComment rows are removed explicitly (deleteMany) so the seam does not
+    // depend on database-level cascade behavior.
+    await this.prisma.$transaction(async (tx) => {
+      await tx.reelLike.deleteMany({ where: { reelId } });
+      await tx.reelComment.deleteMany({ where: { reelId } });
+      await tx.reel.delete({ where: { id: reelId } });
+    });
+
+    return { deleted: true };
+  }
+
   async getFeed(viewerId: string, options: ReelFeedOptions = {}): Promise<ShapedReel[]> {
     const page = options.page ?? 1;
     const pageSize = options.pageSize ?? 20;

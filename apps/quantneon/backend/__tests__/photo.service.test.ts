@@ -14,6 +14,7 @@ function createMockPrisma() {
     photoAlbum: {
       create: vi.fn(),
       findUnique: vi.fn(),
+      findMany: vi.fn(),
     },
     story: {
       create: vi.fn(),
@@ -181,6 +182,65 @@ describe('PhotoService', () => {
 
       expect(result.name).toBe('Vacation');
       expect(result.photoCount).toBe(0);
+    });
+  });
+
+  describe('listAlbumsByUser', () => {
+    it('returns the caller albums newest-first, scoped to the user', async () => {
+      const albums = [
+        { id: 'album-2', userId: 'user-1', name: 'Recent', photoCount: 1, visibility: 'PUBLIC' },
+        { id: 'album-1', userId: 'user-1', name: 'Older', photoCount: 3, visibility: 'PUBLIC' },
+      ];
+      prisma.photoAlbum.findMany.mockResolvedValue(albums);
+
+      const result = await service.listAlbumsByUser('user-1');
+
+      expect(result).toEqual(albums);
+      expect(prisma.photoAlbum.findMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1' },
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+
+    it('returns an empty list when the user has no albums', async () => {
+      prisma.photoAlbum.findMany.mockResolvedValue([]);
+
+      const result = await service.listAlbumsByUser('user-2');
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('listByAlbum', () => {
+    it('returns paginated photos for an album newest-first', async () => {
+      prisma.photo.findMany.mockResolvedValue([{ id: 'photo-1' }, { id: 'photo-2' }]);
+      prisma.photo.count.mockResolvedValue(2);
+
+      const result = await service.listByAlbum('album-1', { page: 1, pageSize: 20 });
+
+      expect(result.data).toHaveLength(2);
+      expect(result.total).toBe(2);
+      expect(result.totalPages).toBe(1);
+      expect(result.hasNext).toBe(false);
+      expect(prisma.photo.findMany).toHaveBeenCalledWith({
+        where: { albumId: 'album-1', deletedAt: null },
+        skip: 0,
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+
+    it('returns an empty page when the album has no photos', async () => {
+      prisma.photo.findMany.mockResolvedValue([]);
+      prisma.photo.count.mockResolvedValue(0);
+
+      const result = await service.listByAlbum('empty-album');
+
+      expect(result.data).toEqual([]);
+      expect(result.total).toBe(0);
+      expect(result.totalPages).toBe(0);
+      expect(result.hasNext).toBe(false);
+      expect(result.hasPrev).toBe(false);
     });
   });
 });
