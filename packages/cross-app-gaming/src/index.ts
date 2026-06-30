@@ -88,3 +88,11 @@ export type {
   ShuffleFn,
   CreateGameOptions as UnoCreateGameOptions,
 } from './services/uno-engine.service.js';
+export { OthelloEngine, OthelloError } from './services/othello-engine.service.js';
+export type {
+  OthelloErrorCode,
+  OthelloMove,
+  OthelloGameState,
+  OthelloPublicState,
+  Coord as OthelloCoord,
+} from './services/othello-engine.service.js';
