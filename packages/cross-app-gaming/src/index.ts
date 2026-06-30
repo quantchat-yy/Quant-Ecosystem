@@ -1,4 +1,35 @@
 export * from './types.js';
+export {
+  MonopolyEngine,
+  MonopolyError,
+  BOARD as MONOPOLY_BOARD,
+  CHANCE_CARDS as MONOPOLY_CHANCE_CARDS,
+  COMMUNITY_CHEST_CARDS as MONOPOLY_COMMUNITY_CHEST_CARDS,
+  computeRent as computeMonopolyRent,
+  isOwnable as isMonopolyOwnable,
+} from './services/monopoly-engine.service.js';
+export type {
+  MonopolyErrorCode,
+  PropertyColor,
+  SpaceType,
+  StreetSpace,
+  RailroadSpace,
+  UtilitySpace,
+  TaxSpace,
+  SimpleSpace,
+  BoardSpace,
+  OwnableSpace,
+  MonopolyCard,
+  MonopolyPlayer,
+  PropertyState,
+  TurnPhase,
+  MonopolyAction,
+  MonopolyGameState,
+  MonopolyPublicState,
+  RollDieFn,
+  DrawCardFn,
+  CreateGameOptions as MonopolyCreateGameOptions,
+} from './services/monopoly-engine.service.js';
 export { GameSessionService } from './services/game-session.service.js';
 export { UniversalLeaderboardService } from './services/universal-leaderboard.service.js';
 export {
