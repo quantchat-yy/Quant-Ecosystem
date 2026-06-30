@@ -7,6 +7,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import type { AIModelConfig, TokenUsage } from '../types';
+import { OpenRouterProvider } from '../providers/openrouter-provider';
 
 export interface ProviderGenerateOptions {
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
@@ -328,7 +329,10 @@ export class ProviderAdapterRegistry {
     this.register(new OpenAIAdapter());
     this.register(new AnthropicAdapter());
     this.register(new GoogleAdapter());
-    this.register(new OpenRouterAdapter());
+    // OpenRouter is served by the fetch-based provider (OpenAI-compatible HTTP
+    // API, no extra SDK). It registers under the same `openrouter` id and fails
+    // closed with OPENROUTER_NOT_CONFIGURED when no key is set.
+    this.register(new OpenRouterProvider());
   }
 
   register(adapter: ProviderAdapter): void {
