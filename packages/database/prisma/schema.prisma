@@ -2938,6 +2938,49 @@ model AiPromptTemplate {
   @@map("ai_prompt_templates")
 }
 
+/// A user-defined QuantAI automation (trigger + ordered actions + conditions).
+/// Persisted so automations survive restarts and sync across devices; the
+/// `/automations` API previously had no backend at all. Trigger, actions and
+/// conditions are stored as JSON documents matching the frontend Automation
+/// contract. Per-user and indexed for fast listing.
+model AiAutomation {
+  id             String    @id @default(cuid())
+  userId         String
+  name           String
+  description    String    @default("")
+  trigger        Json      @default("{}")
+  actions        Json      @default("[]")
+  conditions     Json      @default("[]")
+  isActive       Boolean   @default(true)
+  executionCount Int       @default(0)
+  lastExecutedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([userId, isActive])
+  @@map("ai_automations")
+}
+
+/// A durable execution record for an AiAutomation run. Each run captures
+/// per-step checkpoints (stepIndex, status, output/error) so an interrupted
+/// run can be inspected and resumed instead of silently losing progress.
+model AiAutomationRun {
+  id           String    @id @default(cuid())
+  automationId String
+  userId       String
+  status       String    @default("running")
+  currentStep  Int       @default(0)
+  checkpoints  Json      @default("[]")
+  error        String?
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime?
+
+  @@index([automationId])
+  @@index([userId])
+  @@map("ai_automation_runs")
+}
+
 
 // ==================== QUANTNEON ADDITIVE MODELS ====================
 // Relation-free bookmark + close-friends tables for the quantneon app.
