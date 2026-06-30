@@ -21,6 +21,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { NeonGamesService, GameError } from '../services/neon-games.service';
 import type { NeonGamePrisma, NeonGameSessionRow } from '../services/neon-games.service';
+import { MonopolyEngine } from '@quant/cross-app-gaming';
 
 // ---------------------------------------------------------------------------
 // In-memory fake of the Prisma `neonGameSession` delegate.
@@ -100,10 +101,12 @@ describe('NeonGamesService — durable in-feed game sessions', () => {
   });
 
   describe('catalog', () => {
-    it('lists games and marks tic-tac-toe playable', () => {
+    it('lists games and marks the catalog playable', () => {
       const games = svc.listGames();
       expect(games.find((g) => g.id === 'tic-tac-toe')?.status).toBe('playable');
-      expect(games.find((g) => g.id === 'uno')?.status).toBe('coming_soon');
+      expect(games.find((g) => g.id === 'uno')?.status).toBe('playable');
+      expect(games.find((g) => g.id === 'ludo')?.status).toBe('playable');
+      expect(games.find((g) => g.id === 'monopoly')?.status).toBe('playable');
     });
 
     it('getGame returns the catalog entry or undefined', () => {
@@ -122,19 +125,6 @@ describe('NeonGamesService — durable in-feed game sessions', () => {
       expect(s.board).toEqual(Array(9).fill(null));
       expect(s.turn).toBeNull();
       expect(prisma.__rows).toHaveLength(1);
-    });
-
-    it('refuses to start a coming-soon game (uno -> GAME_NOT_PLAYABLE)', async () => {
-      await expect(svc.startGame('uno', 'alice')).rejects.toThrowError(GameError);
-      await expect(svc.startGame('uno', 'alice')).rejects.toMatchObject({
-        code: 'GAME_NOT_PLAYABLE',
-      });
-    });
-
-    it('refuses to start a coming-soon game (ludo -> GAME_NOT_PLAYABLE)', async () => {
-      await expect(svc.startGame('ludo', 'alice')).rejects.toMatchObject({
-        code: 'GAME_NOT_PLAYABLE',
-      });
     });
 
     it('refuses to start an unknown game (GAME_NOT_FOUND)', async () => {
@@ -324,6 +314,98 @@ describe('NeonGamesService — durable in-feed game sessions', () => {
       const active = await svc.listActiveSessions('tic-tac-toe');
       expect(active).toHaveLength(1);
       expect(active[0]!.state).toBe('active');
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Engine-backed games (Uno / Ludo / Monopoly) via @quant/cross-app-gaming
+// ---------------------------------------------------------------------------
+
+describe('NeonGamesService — engine games', () => {
+  let prisma: ReturnType<typeof createFakeNeonGamePrisma>;
+  let svc: NeonGamesService;
+
+  beforeEach(() => {
+    prisma = createFakeNeonGamePrisma();
+    svc = new NeonGamesService(prisma);
+  });
+
+  it('auto-starts an Uno session and initializes engine state', async () => {
+    const s = await svc.startGame('uno', 'alice');
+    expect(s.state).toBe('waiting');
+    const sess = await svc.joinGame(s.id, 'bob');
+    expect(sess.state).toBe('active');
+    expect(sess.turn).toBe('alice');
+    expect(sess.engineState).toBeDefined();
+  });
+
+  it('rejects an Uno move from the wrong player (NOT_YOUR_TURN)', async () => {
+    const s = await svc.startGame('uno', 'alice');
+    await svc.joinGame(s.id, 'bob');
+    await expect(svc.submitMove(s.id, 'bob', { type: 'uno_draw' })).rejects.toMatchObject({
+      code: 'NOT_YOUR_TURN',
+    });
+  });
+
+  it('applies an Uno draw for the active player and persists state', async () => {
+    const s = await svc.startGame('uno', 'alice');
+    await svc.joinGame(s.id, 'bob');
+    const sess = await svc.submitMove(s.id, 'alice', { type: 'uno_draw' });
+    expect(sess.state).toBe('active');
+    expect(sess.engineState).toBeDefined();
+    const reloaded = await svc.getSession(s.id);
+    expect(reloaded.engineState).toBeDefined();
+  });
+
+  it('auto-starts a Ludo session with the host on turn', async () => {
+    const s = await svc.startGame('ludo', 'alice');
+    const sess = await svc.joinGame(s.id, 'bob');
+    expect(sess.state).toBe('active');
+    expect(sess.turn).toBe('alice');
+    expect(sess.engineState).toBeDefined();
+  });
+
+  it('rejects a Ludo roll from the wrong player', async () => {
+    const s = await svc.startGame('ludo', 'alice');
+    await svc.joinGame(s.id, 'bob');
+    await expect(svc.submitMove(s.id, 'bob', { type: 'ludo_roll' })).rejects.toThrowError(
+      GameError,
+    );
+  });
+
+  it('applies a Ludo roll for the active player', async () => {
+    const s = await svc.startGame('ludo', 'alice');
+    await svc.joinGame(s.id, 'bob');
+    const sess = await svc.submitMove(s.id, 'alice', { type: 'ludo_roll' });
+    expect(sess.engineState).toBeDefined();
+    expect(['active', 'finished']).toContain(sess.state);
+  });
+
+  it('auto-starts a Monopoly session and applies a deterministic roll', async () => {
+    const monopoly = new MonopolyEngine({ rollDie: () => 2, drawCard: () => 0 });
+    const svc2 = new NeonGamesService(prisma, () => new Date(), { monopoly });
+    const s = await svc2.startGame('monopoly', 'alice');
+    const joined = await svc2.joinGame(s.id, 'bob');
+    expect(joined.turn).toBe('alice');
+    // 2 + 2 = 4 -> Income Tax; engine state advances and persists.
+    const sess = await svc2.submitMove(s.id, 'alice', { type: 'monopoly_roll' });
+    expect(sess.engineState).toBeDefined();
+    expect(sess.state).toBe('active');
+  });
+
+  it('rejects a Monopoly roll from the wrong player (NOT_YOUR_TURN)', async () => {
+    const s = await svc.startGame('monopoly', 'alice');
+    await svc.joinGame(s.id, 'bob');
+    await expect(svc.submitMove(s.id, 'bob', { type: 'monopoly_roll' })).rejects.toMatchObject({
+      code: 'NOT_YOUR_TURN',
+    });
+  });
+
+  it('rejects engine moves before a session is active', async () => {
+    const s = await svc.startGame('uno', 'alice');
+    await expect(svc.submitMove(s.id, 'alice', { type: 'uno_draw' })).rejects.toMatchObject({
+      code: 'SESSION_NOT_ACTIVE',
     });
   });
 });

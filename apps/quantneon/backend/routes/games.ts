@@ -28,7 +28,24 @@ function getService(fastify: FastifyInstance): NeonGamesService {
   return new NeonGamesService((fastify as unknown as { prisma: unknown }).prisma as never);
 }
 
-const actionSchema = z.object({ cell: z.coerce.number().int().min(0).max(8) });
+const actionSchema = z.union([
+  z.object({ cell: z.coerce.number().int().min(0).max(8) }),
+  z.object({
+    type: z.literal('uno_play'),
+    cardId: z.string().min(1),
+    chosenColor: z.enum(['red', 'yellow', 'green', 'blue']).optional(),
+  }),
+  z.object({ type: z.literal('uno_draw') }),
+  z.object({ type: z.literal('ludo_roll') }),
+  z.object({ type: z.literal('ludo_move'), tokenId: z.string().min(1) }),
+  z.object({ type: z.literal('monopoly_roll') }),
+  z.object({ type: z.literal('monopoly_buy') }),
+  z.object({ type: z.literal('monopoly_decline') }),
+  z.object({ type: z.literal('monopoly_build'), index: z.coerce.number().int().min(0).max(39) }),
+  z.object({ type: z.literal('monopoly_end') }),
+  z.object({ type: z.literal('monopoly_jail_fine') }),
+  z.object({ type: z.literal('monopoly_jail_card') }),
+]);
 
 const ERROR_STATUS: Record<GameError['code'], number> = {
   GAME_NOT_FOUND: 404,
