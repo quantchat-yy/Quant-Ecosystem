@@ -20,3 +20,26 @@ export type {
 export { CrossAppHostService } from './services/cross-app-host.service.js';
 export { IdentityBridgeService } from './services/identity-bridge.service.js';
 export { MinorSafetyService } from './services/minor-safety.service.js';
+export {
+  UnoEngine,
+  UnoError,
+  buildDeck,
+  isPlayable,
+  isWildValue,
+  nextTurn,
+} from './services/uno-engine.service.js';
+export type {
+  UnoErrorCode,
+  UnoColor,
+  UnoNumberValue,
+  UnoActionValue,
+  UnoWildValue,
+  UnoValue,
+  UnoCard,
+  UnoPlayer,
+  UnoAction,
+  UnoGameState,
+  UnoPublicState,
+  ShuffleFn,
+  CreateGameOptions,
+} from './services/uno-engine.service.js';
