@@ -17,7 +17,7 @@ export { retryWithBackoff } from './core/retry';
 export { SemanticCache } from './core/semantic-cache';
 export { SafetyPipeline } from './core/safety';
 export { CostTracker } from './core/cost-tracker';
-export { AIProviderUnavailableError } from './core/errors';
+export { AIProviderUnavailableError, OpenRouterNotConfiguredError } from './core/errors';
 export { RoutingTable } from './core/routing-table';
 export { ProviderHealthMonitor } from './core/provider-health';
 export { RequestCostLogger } from './core/request-cost-logger';
@@ -37,6 +37,24 @@ export type {
 } from './core/provider-adapter';
 export { TokenCounter } from './core/token-counter';
 export type { TokenCountResult } from './core/token-counter';
+
+// Providers
+export {
+  OpenRouterProvider,
+  loadOpenRouterConfig,
+  DEFAULT_OPENROUTER_BASE_URL,
+  resolveUserModel,
+  resolveUserModelDetailed,
+  isModelAllowed,
+} from './providers';
+export type {
+  OpenRouterConfig,
+  OpenRouterAdapterOptions,
+  FetchLike,
+  ResolveUserModelOptions,
+  ResolvedUserModel,
+  ModelResolutionSource,
+} from './providers';
 
 // Services
 export { ChatAIService } from './services/chat-ai';
