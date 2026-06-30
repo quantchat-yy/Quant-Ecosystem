@@ -41,6 +41,7 @@ export interface ClickFraudPrisma {
 export interface ClickAssessmentInput {
   adId: string;
   campaignId?: string | null;
+  publisherId?: string | null;
   userId: string;
   ip?: string | undefined;
   deviceFp?: string | undefined;
@@ -170,6 +171,7 @@ export class ClickFraudService {
         id: this.generateId(),
         adId: input.adId,
         campaignId: input.campaignId ?? null,
+        publisherId: input.publisherId ?? null,
         userId: input.userId,
         ipHash,
         deviceFp: input.deviceFp ?? null,

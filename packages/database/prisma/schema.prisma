@@ -817,10 +817,12 @@ model AdClickEvent {
   id         String   @id @default(cuid())
   adId       String
   campaignId String?
+  publisherId String?
   userId     String
   ipHash     String?
   deviceFp   String?
   billable   Boolean  @default(true)
+  paidOut    Boolean  @default(false)
   fraudFlag  Boolean  @default(false)
   fraudReason String?
   createdAt  DateTime @default(now())
@@ -828,7 +830,27 @@ model AdClickEvent {
   @@index([adId])
   @@index([userId, createdAt])
   @@index([ipHash, createdAt])
+  @@index([publisherId, billable, paidOut])
   @@map("ad_click_events")
+}
+
+/// A durable record of one daily publisher-payout batch. `utcDay` is unique so
+/// a re-run for the same day is idempotent. Counts give an at-a-glance audit of
+/// how many publishers were paid / skipped / failed and the total credits paid.
+model PublisherPayoutRun {
+  id                  String    @id @default(cuid())
+  utcDay              String    @unique
+  status              String    @default("running") // running | completed | failed
+  publishersConsidered Int      @default(0)
+  paid                Int       @default(0)
+  skipped             Int       @default(0)
+  failed              Int       @default(0)
+  totalCreditsPaid    Int       @default(0)
+  error               String?
+  startedAt           DateTime  @default(now())
+  finishedAt          DateTime?
+
+  @@map("publisher_payout_runs")
 }
 
 // ==================== MEDIA (QuantTube / QuantNeon) ====================

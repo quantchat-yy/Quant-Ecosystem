@@ -17,6 +17,7 @@ const recordEventSchema = z.object({
 const clickEventSchema = z.object({
   adId: z.string(),
   userId: z.string(),
+  publisherId: z.string().optional(),
   deviceFp: z.string().optional(),
 });
 
@@ -62,6 +63,7 @@ export default async function servingRoutes(fastify: FastifyInstance) {
       adId: parseResult.data.adId,
       userId: parseResult.data.userId,
       ip: request.ip,
+      ...(parseResult.data.publisherId ? { publisherId: parseResult.data.publisherId } : {}),
       ...(parseResult.data.deviceFp ? { deviceFp: parseResult.data.deviceFp } : {}),
     });
 
