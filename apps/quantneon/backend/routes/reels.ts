@@ -76,4 +76,16 @@ export default async function reelsRoutes(fastify: FastifyInstance) {
     const comments = await getService(fastify).getComments(request.params.id);
     return reply.send({ success: true, data: { comments } });
   });
+
+  fastify.get<{ Params: { id: string } }>('/:id', async (request, reply) => {
+    const viewerId = (request as { auth?: { userId?: string } }).auth?.userId;
+    const reel = await getService(fastify).getReel(request.params.id, viewerId);
+    return reply.send({ success: true, data: { reel } });
+  });
+
+  fastify.delete<{ Params: { id: string } }>('/:id', async (request, reply) => {
+    const userId = getUserId(request);
+    const result = await getService(fastify).deleteReel(request.params.id, userId);
+    return reply.send({ success: true, data: result });
+  });
 }

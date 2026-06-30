@@ -290,4 +290,11 @@ export class PhotoService {
 
     return album;
   }
+
+  async listAlbumsByUser(userId: string): Promise<PhotoAlbum[]> {
+    return this.prisma.photoAlbum.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

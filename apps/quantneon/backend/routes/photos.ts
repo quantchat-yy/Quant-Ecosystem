@@ -107,11 +107,44 @@ export default async function photosRoutes(fastify: FastifyInstance) {
     return reply.status(201).send({ success: true, data: album });
   });
 
+  fastify.get('/albums', async (request, reply) => {
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    const service = new PhotoService(prisma as never);
+    const albums = await service.listAlbumsByUser(userId);
+
+    return reply.send({ success: true, data: albums });
+  });
+
   fastify.get<{ Params: { id: string } }>('/albums/:id', async (request, reply) => {
     const prisma = (fastify as unknown as { prisma: unknown }).prisma;
     const service = new PhotoService(prisma as never);
     const album = await service.getAlbum(request.params.id);
 
     return reply.send({ success: true, data: album });
+  });
+
+  fastify.get<{ Params: { id: string } }>('/albums/:id/photos', async (request, reply) => {
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const queryResult = paginationSchema.safeParse(request.query);
+    if (!queryResult.success) {
+      throw queryResult.error;
+    }
+
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    const service = new PhotoService(prisma as never);
+    // Verify the album exists / is accessible before listing its photos.
+    await service.getAlbum(request.params.id);
+    const result = await service.listByAlbum(request.params.id, queryResult.data);
+
+    return reply.send({ success: true, data: result });
   });
 }
