@@ -45,6 +45,10 @@ const actionSchema = z.union([
   z.object({ type: z.literal('monopoly_end') }),
   z.object({ type: z.literal('monopoly_jail_fine') }),
   z.object({ type: z.literal('monopoly_jail_card') }),
+  z.object({
+    type: z.literal('connect_four_drop'),
+    column: z.coerce.number().int().min(0).max(11),
+  }),
 ]);
 
 const ERROR_STATUS: Record<GameError['code'], number> = {
