@@ -1,12 +1,12 @@
 // ============================================================================
-// QuantTrinity - In-memory owner control store
+// QuantTrinity - Owner control store (durable, Prisma-backed)
 // ============================================================================
 //
-// A process-local, seeded store backing the owner control plane. It is the
-// single source of truth for team accounts, the app registry, the credit
-// economy, the model registry, payouts and the report queue while the
-// persistent (Prisma) backing for these owner-tier concepts is being modelled.
-// Mirrors the pattern used by admin's feature-flags `_store`.
+// The single source of truth for the owner control plane: team accounts, the
+// app registry, the credit economy, the model registry, payouts, revenue and
+// the report queue. The ENTIRE owner-tier state is persisted as one JSON
+// document in the single `trinity_control_state` row (id = "singleton"), so it
+// survives process restarts instead of living in process memory.
 
 import {
   type AuditEntry,
@@ -22,6 +22,7 @@ import {
   type PrincipalKind,
   type AiEmployeeConfig,
 } from './domain';
+import { prisma } from './prisma';
 
 interface TrinityState {
   team: TeamMember[];
@@ -34,7 +35,23 @@ interface TrinityState {
   audit: AuditEntry[];
 }
 
-const globalForTrinity = globalThis as unknown as { __trinity?: TrinityState };
+/**
+ * Narrow view of the Prisma client covering only the delegate operations this
+ * store uses. Lets the store be exercised against a fake in tests while the
+ * real `prisma` singleton satisfies it structurally in production.
+ */
+export interface TrinityPrisma {
+  trinityControlState: {
+    findUnique(args: { where: { id: string } }): Promise<{ id: string; data: unknown } | null>;
+    upsert(args: {
+      where: { id: string };
+      create: Record<string, unknown>;
+      update: Record<string, unknown>;
+    }): Promise<{ id: string; data: unknown }>;
+  };
+}
+
+const SINGLETON_ID = 'singleton';
 
 function nowIso(offsetMin = 0): string {
   return new Date(Date.now() - offsetMin * 60_000).toISOString();
@@ -210,30 +227,64 @@ function report(
   return { id, app: appName, reason, reporter, sector, severity, status, createdAt: nowIso(120) };
 }
 
-function state(): TrinityState {
-  if (!globalForTrinity.__trinity) {
-    globalForTrinity.__trinity = seed();
+// ---------------------------------------------------------------------------
+// Durable load / save of the single owner-state document
+// ---------------------------------------------------------------------------
+
+/**
+ * Load the owner state from the singleton row, seeding (and persisting) it on
+ * first access so a fresh database always has a complete control plane.
+ */
+async function loadState(db: TrinityPrisma): Promise<TrinityState> {
+  const row = await db.trinityControlState.findUnique({ where: { id: SINGLETON_ID } });
+  if (!row) {
+    const seeded = seed();
+    await db.trinityControlState.upsert({
+      where: { id: SINGLETON_ID },
+      create: { id: SINGLETON_ID, data: seeded },
+      update: { data: seeded },
+    });
+    return seeded;
   }
-  return globalForTrinity.__trinity;
+  return row.data as TrinityState;
 }
 
-let counter = 1000;
-function nextId(prefix: string): string {
-  counter += 1;
-  return `${prefix}-${counter}`;
+/** Persist the entire owner state back to the singleton row. */
+async function saveState(db: TrinityPrisma, s: TrinityState): Promise<void> {
+  await db.trinityControlState.upsert({
+    where: { id: SINGLETON_ID },
+    create: { id: SINGLETON_ID, data: s },
+    update: { data: s },
+  });
 }
+
+// IDs must stay unique without a module-level counter (which would not survive
+// restarts). We derive them from a timestamp plus a short random suffix. This
+// is an identifier, not a security token, so Math.random is acceptable here.
+function nextId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+const defaultDb = (): TrinityPrisma => prisma as unknown as TrinityPrisma;
 
 // ---------------------------------------------------------------------------
 // Team / sectors / AI-as-employee
 // ---------------------------------------------------------------------------
 
-export function listTeam(sector?: Sector): TeamMember[] {
-  const team = state().team;
-  return sector ? team.filter((m) => m.sector === sector) : team;
+export async function listTeam(
+  sector?: Sector,
+  db: TrinityPrisma = defaultDb(),
+): Promise<TeamMember[]> {
+  const s = await loadState(db);
+  return sector ? s.team.filter((m) => m.sector === sector) : s.team;
 }
 
-export function getTeamMember(id: string): TeamMember | null {
-  return state().team.find((m) => m.id === id) ?? null;
+export async function getTeamMember(
+  id: string,
+  db: TrinityPrisma = defaultDb(),
+): Promise<TeamMember | null> {
+  const s = await loadState(db);
+  return s.team.find((m) => m.id === id) ?? null;
 }
 
 export interface CreateTeamMemberInput {
@@ -245,7 +296,11 @@ export interface CreateTeamMemberInput {
   ai?: AiEmployeeConfig;
 }
 
-export function createTeamMember(input: CreateTeamMemberInput): TeamMember {
+export async function createTeamMember(
+  input: CreateTeamMemberInput,
+  db: TrinityPrisma = defaultDb(),
+): Promise<TeamMember> {
+  const s = await loadState(db);
   const member: TeamMember = {
     id: nextId('tm'),
     kind: input.kind,
@@ -257,20 +312,24 @@ export function createTeamMember(input: CreateTeamMemberInput): TeamMember {
     createdAt: new Date().toISOString(),
     ai: input.kind === 'ai' ? input.ai : undefined,
   };
-  state().team.unshift(member);
+  s.team.unshift(member);
+  await saveState(db, s);
   return member;
 }
 
-export function updateTeamMember(
+export async function updateTeamMember(
   id: string,
   patch: Partial<Pick<TeamMember, 'sector' | 'role' | 'status'>> & { ai?: AiEmployeeConfig },
-): TeamMember | null {
-  const member = state().team.find((m) => m.id === id);
+  db: TrinityPrisma = defaultDb(),
+): Promise<TeamMember | null> {
+  const s = await loadState(db);
+  const member = s.team.find((m) => m.id === id);
   if (!member) return null;
   if (patch.sector) member.sector = patch.sector;
   if (patch.role) member.role = patch.role;
   if (patch.status) member.status = patch.status;
   if (patch.ai && member.kind === 'ai') member.ai = patch.ai;
+  await saveState(db, s);
   return member;
 }
 
@@ -278,19 +337,23 @@ export function updateTeamMember(
 // App registry control
 // ---------------------------------------------------------------------------
 
-export function listApps(): EcosystemApp[] {
-  return state().apps;
+export async function listApps(db: TrinityPrisma = defaultDb()): Promise<EcosystemApp[]> {
+  const s = await loadState(db);
+  return s.apps;
 }
 
-export function updateApp(
+export async function updateApp(
   id: string,
   patch: Partial<Pick<EcosystemApp, 'status' | 'modelId' | 'sidekickEnabled'>>,
-): EcosystemApp | null {
-  const a = state().apps.find((x) => x.id === id);
+  db: TrinityPrisma = defaultDb(),
+): Promise<EcosystemApp | null> {
+  const s = await loadState(db);
+  const a = s.apps.find((x) => x.id === id);
   if (!a) return null;
   if (patch.status) a.status = patch.status;
   if (patch.modelId) a.modelId = patch.modelId;
   if (typeof patch.sidekickEnabled === 'boolean') a.sidekickEnabled = patch.sidekickEnabled;
+  await saveState(db, s);
   return a;
 }
 
@@ -299,16 +362,19 @@ export function updateApp(
  * Powers the owner's ecosystem-wide actions (e.g. "switch every app to the
  * local model" or "put everything in maintenance"). Returns the affected apps.
  */
-export function bulkUpdateApps(
+export async function bulkUpdateApps(
   patch: Partial<Pick<EcosystemApp, 'status' | 'modelId' | 'sidekickEnabled'>>,
   onlyIds?: string[],
-): EcosystemApp[] {
-  const targets = state().apps.filter((a) => !onlyIds || onlyIds.includes(a.id));
+  db: TrinityPrisma = defaultDb(),
+): Promise<EcosystemApp[]> {
+  const s = await loadState(db);
+  const targets = s.apps.filter((a) => !onlyIds || onlyIds.includes(a.id));
   for (const a of targets) {
     if (patch.status) a.status = patch.status;
     if (patch.modelId) a.modelId = patch.modelId;
     if (typeof patch.sidekickEnabled === 'boolean') a.sidekickEnabled = patch.sidekickEnabled;
   }
+  await saveState(db, s);
   return targets;
 }
 
@@ -316,54 +382,80 @@ export function bulkUpdateApps(
 // Economy: credits, models, payouts, revenue
 // ---------------------------------------------------------------------------
 
-export function getCreditConfig(): CreditConfig {
-  return state().credit;
+export async function getCreditConfig(db: TrinityPrisma = defaultDb()): Promise<CreditConfig> {
+  const s = await loadState(db);
+  return s.credit;
 }
-export function updateCreditConfig(patch: Partial<CreditConfig>): CreditConfig {
-  const c = state().credit;
-  Object.assign(c, patch);
-  return c;
+export async function updateCreditConfig(
+  patch: Partial<CreditConfig>,
+  db: TrinityPrisma = defaultDb(),
+): Promise<CreditConfig> {
+  const s = await loadState(db);
+  Object.assign(s.credit, patch);
+  await saveState(db, s);
+  return s.credit;
 }
 
-export function listModels(): ModelRegistryEntry[] {
-  return state().models;
+export async function listModels(db: TrinityPrisma = defaultDb()): Promise<ModelRegistryEntry[]> {
+  const s = await loadState(db);
+  return s.models;
 }
-export function updateModel(
+export async function updateModel(
   id: string,
   patch: Partial<Pick<ModelRegistryEntry, 'enabled' | 'local' | 'creditPer1kTokens'>>,
-): ModelRegistryEntry | null {
-  const m = state().models.find((x) => x.id === id);
+  db: TrinityPrisma = defaultDb(),
+): Promise<ModelRegistryEntry | null> {
+  const s = await loadState(db);
+  const m = s.models.find((x) => x.id === id);
   if (!m) return null;
   Object.assign(m, patch);
+  await saveState(db, s);
   return m;
 }
 
-export function listPayouts(): PayoutRequest[] {
-  return state().payouts;
+export async function listPayouts(db: TrinityPrisma = defaultDb()): Promise<PayoutRequest[]> {
+  const s = await loadState(db);
+  return s.payouts;
 }
-export function updatePayout(id: string, status: PayoutRequest['status']): PayoutRequest | null {
-  const p = state().payouts.find((x) => x.id === id);
+export async function updatePayout(
+  id: string,
+  status: PayoutRequest['status'],
+  db: TrinityPrisma = defaultDb(),
+): Promise<PayoutRequest | null> {
+  const s = await loadState(db);
+  const p = s.payouts.find((x) => x.id === id);
   if (!p) return null;
   p.status = status;
+  await saveState(db, s);
   return p;
 }
 
-export function listRevenue(): RevenueStream[] {
-  return state().revenue;
+export async function listRevenue(db: TrinityPrisma = defaultDb()): Promise<RevenueStream[]> {
+  const s = await loadState(db);
+  return s.revenue;
 }
 
 // ---------------------------------------------------------------------------
 // Reports
 // ---------------------------------------------------------------------------
 
-export function listReports(sector?: Sector): OwnerReport[] {
-  const reports = state().reports;
-  return sector ? reports.filter((r) => r.sector === sector) : reports;
+export async function listReports(
+  sector?: Sector,
+  db: TrinityPrisma = defaultDb(),
+): Promise<OwnerReport[]> {
+  const s = await loadState(db);
+  return sector ? s.reports.filter((r) => r.sector === sector) : s.reports;
 }
-export function updateReport(id: string, status: OwnerReport['status']): OwnerReport | null {
-  const r = state().reports.find((x) => x.id === id);
+export async function updateReport(
+  id: string,
+  status: OwnerReport['status'],
+  db: TrinityPrisma = defaultDb(),
+): Promise<OwnerReport | null> {
+  const s = await loadState(db);
+  const r = s.reports.find((x) => x.id === id);
   if (!r) return null;
   r.status = status;
+  await saveState(db, s);
   return r;
 }
 
@@ -371,12 +463,16 @@ export function updateReport(id: string, status: OwnerReport['status']): OwnerRe
 // Owner audit trail
 // ---------------------------------------------------------------------------
 
-export function recordAudit(entry: {
-  actor?: string;
-  action: string;
-  target: string;
-  detail?: string;
-}): AuditEntry {
+export async function recordAudit(
+  entry: {
+    actor?: string;
+    action: string;
+    target: string;
+    detail?: string;
+  },
+  db: TrinityPrisma = defaultDb(),
+): Promise<AuditEntry> {
+  const s = await loadState(db);
   const audit: AuditEntry = {
     id: nextId('au'),
     at: new Date().toISOString(),
@@ -385,12 +481,17 @@ export function recordAudit(entry: {
     target: entry.target,
     detail: entry.detail,
   };
-  state().audit.unshift(audit);
+  s.audit.unshift(audit);
   // keep the trail bounded
-  if (state().audit.length > 500) state().audit.length = 500;
+  if (s.audit.length > 500) s.audit.length = 500;
+  await saveState(db, s);
   return audit;
 }
 
-export function listAudit(limit = 100): AuditEntry[] {
-  return state().audit.slice(0, limit);
+export async function listAudit(
+  limit = 100,
+  db: TrinityPrisma = defaultDb(),
+): Promise<AuditEntry[]> {
+  const s = await loadState(db);
+  return s.audit.slice(0, limit);
 }

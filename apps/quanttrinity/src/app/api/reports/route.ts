@@ -6,7 +6,7 @@ import { listReports, recordAudit, updateReport } from '../../../lib/store';
 export async function GET(request: NextRequest) {
   const sectorParam = request.nextUrl.searchParams.get('sector');
   const sector = SECTORS.find((s) => s === sectorParam);
-  return NextResponse.json({ success: true, data: listReports(sector) });
+  return NextResponse.json({ success: true, data: await listReports(sector) });
 }
 
 const patchSchema = z.object({
@@ -33,14 +33,14 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  const report = updateReport(parsed.data.id, parsed.data.status);
+  const report = await updateReport(parsed.data.id, parsed.data.status);
   if (!report) {
     return NextResponse.json(
       { success: false, error: { message: 'Report not found', code: 'NOT_FOUND' } },
       { status: 404 },
     );
   }
-  recordAudit({
+  await recordAudit({
     action: `report.${parsed.data.status}`,
     target: report.id,
     detail: `${report.app} · ${report.reason}`,

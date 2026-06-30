@@ -3484,3 +3484,19 @@ model Calendar {
   @@index([userId])
   @@map("calendars")
 }
+
+// QuantTrinity owner control-plane state. A single durable document (one row,
+// id = "singleton") holding the owner's team, app registry, model registry,
+// payouts, revenue streams, reports and audit trail. Replaces the previous
+// in-memory `globalThis.__trinity` store so owner state survives restarts and
+// is shared across backend instances. The shape is owned by the app's
+// `TrinityState` type; `data` is the serialized document. (The credit/economy
+// config is persisted separately by @quant/credits.)
+model TrinityControlState {
+  id        String   @id @default("singleton")
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("trinity_control_state")
+}

@@ -11,7 +11,7 @@ import {
 export async function GET(request: NextRequest) {
   const sectorParam = request.nextUrl.searchParams.get('sector');
   const sector = SECTORS.find((s) => s === sectorParam);
-  return NextResponse.json({ success: true, data: listTeam(sector) });
+  return NextResponse.json({ success: true, data: await listTeam(sector) });
 }
 
 const aiSchema = z.object({
@@ -64,8 +64,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const member = createTeamMember(parsed.data as CreateTeamMemberInput);
-  recordAudit({
+  const member = await createTeamMember(parsed.data as CreateTeamMemberInput);
+  await recordAudit({
     action: member.kind === 'ai' ? 'team.ai_employee.deployed' : 'team.member.invited',
     target: member.id,
     detail: `${member.name} · ${member.sector}/${member.role}`,

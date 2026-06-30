@@ -5,7 +5,7 @@ import { isEnabled, listSchedule, setCadence, setEnabled } from '../../../lib/sc
 export async function GET() {
   return NextResponse.json({
     success: true,
-    data: { enabled: isEnabled(), entries: listSchedule() },
+    data: { enabled: isEnabled(), entries: await listSchedule() },
   });
 }
 
@@ -37,7 +37,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true, data: { enabled: setEnabled(parsed.data.enabled) } });
   }
 
-  const entry = setCadence(parsed.data.employeeId, parsed.data.cadence);
+  const entry = await setCadence(parsed.data.employeeId, parsed.data.cadence);
   if (!entry) {
     return NextResponse.json(
       { success: false, error: { message: 'AI employee not found', code: 'NOT_FOUND' } },

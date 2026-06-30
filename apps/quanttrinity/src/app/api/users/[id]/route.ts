@@ -33,7 +33,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       data: { status: parsed.data.status },
       select: { id: true, username: true, status: true },
     });
-    recordAudit({
+    await recordAudit({
       action: `user.status.${parsed.data.status.toLowerCase()}`,
       target: id,
       detail: `@${updated.username}`,

@@ -9,7 +9,8 @@
 // its own ("AI jo roz khud kaam karega").
 
 import type { TeamMember } from './domain';
-import { listTeam, recordAudit } from './store';
+import { listTeam, recordAudit, type TrinityPrisma } from './store';
+import { prisma } from './prisma';
 import { runShift, type ShiftResult } from './ai-employee-runtime';
 
 export type Cadence = 'manual' | 'hourly' | 'daily';
@@ -75,8 +76,14 @@ export function getEntry(member: TeamMember): ScheduleEntry {
   return entry;
 }
 
-export function setCadence(employeeId: string, cadence: Cadence): ScheduleEntry | null {
-  const member = listTeam().find((m) => m.id === employeeId && m.kind === 'ai');
+export async function setCadence(
+  employeeId: string,
+  cadence: Cadence,
+  db: TrinityPrisma = prisma as unknown as TrinityPrisma,
+): Promise<ScheduleEntry | null> {
+  const member = (await listTeam(undefined, db)).find(
+    (m) => m.id === employeeId && m.kind === 'ai',
+  );
   if (!member) return null;
   const entry = getEntry(member);
   entry.cadence = cadence;
@@ -108,8 +115,12 @@ export interface SchedulerEntryView extends ScheduleEntry {
   due: boolean;
 }
 
-export function listSchedule(now = Date.now()): SchedulerEntryView[] {
-  return listTeam()
+export async function listSchedule(
+  now = Date.now(),
+  db: TrinityPrisma = prisma as unknown as TrinityPrisma,
+): Promise<SchedulerEntryView[]> {
+  const team = await listTeam(undefined, db);
+  return team
     .filter((m) => m.kind === 'ai')
     .map((m) => {
       const entry = getEntry(m);
@@ -135,7 +146,11 @@ export interface SchedulerRunResult {
  * `force` is true, runs all active AI employees regardless of cadence (the
  * "Run all now" button).
  */
-export function runDueShifts(now = Date.now(), force = false): SchedulerRunResult {
+export async function runDueShifts(
+  now = Date.now(),
+  force = false,
+  db: TrinityPrisma = prisma as unknown as TrinityPrisma,
+): Promise<SchedulerRunResult> {
   const s = sched();
   const results: ShiftResult[] = [];
 
@@ -143,12 +158,14 @@ export function runDueShifts(now = Date.now(), force = false): SchedulerRunResul
     return { ranAt: new Date(now).toISOString(), enabled: false, dueCount: 0, results: [] };
   }
 
-  const aiMembers = listTeam().filter((m) => m.kind === 'ai' && m.status === 'active');
+  const aiMembers = (await listTeam(undefined, db)).filter(
+    (m) => m.kind === 'ai' && m.status === 'active',
+  );
   for (const member of aiMembers) {
     const entry = getEntry(member);
     if (!force && !isDue(entry, now)) continue;
 
-    const result = runShift(member);
+    const result = await runShift(member, db);
     results.push(result);
     entry.lastRunAt = new Date(now).toISOString();
     entry.nextRunAt = computeNextRun(entry.cadence, entry.lastRunAt);
@@ -156,12 +173,15 @@ export function runDueShifts(now = Date.now(), force = false): SchedulerRunResul
 
   if (results.length > 0) {
     const totalProcessed = results.reduce((sum, r) => sum + r.processed, 0);
-    recordAudit({
-      actor: 'scheduler',
-      action: 'scheduler.run',
-      target: `${results.length} employee(s)`,
-      detail: `${force ? 'Manual' : 'Autopilot'} run · ${totalProcessed} item(s) processed`,
-    });
+    await recordAudit(
+      {
+        actor: 'scheduler',
+        action: 'scheduler.run',
+        target: `${results.length} employee(s)`,
+        detail: `${force ? 'Manual' : 'Autopilot'} run · ${totalProcessed} item(s) processed`,
+      },
+      db,
+    );
   }
 
   return {

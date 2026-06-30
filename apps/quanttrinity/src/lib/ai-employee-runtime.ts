@@ -24,7 +24,8 @@ import {
   scoreToPermissionLevel,
 } from '@quant/agent-runtime';
 import type { AiEmployeeConfig, OwnerReport, Sector, TeamMember } from './domain';
-import { listReports, recordAudit, updateReport } from './store';
+import { listReports, recordAudit, updateReport, type TrinityPrisma } from './store';
+import { prisma } from './prisma';
 
 const COST_PER_ITEM = 1; // credits per item handled
 const MAX_ITEMS_PER_SHIFT = 8;
@@ -168,7 +169,10 @@ const SECTOR_QUEUE: Partial<Record<Sector, true>> = {
  * Run one shift for an AI employee. Returns what it did. Throws if the member
  * is not an AI employee.
  */
-export function runShift(member: TeamMember): ShiftResult {
+export async function runShift(
+  member: TeamMember,
+  db: TrinityPrisma = prisma as unknown as TrinityPrisma,
+): Promise<ShiftResult> {
   if (member.kind !== 'ai') {
     throw new Error('runShift can only be called for AI employees');
   }
@@ -203,7 +207,7 @@ export function runShift(member: TeamMember): ShiftResult {
 
   try {
     if (handlesReports) {
-      const queue = listReports().filter((r) => r.status !== 'resolved');
+      const queue = (await listReports(undefined, db)).filter((r) => r.status !== 'resolved');
       // moderation/trust-safety focus their own sector; reporting handles all.
       const scoped =
         member.sector === 'reporting' ? queue : queue.filter((r) => r.sector === member.sector);
@@ -217,7 +221,7 @@ export function runShift(member: TeamMember): ShiftResult {
         const decision = decideReportAction(level, report);
         rt.spend.recordSpend(COST_PER_ITEM);
         if (decision.nextStatus) {
-          updateReport(report.id, decision.nextStatus);
+          await updateReport(report.id, decision.nextStatus, db);
         }
         rt.trust.recordSuccess();
         const action: EmployeeAction = {
@@ -228,12 +232,15 @@ export function runShift(member: TeamMember): ShiftResult {
           creditsSpent: COST_PER_ITEM,
         };
         actions.push(action);
-        recordAudit({
-          actor: member.name,
-          action: `ai_employee.report.${decision.kind}`,
-          target: report.id,
-          detail: action.summary,
-        });
+        await recordAudit(
+          {
+            actor: member.name,
+            action: `ai_employee.report.${decision.kind}`,
+            target: report.id,
+            detail: action.summary,
+          },
+          db,
+        );
         processed += 1;
       }
       if (!note) {
@@ -250,12 +257,15 @@ export function runShift(member: TeamMember): ShiftResult {
       }
       note = `Reviewed ${processed} item(s) in ${member.sector}.`;
       if (processed > 0) {
-        recordAudit({
-          actor: member.name,
-          action: 'ai_employee.review',
-          target: member.sector,
-          detail: note,
-        });
+        await recordAudit(
+          {
+            actor: member.name,
+            action: 'ai_employee.review',
+            target: member.sector,
+            detail: note,
+          },
+          db,
+        );
       }
     }
     rt.machine.transition(AgentState.DONE);

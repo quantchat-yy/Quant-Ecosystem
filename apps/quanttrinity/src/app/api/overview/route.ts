@@ -23,9 +23,9 @@ export async function GET() {
     users = { total: 0, activeToday: 0, dbConnected: false };
   }
 
-  const apps = listApps();
-  const revenue = listRevenue();
-  const team = listTeam();
+  const apps = await listApps();
+  const revenue = await listRevenue();
+  const team = await listTeam();
   // Durable credit/economy config (falls back to defaults if the DB is down,
   // mirroring the user-count graceful fallback above).
   let credit = DEFAULT_PLATFORM_CONFIG;

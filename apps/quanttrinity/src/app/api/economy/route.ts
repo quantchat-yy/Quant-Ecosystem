@@ -33,13 +33,18 @@ function toApiCredit(cfg: {
 
 export async function GET() {
   const credit = await configService().getConfig();
+  const [models, payouts, revenue] = await Promise.all([
+    listModels(),
+    listPayouts(),
+    listRevenue(),
+  ]);
   return NextResponse.json({
     success: true,
     data: {
       credit: toApiCredit(credit),
-      models: listModels(),
-      payouts: listPayouts(),
-      revenue: listRevenue(),
+      models,
+      payouts,
+      revenue,
     },
   });
 }
@@ -88,7 +93,7 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const updated = await configService().setConfig(OWNER_PRINCIPAL, patch);
-    recordAudit({
+    await recordAudit({
       action: 'economy.credit_config.updated',
       target: 'credit',
       detail: JSON.stringify(parsed.data),

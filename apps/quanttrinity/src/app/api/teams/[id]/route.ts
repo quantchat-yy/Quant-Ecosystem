@@ -43,13 +43,17 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     );
   }
 
-  const member = updateTeamMember(id, parsed.data);
+  const member = await updateTeamMember(id, parsed.data);
   if (!member) {
     return NextResponse.json(
       { success: false, error: { message: 'Team member not found', code: 'NOT_FOUND' } },
       { status: 404 },
     );
   }
-  recordAudit({ action: 'team.member.updated', target: id, detail: JSON.stringify(parsed.data) });
+  await recordAudit({
+    action: 'team.member.updated',
+    target: id,
+    detail: JSON.stringify(parsed.data),
+  });
   return NextResponse.json({ success: true, data: member });
 }

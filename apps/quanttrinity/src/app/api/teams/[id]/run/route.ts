@@ -8,7 +8,7 @@ import { getRuntimeSnapshot, runShift } from '../../../../../lib/ai-employee-run
  */
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const member = getTeamMember(id);
+  const member = await getTeamMember(id);
   if (!member) {
     return NextResponse.json(
       { success: false, error: { message: 'Team member not found', code: 'NOT_FOUND' } },
@@ -28,14 +28,14 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     );
   }
 
-  const result = runShift(member);
+  const result = await runShift(member);
   return NextResponse.json({ success: true, data: result });
 }
 
 /** Current runtime snapshot (trust, permission, budget) for an AI employee. */
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const member = getTeamMember(id);
+  const member = await getTeamMember(id);
   if (!member || member.kind !== 'ai') {
     return NextResponse.json(
       { success: false, error: { message: 'AI employee not found', code: 'NOT_FOUND' } },
