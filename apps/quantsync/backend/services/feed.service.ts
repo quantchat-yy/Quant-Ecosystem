@@ -45,6 +45,45 @@ export class FeedService {
     return posts;
   }
 
+  async getPostsByHashtag(tag: string, page: number = 1, pageSize: number = 20) {
+    // Normalize the tag to match the stored convention: trim, strip a leading
+    // '#', and lowercase (posts store hashtags as lowercase strings without '#').
+    const normalizedTag = tag.trim().replace(/^#+/, '').toLowerCase();
+
+    const posts = await this.prisma.post.findMany({
+      where: {
+        visibility: 'PUBLIC',
+        deletedAt: null,
+        hashtags: {
+          array_contains: normalizedTag,
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+
+    return posts;
+  }
+
   async getTrendingPosts(limit: number = 20) {
     // Simple trending based on likes + comments in last 24 hours
     const posts = await this.prisma.post.findMany({

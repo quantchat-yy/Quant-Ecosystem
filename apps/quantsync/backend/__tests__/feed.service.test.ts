@@ -82,6 +82,78 @@ describe('FeedService', () => {
     });
   });
 
+  describe('getPostsByHashtag', () => {
+    it('queries by normalized tag via array_contains plus PUBLIC and deletedAt=null', async () => {
+      prisma.post.findMany.mockResolvedValue([]);
+
+      await service.getPostsByHashtag('photo');
+
+      expect(prisma.post.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            visibility: 'PUBLIC',
+            deletedAt: null,
+            hashtags: {
+              array_contains: 'photo',
+            },
+          },
+        }),
+      );
+    });
+
+    it('normalizes the tag by stripping a leading # and lowercasing', async () => {
+      prisma.post.findMany.mockResolvedValue([]);
+
+      await service.getPostsByHashtag('  #Nature ');
+
+      const call = prisma.post.findMany.mock.calls[0][0];
+      expect(call.where.hashtags.array_contains).toBe('nature');
+    });
+
+    it('applies pagination with skip and take', async () => {
+      prisma.post.findMany.mockResolvedValue([]);
+
+      await service.getPostsByHashtag('photo', 3, 10);
+
+      expect(prisma.post.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 20, // (page - 1) * pageSize = (3 - 1) * 10
+          take: 10,
+        }),
+      );
+    });
+
+    it('defaults to page=1 pageSize=20', async () => {
+      prisma.post.findMany.mockResolvedValue([]);
+
+      await service.getPostsByHashtag('photo');
+
+      expect(prisma.post.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 0,
+          take: 20,
+        }),
+      );
+    });
+
+    it('orders by createdAt desc', async () => {
+      prisma.post.findMany.mockResolvedValue([]);
+
+      await service.getPostsByHashtag('photo');
+
+      const call = prisma.post.findMany.mock.calls[0][0];
+      expect(call.orderBy).toEqual({ createdAt: 'desc' });
+    });
+
+    it('returns the posts from prisma', async () => {
+      prisma.post.findMany.mockResolvedValue([{ id: 'post-1' }, { id: 'post-2' }]);
+
+      const result = await service.getPostsByHashtag('photo');
+
+      expect(result).toHaveLength(2);
+    });
+  });
+
   describe('getTrendingPosts', () => {
     it('returns trending posts from the last 24 hours', async () => {
       prisma.post.findMany.mockResolvedValue([
