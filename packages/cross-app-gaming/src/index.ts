@@ -41,5 +41,5 @@ export type {
   UnoGameState,
   UnoPublicState,
   ShuffleFn,
-  CreateGameOptions,
+  CreateGameOptions as UnoCreateGameOptions,
 } from './services/uno-engine.service.js';
