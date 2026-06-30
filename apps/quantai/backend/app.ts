@@ -41,6 +41,7 @@ import codeAgentRoutes from './routes/code-agent';
 import userOwnedAiRoutes from './routes/user-owned-ai';
 import promptTemplateRoutes from './routes/prompt-templates';
 import askRoutes from './routes/ask';
+import automationsRoutes from './routes/automations';
 import { AIEngine } from './services/ai-engine';
 import { Orchestrator } from '@quant/agent-runtime';
 import { SwarmOrchestrator } from '@quant/agent-swarm';
@@ -156,6 +157,8 @@ export async function buildApp(config?: AppConfig) {
   await app.register(mlRoutes, { prefix: '/ml' });
   await app.register(abTestingRoutes, { prefix: '/ab-testing' });
   await app.register(eventsRoutes, { prefix: '/events' });
+
+  await app.register(automationsRoutes, { prefix: '/automations' });
 
   return app;
 }
