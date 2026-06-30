@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
 import { RoomService } from '../services/room.service';
 import { MeetingChatService } from '../services/meeting-chat.service';
+import { LiveKitGateway } from '../services/livekit-gateway.service';
 
 const createRoomSchema = z.object({
   name: z.string().min(1).max(100),
@@ -132,6 +133,39 @@ export default async function roomsRoutes(fastify: FastifyInstance) {
     } catch (error) {
       mapRoomError(error);
     }
+  });
+
+  // Issue a LiveKit access token for a room member (LiveKit SFU transport).
+  // The hard parts (SFU gateway, token signing) already exist; this exposes a
+  // join token to the client so the frontend `useLiveKit` (livekit-client SDK)
+  // can connect. Fail closed when LiveKit is not configured.
+  fastify.post('/:id/livekit-token', async (request, reply) => {
+    const userId = requireUserId(request);
+    const { id } = request.params as { id: string };
+
+    const apiKey = process.env['LIVEKIT_API_KEY'];
+    const apiSecret = process.env['LIVEKIT_API_SECRET'];
+    const wsUrl = process.env['LIVEKIT_URL'] ?? process.env['NEXT_PUBLIC_LIVEKIT_URL'];
+    if (!apiKey || !apiSecret || !wsUrl) {
+      throw createAppError(
+        'LiveKit is not configured (LIVEKIT_API_KEY, LIVEKIT_API_SECRET, LIVEKIT_URL required)',
+        503,
+        'LIVEKIT_NOT_CONFIGURED',
+      );
+    }
+
+    const room = await roomService.getRoom(id).catch((error) => mapRoomError(error));
+    const participant = room.participants.find((p) => p.userId === userId);
+    if (!participant) {
+      throw createAppError('You are not a participant of this room', 403, 'NOT_A_PARTICIPANT');
+    }
+
+    const gateway = new LiveKitGateway({ apiKey, apiSecret, wsUrl });
+    const token = await gateway.generateToken(id, userId, participant.displayName ?? userId, {
+      canPublish: true,
+      canSubscribe: true,
+    });
+    return reply.send({ token, serverUrl: wsUrl });
   });
 
   // Leave a room (idempotent — leaving when not present returns the room)

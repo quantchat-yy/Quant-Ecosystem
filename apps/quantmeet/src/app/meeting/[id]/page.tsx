@@ -29,9 +29,7 @@ export default function MeetingPage() {
 
   const [meetingState, setMeetingState] = useState<MeetingState>('lobby');
   const [token, setToken] = useState<string | undefined>(undefined);
-  const [audioEnabled, setAudioEnabled] = useState(true);
-  const [videoEnabled, setVideoEnabled] = useState(true);
-  const [screenShareEnabled, setScreenShareEnabled] = useState(false);
+  const [serverUrl, setServerUrl] = useState<string | undefined>(undefined);
   const [recordingActive, setRecordingActive] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showParticipants, setShowParticipants] = useState(false);
@@ -40,14 +38,26 @@ export default function MeetingPage() {
   const [handRaised, setHandRaised] = useState(false);
   const [sharePaused, setSharePaused] = useState(false);
 
-  const liveKit = useLiveKit({ roomId, token });
+  const liveKit = useLiveKit({ roomId, token, serverUrl });
 
   const handleJoin = useCallback(
     async (displayName: string) => {
       setMeetingState('connecting');
       try {
-        const result = await joinRoom.mutateAsync({ roomId, displayName });
-        setToken(result.token);
+        await joinRoom.mutateAsync({ roomId, displayName });
+        // Fetch a LiveKit join token from the member-only backend route, reusing
+        // the same API base + fetch convention as the other QuantMeet hooks
+        // (see src/hooks/useMeeting.ts — relative `/api/rooms/...`).
+        const response = await fetch(`/api/rooms/${roomId}/livekit-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) {
+          throw new Error('Failed to fetch LiveKit token');
+        }
+        const data = (await response.json()) as { token: string; serverUrl: string };
+        setToken(data.token);
+        setServerUrl(data.serverUrl);
         setMeetingState('meeting');
       } catch {
         setMeetingState('meeting');
@@ -77,6 +87,7 @@ export default function MeetingPage() {
 
   const handleRejoin = useCallback(() => {
     setToken(undefined);
+    setServerUrl(undefined);
     setMeetingState('lobby');
   }, []);
 
@@ -108,29 +119,65 @@ export default function MeetingPage() {
     );
   }
 
-  const videoParticipants: VideoTileProps[] = (participants ?? []).map((p) => ({
-    participantId: p.id,
-    stream: p.id === localParticipantId ? liveKit.localStream : null,
-    displayName: p.displayName,
-    audioEnabled: p.audioEnabled,
-    videoEnabled: p.videoEnabled,
-    isSpeaking: p.isSpeaking,
-    isPinned: false,
-    isScreenShare: p.isScreenSharing,
-  }));
+  // LiveKit is the source of truth for video tiles: the local participant plus
+  // every remote participant with their real subscribed MediaStreams.
+  const videoParticipants: VideoTileProps[] = [
+    {
+      participantId: 'local',
+      stream: liveKit.localStream,
+      displayName: 'You',
+      audioEnabled: liveKit.audioEnabled,
+      videoEnabled: liveKit.videoEnabled,
+      isSpeaking: liveKit.isSpeaking,
+      isPinned: false,
+      isScreenShare: liveKit.isScreenSharing,
+    },
+    ...liveKit.remoteParticipants.map((rp) => ({
+      participantId: rp.participantId,
+      stream: rp.stream,
+      displayName: rp.displayName,
+      audioEnabled: rp.audioEnabled,
+      videoEnabled: rp.videoEnabled,
+      isSpeaking: rp.isSpeaking,
+      isPinned: false,
+      isScreenShare: false,
+    })),
+  ];
+
+  const connectionStatus = liveKit.isConnecting
+    ? 'Connecting…'
+    : liveKit.isReconnecting
+      ? 'Reconnecting…'
+      : liveKit.error
+        ? liveKit.error
+        : null;
 
   return (
     <div className="flex flex-col h-screen bg-[var(--quant-background)]">
+      {/* Connection status banner */}
+      {connectionStatus && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`px-4 py-2 text-sm text-center ${
+            liveKit.error
+              ? 'bg-red-500/15 text-red-300'
+              : 'bg-[var(--brand-app-color)]/15 text-[var(--brand-app-color)]'
+          }`}
+        >
+          {connectionStatus}
+        </div>
+      )}
+
       {/* Screen Share Overlay */}
-      {screenShareEnabled && (
+      {liveKit.isScreenSharing && (
         <ScreenShareOverlay
           isPresenter={true}
           isPaused={sharePaused}
           onPauseShare={() => setSharePaused(true)}
           onResumeShare={() => setSharePaused(false)}
           onStopShare={() => {
-            liveKit.toggleScreenShare();
-            setScreenShareEnabled(false);
+            void liveKit.toggleScreenShare();
             setSharePaused(false);
           }}
         />
@@ -163,21 +210,18 @@ export default function MeetingPage() {
       </div>
 
       <ControlBar
-        audioEnabled={audioEnabled}
-        videoEnabled={videoEnabled}
-        screenShareEnabled={screenShareEnabled}
+        audioEnabled={liveKit.audioEnabled}
+        videoEnabled={liveKit.videoEnabled}
+        screenShareEnabled={liveKit.isScreenSharing}
         recordingActive={recordingActive}
         onToggleAudio={() => {
           liveKit.toggleAudio();
-          setAudioEnabled((prev) => !prev);
         }}
         onToggleVideo={() => {
           liveKit.toggleVideo();
-          setVideoEnabled((prev) => !prev);
         }}
         onToggleScreenShare={() => {
-          liveKit.toggleScreenShare();
-          setScreenShareEnabled((prev) => !prev);
+          void liveKit.toggleScreenShare();
         }}
         onToggleRecording={() => setRecordingActive((prev) => !prev)}
         onLeave={handleLeave}
