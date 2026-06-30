@@ -1,6 +1,8 @@
 import { createApp } from '@quant/server-core';
 import type { AppConfig } from '@quant/server-core';
 import campaignsRoutes from './routes/campaigns';
+import adSetsRoutes from './routes/ad-sets';
+import creativesRoutes from './routes/creatives';
 import aiRoutes from './routes/ai';
 import biddingRoutes from './routes/bidding';
 import analyticsRoutes from './routes/analytics';
@@ -40,6 +42,10 @@ export async function buildApp(config?: AppConfig) {
   const app = await createApp(appConfig);
 
   await app.register(campaignsRoutes, { prefix: '/campaigns' });
+  // Ad set routes declare absolute paths (/campaigns/:campaignId/ad-sets, /ad-sets/:id),
+  // so they mount with an empty prefix to avoid colliding with the campaigns plugin.
+  await app.register(adSetsRoutes, { prefix: '' });
+  await app.register(creativesRoutes, { prefix: '/creatives' });
   await app.register(aiRoutes, { prefix: '/ai' });
   await app.register(biddingRoutes, { prefix: '/bidding' });
   await app.register(analyticsRoutes, { prefix: '/analytics' });
