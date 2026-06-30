@@ -21,6 +21,7 @@
     "@quant/common": "workspace:*",
     "@quant/quant-economy": "workspace:*",
     "@quant/database": "workspace:*",
+    "@quant/payments": "workspace:*",
     "@quant/privacy-ads": "workspace:*",
     "@quant/realtime": "workspace:*",
     "@quant/server-core": "workspace:*",

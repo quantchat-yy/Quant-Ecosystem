@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
 import { wallet, buyCoinService, earnCoinService } from '../services/economy-container.js';
+import { createCoinPaymentAdapter } from '../services/coin-payment-adapter.js';
 
 const createWalletSchema = z.object({
   userId: z.string().min(1),
@@ -12,6 +13,10 @@ const buyCoinsSchema = z.object({
   amount: z.number().positive(),
   gateway: z.enum(['stripe', 'razorpay', 'upi']),
   paymentRef: z.string().min(1),
+  // Razorpay checkout callback fields — required for real (signed) verification.
+  // Absent in dev => verification fails closed (no coins granted).
+  paymentId: z.string().min(1).optional(),
+  signature: z.string().min(1).optional(),
 });
 
 const dailyLoginSchema = z.object({
@@ -68,24 +73,23 @@ export default async function economyRoutes(fastify: FastifyInstance) {
 
       const { userId, amount, gateway, paymentRef } = parseResult.data;
 
-      // DEV ONLY: Replace with real Razorpay/Stripe adapter in production
-      const mockAdapter = {
-        createOrder: async (amt: number, currency: string) => ({
-          orderId: `order-${crypto.randomUUID()}`,
-          amount: amt,
-          currency,
-        }),
-        verifyPayment: async () => true,
-      };
+      // Real, fail-closed payment verification. Without live Razorpay
+      // credentials and a valid (orderId, paymentId, signature) the adapter
+      // rejects the purchase — no coins are granted (the previous mock returned
+      // true unconditionally, granting free coins).
+      const paymentAdapter = createCoinPaymentAdapter({
+        ...(parseResult.data.paymentId ? { paymentId: parseResult.data.paymentId } : {}),
+        ...(parseResult.data.signature ? { signature: parseResult.data.signature } : {}),
+      });
 
       try {
         let result;
         if (gateway === 'stripe') {
-          result = await buyCoinService.buyWithStripe(userId, amount, paymentRef, mockAdapter);
+          result = await buyCoinService.buyWithStripe(userId, amount, paymentRef, paymentAdapter);
         } else if (gateway === 'razorpay') {
-          result = await buyCoinService.buyWithRazorpay(userId, amount, paymentRef, mockAdapter);
+          result = await buyCoinService.buyWithRazorpay(userId, amount, paymentRef, paymentAdapter);
         } else {
-          result = await buyCoinService.buyWithUPI(userId, amount, paymentRef, mockAdapter);
+          result = await buyCoinService.buyWithUPI(userId, amount, paymentRef, paymentAdapter);
         }
         return reply.status(201).send({ success: true, data: result });
       } catch (e: unknown) {
