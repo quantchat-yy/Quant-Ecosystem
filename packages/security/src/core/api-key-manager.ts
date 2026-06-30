@@ -282,22 +282,10 @@ export class APIKeyManager {
     return key;
   }
 
-  /** Hash a key for secure storage */
+  /** Hash a key for secure storage (one-way SHA-256). Deterministic: the same
+   * key always yields the same digest so hash-index lookups remain stable. */
   private hashKey(key: string): string {
-    let h1 = 0x6a09e667;
-    let h2 = 0xbb67ae85;
-    let h3 = 0x3c6ef372;
-    let h4 = 0xa54ff53a;
-
-    for (let i = 0; i < key.length; i++) {
-      const c = key.charCodeAt(i);
-      h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
-      h2 = Math.imul(h2 ^ (c + 1), 0x5bd1e995) >>> 0;
-      h3 = Math.imul(h3 ^ (c + 2), 0x1b873593) >>> 0;
-      h4 = Math.imul(h4 ^ (c + 3), 0xcc9e2d51) >>> 0;
-    }
-
-    return [h1, h2, h3, h4].map((h) => (h >>> 0).toString(16).padStart(8, '0')).join('');
+    return crypto.createHash('sha256').update(key).digest('hex');
   }
 
   /** Generate unique ID */
