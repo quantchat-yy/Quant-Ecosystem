@@ -8,6 +8,8 @@ function createMockPrisma() {
       findUnique: vi.fn(),
       findMany: vi.fn(),
       update: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn(),
     },
     docSuggestion: {
       create: vi.fn(),
@@ -167,6 +169,53 @@ describe('CommentService', () => {
       await expect(service.resolveComment('nonexistent', 'user-1')).rejects.toThrow(
         'Comment not found',
       );
+    });
+  });
+
+  describe('deleteComment', () => {
+    it('deletes a comment owned by the requesting user', async () => {
+      const mockComment = {
+        id: 'comment-1',
+        docId: 'doc-1',
+        userId: 'user-1',
+        content: 'To delete',
+        resolved: false,
+      };
+      prisma.docComment.findUnique.mockResolvedValue(mockComment);
+      prisma.docComment.deleteMany.mockResolvedValue({ count: 0 });
+      prisma.docComment.delete.mockResolvedValue(mockComment);
+
+      const result = await service.deleteComment('comment-1', 'user-1');
+
+      expect(result).toEqual(mockComment);
+      expect(prisma.docComment.deleteMany).toHaveBeenCalledWith({
+        where: { parentId: 'comment-1' },
+      });
+      expect(prisma.docComment.delete).toHaveBeenCalledWith({
+        where: { id: 'comment-1' },
+      });
+    });
+
+    it('throws unauthorized when a different user tries to delete', async () => {
+      prisma.docComment.findUnique.mockResolvedValue({
+        id: 'comment-1',
+        userId: 'user-1',
+      });
+
+      await expect(service.deleteComment('comment-1', 'user-2')).rejects.toThrow(
+        'Not authorized to delete this comment',
+      );
+      expect(prisma.docComment.delete).not.toHaveBeenCalled();
+      expect(prisma.docComment.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('throws when comment not found', async () => {
+      prisma.docComment.findUnique.mockResolvedValue(null);
+
+      await expect(service.deleteComment('nonexistent', 'user-1')).rejects.toThrow(
+        'Comment not found',
+      );
+      expect(prisma.docComment.delete).not.toHaveBeenCalled();
     });
   });
 

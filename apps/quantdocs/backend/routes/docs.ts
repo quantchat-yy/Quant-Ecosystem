@@ -309,6 +309,20 @@ export default async function docsRoutes(fastify: FastifyInstance) {
     return reply.send({ success: true, data: comment });
   });
 
+  // DELETE /comments/:id - Delete comment (owner-only)
+  fastify.delete<{ Params: { id: string } }>('/comments/:id', async (request, reply) => {
+    const userId = (request as unknown as { auth: { userId: string } }).auth?.userId;
+    if (!userId) {
+      throw createAppError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const prisma = (fastify as unknown as { prisma: unknown }).prisma;
+    const service = new CommentService(prisma as never);
+    const comment = await service.deleteComment(request.params.id, userId);
+
+    return reply.send({ success: true, data: comment });
+  });
+
   // GET /docs/:id/suggestions - List suggestions for a document (owner-only)
   fastify.get<{ Params: { id: string } }>('/:id/suggestions', async (request, reply) => {
     const queryResult = listSuggestionsSchema.safeParse(request.query);
