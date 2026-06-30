@@ -72,12 +72,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # QuantChat tests import @quant/database, whose entry (dist/index.js) and
-      # generated Prisma client only exist after a build. Build the workspace
-      # dependencies of quantchat first so the coverage run can resolve them.
-      - name: Build QuantChat dependencies
+      # generated Prisma client only exist after a build. Build @quant/database
+      # (and its own deps) so the coverage run can resolve the package + client.
+      - name: Build @quant/database (generates Prisma client + dist)
         env:
           NODE_OPTIONS: --max-old-space-size=4096
-        run: npx turbo build --concurrency=2 --filter=@quant/quantchat^...
+        run: npx turbo build --concurrency=2 --filter=@quant/database
 
       - name: QuantChat coverage gate (>=50%)
         run: pnpm --filter @quant/quantchat run test:coverage
