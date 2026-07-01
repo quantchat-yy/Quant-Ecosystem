@@ -23,6 +23,8 @@ export interface ContentModerator {
 export interface PublicAnonymousPost {
   id: string;
   content: string;
+  type: 'TEXT' | 'VIDEO';
+  mediaUrls: string[];
   anonymousAlias: string;
   isAnonymous: true;
   replyToId: string | null;
@@ -35,6 +37,10 @@ export interface CreateAnonymousPostInput {
   userId: string;
   content: string;
   replyToId?: string;
+  /** Post kind — TEXT (default) or a VIDEO reel. */
+  type?: 'TEXT' | 'VIDEO';
+  /** Media urls (required, non-empty, when type is VIDEO). */
+  mediaUrls?: string[];
 }
 
 export interface AnonymousPostServiceOptions {
@@ -112,6 +118,14 @@ export class AnonymousPostService {
       throw new AnonymousModerationError(verdict.reason ?? 'Content rejected by moderation');
     }
 
+    const type = input.type ?? 'TEXT';
+    const mediaUrls = Array.isArray(input.mediaUrls)
+      ? input.mediaUrls.filter((u) => typeof u === 'string' && u.length > 0)
+      : [];
+    if (type === 'VIDEO' && mediaUrls.length === 0) {
+      throw new AnonymousModerationError('A video reel requires at least one media url');
+    }
+
     const id = this.idFactory();
     // Top-level posts thread on their own id; replies thread on the root they answer.
     const threadId = input.replyToId ?? id;
@@ -121,9 +135,9 @@ export class AnonymousPostService {
       data: {
         id,
         userId: input.userId,
-        type: 'TEXT',
+        type,
         content,
-        mediaUrls: [],
+        mediaUrls,
         hashtags: [],
         mentions: [],
         replyToId: input.replyToId ?? null,
@@ -154,6 +168,32 @@ export class AnonymousPostService {
 
     const rows = await this.prisma.post.findMany({
       where: { isAnonymous: true, deletedAt: null, moderationStatus: 'APPROVED' },
+      skip,
+      take: pageSize,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return { data: rows.map((r) => this.toPublic(r)), page, pageSize };
+  }
+
+  /**
+   * The anonymous REELS feed: anonymous, moderation-approved, VIDEO posts only,
+   * newest first. Same identity-hiding + fail-closed rules as the text feed.
+   */
+  async listAnonymousReels(
+    options: { page?: number; pageSize?: number } = {},
+  ): Promise<PaginatedAnon> {
+    const page = options.page ?? 1;
+    const pageSize = Math.min(options.pageSize ?? 20, 100);
+    const skip = (page - 1) * pageSize;
+
+    const rows = await this.prisma.post.findMany({
+      where: {
+        isAnonymous: true,
+        type: 'VIDEO',
+        deletedAt: null,
+        moderationStatus: 'APPROVED',
+      },
       skip,
       take: pageSize,
       orderBy: { createdAt: 'desc' },
@@ -196,9 +236,14 @@ export class AnonymousPostService {
 
   /** Strip the real author; expose only the alias. */
   private toPublic(post: Record<string, unknown>): PublicAnonymousPost {
+    const mediaUrls = Array.isArray(post['mediaUrls'])
+      ? (post['mediaUrls'] as unknown[]).filter((u): u is string => typeof u === 'string')
+      : [];
     return {
       id: String(post['id']),
       content: String(post['content'] ?? ''),
+      type: post['type'] === 'VIDEO' ? 'VIDEO' : 'TEXT',
+      mediaUrls,
       anonymousAlias: String(post['anonymousAlias'] ?? ''),
       isAnonymous: true,
       replyToId: (post['replyToId'] as string | null) ?? null,
