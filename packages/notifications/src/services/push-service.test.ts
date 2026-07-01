@@ -176,7 +176,7 @@ describe('PushService', () => {
   });
 
   describe('sendMulticast', () => {
-    it('should send to multiple tokens via FCM', async () => {
+    it('should send android/web tokens via FCM (input order preserved)', async () => {
       mockSendEachForMulticast.mockResolvedValue({
         responses: [
           { success: true, messageId: 'msg_1' },
@@ -187,10 +187,14 @@ describe('PushService', () => {
         failureCount: 1,
       });
 
-      const results = await service.sendMulticast(['token_1', 'token_2', 'token_3'], {
-        title: 'Broadcast',
-        body: 'Hello all',
-      });
+      const results = await service.sendMulticast(
+        [
+          { token: 'token_1', platform: 'android' },
+          { token: 'token_2', platform: 'web' },
+          { token: 'token_3', platform: 'android' },
+        ],
+        { title: 'Broadcast', body: 'Hello all' },
+      );
 
       expect(results).toHaveLength(3);
       expect(results[0]!.success).toBe(true);
@@ -200,17 +204,78 @@ describe('PushService', () => {
       expect(results[2]!.error).toBe('Invalid token');
     });
 
+    it('routes iOS tokens to APNs and android/web to FCM (mixed platforms)', async () => {
+      mockSendEachForMulticast.mockResolvedValue({
+        responses: [{ success: true, messageId: 'fcm_1' }],
+        successCount: 1,
+        failureCount: 0,
+      });
+      mockApnSend.mockResolvedValue({ sent: [{}], failed: [] });
+
+      const results = await service.sendMulticast(
+        [
+          { token: 'ios_1', platform: 'ios' },
+          { token: 'android_1', platform: 'android' },
+        ],
+        { title: 'Mixed', body: 'Fan out' },
+      );
+
+      // iOS routed to APNs (NOT dropped), android routed to FCM.
+      expect(mockApnSend).toHaveBeenCalledTimes(1);
+      expect(mockSendEachForMulticast).toHaveBeenCalledTimes(1);
+      expect(mockSendEachForMulticast).toHaveBeenCalledWith(
+        expect.objectContaining({ tokens: ['android_1'] }),
+      );
+      expect(results[0]!.success).toBe(true); // ios via APNs
+      expect(results[1]!.success).toBe(true); // android via FCM
+      expect(results[1]!.messageId).toBe('fcm_1');
+    });
+
+    it('delivers an all-iOS multicast entirely via APNs (no FCM call)', async () => {
+      mockApnSend.mockResolvedValue({ sent: [{}], failed: [] });
+
+      const results = await service.sendMulticast(
+        [
+          { token: 'ios_1', platform: 'ios' },
+          { token: 'ios_2', platform: 'ios' },
+        ],
+        { title: 'iOS only', body: 'via APNs' },
+      );
+
+      expect(mockSendEachForMulticast).not.toHaveBeenCalled();
+      expect(mockApnSend).toHaveBeenCalledTimes(2);
+      expect(results.every((r) => r.success)).toBe(true);
+    });
+
     it('should return error results on exception', async () => {
       mockSendEachForMulticast.mockRejectedValue(new Error('Network error'));
 
-      const results = await service.sendMulticast(['token_1', 'token_2'], {
-        title: 'Test',
-        body: 'Error',
-      });
+      const results = await service.sendMulticast(
+        [
+          { token: 'token_1', platform: 'android' },
+          { token: 'token_2', platform: 'android' },
+        ],
+        { title: 'Test', body: 'Error' },
+      );
 
       expect(results).toHaveLength(2);
       expect(results[0]!.success).toBe(false);
       expect(results[0]!.error).toBe('Network error');
+    });
+  });
+
+  describe('per-app APNs topic', () => {
+    it('uses the per-send topic (target app bundle id) over the instance default', async () => {
+      mockApnSend.mockResolvedValue({ sent: [{}], failed: [] });
+
+      await service.sendPush('ios_tok', 'ios', {
+        title: 'Hi',
+        body: 'There',
+        topic: 'com.quant.mail',
+      });
+
+      const notification = mockApnSend.mock.calls[0]![0] as { topic?: string };
+      expect(notification.topic).toBe('com.quant.mail');
     });
   });
 
