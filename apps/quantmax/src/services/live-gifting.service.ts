@@ -2,6 +2,15 @@
 // QuantMax - Live Gifting Service
 // Virtual gifts, coin economy, and creator earnings for live streams
 // ============================================================================
+//
+// MONEY-INTEGRITY (verify-first, Batch-17): this is an in-memory, GAMIFIED coin
+// balance and is NOT wired to any route/consumer (referenced only by its own
+// unit test). `addCoins` is not payment-gated (no real money in) and there is
+// no withdrawal path (no real money out); `estimatedRevenue` (coins * $0.005)
+// is an ANALYTICS estimate, not a cash movement. So it carries no money-integrity
+// risk as-is. If live-gifting is ever wired to real coin top-ups or creator
+// cashouts, its balances must move onto the durable @quant/credits ledger
+// (transfer/spend, PayoutService) rather than this Map — no rebuild until then.
 
 export interface Gift {
   id: string;
