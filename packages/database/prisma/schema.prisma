@@ -3041,6 +3041,20 @@ model UserModelPreference {
   @@map("user_model_preferences")
 }
 
+/// A user's QuantTube watch history (durable; previously in-memory). One row per
+/// (user, video) — re-watching updates the same row's duration + timestamp.
+model WatchHistory {
+  id            String   @id @default(cuid())
+  userId        String
+  videoId       String
+  watchDuration Int      @default(0)
+  watchedAt     DateTime @default(now())
+
+  @@unique([userId, videoId])
+  @@index([userId, watchedAt])
+  @@map("watch_history")
+}
+
 /// A user-defined QuantAI automation (trigger + ordered actions + conditions).
 /// Persisted so automations survive restarts and sync across devices; the
 /// `/automations` API previously had no backend at all. Trigger, actions and
