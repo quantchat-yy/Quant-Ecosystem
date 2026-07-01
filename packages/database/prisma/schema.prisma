@@ -3041,6 +3041,20 @@ model UserModelPreference {
   @@map("user_model_preferences")
 }
 
+/// A user's QuantTube watch history (durable; previously in-memory). One row per
+/// (user, video) — re-watching updates the same row's duration + timestamp.
+model WatchHistory {
+  id            String   @id @default(cuid())
+  userId        String
+  videoId       String
+  watchDuration Int      @default(0)
+  watchedAt     DateTime @default(now())
+
+  @@unique([userId, videoId])
+  @@index([userId, watchedAt])
+  @@map("watch_history")
+}
+
 /// A durable QuantEdits daily auto-edit run: select-source -> render -> meter ->
 /// schedule/post -> report. `utcDay` is unique per user so a re-run for the same
 /// day is idempotent (no double-post). Per-step checkpoints make an interrupted
