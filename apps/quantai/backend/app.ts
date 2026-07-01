@@ -41,6 +41,7 @@ import codeAgentRoutes from './routes/code-agent';
 import userOwnedAiRoutes from './routes/user-owned-ai';
 import promptTemplateRoutes from './routes/prompt-templates';
 import askRoutes from './routes/ask';
+import mcpRoutes from './routes/mcp';
 import automationsRoutes from './routes/automations';
 import { AIEngine } from './services/ai-engine';
 import { Orchestrator } from '@quant/agent-runtime';
@@ -159,6 +160,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(eventsRoutes, { prefix: '/events' });
 
   await app.register(automationsRoutes, { prefix: '/automations' });
+  await app.register(mcpRoutes, { prefix: '/mcp' });
 
   return app;
 }
