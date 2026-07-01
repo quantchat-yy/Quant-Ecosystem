@@ -33,6 +33,26 @@ import type { SubscriptionTier } from '@quant/quant-economy';
 // does NOT collide with any server-core PUBLIC_PATHS entry. Inputs are
 // Zod-validated; every response uses the canonical `{ success, data }` envelope.
 // Persistence is the engines' own in-memory state (no new schema — Req 9.5).
+//
+// MONEY-INTEGRITY (verify-first, Batch-17): despite the "top-ups/cashouts settle
+// through Stripe" intent above, QuantMax's coin economy is currently NON-money
+// as wired — there is NO consumption path that moves real money:
+//   • No money-IN: there is no top-up / buy-coins route. Every route here only
+//     SPENDS (store/purchase, gifts) or READS. Nothing credits the CoinWallet,
+//     so a wallet stays at 0 and spends fail closed (insufficient) — inert.
+//   • No money-OUT: there is no withdraw / cashout route anywhere in quantmax.
+// Because no real money enters or leaves, the ephemeral in-memory CoinWallet
+// carries no money-integrity risk today, and migrating it to the durable
+// @quant/credits ledger now would be SPECULATIVE durability (no funded balance
+// to preserve). This is intentionally left as-is (mirrors the quantads
+// non-money confirmation, PR #476).
+//
+// DURABILITY-GATE TRIGGER: the moment a REAL money path is wired here — a
+// payment-gated coin top-up (Stripe) OR a withdrawal/cashout to a rail — this
+// wallet becomes money-touching and MUST be migrated to the @quant/credits
+// ledger (append-only, atomic/idempotent/fail-closed), exactly as quantads did
+// (PR #474: buy/spend on the ledger; #479: marketplace earnings; PayoutService
+// for withdrawals). Until then: no rebuild.
 
 /**
  * The composite economy service decorated onto the instance — the as-shipped
