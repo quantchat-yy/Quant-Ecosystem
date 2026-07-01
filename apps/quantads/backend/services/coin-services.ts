@@ -33,6 +33,7 @@ import type {
   BoostAnalytics,
 } from '@quant/quant-economy';
 import type { QuantAdsCreditsWallet } from './credits-wallet.js';
+import type { PublisherWalletPort } from './publisher-payout-scheduler.service.js';
 
 // ---------------------------------------------------------------------------
 // Buy coins — real payment verification, then an idempotent ledger credit.
@@ -337,4 +338,30 @@ export class BoostLedgerService {
   getBoost(boostId: string): BoostRequest | undefined {
     return this.boosts.get(boostId);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Publisher payout wallet port — credits a publisher's ad-click earnings onto
+// the durable ledger as a WITHDRAWABLE earn-kind (`creator_payout`), idempotent
+// by the scheduler's per-(publisher, UTC-day) key. This is what makes real ad
+// revenue land durably (the prior in-memory CoinWallet port lost it on restart)
+// and cash-out-eligible via the payout/withdrawal flow.
+// ---------------------------------------------------------------------------
+
+export function createPublisherWalletPort(wallet: QuantAdsCreditsWallet): PublisherWalletPort {
+  return {
+    async credit(
+      publisherId: string,
+      amountCredits: number,
+      idempotencyKey: string,
+    ): Promise<void> {
+      await wallet.grantOnce(
+        publisherId,
+        amountCredits,
+        'creator_payout',
+        idempotencyKey,
+        'ad-revenue',
+      );
+    },
+  };
 }

@@ -14,6 +14,7 @@ import giftingRoutes from './routes/gifting';
 import creatorEconomyRoutes from './routes/creator-economy';
 import subscriptionsRoutes from './routes/subscriptions';
 import privacyAdsRoutes from './routes/privacy-ads';
+import publisherPayoutRoutes from './routes/publisher-payout';
 import { registerEconomyContainer } from './services/economy-container';
 
 export function getConfig(): AppConfig {
@@ -63,6 +64,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(creatorEconomyRoutes, { prefix: '/creator-economy' });
   await app.register(subscriptionsRoutes, { prefix: '/subscriptions' });
   await app.register(privacyAdsRoutes, { prefix: '/privacy-ads' });
+  await app.register(publisherPayoutRoutes, { prefix: '/publisher-payout' });
 
   return app;
 }
