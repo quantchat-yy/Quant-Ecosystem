@@ -14,6 +14,7 @@ import giftingRoutes from './routes/gifting';
 import creatorEconomyRoutes from './routes/creator-economy';
 import subscriptionsRoutes from './routes/subscriptions';
 import privacyAdsRoutes from './routes/privacy-ads';
+import { registerEconomyContainer } from './services/economy-container';
 
 export function getConfig(): AppConfig {
   const env = (process.env['NODE_ENV'] as AppConfig['env']) ?? 'development';
@@ -40,6 +41,11 @@ export function getConfig(): AppConfig {
 export async function buildApp(config?: AppConfig) {
   const appConfig = config ?? getConfig();
   const app = await createApp(appConfig);
+
+  // Build the economy subsystem once per instance (shared in-memory state,
+  // as before) and expose it as `app.economy`. Must precede the economy route
+  // registrations below so their child plugins inherit the decoration.
+  registerEconomyContainer(app);
 
   await app.register(campaignsRoutes, { prefix: '/campaigns' });
   // Ad set routes declare absolute paths (/campaigns/:campaignId/ad-sets, /ad-sets/:id),

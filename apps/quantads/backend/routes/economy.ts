@@ -1,7 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
-import { wallet, buyCoinService, earnCoinService } from '../services/economy-container.js';
 import { createCoinPaymentAdapter } from '../services/coin-payment-adapter.js';
 
 const createWalletSchema = z.object({
@@ -29,6 +28,8 @@ const referralSchema = z.object({
 });
 
 export default async function economyRoutes(fastify: FastifyInstance) {
+  const { wallet, buyCoinService, earnCoinService } = fastify.economy;
+
   fastify.post(
     '/',
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },

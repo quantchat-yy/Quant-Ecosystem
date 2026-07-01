@@ -1,7 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
-import { packRegistry, boostEngine } from '../services/economy-container.js';
 
 const activateBoostSchema = z.object({
   userId: z.string().min(1),
@@ -10,6 +9,7 @@ const activateBoostSchema = z.object({
 });
 
 export default async function boostRoutes(fastify: FastifyInstance) {
+  const { packRegistry, boostEngine } = fastify.economy;
   fastify.get('/packs', async (_request, reply) => {
     const packs = packRegistry.getAllPacks();
     return reply.send({ success: true, data: packs });
