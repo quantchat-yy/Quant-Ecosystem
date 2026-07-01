@@ -2,6 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
 import { createCoinPaymentAdapter } from '../services/coin-payment-adapter.js';
+import { QuantAdsCreditsWallet } from '../services/credits-wallet.js';
+import { BuyCoinLedgerService, EarnCoinLedgerService } from '../services/coin-services.js';
 
 const createWalletSchema = z.object({
   userId: z.string().min(1),
@@ -28,7 +30,9 @@ const referralSchema = z.object({
 });
 
 export default async function economyRoutes(fastify: FastifyInstance) {
-  const { wallet, buyCoinService, earnCoinService } = fastify.economy;
+  const wallet = new QuantAdsCreditsWallet((fastify as unknown as { prisma: unknown }).prisma);
+  const buyCoinService = new BuyCoinLedgerService(wallet);
+  const earnCoinService = new EarnCoinLedgerService(wallet);
 
   fastify.post(
     '/',
@@ -40,8 +44,12 @@ export default async function economyRoutes(fastify: FastifyInstance) {
       }
 
       try {
-        const result = wallet.createWallet(parseResult.data.userId);
-        return reply.status(201).send({ success: true, data: result });
+        // The credit ledger has no explicit "create wallet" step — a wallet is
+        // implicit and starts at a zero balance. Return the current balance.
+        const balance = await wallet.getBalance(parseResult.data.userId);
+        return reply
+          .status(201)
+          .send({ success: true, data: { userId: parseResult.data.userId, balance } });
       } catch (e: unknown) {
         const message = e instanceof Error ? e.message : 'Failed to create wallet';
         throw createAppError(message, 400, 'WALLET_CREATE_FAILED');
@@ -54,7 +62,7 @@ export default async function economyRoutes(fastify: FastifyInstance) {
     { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
     async (request, reply) => {
       try {
-        const balance = wallet.getBalance(request.params.userId);
+        const balance = await wallet.getBalance(request.params.userId);
         return reply.send({ success: true, data: { userId: request.params.userId, balance } });
       } catch (e: unknown) {
         const message = e instanceof Error ? e.message : 'Wallet not found';
@@ -110,7 +118,7 @@ export default async function economyRoutes(fastify: FastifyInstance) {
       }
 
       try {
-        const result = earnCoinService.claimDailyLogin(parseResult.data.userId);
+        const result = await earnCoinService.claimDailyLogin(parseResult.data.userId);
         return reply.send({ success: true, data: result });
       } catch (e: unknown) {
         const message = e instanceof Error ? e.message : 'Daily login claim failed';
@@ -129,7 +137,7 @@ export default async function economyRoutes(fastify: FastifyInstance) {
       }
 
       try {
-        const result = earnCoinService.claimReferralBonus(
+        const result = await earnCoinService.claimReferralBonus(
           parseResult.data.referrerId,
           parseResult.data.referredId,
         );

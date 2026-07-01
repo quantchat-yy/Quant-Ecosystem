@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
+import { QuantAdsCreditsWallet } from '../services/credits-wallet.js';
+import { StorePurchaseLedgerService } from '../services/coin-services.js';
 
 const purchaseSchema = z.object({
   userId: z.string().min(1),
@@ -14,7 +16,9 @@ const catalogQuerySchema = z.object({
 });
 
 export default async function storeRoutes(fastify: FastifyInstance) {
-  const { catalog, inventory, purchaseService } = fastify.economy;
+  const { catalog, inventory } = fastify.economy;
+  const wallet = new QuantAdsCreditsWallet((fastify as unknown as { prisma: unknown }).prisma);
+  const purchaseService = new StorePurchaseLedgerService(wallet, catalog, inventory);
   fastify.get('/catalog', async (request, reply) => {
     const queryResult = catalogQuerySchema.safeParse(request.query);
     if (!queryResult.success) {
@@ -33,7 +37,10 @@ export default async function storeRoutes(fastify: FastifyInstance) {
     }
 
     try {
-      const result = purchaseService.purchaseItem(parseResult.data.userId, parseResult.data.itemId);
+      const result = await purchaseService.purchaseItem(
+        parseResult.data.userId,
+        parseResult.data.itemId,
+      );
       if (!result.success) {
         throw createAppError(result.message, 400, 'PURCHASE_FAILED');
       }

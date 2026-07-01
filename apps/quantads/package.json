@@ -20,6 +20,7 @@
     "@quant/brand": "workspace:*",
     "@quant/common": "workspace:*",
     "@quant/quant-economy": "workspace:*",
+    "@quant/credits": "workspace:*",
     "@quant/database": "workspace:*",
     "@quant/payments": "workspace:*",
     "@quant/privacy-ads": "workspace:*",

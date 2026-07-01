@@ -1,117 +1,75 @@
 import type { FastifyInstance } from 'fastify';
 import {
-  CoinWallet,
-  BuyCoinService,
-  EarnCoinService,
   VirtualGoodsCatalog,
   CrossAppInventory,
-  StorePurchaseService,
+  BoostPackRegistry,
+  SubscriptionManager,
+  EntitlementService,
   CreatorListingService,
   RevenueSplitEngine,
   CreatorPayoutService,
-  SelfBoostEngine,
-  BoostPackRegistry,
-  GiftingService,
-  TippingService,
-  SubscriptionManager,
-  EntitlementService,
 } from '@quant/quant-economy';
 
 // ============================================================================
-// Economy container — the QuantAds economy subsystem, built per Fastify
-// instance instead of as module-load singletons.
+// Economy container — shared, non-money economy helpers for QuantAds.
 // ============================================================================
 //
-// WHY THIS SHAPE
-//   Previously this module constructed `const wallet = new CoinWallet()` (and
-//   ~14 other services) at module-load time and exported them as shared
-//   singletons. That is a de-risk blocker for the upcoming migration onto the
-//   ecosystem-wide `@quant/credits` ledger: a `CreditWallet` needs a
-//   `PrismaClient`, which is only available on the Fastify instance — not at
-//   module load. So we move construction into a factory that is invoked once
-//   per app instance (via `app.decorate('economy', ...)`), threading an
-//   optional `prisma` dependency in for the future swap.
+// MONEY IS ON THE LEDGER
+//   All coin movement (buy / earn / store / gift / tip / boost) now runs on the
+//   durable `@quant/credits` ledger via `QuantAdsCreditsWallet` + the
+//   credits-backed services in `coin-services.ts`, constructed per route plugin
+//   from `fastify.prisma` (see the economy/store/boost/gifting routes). The
+//   ephemeral in-memory `CoinWallet` is no longer used anywhere in QuantAds, so
+//   there is a single source of truth for money (no dual-ledger).
 //
-//   BEHAVIOUR IS UNCHANGED: exactly one container (hence one in-memory
-//   `CoinWallet` and friends) is built per Fastify instance, so state is shared
-//   across requests within a process exactly as the module singleton was. This
-//   PR only changes the construction SHAPE — it stays on `@quant/quant-economy`
-//   and does not touch the credit ledger.
+//   This container therefore holds only the NON-money helpers that carry no
+//   ledger concern and are shared across route files:
+//     • catalog + inventory   — shared by the store and gifting flows.
+//     • packRegistry          — boost-pack lookup.
+//     • subscriptionManager + entitlementService — subscription tiers.
+//     • listingService + revenueSplitEngine + payoutService — creator economy.
+//
+//   Built once per Fastify instance (via `app.decorate('economy', ...)`), so
+//   their in-memory state is shared across requests exactly as before.
 
-/** The fully-wired set of economy services shared across a QuantAds instance. */
+/** The shared, non-money economy helpers for a QuantAds instance. */
 export interface EconomyContainer {
-  wallet: CoinWallet;
   catalog: VirtualGoodsCatalog;
   inventory: CrossAppInventory;
   packRegistry: BoostPackRegistry;
   subscriptionManager: SubscriptionManager;
-  buyCoinService: BuyCoinService;
-  earnCoinService: EarnCoinService;
-  purchaseService: StorePurchaseService;
+  entitlementService: EntitlementService;
   listingService: CreatorListingService;
   revenueSplitEngine: RevenueSplitEngine;
   payoutService: CreatorPayoutService;
-  boostEngine: SelfBoostEngine;
-  giftingService: GiftingService;
-  tippingService: TippingService;
-  entitlementService: EntitlementService;
 }
 
-/** Injectable dependencies for {@link createEconomyContainer}. */
-export interface EconomyContainerDeps {
-  /**
-   * Reserved for the upcoming `@quant/credits` migration: when present, the
-   * container will build `CreditWallet`-backed services against this Prisma
-   * client. Unused today — behaviour intentionally stays on the in-memory
-   * `CoinWallet` (this PR only moves construction off the module singleton).
-   */
-  prisma?: unknown;
-}
-
-/**
- * Build a fresh, fully-wired economy container. Invoked once per Fastify
- * instance. The wiring mirrors the previous module-level singletons exactly.
- */
-export function createEconomyContainer(_deps: EconomyContainerDeps = {}): EconomyContainer {
-  const wallet = new CoinWallet();
+/** Build a fresh set of shared, non-money economy helpers. */
+export function createEconomyContainer(): EconomyContainer {
   const catalog = new VirtualGoodsCatalog();
   const inventory = new CrossAppInventory();
   const packRegistry = new BoostPackRegistry();
   const subscriptionManager = new SubscriptionManager();
-
-  const buyCoinService = new BuyCoinService(wallet);
-  const earnCoinService = new EarnCoinService(wallet);
-  const purchaseService = new StorePurchaseService(wallet, catalog, inventory);
+  const entitlementService = new EntitlementService(subscriptionManager);
   const listingService = new CreatorListingService();
   const revenueSplitEngine = new RevenueSplitEngine();
   const payoutService = new CreatorPayoutService(revenueSplitEngine);
-  const boostEngine = new SelfBoostEngine(wallet, packRegistry);
-  const giftingService = new GiftingService(wallet, catalog, inventory);
-  const tippingService = new TippingService(wallet);
-  const entitlementService = new EntitlementService(subscriptionManager);
 
   return {
-    wallet,
     catalog,
     inventory,
     packRegistry,
     subscriptionManager,
-    buyCoinService,
-    earnCoinService,
-    purchaseService,
+    entitlementService,
     listingService,
     revenueSplitEngine,
     payoutService,
-    boostEngine,
-    giftingService,
-    tippingService,
-    entitlementService,
   };
 }
 
 declare module 'fastify' {
   interface FastifyInstance {
-    /** The per-instance economy container (see {@link EconomyContainer}). */
+    /** The per-instance economy helpers (see {@link EconomyContainer}). */
     economy: EconomyContainer;
   }
 }
@@ -121,11 +79,8 @@ declare module 'fastify' {
  * Idempotent — safe to call more than once on the same instance. Must run
  * before the economy routes are registered so the child plugins inherit it.
  */
-export function registerEconomyContainer(
-  app: FastifyInstance,
-  deps: EconomyContainerDeps = {},
-): void {
+export function registerEconomyContainer(app: FastifyInstance): void {
   if (!app.hasDecorator('economy')) {
-    app.decorate('economy', createEconomyContainer(deps));
+    app.decorate('economy', createEconomyContainer());
   }
 }
