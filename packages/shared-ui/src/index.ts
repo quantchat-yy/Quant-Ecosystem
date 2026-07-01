@@ -131,6 +131,8 @@ export type {
 // Hooks
 export { useAuth } from './hooks/useAuth';
 export type { UseAuthReturn, AuthUser } from './hooks/useAuth';
+export { configureQuantAuth } from './hooks/useAuth';
+export type { QuantAuthEndpoints } from './hooks/useAuth';
 
 export { useRealtime } from './hooks/useRealtime';
 export type { UseRealtimeReturn, UseRealtimeOptions } from './hooks/useRealtime';
