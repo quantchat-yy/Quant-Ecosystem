@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
+import { QuantAdsCreditsWallet } from '../services/credits-wallet.js';
+import { GiftingLedgerService, TippingLedgerService } from '../services/coin-services.js';
 
 const giftSchema = z.object({
   fromUserId: z.string().min(1),
@@ -15,7 +17,10 @@ const tipSchema = z.object({
 });
 
 export default async function giftingRoutes(fastify: FastifyInstance) {
-  const { giftingService, tippingService } = fastify.economy;
+  const { catalog, inventory } = fastify.economy;
+  const wallet = new QuantAdsCreditsWallet((fastify as unknown as { prisma: unknown }).prisma);
+  const giftingService = new GiftingLedgerService(wallet, catalog, inventory);
+  const tippingService = new TippingLedgerService(wallet);
   fastify.post('/gift', async (request, reply) => {
     const parseResult = giftSchema.safeParse(request.body);
     if (!parseResult.success) {
@@ -25,7 +30,7 @@ export default async function giftingRoutes(fastify: FastifyInstance) {
     const { fromUserId, toUserId, itemId } = parseResult.data;
 
     try {
-      const result = giftingService.sendGift(fromUserId, toUserId, itemId);
+      const result = await giftingService.sendGift(fromUserId, toUserId, itemId);
       if (!result.success) {
         throw createAppError(result.message ?? 'Gift failed', 400, 'GIFT_FAILED');
       }
@@ -46,7 +51,7 @@ export default async function giftingRoutes(fastify: FastifyInstance) {
     const { fromUserId, toUserId, amount } = parseResult.data;
 
     try {
-      const result = tippingService.sendTip(fromUserId, toUserId, amount);
+      const result = await tippingService.sendTip(fromUserId, toUserId, amount);
       if (!result.success) {
         throw createAppError(result.message ?? 'Tip failed', 400, 'TIP_FAILED');
       }

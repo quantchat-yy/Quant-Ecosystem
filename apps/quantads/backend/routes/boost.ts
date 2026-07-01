@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createAppError } from '@quant/server-core';
+import { QuantAdsCreditsWallet } from '../services/credits-wallet.js';
+import { BoostLedgerService } from '../services/coin-services.js';
 
 const activateBoostSchema = z.object({
   userId: z.string().min(1),
@@ -9,7 +11,9 @@ const activateBoostSchema = z.object({
 });
 
 export default async function boostRoutes(fastify: FastifyInstance) {
-  const { packRegistry, boostEngine } = fastify.economy;
+  const { packRegistry } = fastify.economy;
+  const wallet = new QuantAdsCreditsWallet((fastify as unknown as { prisma: unknown }).prisma);
+  const boostEngine = new BoostLedgerService(wallet, packRegistry);
   fastify.get('/packs', async (_request, reply) => {
     const packs = packRegistry.getAllPacks();
     return reply.send({ success: true, data: packs });
@@ -24,7 +28,7 @@ export default async function boostRoutes(fastify: FastifyInstance) {
     const { userId, postId, packId } = parseResult.data;
 
     try {
-      const result = boostEngine.boostPost(userId, postId, packId);
+      const result = await boostEngine.boostPost(userId, postId, packId);
       if (!result.success) {
         throw createAppError(result.message ?? 'Boost failed', 400, 'BOOST_FAILED');
       }
