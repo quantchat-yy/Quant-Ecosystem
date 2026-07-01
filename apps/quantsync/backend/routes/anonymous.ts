@@ -22,6 +22,8 @@ import { EngineAnonymousModerator } from '../services/anonymous-moderator';
 const createSchema = z.object({
   content: z.string().min(1).max(50000),
   replyToId: z.string().optional(),
+  type: z.enum(['TEXT', 'VIDEO']).optional(),
+  mediaUrls: z.array(z.string().url().max(2048)).max(10).optional(),
 });
 
 const feedQuerySchema = z.object({
@@ -69,6 +71,16 @@ export default async function anonymousRoutes(fastify: FastifyInstance) {
       throw parsed.error;
     }
     const result = await buildService().listAnonymousFeed(parsed.data);
+    return reply.send({ success: true, data: result });
+  });
+
+  // GET /anonymous/reels — anonymous VIDEO reels feed (aliases only).
+  fastify.get('/reels', async (request, reply) => {
+    const parsed = feedQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      throw parsed.error;
+    }
+    const result = await buildService().listAnonymousReels(parsed.data);
     return reply.send({ success: true, data: result });
   });
 
