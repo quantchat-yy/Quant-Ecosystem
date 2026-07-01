@@ -3041,6 +3041,33 @@ model UserModelPreference {
   @@map("user_model_preferences")
 }
 
+/// A QuantMax squad — a persistent group of users (for party games / group
+/// video rooms). Durable; the creator is the OWNER.
+model Squad {
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@map("squads")
+}
+
+/// Membership in a squad (OWNER/ADMIN/MEMBER). leftAt marks a departed member.
+model SquadMember {
+  id       String    @id @default(cuid())
+  squadId  String
+  userId   String
+  role     String    @default("MEMBER")
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
+
+  @@unique([squadId, userId])
+  @@index([squadId])
+  @@map("squad_members")
+}
+
 /// A user's QuantTube watch history (durable; previously in-memory). One row per
 /// (user, video) — re-watching updates the same row's duration + timestamp.
 model WatchHistory {
