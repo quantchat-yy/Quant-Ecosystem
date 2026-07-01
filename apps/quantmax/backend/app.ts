@@ -13,6 +13,7 @@ import economyRoutes, { createEconomyService } from './routes/economy';
 import videosRoutes from './routes/videos';
 import safetyRoutes from './routes/safety';
 import videochatRoutes from './routes/videochat';
+import squadRoutes from './routes/squads';
 import liveRoutes from './routes/live';
 import { createFeedEngines } from './lib/feed-engines';
 
@@ -53,6 +54,7 @@ export async function buildApp(config?: AppConfig) {
   await app.register(videosRoutes, { prefix: '/videos' });
   await app.register(safetyRoutes, { prefix: '/safety' });
   await app.register(videochatRoutes, { prefix: '/videochat' });
+  await app.register(squadRoutes, { prefix: '/squads' });
   await app.register(liveRoutes, { prefix: '/live' });
 
   // ==========================================================================
